@@ -19,10 +19,24 @@ interface SaveData {
   unlocks:          string[];
   /** ID of the last stage the player started a run on. Used for retry continuity. */
   lastPlayedStage:  string;
+  // Audio settings — added additively; back-filled for old saves via defaultSaveData spread.
+  audioMaster: number;
+  audioSfx:    number;
+  audioMusic:  number;
+  audioMuted:  boolean;
 }
 
 function defaultSaveData(): SaveData {
-  return { version: SCHEMA_VER, currency: 0, unlocks: [], lastPlayedStage: 'zaagaiganing-01' };
+  return {
+    version:         SCHEMA_VER,
+    currency:        0,
+    unlocks:         [],
+    lastPlayedStage: 'zaagaiganing-01',
+    audioMaster:     1,
+    audioSfx:        1,
+    audioMusic:      0.3,
+    audioMuted:      false,
+  };
 }
 
 export class SaveManager {
@@ -92,6 +106,25 @@ export class SaveManager {
     this.data.unlocks.push(id);
     this._save();
     return true;
+  }
+
+  // ── Audio settings ─────────────────────────────────────────────────────────
+
+  getAudioSettings(): { master: number; sfx: number; music: number; muted: boolean } {
+    return {
+      master: this.data.audioMaster,
+      sfx:    this.data.audioSfx,
+      music:  this.data.audioMusic,
+      muted:  this.data.audioMuted,
+    };
+  }
+
+  setAudioSettings(master: number, sfx: number, music: number, muted: boolean): void {
+    this.data.audioMaster = master;
+    this.data.audioSfx    = sfx;
+    this.data.audioMusic  = music;
+    this.data.audioMuted  = muted;
+    this._save();
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────

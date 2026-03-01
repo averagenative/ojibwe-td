@@ -134,6 +134,14 @@ export class HUD extends Phaser.GameObjects.Container {
     }
   }
 
+  /**
+   * Expose `setActiveSpeed` for keyboard shortcuts in GameScene.
+   * Syncs the visual state of the speed buttons without triggering the callback.
+   */
+  syncSpeed(mult: number): void {
+    this.setActiveSpeed(mult);
+  }
+
   private setActiveSpeed(mult: number): void {
     this.activeSpeed = mult;
     const palette: Array<{ bg: number; stroke: number; text: string }> = [
@@ -278,6 +286,41 @@ export class HUD extends Phaser.GameObjects.Container {
     if (this.abilityBtnLabel) {
       this.abilityBtnLabel.setColor('#444444');
     }
+  }
+
+  // ── mute button ───────────────────────────────────────────────────────────
+
+  private muteBtnBg?:    Phaser.GameObjects.Rectangle;
+  private muteBtnLabel?: Phaser.GameObjects.Text;
+
+  /**
+   * Create a speaker icon mute toggle button in the HUD strip.
+   * Must be called once during scene create().
+   * `onToggle` is called on click and should return the new muted state
+   * (true = muted) so the button icon can update.
+   */
+  createMuteButton(initialMuted: boolean, onToggle: () => boolean): void {
+    const btnW = 36;
+    const btnH = 30;
+    const cx   = 305;         // just right of speed buttons (speed btns end ~258)
+    const cy   = HUD_HEIGHT / 2;
+
+    this.muteBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, 0x222222)
+      .setStrokeStyle(1, 0x444444)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 2);
+
+    this.muteBtnLabel = this.scene.add.text(cx, cy, initialMuted ? '🔇' : '🔊', {
+      fontSize:   '14px',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
+
+    this.muteBtnBg.on('pointerover', () => this.muteBtnBg?.setFillStyle(0x333333));
+    this.muteBtnBg.on('pointerout',  () => this.muteBtnBg?.setFillStyle(0x222222));
+    this.muteBtnBg.on('pointerup', () => {
+      const muted = onToggle();
+      this.muteBtnLabel?.setText(muted ? '🔇' : '🔊');
+    });
   }
 
   // ── boss warning ──────────────────────────────────────────────────────────
