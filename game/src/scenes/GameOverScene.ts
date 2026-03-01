@@ -76,34 +76,44 @@ export class GameOverScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    // Buttons: RETRY | UPGRADES | MENU (three equal-width buttons)
+    // Buttons: RETRY | UPGRADES | CODEX | MENU
     const btnY = cy + 90;
-    this.makeButton(cx - 180, btnY, 'RETRY', () => {
+    const btnSpacing = 145;
+    const btnStartX = cx - btnSpacing * 1.5;
+    this.makeButton(btnStartX, btnY, 'RETRY', () => {
       this.scene.start('GameScene', { stageId, mapId, commanderId, isEndless });
     });
-    this.makeButton(cx, btnY, 'UPGRADES', () => {
+    this.makeButton(btnStartX + btnSpacing, btnY, 'UPGRADES', () => {
       this.scene.start('MetaMenuScene');
     });
-    this.makeButton(cx + 180, btnY, 'MENU', () => {
+    this.makeButton(btnStartX + btnSpacing * 2, btnY, 'CODEX', () => {
+      this.scene.start('CodexScene', { returnTo: 'GameOverScene', returnData: data });
+    }, 0x0a1a0a, 0x44aa44);
+    this.makeButton(btnStartX + btnSpacing * 3, btnY, 'MENU', () => {
       this.scene.start('MainMenuScene');
     });
   }
 
-  private makeButton(x: number, y: number, label: string, onClick: () => void): void {
-    const bg = this.add.rectangle(x, y, 160, 52, 0x1a0000)
-      .setStrokeStyle(2, 0xff2222)
+  private makeButton(
+    x: number, y: number, label: string, onClick: () => void,
+    bgColor = 0x1a0000, textColor = 0xff4444,
+  ): void {
+    const textColorStr = '#' + textColor.toString(16).padStart(6, '0');
+    const hoverBg = bgColor + 0x191919; // slightly lighter
+    const bg = this.add.rectangle(x, y, 130, 52, bgColor)
+      .setStrokeStyle(2, textColor)
       .setInteractive({ useHandCursor: true });
 
     const text = this.add.text(x, y, label, {
-      fontSize: '18px',
-      color: '#ff4444',
+      fontSize: '16px',
+      color: textColorStr,
       fontFamily: 'monospace',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    bg.on('pointerover',  () => { bg.setFillStyle(0x330000); text.setColor('#ffffff'); });
-    bg.on('pointerout',   () => { bg.setFillStyle(0x1a0000); text.setColor('#ff4444'); });
-    bg.on('pointerdown',  () => bg.setFillStyle(0x0a0000));
+    bg.on('pointerover',  () => { bg.setFillStyle(hoverBg); text.setColor('#ffffff'); });
+    bg.on('pointerout',   () => { bg.setFillStyle(bgColor); text.setColor(textColorStr); });
+    bg.on('pointerdown',  () => bg.setFillStyle(bgColor - 0x0a0000));
     bg.on('pointerup',    onClick);
   }
 }

@@ -23,6 +23,9 @@ import { getStageDef, getStageByPathFile } from '../data/stageDefs';
 import type { StageDef } from '../data/stageDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
+import { VignetteManager } from '../systems/VignetteManager';
+import { VignetteOverlay } from '../ui/VignetteOverlay';
+import { TriggerType } from '../data/vignetteDefs';
 
 const DEFAULT_TOTAL_WAVES = 20;
 const HUD_HEIGHT          = 48; // must match HUD.ts
@@ -94,6 +97,12 @@ export class GameScene extends Phaser.Scene {
   // ── audio ─────────────────────────────────────────────────────────────────
   private audioManager?: AudioManager;
 
+  // ── narrative ───────────────────────────────────────────────────────────
+  private vignetteManager!: VignetteManager;
+  private vignetteOverlay!: VignetteOverlay;
+  /** Boss key from a boss-killed event, queued for the next between-wave window. */
+  private pendingBossKillKey: string | null = null;
+
   // ── debug overlay (dev builds only) ───────────────────────────────────────
   private debugOverlay: Phaser.GameObjects.Text | null = null;
   private debugVisible = false;
@@ -139,6 +148,7 @@ export class GameScene extends Phaser.Scene {
     this.selectedTower   = null;
     this.placementDef    = null;
     this.bossOfferPanel  = null;
+    this.pendingBossKillKey = null;
     this.debugOverlay    = null;
     this.debugVisible    = false;
   }
@@ -184,6 +194,17 @@ export class GameScene extends Phaser.Scene {
     // Audio system — initialise (or resume) the singleton for this run.
     this.audioManager = AudioManager.getInstance(this);
     this.audioManager.startMusic();
+
+    // Narrative system — vignettes + codex unlocks.
+    const regionId = this.activeStageDef?.regionId ?? 'zaagaiganing';
+    this.vignetteManager = new VignetteManager(regionId);
+    this.vignetteOverlay = new VignetteOverlay(this);
+
+    // Unlock the selected commander's codex entry.
+    SaveManager.getInstance().unlockCodexEntry(`codex-commander-${this.selectedCommanderId}`);
+
+    // FIRST_PLAY vignette — check and queue for display after HUD is built.
+    const firstPlayResult = this.vignetteManager.check(TriggerType.FIRST_PLAY);
 
     // HUD (top strip)
     this.hud = new HUD(this, this.lives, this.gold);
@@ -313,6 +334,10 @@ export class GameScene extends Phaser.Scene {
       this.lives = Math.max(0, this.lives - effectiveCost);
       this.hud.setLives(this.lives);
       this.offerManager.setCurrentLives(this.lives);
+
+      // Track life loss for Act 4 ending variant.
+      if (effectiveCost > 0) this.vignetteManager.recordLifeLost();
+
       if (this.lives <= 0) this.triggerGameOver();
     });
 
@@ -350,6 +375,9 @@ export class GameScene extends Phaser.Scene {
       if (data.rewardOffer) {
         this.openBossOfferPanel(data.bossName);
       }
+
+      // Queue boss-killed vignette for the next between-wave window.
+      this.pendingBossKillKey = data.bossKey;
     });
 
     // ── Frost shatter drawback ────────────────────────────────────────────
@@ -427,6 +455,9 @@ export class GameScene extends Phaser.Scene {
       }
       // Now that the offer is chosen, show the next-wave button.
       this.hud.setNextWaveVisible(true, this.currentWave + 1, this.isEndlessMode);
+
+      // Check for between-wave vignettes (offer screen shown first, then vignette).
+      this.tryShowBetweenWaveVignette();
     });
 
     // Debug overlay — dev builds only (stripped by Vite's dead-code elimination in prod)
@@ -437,6 +468,15 @@ export class GameScene extends Phaser.Scene {
     // Register cleanup for scene stop/restart — Phaser emits 'shutdown' but does
     // NOT auto-call a shutdown() method, so we must wire it ourselves.
     this.events.once('shutdown', this.shutdown, this);
+
+    // Show FIRST_PLAY vignette if one was queued (deferred so all UI is built).
+    if (firstPlayResult) {
+      this.time.delayedCall(300, () => {
+        this.vignetteOverlay.show(firstPlayResult.vignette, firstPlayResult.seenBefore, () => {
+          // Vignette dismissed — no further action needed.
+        });
+      });
+    }
   }
 
   update(_time: number, delta: number): void {
@@ -495,6 +535,9 @@ export class GameScene extends Phaser.Scene {
 
     // Audio system cleanup — wired in Phase 21.
     this.audioManager?.destroy();
+
+    // Vignette overlay cleanup.
+    this.vignetteOverlay?.cleanup();
 
     // Drop entity references so GC can reclaim memory after restart.
     this.activeCreeps?.clear();
@@ -772,7 +815,28 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState === 'over') return;
 
     if (waveNum >= this.totalWaves && !this.isEndlessMode) {
-      // Normal mode: all waves cleared — victory screen.
+      // Normal mode: all waves cleared — check for STAGE_COMPLETE vignette.
+      const stageVignette = this.vignetteManager.check(TriggerType.STAGE_COMPLETE);
+      if (stageVignette) {
+        // Show the vignette before transitioning to the victory screen.
+        AudioManager.getInstance().playVictory();
+        this.gameState = 'between';
+        this.vignetteOverlay.show(stageVignette.vignette, stageVignette.seenBefore, () => {
+          this.gameState = 'over';
+          this.scene.start('GameOverScene', {
+            wavesCompleted: this.totalWaves,
+            totalWaves:     this.totalWaves,
+            won:            true,
+            runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
+            stageId:        this.selectedStageId,
+            mapId:          this.selectedMapId,
+            commanderId:    this.selectedCommanderId,
+          });
+        });
+        return;
+      }
+
+      // No vignette — go straight to victory screen.
       this.gameState = 'over';
       AudioManager.getInstance().playVictory();
       this.scene.start('GameOverScene', {
@@ -827,6 +891,37 @@ export class GameScene extends Phaser.Scene {
     });
     // NOTE: this.hud.setNextWaveVisible() is called by the 'between-wave-offer-picked'
     // listener after the player makes their selection.
+  }
+
+  /**
+   * After the offer is picked, check for any between-wave vignettes to show.
+   * Checks in priority order: BOSS_KILLED (queued), WAVE_COMPLETE, WAVE_START (next).
+   * Vignettes do NOT delay the next wave — the next-wave button is already visible.
+   */
+  private tryShowBetweenWaveVignette(): void {
+    let result = null;
+
+    // 1. Boss-killed vignette (queued from the boss-killed event).
+    if (this.pendingBossKillKey) {
+      result = this.vignetteManager.check(TriggerType.BOSS_KILLED, this.pendingBossKillKey);
+      this.pendingBossKillKey = null;
+    }
+
+    // 2. Wave-complete vignette for the wave that just ended.
+    if (!result) {
+      result = this.vignetteManager.check(TriggerType.WAVE_COMPLETE, this.currentWave);
+    }
+
+    // 3. Wave-start vignette for the upcoming wave.
+    if (!result) {
+      result = this.vignetteManager.check(TriggerType.WAVE_START, this.currentWave + 1);
+    }
+
+    if (result) {
+      this.vignetteOverlay.show(result.vignette, result.seenBefore, () => {
+        // Dismissed — no further action. Next-wave button is already visible.
+      });
+    }
   }
 
   /**

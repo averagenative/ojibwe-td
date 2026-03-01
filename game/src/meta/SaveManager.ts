@@ -29,6 +29,10 @@ interface SaveData {
    * Value is the highest wave number the player survived before dying.
    */
   endlessRecords:   Record<string, number>;
+  /** Vignette IDs that have been seen across all sessions. */
+  seenVignetteIds:  string[];
+  /** Codex entry IDs that have been unlocked. */
+  unlockedCodexIds: string[];
 }
 
 function defaultSaveData(): SaveData {
@@ -42,6 +46,8 @@ function defaultSaveData(): SaveData {
     audioMusic:      0.3,
     audioMuted:      false,
     endlessRecords:  {},
+    seenVignetteIds: [],
+    unlockedCodexIds: [],
   };
 }
 
@@ -154,6 +160,50 @@ export class SaveManager {
     this.data.audioMusic  = music;
     this.data.audioMuted  = muted;
     this._save();
+  }
+
+  // ── Vignettes & Codex ──────────────────────────────────────────────────────
+
+  /** Returns true if this vignette ID has been seen in any previous session. */
+  hasSeenVignette(id: string): boolean {
+    return this.data.seenVignetteIds?.includes(id) ?? false;
+  }
+
+  /** Return the full list of seen vignette IDs. */
+  getSeenVignetteIds(): string[] {
+    return this.data.seenVignetteIds ?? [];
+  }
+
+  /** Mark a vignette as seen. Idempotent. */
+  markVignetteSeen(id: string): void {
+    if (!this.data.seenVignetteIds) this.data.seenVignetteIds = [];
+    if (this.data.seenVignetteIds.includes(id)) return;
+    this.data.seenVignetteIds.push(id);
+    this._save();
+  }
+
+  /** Returns true if this codex entry ID has been unlocked. */
+  isCodexUnlocked(id: string): boolean {
+    return this.data.unlockedCodexIds?.includes(id) ?? false;
+  }
+
+  /** Unlock a codex entry. Idempotent. */
+  unlockCodexEntry(id: string): void {
+    if (!this.data.unlockedCodexIds) this.data.unlockedCodexIds = [];
+    if (this.data.unlockedCodexIds.includes(id)) return;
+    this.data.unlockedCodexIds.push(id);
+    this._save();
+  }
+
+  /** Return the full list of unlocked codex entry IDs. */
+  getUnlockedCodexIds(): string[] {
+    return this.data.unlockedCodexIds ?? [];
+  }
+
+  /** Return the count of newly unlocked codex entries since last check. */
+  getNewCodexCount(lastKnownIds: string[]): number {
+    const unlocked = this.data.unlockedCodexIds ?? [];
+    return unlocked.filter(id => !lastKnownIds.includes(id)).length;
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
