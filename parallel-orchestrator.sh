@@ -102,7 +102,7 @@ find_pending_tasks() {
       [ -d "$dir" ] || continue
       while IFS= read -r -d '' f; do
         if grep -q "^status: pending$" "$f" 2>/dev/null; then
-          pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}')
+          pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}') || pri=""
           case "$pri" in
             critical) rank=0 ;; high) rank=1 ;; medium) rank=2 ;; low) rank=3 ;; *) rank=4 ;;
           esac
