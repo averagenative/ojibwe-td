@@ -7,6 +7,7 @@ import { Projectile } from '../entities/Projectile';
 import { WaveManager } from '../systems/WaveManager';
 import { UpgradeManager } from '../systems/UpgradeManager';
 import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyManager';
+import { towerEffectiveDPS } from '../systems/BalanceCalc';
 import { HUD } from '../ui/HUD';
 import { TowerPanel, PANEL_HEIGHT } from '../ui/TowerPanel';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
@@ -61,6 +62,10 @@ export class GameScene extends Phaser.Scene {
   // ── boss offer ────────────────────────────────────────────────────────────
   /** Non-null while a boss offer panel is visible (blocks map pointer events). */
   private bossOfferPanel: BossOfferPanel | null = null;
+
+  // ── debug overlay (dev builds only) ───────────────────────────────────────
+  private debugOverlay: Phaser.GameObjects.Text | null = null;
+  private debugVisible = false;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -191,6 +196,11 @@ export class GameScene extends Phaser.Scene {
     // Input
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
+
+    // Debug overlay — dev builds only (stripped by Vite's dead-code elimination in prod)
+    if (import.meta.env.DEV) {
+      this.input.keyboard?.on('keydown-B', this.toggleDebugOverlay, this);
+    }
   }
 
   update(_time: number, delta: number): void {
@@ -218,6 +228,10 @@ export class GameScene extends Phaser.Scene {
 
     if (this.placementDef) {
       this.updatePlacementPreview(this.input.activePointer);
+    }
+
+    if (import.meta.env.DEV && this.debugVisible) {
+      this.refreshDebugOverlay();
     }
   }
 
@@ -644,6 +658,64 @@ export class GameScene extends Phaser.Scene {
           },
         },
       ],
+    );
+  }
+
+  // ── debug overlay ──────────────────────────────────────────────────────────
+
+  private toggleDebugOverlay(): void {
+    this.debugVisible = !this.debugVisible;
+    if (this.debugVisible) {
+      if (!this.debugOverlay) {
+        this.debugOverlay = this.add.text(8, HUD_HEIGHT + 4, '', {
+          fontSize:        '12px',
+          color:           '#00ff88',
+          backgroundColor: '#000000aa',
+          padding:         { x: 4, y: 4 },
+        }).setDepth(100);
+      }
+      this.debugOverlay.setVisible(true);
+      this.refreshDebugOverlay();
+    } else {
+      this.debugOverlay?.setVisible(false);
+    }
+  }
+
+  private refreshDebugOverlay(): void {
+    if (!this.debugOverlay) return;
+
+    const tower = this.selectedTower;
+    if (!tower) {
+      this.debugOverlay.setText('[B] Debug — select a tower to see DPS');
+      return;
+    }
+
+    const state = this.upgradeManager.getState(tower) ?? {
+      tiers: { A: 0, B: 0, C: 0 },
+      locked: new Set<'A' | 'B' | 'C'>(),
+      totalSpent: 0,
+    };
+
+    const dps = towerEffectiveDPS(tower.def, state, this.currentWave);
+
+    // Nearest active creep to the selected tower
+    let nearestHpStr = 'none';
+    let minDist      = Infinity;
+    for (const creep of this.activeCreeps) {
+      if (!creep.active) continue;
+      const dist = Math.hypot(creep.x - tower.x, creep.y - tower.y);
+      if (dist < minDist) {
+        minDist = dist;
+        const hp = Math.round(creep.getHpRatio() * creep.maxHp);
+        nearestHpStr = `${hp} / ${creep.maxHp}`;
+      }
+    }
+
+    this.debugOverlay.setText(
+      `[B] Debug\n` +
+      `Tower : ${tower.def.name}\n` +
+      `DPS   : ${dps.toFixed(1)}\n` +
+      `Nearest creep HP: ${nearestHpStr}`,
     );
   }
 
