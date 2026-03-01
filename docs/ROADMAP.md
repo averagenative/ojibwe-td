@@ -24,6 +24,7 @@ rather than disappearing into git history.
 | 11 | Polish & Balance | pending |
 | 12 | Tower Commanders | review-complete |
 | 13 | Mobile Browser Support | pending |
+| 14 | Cross-Platform Distribution | pending |
 
 ---
 
@@ -305,7 +306,7 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - **Multiplayer**: Deferred by design decision (Session 2). Revisit after solo loop is polished.
 - **Mobile**: Promoted to Phase 13. See below.
 - **Modding / map editor**: Low priority but architecturally possible given JSON-driven wave and map defs.
-- **Steam / Electron wrapper**: If the game gains traction, desktop distribution via Electron is straightforward.
+- **Steam / Electron wrapper**: Promoted to Phase 14. See below.
 
 ---
 
