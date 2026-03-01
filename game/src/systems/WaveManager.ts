@@ -47,6 +47,9 @@ export interface CreepKilledData {
  *  - 'boss-wave-start'  ({ bossKey, bossName })  — fired when a boss wave begins
  *  - 'boss-killed'      (BossKilledData)         — fired when a boss creep is killed
  */
+/** Boss rotation for endless waves (cycled from wave 25 onward). */
+const ENDLESS_BOSS_ROTATION = ['makwa', 'migizi', 'waabooz', 'animikiins'] as const;
+
 export class WaveManager extends Phaser.Events.EventEmitter {
   private scene:       Phaser.Scene;
   private waypoints:   Waypoint[];
@@ -62,6 +65,11 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   private waveActive   = false;
   private spawnQueue:  CreepConfig[] = [];
   private spawnTimer?: Phaser.Time.TimerEvent;
+
+  /** When true, waves beyond waveDefs.length are generated procedurally. */
+  private isEndless = false;
+  /** Scaled boss defs generated for endless boss waves, keyed by their unique key. */
+  private endlessBossOverrides: Map<string, BossDef> = new Map();
 
   constructor(
     scene:        Phaser.Scene,
@@ -80,6 +88,65 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   isActive():      boolean { return this.waveActive; }
   getWaveNumber(): number  { return this.currentWave; }
+
+  /**
+   * Enable endless mode.  Once enabled, calling startWave() with a wave number
+   * beyond the loaded waveDefs array generates procedural waves instead of
+   * returning immediately.  Call this before the first wave.
+   */
+  enableEndless(): void {
+    this.isEndless = true;
+  }
+
+  /**
+   * Generate a procedural WaveDef for endless wave `n` (n > 20).
+   *
+   * Scaling formula applied on top of wave-20 base stats:
+   *   HP    = wave20.hpMult    × (1 + 0.12 × (n − 20))
+   *   Speed = wave20.speedMult × (1 + 0.03 × (n − 20))
+   *
+   * Boss waves occur at every 5th wave (25, 30, 35 …), cycling through the
+   * four existing boss archetypes with stats scaled by the same formula.
+   */
+  generateEndlessWave(n: number): WaveDef {
+    const overflow   = n - 20;
+    const base       = this.waveDefs[19]; // wave 20 is the baseline
+    const hpMult     = base.hpMult    * (1 + 0.12 * overflow);
+    const speedMult  = base.speedMult * (1 + 0.03 * overflow);
+    const isBossWave = n % 5 === 0;
+
+    if (isBossWave) {
+      // Cycle through the boss rotation starting at wave 25.
+      const rotIdx    = Math.floor((n - 25) / 5) % ENDLESS_BOSS_ROTATION.length;
+      const bossKey   = ENDLESS_BOSS_ROTATION[(rotIdx + ENDLESS_BOSS_ROTATION.length) % ENDLESS_BOSS_ROTATION.length];
+      const baseBoss  = BOSS_DEFS[bossKey];
+      const endlessKey = `${bossKey}-ew${n}`;
+
+      this.endlessBossOverrides.set(endlessKey, {
+        ...baseBoss,
+        key:   endlessKey,
+        hp:    Math.round(baseBoss.hp    * (1 + 0.12 * overflow)),
+        speed: Math.round(baseBoss.speed * (1 + 0.03 * overflow)),
+      });
+
+      return {
+        count:      base.count,
+        intervalMs: base.intervalMs,
+        hpMult,
+        speedMult,
+        pool:       base.pool,
+        boss:       endlessKey,
+      };
+    }
+
+    return {
+      count:      base.count,
+      intervalMs: base.intervalMs,
+      hpMult,
+      speedMult,
+      pool:       base.pool,
+    };
+  }
 
   /**
    * Returns a summary of a wave's creep composition for commander ability previews.
@@ -103,7 +170,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   }
 
   startWave(waveNumber: number): void {
-    const waveDef = this.waveDefs[waveNumber - 1];
+    const waveDef: WaveDef | undefined = this.waveDefs[waveNumber - 1]
+      ?? (this.isEndless ? this.generateEndlessWave(waveNumber) : undefined);
     if (!waveDef) return;
 
     this.currentWave  = waveNumber;
@@ -113,7 +181,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     if (waveDef.boss) {
       // ── Boss wave ────────────────────────────────────────────────────────
-      const bossDef = BOSS_DEFS[waveDef.boss];
+      // Check endless overrides first (scaled versions), then global registry.
+      const bossDef = this.endlessBossOverrides.get(waveDef.boss) ?? BOSS_DEFS[waveDef.boss];
       if (!bossDef) {
         console.warn(`[WaveManager] Unknown boss key: "${waveDef.boss}"`);
         this.waveActive = false;

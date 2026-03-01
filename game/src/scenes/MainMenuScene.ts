@@ -287,7 +287,8 @@ export class MainMenuScene extends Phaser.Scene {
     const bg = this.add.rectangle(bx, by, STAGE_W, STAGE_H, bgColor)
       .setStrokeStyle(2, isLocked ? 0x333333 : 0x225522)
       .setInteractive({ useHandCursor: !isLocked })
-      .setDepth(DEPTH_STAGE);
+      .setDepth(DEPTH_STAGE)
+      .setName('stage-bg');
     created.push(bg);
 
     // Stage name
@@ -324,9 +325,37 @@ export class MainMenuScene extends Phaser.Scene {
 
       bg.on('pointerup', () => this.scene.start('MetaMenuScene'));
     } else {
-      // Tower affinity dots
-      const dots = this.buildAffinityDots(bx, by + STAGE_H / 2 - 20, stage.towerAffinities);
+      // Tower affinity dots (moved up to make room for best-wave record at bottom)
+      const dots = this.buildAffinityDots(bx, by + STAGE_H / 2 - 36, stage.towerAffinities);
       created.push(...dots);
+
+      // Best endless-wave record
+      const bestWave = SaveManager.getInstance().getEndlessRecord(stage.pathFile);
+      if (bestWave > 0) {
+        const bestText = this.add.text(bx, by + STAGE_H / 2 - 14, `∞ Best: Wave ${bestWave}`, {
+          fontSize: '11px', color: '#44aaff', fontFamily: 'monospace',
+        }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
+        created.push(bestText);
+      }
+
+      // ENDLESS button (below the tile)
+      const endlessBtnY = by + STAGE_H / 2 + 18;
+      const endlessBg = this.add.rectangle(bx, endlessBtnY, 160, 26, 0x001133)
+        .setStrokeStyle(1, 0x226688)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(DEPTH_STAGE + 1);
+      const endlessLabel = this.add.text(bx, endlessBtnY, '∞ ENDLESS', {
+        fontSize: '12px', color: '#44aaff', fontFamily: 'monospace', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(DEPTH_STAGE + 2);
+      created.push(endlessBg, endlessLabel);
+
+      endlessBg.on('pointerover', () => { endlessBg.setFillStyle(0x002255); endlessLabel.setColor('#88ccff'); });
+      endlessBg.on('pointerout',  () => { endlessBg.setFillStyle(0x001133); endlessLabel.setColor('#44aaff'); });
+      endlessBg.on('pointerup',   () => {
+        this.selectedStageId = stage.id;
+        this.highlightStage(stage.id);
+        this.scene.start('CommanderSelectScene', { stageId: stage.id, isEndless: true });
+      });
 
       bg.on('pointerover', () => bg.setFillStyle(0x1a2a1a));
       bg.on('pointerout', () => {
@@ -384,20 +413,14 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private highlightStage(stageId: string): void {
-    // Stage tiles use position-based lookup — we store them as a flat array.
-    // Walk through stage tiles and identify rectangle backgrounds by matching
-    // the interactivity of the selected stage.  Since we rebuild the tile list
-    // on region change, we just re-colour all rects.
     const region = ALL_REGIONS.find(r => r.id === this.selectedRegionId);
     if (!region) return;
     const stages = region.stages.map(id => ALL_STAGES.find(s => s.id === id)).filter(Boolean) as StageDef[];
 
-    // The first object per stage group is the bg rectangle.
-    // We stored them grouped: STAGE_W count per stage.
-    // Simpler: filter the stageTiles for Rectangle instances.
+    // Only match Rectangles tagged 'stage-bg' (skips endless-button rects etc.)
     let stageIdx = 0;
     for (const obj of this.stageTiles) {
-      if (obj instanceof Phaser.GameObjects.Rectangle && stageIdx < stages.length) {
+      if (obj instanceof Phaser.GameObjects.Rectangle && obj.name === 'stage-bg' && stageIdx < stages.length) {
         const stage = stages[stageIdx];
         const isSelected = stage.id === stageId;
         const isLocked = stage.unlockId !== null && !SaveManager.getInstance().isUnlocked(stage.unlockId);
