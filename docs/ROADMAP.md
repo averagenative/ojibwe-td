@@ -624,6 +624,91 @@ but worth noting if pixel-perfect path tracing (e.g., motion trails) is added la
 
 ---
 
+## Code Review Findings — Phase 11 (Polish & Balance)
+
+*Non-blocking items surfaced during review. Not required for merge.*
+
+### Mute button state desync on scene restart (FIXED)
+The mute toggle button in `HUD.createMuteButton()` initialized with `muted = false`
+regardless of `SoundManager.isMuted()`. After a player mutes SFX, restarts the run, and
+the HUD is recreated, the button showed "SFX" (unmuted) while SoundManager remained muted.
+Fixed: `createMuteButton` now accepts an `initialMuted` parameter; GameScene passes
+`SoundManager.getInstance().isMuted()` to keep visual state in sync across scene transitions.
+
+### Poison particle puffs: object creation rate
+`_emitPoisonPuff()` creates a new `Phaser.GameObjects.Circle` every 280ms per poisoned creep.
+With 40 simultaneously poisoned creeps, that's ~143 circle objects/second (each living 400ms,
+so ~57 concurrent at steady state). Playtests validated 60fps at 42 creeps, but if future
+phases increase creep counts or DoT prevalence, consider an object pool for particle puffs.
+
+### Muzzle flash and death tween object allocation
+`Tower.triggerMuzzleFlash()` creates a `Circle` + tween per shot; `Creep.takeDamage()` death
+branch creates a scale-out tween per kill. Both are event-driven (not per-frame), so GC
+pressure is bounded by attack/kill rates. If performance concerns arise at higher tower/creep
+counts, pool the flash circles.
+
+### SoundManager.destroy() lifecycle
+`SoundManager.destroy()` resets the singleton and closes the `AudioContext`, but is never
+called. The class comment says "Call only when the entire Phaser game is being destroyed."
+Since the game currently never destroys the Phaser instance (only scene transitions), this
+is correct. If a future "quit to desktop" or HMR teardown flow is added, wire
+`SoundManager.destroy()` into the Phaser game's `destroy` callback.
+
+### "No audio system" tech debt note is stale
+The entry "No audio system. Sound effects and music are deferred to Phase 11 polish." in the
+Known Technical Debt section is now resolved by SoundManager. Remove or strikethrough once
+Phase 11 merges.
+
+---
+
+## Code Review Findings — TASK-016 (Map & Stage Expansion)
+
+*Non-blocking items surfaced during review. Not required for merge.*
+
+### Chokepoint rubric range adjusted from AC's 1–4 to 1–8
+The acceptance criteria specified "1–4 natural chokepoints" but existing shipped maps
+already exceed this: map-01 has 6 turns, map-02 has 8. The evaluate-map script and rubric
+doc were updated to use 1–8. The check remains useful for flagging degenerate extremes
+(straight-line or 10+ turn maps).
+
+### All stages share an identical creepRoster
+All 4 stages list the same 6 creep types (`grunt`, `runner`, `brute`, `swarm`, `scout`,
+`flier`). Diversifying rosters per stage (e.g. Winter Lands omitting `flier`, Oak Savanna
+heavy on `brute` + `swarm`) would make stages feel more strategically distinct and give the
+`creepRoster` field practical meaning.
+
+### Stage-specific tower bonuses/penalties not implemented
+The AC notes Biboon-aki could have "frost towers cheap/discounted but fire towers penalised".
+No game mechanic currently reads `StageDef.towerAffinities` to modify tower costs or stats.
+The field is UI-only (displayed as affinity dots on stage tiles). Implementing cost modifiers
+from stage affinities would meaningfully differentiate stages.
+
+### All stages use waveCount: 20
+No variation. Consider shorter challenge stages (10 waves, difficulty 5) or longer endurance
+stages (30 waves) to use the `waveCount` field's flexibility.
+
+### No `status` field on StageDef
+The rubric doc references `status: pending`/`ready` as a gating mechanism, but `StageDef`
+has no status field. Stages are gated solely by `unlockId`. If future stages need a "draft"
+or "pending validation" state, add an optional `status` field.
+
+### evaluate-map script not in CI pipeline
+The rubric doc notes the script exits 0/1 for CI integration, but `npm run check` does not
+include `evaluate-map`. Consider adding it once all stages are expected to pass.
+
+### displayName parsing in MainMenuScene is fragile
+`region.displayName.split('(')` extracts the English translation by assuming parenthesized
+text. This works for all current regions but would fail for a region name containing literal
+parentheses. Consider adding a dedicated `englishName` field to `RegionDef` if more regions
+are added.
+
+### LOCKED_STAGE_IDS and getStageUnlockNode() are orphaned exports
+Both are exported from `unlockDefs.ts` but not consumed by any production code. They follow
+the pattern of `LOCKED_MAP_IDS` / `getMapUnlockNode()` (also test-only). These exports are
+consumed by the new unit tests and may be needed by future stage-gating logic.
+
+---
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

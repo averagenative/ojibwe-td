@@ -1,7 +1,7 @@
 ---
 id: TASK-016
 title: Map & Stage Expansion Framework
-status: pending
+status: done
 category: frontend
 phase: 12
 openspec_ref: "Phase 12"
