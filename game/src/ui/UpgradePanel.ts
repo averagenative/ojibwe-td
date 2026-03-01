@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Tower } from '../entities/towers/Tower';
 import type { UpgradeManager } from '../systems/UpgradeManager';
+import { PAL } from './palette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -77,8 +78,8 @@ export class UpgradePanel {
       py + UPGRADE_PANEL_HEIGHT / 2,
       width,
       UPGRADE_PANEL_HEIGHT,
-      0x080f08, 0.95,
-    ).setStrokeStyle(1, 0x334433).setDepth(DEPTH);
+      PAL.bgPanelDark, 0.95,
+    ).setStrokeStyle(1, PAL.borderPanel).setDepth(DEPTH);
 
     this.allObjects.push(this.panelBg);
 
@@ -86,26 +87,26 @@ export class UpgradePanel {
     const headerCY = py + HEADER_H / 2;
 
     this.nameTxt = scene.add.text(16, headerCY, '', {
-      fontSize: '14px', color: '#aaccaa', fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: '14px', color: PAL.textPrimary, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(this.nameTxt);
 
     const respecW = 160;
     const respecX = width - 12 - respecW / 2;
 
-    this.respecBg = scene.add.rectangle(respecX, headerCY, respecW, HEADER_H - 4, 0x221111)
-      .setStrokeStyle(1, 0x884444)
+    this.respecBg = scene.add.rectangle(respecX, headerCY, respecW, HEADER_H - 4, PAL.bgGiveUp)
+      .setStrokeStyle(1, PAL.borderDanger)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 1);
     this.allObjects.push(this.respecBg);
 
     this.respecLabel = scene.add.text(respecX, headerCY, 'RESPEC', {
-      fontSize: '11px', color: '#ff8888', fontFamily: 'monospace',
+      fontSize: '11px', color: PAL.danger, fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this.respecLabel);
 
-    this.respecBg.on('pointerover', () => this.respecBg.setFillStyle(0x441111));
-    this.respecBg.on('pointerout',  () => this.respecBg.setFillStyle(0x221111));
+    this.respecBg.on('pointerover', () => this.respecBg.setFillStyle(PAL.bgGiveUpHover));
+    this.respecBg.on('pointerout',  () => this.respecBg.setFillStyle(PAL.bgGiveUp));
     this.respecBg.on('pointerup',   () => this.handleRespec());
 
     // ── Three path columns ─────────────────────────────────────────────────
@@ -120,14 +121,14 @@ export class UpgradePanel {
 
       // Column separator line (only between columns)
       if (ci > 0) {
-        const sep = scene.add.rectangle(colX, colsTop + colsH / 2, 1, colsH, 0x224422, 0.8)
+        const sep = scene.add.rectangle(colX, colsTop + colsH / 2, 1, colsH, PAL.borderInactive, 0.8)
           .setDepth(DEPTH);
         this.allObjects.push(sep);
       }
 
       // Path header
       const headerText = scene.add.text(colCx, colsTop + 10, '', {
-        fontSize: '11px', color: '#88cc88', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: '11px', color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
       this.allObjects.push(headerText);
 
@@ -139,17 +140,17 @@ export class UpgradePanel {
       for (let ti = 0; ti < 5; ti++) {
         const rowY = colsTop + HEADER_H + ti * TIER_H + TIER_H / 2;
 
-        const pip = scene.add.arc(colX + 14, rowY, 5, 0, 360, false, 0x334433, 1)
+        const pip = scene.add.arc(colX + 14, rowY, 5, 0, 360, false, PAL.borderPanel, 1)
           .setDepth(DEPTH + 2);
         this.allObjects.push(pip);
 
         const nameText = scene.add.text(colX + 28, rowY, '', {
-          fontSize: '11px', color: '#668866', fontFamily: 'monospace',
+          fontSize: '11px', color: PAL.textDim, fontFamily: PAL.fontBody,
         }).setOrigin(0, 0.5).setDepth(DEPTH + 2);
         this.allObjects.push(nameText);
 
         const costText = scene.add.text(colX + colW - 8, rowY, '', {
-          fontSize: '10px', color: '#ffcc44', fontFamily: 'monospace',
+          fontSize: '10px', color: PAL.gold, fontFamily: PAL.fontBody,
         }).setOrigin(1, 0.5).setDepth(DEPTH + 2);
         this.allObjects.push(costText);
 
@@ -162,31 +163,31 @@ export class UpgradePanel {
       const buyY  = colsTop + HEADER_H + 5 * TIER_H + BUY_BTN_H / 2;
       const buyW  = colW - 16;
 
-      const buyBg = scene.add.rectangle(colCx, buyY, buyW, BUY_BTN_H - 4, 0x002200)
-        .setStrokeStyle(1, 0x226622)
+      const buyBg = scene.add.rectangle(colCx, buyY, buyW, BUY_BTN_H - 4, PAL.bgUpgradeBuy)
+        .setStrokeStyle(1, PAL.borderUpgBuy)
         .setInteractive({ useHandCursor: true })
         .setDepth(DEPTH + 1);
       this.allObjects.push(buyBg);
 
       const buyLabel = scene.add.text(colCx, buyY, 'BUY', {
-        fontSize: '11px', color: '#44cc44', fontFamily: 'monospace',
+        fontSize: '11px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
       this.allObjects.push(buyLabel);
 
-      buyBg.on('pointerover', () => buyBg.setFillStyle(0x004400));
-      buyBg.on('pointerout',  () => buyBg.setFillStyle(0x002200));
+      buyBg.on('pointerover', () => buyBg.setFillStyle(PAL.bgUpgradeBuyHover));
+      buyBg.on('pointerout',  () => buyBg.setFillStyle(PAL.bgUpgradeBuy));
       buyBg.on('pointerup',   () => this.handleBuy(pathId));
 
       // Locked overlay
       const lockOverlay = scene.add.rectangle(
         colCx, colsTop + colsH / 2,
         colW, colsH,
-        0x220000, 0.78,
+        PAL.bgLockedOverlay, 0.78,
       ).setDepth(DEPTH + 3);
       this.allObjects.push(lockOverlay);
 
       const lockLabel = scene.add.text(colCx, colsTop + colsH / 2, 'LOCKED', {
-        fontSize: '18px', color: '#ff4444', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: '18px', color: PAL.danger, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 4);
       this.allObjects.push(lockLabel);
 
@@ -240,10 +241,10 @@ export class UpgradePanel {
       const fee    = this.manager.getRespecCost(tower);
       const refund = this.manager.getRespecRefund(tower);
       this.respecLabel.setText(`RESPEC  -${fee}g / +${refund}g`);
-      this.respecBg.setStrokeStyle(1, 0x884444);
+      this.respecBg.setStrokeStyle(1, PAL.borderDanger);
     } else {
       this.respecLabel.setText('RESPEC  (none)');
-      this.respecBg.setFillStyle(0x111111).setStrokeStyle(1, 0x333333);
+      this.respecBg.setFillStyle(PAL.bgPanelDark).setStrokeStyle(1, PAL.borderPanel);
     }
 
     if (!state || !def) return;
@@ -265,16 +266,16 @@ export class UpgradePanel {
         const owned   = ti < purchased;
         const isNext  = ti === purchased && !isLocked;
 
-        const pipColor = isLocked ? 0x441111
-          : owned      ? 0x44ee44
-          : isNext     ? 0x88aa88
-          :               0x223322;
+        const pipColor = isLocked ? PAL.lockedPipN
+          : owned      ? PAL.accentGreenN
+          : isNext     ? PAL.borderActive
+          :               PAL.borderPanel;
         col.tierPips[ti].setFillStyle(pipColor, 1);
 
-        const nameColor = isLocked ? '#663333'
-          : owned       ? '#88dd88'
-          : isNext      ? '#aaccaa'
-          :                '#446644';
+        const nameColor = isLocked ? PAL.textLockedDim
+          : owned       ? PAL.textPrimary
+          : isNext      ? PAL.textSecondary
+          :                PAL.textDim;
         col.tierNames[ti].setText(tierDef.name).setColor(nameColor);
 
         if (isNext) {
@@ -288,15 +289,15 @@ export class UpgradePanel {
 
       // Buy button
       if (isLocked) {
-        col.buyBg.setFillStyle(0x1a0000).setStrokeStyle(1, 0x442222);
-        col.buyLabel.setText('LOCKED').setColor('#884444');
+        col.buyBg.setFillStyle(PAL.bgLockedBtn).setStrokeStyle(1, PAL.borderLockedBtn);
+        col.buyLabel.setText('LOCKED').setColor(PAL.danger);
       } else if (purchased >= 5) {
-        col.buyBg.setFillStyle(0x001100).setStrokeStyle(1, 0x224422);
-        col.buyLabel.setText('MAX TIER').setColor('#448844');
+        col.buyBg.setFillStyle(PAL.bgPanelDark).setStrokeStyle(1, PAL.borderInactive);
+        col.buyLabel.setText('MAX TIER').setColor(PAL.textSecondary);
       } else {
-        const bgColor = canAfford ? 0x003300 : 0x001100;
-        const stroke  = canAfford ? 0x22aa22 : 0x224422;
-        const color   = canAfford ? '#44ff44' : '#446644';
+        const bgColor = canAfford ? PAL.bgStartBtnPress : PAL.bgUpgradeBuy;
+        const stroke  = canAfford ? PAL.borderActive    : PAL.borderInactive;
+        const color   = canAfford ? PAL.accentGreen     : PAL.textDim;
         col.buyBg.setFillStyle(bgColor).setStrokeStyle(1, stroke);
         col.buyLabel.setText(`BUY  ${nextCost}g`).setColor(color);
       }

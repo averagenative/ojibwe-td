@@ -26,6 +26,7 @@ import { AudioManager } from '../systems/AudioManager';
 import { VignetteManager } from '../systems/VignetteManager';
 import { VignetteOverlay } from '../ui/VignetteOverlay';
 import { TriggerType } from '../data/vignetteDefs';
+import { PAL } from '../ui/palette';
 
 const DEFAULT_TOTAL_WAVES = 20;
 const HUD_HEIGHT          = 48; // must match HUD.ts
@@ -414,8 +415,8 @@ export class GameScene extends Phaser.Scene {
     // Placement preview (follows mouse when in placement mode)
     this.rangePreview  = this.add.graphics().setDepth(9).setVisible(false);
     this.placementMarker = this.add.rectangle(
-      0, 0, this.mapData.tileSize, this.mapData.tileSize, 0x00ff00, 0.2,
-    ).setStrokeStyle(2, 0x00ff00, 0.8).setDepth(10).setVisible(false);
+      0, 0, this.mapData.tileSize, this.mapData.tileSize, PAL.bgPlacementValid, 0.2,
+    ).setStrokeStyle(2, PAL.bgPlacementValid, 0.8).setDepth(10).setVisible(false);
 
     // Tower panel (bottom strip — all 6 towers)
     new TowerPanel(this, ALL_TOWER_DEFS, (def) => this.enterPlacementMode(def), () => this.gold);
@@ -588,7 +589,7 @@ export class GameScene extends Phaser.Scene {
           gfx.lineStyle(1, 0x3a3020, 0.5);
           gfx.strokeRect(x, y, tileSize, tileSize);
         } else {
-          gfx.fillStyle(0x0d1a0d, 1);
+          gfx.fillStyle(PAL.bgCard, 1);
           gfx.fillRect(x, y, tileSize, tileSize);
           gfx.lineStyle(1, 0x142014, 0.6);
           gfx.strokeRect(x, y, tileSize, tileSize);
@@ -597,11 +598,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     const spawnY = this.waypoints[0].y;
-    gfx.fillStyle(0x00ff44, 0.6);
+    gfx.fillStyle(PAL.accentGreenN, 0.6);
     gfx.fillTriangle(0, spawnY - 8, 0, spawnY + 8, 12, spawnY);
 
     const exitWp = this.waypoints[this.waypoints.length - 1];
-    gfx.fillStyle(0xff2222, 0.6);
+    gfx.fillStyle(PAL.dangerN, 0.6);
     gfx.fillTriangle(
       this.scale.width - 12, exitWp.y - 8,
       this.scale.width - 12, exitWp.y + 8,
@@ -677,11 +678,11 @@ export class GameScene extends Phaser.Scene {
     const valid = this.isBuildable(col, row) && !this.isTileOccupied(col, row);
 
     this.placementMarker.setPosition(cx, cy);
-    this.placementMarker.setFillStyle(valid ? 0x00ff00 : 0xff0000, 0.2);
-    this.placementMarker.setStrokeStyle(2, valid ? 0x00ff00 : 0xff0000, 0.8);
+    this.placementMarker.setFillStyle(valid ? PAL.bgPlacementValid : PAL.bgPlacementInvalid, 0.2);
+    this.placementMarker.setStrokeStyle(2, valid ? PAL.bgPlacementValid : PAL.bgPlacementInvalid, 0.8);
 
     this.rangePreview.clear();
-    const col32 = valid ? 0x00ff88 : 0xff4444;
+    const col32 = valid ? PAL.accentGreenN : PAL.dangerN;
     this.rangePreview.lineStyle(1, col32, 0.4);
     this.rangePreview.fillStyle(col32, 0.05);
     this.rangePreview.strokeCircle(cx, cy, this.placementDef.range);
@@ -1041,7 +1042,7 @@ export class GameScene extends Phaser.Scene {
     if (!nearest) return;
 
     nearest.takeDamage(20);
-    this.drawLightningArc(x, y, nearest.x, nearest.y, 0x88ffff);
+    this.drawLightningArc(x, y, nearest.x, nearest.y, PAL.accentBlueN);
   }
 
   /**
@@ -1229,7 +1230,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.debugOverlay) {
         this.debugOverlay = this.add.text(8, HUD_HEIGHT + 4, '', {
           fontSize:        '12px',
-          color:           '#00ff88',
+          color:           PAL.accentBlue,
           backgroundColor: '#000000aa',
           padding:         { x: 4, y: 4 },
         }).setDepth(100);
@@ -1351,7 +1352,7 @@ export class GameScene extends Phaser.Scene {
     const msg = this.add.text(width / 2, height / 2 - 80, text, {
       fontSize:        '18px',
       color:           '#ffffff',
-      fontFamily:      'monospace',
+      fontFamily:      PAL.fontBody,
       backgroundColor: '#000000cc',
       padding:         { x: 12, y: 8 },
       align:           'center',

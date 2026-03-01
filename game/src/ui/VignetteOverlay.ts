@@ -15,6 +15,7 @@
 
 import Phaser from 'phaser';
 import type { VignetteDef } from '../data/vignetteDefs';
+import { PAL } from './palette';
 
 const DEPTH          = 400;
 const CHAR_DELAY_MS  = 30;
@@ -85,21 +86,21 @@ export class VignetteOverlay {
     const portraitSize = 64;
     const portraitX = 48 + portraitSize / 2;
     const portraitY = panelY + panelH / 2;
-    const portraitColor = vignette.portrait ? 0x446644 : 0x334433;
+    const portraitColor = vignette.portrait ? PAL.borderInactive : PAL.borderPanel;
 
     const portrait = this.scene.add.rectangle(
       portraitX, portraitY,
       portraitSize, portraitSize,
       portraitColor,
-    ).setStrokeStyle(2, 0x556655).setDepth(DEPTH + 1);
+    ).setStrokeStyle(2, PAL.borderInactive).setDepth(DEPTH + 1);
     this.objects.push(portrait);
 
     // Portrait icon letter (first char of speaker, or "?").
     const iconChar = vignette.speaker?.[0] ?? '?';
     const iconText = this.scene.add.text(portraitX, portraitY, iconChar, {
       fontSize:   '28px',
-      color:      '#aaccaa',
-      fontFamily: 'monospace',
+      color:      PAL.textPrimary,
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5).setDepth(DEPTH + 2);
     this.objects.push(iconText);
@@ -114,8 +115,8 @@ export class VignetteOverlay {
         vignette.speaker,
         {
           fontSize:   '14px',
-          color:      '#88cc88',
-          fontFamily: 'monospace',
+          color:      PAL.textSecondary,
+          fontFamily: PAL.fontBody,
           fontStyle:  'bold',
         },
       ).setDepth(DEPTH + 2);
@@ -129,8 +130,8 @@ export class VignetteOverlay {
       '',
       {
         fontSize:   '15px',
-        color:      '#ccddcc',
-        fontFamily: 'monospace',
+        color:      PAL.textPrimary,
+        fontFamily: PAL.fontBody,
         lineSpacing: 6,
         wordWrap:   { width: textMaxW },
       },
@@ -144,8 +145,8 @@ export class VignetteOverlay {
       skipHint,
       {
         fontSize:   '10px',
-        color:      '#445544',
-        fontFamily: 'monospace',
+        color:      PAL.textDim,
+        fontFamily: PAL.fontBody,
       },
     ).setOrigin(1, 1).setDepth(DEPTH + 2);
     this.objects.push(hint);

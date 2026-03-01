@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
+import { PAL } from '../ui/palette';
 
 interface GameOverData {
   wavesCompleted: number;
@@ -38,15 +39,15 @@ export class GameOverScene extends Phaser.Scene {
       SaveManager.getInstance().addCurrency(currency);
     }
 
-    this.add.rectangle(cx, cy, width, height, 0x0a0a0a);
+    this.add.rectangle(cx, cy, width, height, PAL.bgDark);
 
     // Title — endless runs always end in game-over (no victory possible)
     const titleText  = won ? 'VICTORY!'   : 'GAME OVER';
-    const titleColor = won ? '#00ff44'    : '#ff2222';
+    const titleColor = won ? PAL.accentGreen : PAL.danger;
     this.add.text(cx, cy - 140, titleText, {
       fontSize: '64px',
       color: titleColor,
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -56,15 +57,15 @@ export class GameOverScene extends Phaser.Scene {
       : `Waves completed: ${waves} / ${total}`;
     this.add.text(cx, cy - 55, wavesLabel, {
       fontSize: '24px',
-      color: '#aaaaaa',
-      fontFamily: 'monospace',
+      color: PAL.textNeutral,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
     // Run currency earned
     this.add.text(cx, cy - 15, `Crystals earned: ${currency}`, {
       fontSize: '22px',
-      color: '#88ccff',
-      fontFamily: 'monospace',
+      color: PAL.accentBlue,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -72,8 +73,8 @@ export class GameOverScene extends Phaser.Scene {
     const totalCrystals = SaveManager.getInstance().getCurrency();
     this.add.text(cx, cy + 22, `Total crystals: ${totalCrystals}`, {
       fontSize: '16px',
-      color: '#557799',
-      fontFamily: 'monospace',
+      color: PAL.textMuted,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
     // Buttons: RETRY | UPGRADES | CODEX | MENU
@@ -88,7 +89,7 @@ export class GameOverScene extends Phaser.Scene {
     });
     this.makeButton(btnStartX + btnSpacing * 2, btnY, 'CODEX', () => {
       this.scene.start('CodexScene', { returnTo: 'GameOverScene', returnData: data });
-    }, 0x0a1a0a, 0x44aa44);
+    }, PAL.bgPanel, PAL.accentGreenN);
     this.makeButton(btnStartX + btnSpacing * 3, btnY, 'MENU', () => {
       this.scene.start('MainMenuScene');
     });
@@ -96,7 +97,7 @@ export class GameOverScene extends Phaser.Scene {
 
   private makeButton(
     x: number, y: number, label: string, onClick: () => void,
-    bgColor = 0x1a0000, textColor = 0xff4444,
+    bgColor: number = PAL.bgGiveUp, textColor: number = PAL.dangerN,
   ): void {
     const textColorStr = '#' + textColor.toString(16).padStart(6, '0');
     const hoverBg = bgColor + 0x191919; // slightly lighter
@@ -107,7 +108,7 @@ export class GameOverScene extends Phaser.Scene {
     const text = this.add.text(x, y, label, {
       fontSize: '16px',
       color: textColorStr,
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
