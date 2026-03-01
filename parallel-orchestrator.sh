@@ -332,21 +332,15 @@ Steps
    Fix anything that fails.
 
 2. Mark task done and move file:
-     a. Edit $task_file → change 'in-progress' to 'done'
+     a. Edit $task_file → change status: in-progress to status: done
      b. mkdir -p $(dirname $done_path)
      c. mv $task_file $done_path
 
 3. Update $REPO_DIR/docs/JOURNEY.md — append a paragraph on what was built.
 
-4. Merge worktree branch into main:
-     git -C $REPO_DIR fetch origin main
-     git -C $REPO_DIR checkout main
-     git -C $REPO_DIR pull --rebase origin main
-     git -C $REPO_DIR merge --no-ff $branch -m 'merge: $branch'
-
-5. Commit all remaining changes:
-     git -C $REPO_DIR add -A
-     git -C $REPO_DIR commit -m \"\$(cat <<'EOF'
+4. Commit ALL implementation changes in the worktree:
+     git -C $wt_path add -A
+     git -C $wt_path commit -m \"\$(cat <<'EOF'
 feat: $title
 
 <paragraph describing what was implemented and why>
@@ -354,11 +348,25 @@ feat: $title
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 EOF
 )\"
+   This is the critical step — the implement and review agents do not commit,
+   so ALL code changes live as uncommitted files in the worktree. You MUST
+   commit them here before merging, or they will be lost when the worktree
+   is removed.
 
-6. Push:
+5. Merge worktree branch into main:
+     git -C $REPO_DIR fetch origin main
+     git -C $REPO_DIR checkout main
+     git -C $REPO_DIR pull --rebase origin main
+     git -C $REPO_DIR merge --no-ff $branch
+
+6. Commit any remaining changes in main (task file move, JOURNEY.md, etc.):
+     git -C $REPO_DIR add -A
+     git -C $REPO_DIR diff --cached --quiet || git -C $REPO_DIR commit -m \"chore: ship metadata for $title\"
+
+7. Push:
      git -C $REPO_DIR push origin main
 
-7. Remove worktree and branch:
+8. Remove worktree and branch:
      git -C $REPO_DIR worktree remove --force $wt_path
      git -C $REPO_DIR branch -D $branch" \
   "$REPO_DIR" "$DEFAULT_MODEL" "ship-$(basename "$task_file" .md | cut -c1-15)"
