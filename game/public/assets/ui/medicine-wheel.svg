@@ -1,0 +1,10 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
+  <circle cx='32' cy='32' r='30' fill='none' stroke='#c8a96e' stroke-width='3'/>
+  <path d='M32 2v60M2 32h60' stroke='#c8a96e' stroke-width='2.5'/>
+  <path d='M32 2A30 30 0 0 1 62 32H32z' fill='#e8e8e8'/>
+  <path d='M62 32A30 30 0 0 1 32 62H32V32z' fill='#e83030'/>
+  <path d='M32 62A30 30 0 0 1 2 32H32z' fill='#222'/>
+  <path d='M2 32A30 30 0 0 1 32 2V32z' fill='#e8a735'/>
+  <circle cx='32' cy='32' r='6' fill='#c8a96e'/>
+  <circle cx='32' cy='32' r='30' fill='none' stroke='#c8a96e' stroke-width='3'/>
+</svg>

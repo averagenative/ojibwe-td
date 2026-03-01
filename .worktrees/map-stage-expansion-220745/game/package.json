@@ -1,0 +1,32 @@
+{
+  "name": "ojibwe-td",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "balance": "esbuild scripts/generate-balance-table.ts --bundle --platform=node --format=esm | node --input-type=module",
+    "evaluate-map": "esbuild scripts/evaluate-map.ts --bundle --platform=node --format=esm --outfile=/tmp/ojibwe-evaluate-map.mjs && node /tmp/ojibwe-evaluate-map.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^10.0.2",
+    "jsdom": "^28.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  }
+}
