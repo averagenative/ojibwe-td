@@ -252,4 +252,82 @@ export const ALL_OFFERS: OfferDef[] = [
     category:    'synergy',
     weight:      6,
   },
+
+  // ── Phase 10: 10 new offers (+42 total) ───────────────────────────────────
+
+  // Combat (3)
+  {
+    id:          'iron-barrage',
+    name:        'Iron Barrage',
+    description: 'Towers gain +4% global damage for every 5 waves cleared.',
+    category:    'combat',
+    weight:      6,
+  },
+  {
+    id:          'reapers-mark',
+    name:        "Reaper's Mark",
+    description: '5% chance on kill to arc 40 lightning damage to a nearby creep.',
+    category:    'combat',
+    weight:      6,
+  },
+  {
+    id:          'blitz-protocol',
+    name:        'Blitz Protocol',
+    description: 'All towers permanently fire 15% faster.',
+    category:    'combat',
+    weight:      5,
+  },
+
+  // Economy (3)
+  {
+    id:          'bounty-hunter',
+    name:        'Bounty Hunter',
+    description: 'Creep kill rewards are worth 20% more gold.',
+    category:    'economy',
+    weight:      7,
+  },
+  {
+    id:          'salvage',
+    name:        'Salvage',
+    description: 'One-time: your next tower sell returns 100% of its cost.',
+    category:    'economy',
+    weight:      5,
+  },
+  {
+    id:          'supply-cache',
+    name:        'Supply Cache',
+    description: 'Earn +10 gold per tower you own at the start of each wave.',
+    category:    'economy',
+    weight:      6,
+  },
+
+  // Synergy (4)
+  {
+    id:          'voltaic-slime',
+    name:        'Voltaic Slime',
+    description: 'Tesla chain hits deal +25% damage to Poison-stacked creeps.',
+    category:    'synergy',
+    weight:      6,
+  },
+  {
+    id:          'concussion-shell',
+    name:        'Concussion Shell',
+    description: 'Cannon shots slow targets by 15% for 600ms.',
+    category:    'synergy',
+    weight:      6,
+  },
+  {
+    id:          'overgrowth',
+    name:        'Overgrowth',
+    description: 'Poison towers gain +15% range.',
+    category:    'synergy',
+    weight:      6,
+  },
+  {
+    id:          'thunder-quake',
+    name:        'Thunder Quake',
+    description: 'Tesla chain hits deal 15 AoE damage in 30px to nearby creeps.',
+    category:    'synergy',
+    weight:      5,
+  },
 ];
