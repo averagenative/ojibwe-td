@@ -1,7 +1,7 @@
 ---
 id: TASK-018
 title: Tower Commanders (Character System)
-status: in-progress
+status: done
 category: frontend
 phase: 12
 openspec_ref: "Phase 12"
