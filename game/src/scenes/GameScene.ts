@@ -17,6 +17,8 @@ import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
 import type { MapData } from '../types/MapData';
 import { TILE } from '../types/MapData';
+import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
+import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
 
 const TOTAL_WAVES       = 20;
 const HUD_HEIGHT        = 48; // must match HUD.ts
@@ -68,12 +70,22 @@ export class GameScene extends Phaser.Scene {
   /** Non-null while a boss offer panel is visible (blocks map pointer events). */
   private bossOfferPanel: BossOfferPanel | null = null;
 
+  // ── commander ────────────────────────────────────────────────────────────
+  private commanderDef: CommanderDef | null = null;
+  private commanderState: CommanderRunState | null = null;
+  private selectedCommanderId = 'nokomis';
+
   // ── debug overlay (dev builds only) ───────────────────────────────────────
   private debugOverlay: Phaser.GameObjects.Text | null = null;
   private debugVisible = false;
 
   constructor() {
     super({ key: 'GameScene' });
+  }
+
+  /** Called by Phaser before create() — captures scene-start data. */
+  init(data?: { commanderId?: string }): void {
+    this.selectedCommanderId = data?.commanderId ?? 'nokomis';
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -90,12 +102,45 @@ export class GameScene extends Phaser.Scene {
     this.gold      = this.mapData.startingGold;
     this.waypoints = this.buildPixelWaypoints();
 
+    // ── Commander system ─────────────────────────────────────────────────────
+    this.commanderDef   = getCommanderDef(this.selectedCommanderId) ?? null;
+    this.commanderState = this.commanderDef
+      ? defaultCommanderRunState(this.commanderDef.id)
+      : null;
+
+    if (this.commanderDef && this.commanderState) {
+      // Apply the commander's aura (sets persistent state values).
+      this.commanderDef.aura.apply(this.commanderState);
+
+      // Waabizii: +2 starting lives
+      if (this.commanderState.startingLivesBonus > 0) {
+        this.lives += this.commanderState.startingLivesBonus;
+      }
+    }
+
+    // Store wave-start lives for Nokomis ability
+    if (this.commanderState) {
+      this.commanderState.waveStartLives = this.lives;
+    }
+
     this.renderMap();
 
     // HUD (top strip)
     this.hud = new HUD(this, this.lives, this.gold);
     this.hud.setWave(0, TOTAL_WAVES);
     this.hud.createSpeedControls((mult) => this.onSpeedChange(mult));
+
+    // Commander HUD elements (name, portrait, ability button)
+    if (this.commanderDef && this.commanderState) {
+      this.hud.createCommanderDisplay(
+        this.commanderDef.name,
+        this.commanderDef.aura.name,
+      );
+      this.hud.createAbilityButton(
+        this.commanderDef.ability.name,
+        () => this.activateCommanderAbility(),
+      );
+    }
 
     // Upgrade system
     this.upgradeManager = new UpgradeManager(
@@ -118,9 +163,23 @@ export class GameScene extends Phaser.Scene {
     // ── Scene event listeners ──────────────────────────────────────────────
 
     this.events.on('creep-killed', (data: CreepKilledData) => {
-      this.gold += data.reward;
+      // Oshkaabewis: +1 gold per creep kill (stacks with base reward)
+      const cmdBonus = this.commanderState?.killGoldBonus ?? 0;
+      this.gold += data.reward + cmdBonus;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
+
+      // Nokomis: heal 1 life per N kills (kills across all towers)
+      if (this.commanderState && this.commanderState.healEveryNKills > 0) {
+        this.commanderState.killsSinceLastHeal++;
+        if (this.commanderState.killsSinceLastHeal >= this.commanderState.healEveryNKills) {
+          this.commanderState.killsSinceLastHeal = 0;
+          const maxLives = this.mapData.startingLives + (this.commanderState.startingLivesBonus);
+          this.lives = Math.min(this.lives + 1, maxLives);
+          this.hud.setLives(this.lives);
+          this.offerManager.setCurrentLives(this.lives);
+        }
+      }
 
       // ── Combat offer effects triggered on kill ─────────────────────────
       const killEffects = this.offerManager.onKill();
@@ -166,7 +225,12 @@ export class GameScene extends Phaser.Scene {
         this.upgradePanel?.refresh();
       }
 
-      this.lives = Math.max(0, this.lives - liveCost);
+      // Waabizii ability: absorb escapes — creep-escaped event still fires,
+      // but the life-decrement is intercepted.
+      const absorbed = this.commanderState?.absorbEscapes ?? false;
+      const effectiveCost = absorbed ? 0 : liveCost;
+
+      this.lives = Math.max(0, this.lives - effectiveCost);
       this.hud.setLives(this.lives);
       this.offerManager.setCurrentLives(this.lives);
       if (this.lives <= 0) this.triggerGameOver();
@@ -213,6 +277,15 @@ export class GameScene extends Phaser.Scene {
 
     // ── Poison C: DoT spread on death ────────────────────────────────────
     this.events.on('creep-died-poisoned', (data: CreepDiedPoisonedData) => {
+      // Waabizii aura: 25% chance to heal 1 life when a poisoned creep dies
+      const healChance = this.commanderState?.poisonKillHealChance ?? 0;
+      if (healChance > 0 && Math.random() < healChance) {
+        const maxLives = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
+        this.lives = Math.min(this.lives + 1, maxLives);
+        this.hud.setLives(this.lives);
+        this.offerManager.setCurrentLives(this.lives);
+      }
+
       if (data.isShattered) return; // Frost C prevents the spread
       if (!this.upgradeManager.hasPoisonSpread()) return;
 
