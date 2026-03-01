@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { ALL_COMMANDERS } from '../data/commanderDefs';
 import type { CommanderDef } from '../data/commanderDefs';
 import { SaveManager } from '../meta/SaveManager';
+import { getCommanderUnlockNode } from '../meta/unlockDefs';
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -135,7 +136,9 @@ export class CommanderSelectScene extends Phaser.Scene {
 
   private buildCard(def: CommanderDef, bx: number, by: number): void {
     const save = SaveManager.getInstance();
-    const isLocked = !def.defaultUnlocked && !save.isUnlocked('unlock-' + def.id);
+    const unlockNode = getCommanderUnlockNode(def.id);
+    const isLocked = !def.defaultUnlocked &&
+      !(unlockNode ? save.isUnlocked(unlockNode.id) : false);
     const roleColor = ROLE_COLORS[def.role] ?? 0xaaaaaa;
 
     // Card background
@@ -185,9 +188,12 @@ export class CommanderSelectScene extends Phaser.Scene {
         align: 'center',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
 
-      this.add.text(bx, by + CARD_H / 2 - 16, `Cost: ${def.unlockCost}`, {
+      const costLabel = unlockNode
+        ? `Cost: ${unlockNode.cost} crystals`
+        : 'Coming soon';
+      this.add.text(bx, by + CARD_H / 2 - 16, costLabel, {
         fontSize: '10px',
-        color: '#555555',
+        color: '#557799',
         fontFamily: 'monospace',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
     } else {
@@ -226,7 +232,14 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     // Click handler — first click selects; second click on the same card opens the sheet.
     bg.on('pointerup', () => {
-      if (isLocked) return;
+      if (isLocked) {
+        if (unlockNode) {
+          this.showLockedPopup(unlockNode.cost);
+        } else {
+          this.showComingSoonPopup();
+        }
+        return;
+      }
       if (this.selectedId === def.id && !this.sheetContainer) {
         this.openCharacterSheet(def);
       } else {
@@ -378,6 +391,121 @@ export class CommanderSelectScene extends Phaser.Scene {
     closeBg.on('pointerup', () => this.closeCharacterSheet());
 
     // Also close on overlay click
+    overlay.on('pointerup', () => this.closeCharacterSheet());
+  }
+
+  // ── Locked Commander Popup ──────────────────────────────────────────────
+
+  private showLockedPopup(cost: number): void {
+    if (this.sheetContainer) return;
+
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    this.sheetContainer = this.add.container(0, 0).setDepth(SHEET_DEPTH);
+
+    // Dim overlay
+    const overlay = this.add.rectangle(cx, cy, width, height, 0x000000, 0.6)
+      .setInteractive();
+    this.sheetContainer.add(overlay);
+
+    // Popup background
+    const popupW = 400;
+    const popupH = 130;
+    const popup = this.add.rectangle(cx, cy, popupW, popupH, 0x0d1520)
+      .setStrokeStyle(2, 0x0088cc);
+    this.sheetContainer.add(popup);
+
+    // Message text
+    const msg = this.add.text(cx, cy - 24,
+      `Unlock in the Upgrades menu for ${cost} crystals`, {
+        fontSize: '14px',
+        color: '#88ccff',
+        fontFamily: 'monospace',
+        wordWrap: { width: popupW - 40 },
+        align: 'center',
+      }).setOrigin(0.5).setDepth(SHEET_DEPTH + 1);
+    this.sheetContainer.add(msg);
+
+    // "GO TO UPGRADES" confirm button
+    const confirmBg = this.add.rectangle(cx - 80, cy + 30, 160, 36, 0x003355)
+      .setStrokeStyle(1, 0x0088cc)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(SHEET_DEPTH + 2);
+    const confirmLabel = this.add.text(cx - 80, cy + 30, 'GO TO UPGRADES', {
+      fontSize: '13px',
+      color: '#88ccff',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
+    this.sheetContainer.add([confirmBg, confirmLabel]);
+
+    confirmBg.on('pointerover', () => confirmBg.setFillStyle(0x004466));
+    confirmBg.on('pointerout', () => confirmBg.setFillStyle(0x003355));
+    confirmBg.on('pointerup', () => {
+      this.scene.start('MetaMenuScene');
+    });
+
+    // Cancel button
+    const cancelBg = this.add.rectangle(cx + 80, cy + 30, 100, 36, 0x222222)
+      .setStrokeStyle(1, 0x444444)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(SHEET_DEPTH + 2);
+    const cancelLabel = this.add.text(cx + 80, cy + 30, 'CANCEL', {
+      fontSize: '13px',
+      color: '#888888',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
+    this.sheetContainer.add([cancelBg, cancelLabel]);
+
+    cancelBg.on('pointerover', () => cancelLabel.setColor('#cccccc'));
+    cancelBg.on('pointerout', () => cancelLabel.setColor('#888888'));
+    cancelBg.on('pointerup', () => this.closeCharacterSheet());
+
+    // Close on overlay click
+    overlay.on('pointerup', () => this.closeCharacterSheet());
+  }
+
+  private showComingSoonPopup(): void {
+    if (this.sheetContainer) return;
+
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    this.sheetContainer = this.add.container(0, 0).setDepth(SHEET_DEPTH);
+
+    const overlay = this.add.rectangle(cx, cy, width, height, 0x000000, 0.6)
+      .setInteractive();
+    this.sheetContainer.add(overlay);
+
+    const popupW = 300;
+    const popupH = 100;
+    const popup = this.add.rectangle(cx, cy, popupW, popupH, 0x0d1520)
+      .setStrokeStyle(2, 0x444444);
+    this.sheetContainer.add(popup);
+
+    const msg = this.add.text(cx, cy - 12, 'Coming soon', {
+      fontSize: '16px',
+      color: '#888888',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(SHEET_DEPTH + 1);
+    this.sheetContainer.add(msg);
+
+    const dismissBg = this.add.rectangle(cx, cy + 28, 80, 30, 0x222222)
+      .setStrokeStyle(1, 0x444444)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(SHEET_DEPTH + 2);
+    const dismissLabel = this.add.text(cx, cy + 28, 'OK', {
+      fontSize: '13px',
+      color: '#888888',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
+    this.sheetContainer.add([dismissBg, dismissLabel]);
+
+    dismissBg.on('pointerup', () => this.closeCharacterSheet());
     overlay.on('pointerup', () => this.closeCharacterSheet());
   }
 

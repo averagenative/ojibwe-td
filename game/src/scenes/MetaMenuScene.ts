@@ -5,8 +5,9 @@ import type { UnlockNode } from '../meta/unlockDefs';
 
 const BG_COLOR    = 0x0a0a0a;
 const PANEL_W     = 420;
-const NODE_H      = 90;
-const NODE_GAP    = 12;
+const NODE_H          = 90;
+const NODE_H_COMPACT  = 60;
+const NODE_GAP        = 10;
 const NODE_PAD_X  = 20;
 
 export class MetaMenuScene extends Phaser.Scene {
@@ -39,11 +40,41 @@ export class MetaMenuScene extends Phaser.Scene {
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
-    // Unlock nodes
+    // Group unlock nodes by type
+    const mapNodes = UNLOCK_NODES.filter(n => n.effect.type === 'map');
+    const commanderNodes = UNLOCK_NODES.filter(n => n.effect.type === 'commander');
+
     let y = 140;
-    for (const node of UNLOCK_NODES) {
-      this.renderNode(cx, y, node, save, balanceText);
-      y += NODE_H + NODE_GAP;
+
+    // Maps section
+    if (mapNodes.length > 0) {
+      this.add.text(cx - PANEL_W / 2, y, 'Maps', {
+        fontSize:   '16px',
+        color:      '#557755',
+        fontFamily: 'monospace',
+        fontStyle:  'bold',
+      });
+      y += 28;
+      for (const node of mapNodes) {
+        this.renderNode(cx, y, node, save, balanceText);
+        y += NODE_H + NODE_GAP;
+      }
+    }
+
+    // Commanders section
+    if (commanderNodes.length > 0) {
+      y += 8;
+      this.add.text(cx - PANEL_W / 2, y, 'Commanders', {
+        fontSize:   '16px',
+        color:      '#557755',
+        fontFamily: 'monospace',
+        fontStyle:  'bold',
+      });
+      y += 28;
+      for (const node of commanderNodes) {
+        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT);
+        y += NODE_H_COMPACT + NODE_GAP;
+      }
     }
 
     // Back button
@@ -60,6 +91,7 @@ export class MetaMenuScene extends Phaser.Scene {
     node: UnlockNode,
     save: SaveManager,
     balanceText: Phaser.GameObjects.Text,
+    nodeHeight: number = NODE_H,
   ): void {
     const owned      = save.isUnlocked(node.id);
     const affordable = !owned && save.getCurrency() >= node.cost;
@@ -90,19 +122,19 @@ export class MetaMenuScene extends Phaser.Scene {
       labelColor = '#888888';
     }
 
-    const panel = this.add.rectangle(cx, y + NODE_H / 2, PANEL_W, NODE_H, bgColor)
+    const panel = this.add.rectangle(cx, y + nodeHeight / 2, PANEL_W, nodeHeight, bgColor)
       .setStrokeStyle(2, borderColor);
 
     // Label
-    this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 14, node.label, {
-      fontSize:   '18px',
+    this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 10, node.label, {
+      fontSize:   '16px',
       color:      labelColor,
       fontFamily: 'monospace',
       fontStyle:  'bold',
     });
 
     // Description
-    this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 40, node.description, {
+    this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, node.description, {
       fontSize:    '12px',
       color:       '#888888',
       fontFamily:  'monospace',
@@ -111,7 +143,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // Cost / status badge on the right
     const badgeX = cx + PANEL_W / 2 - NODE_PAD_X - 50;
-    const badgeY = y + NODE_H / 2;
+    const badgeY = y + nodeHeight / 2;
 
     if (owned) {
       this.add.text(badgeX, badgeY, 'OWNED', {
@@ -133,7 +165,7 @@ export class MetaMenuScene extends Phaser.Scene {
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }).setOrigin(0.5);
-      this.add.text(badgeX, badgeY + 20, 'crystals', {
+      this.add.text(badgeX, badgeY + 16, 'crystals', {
         fontSize:   '10px',
         color:      '#557799',
         fontFamily: 'monospace',
