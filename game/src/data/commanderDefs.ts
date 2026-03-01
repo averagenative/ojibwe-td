@@ -42,6 +42,8 @@ export interface CommanderRunState {
   healEveryNKills: number;
   /** Chance (0–1) to heal 1 life when a poisoned creep dies. */
   poisonKillHealChance: number;
+  /** When true, towers retain their current target if still alive and in range. */
+  stickyTargeting: boolean;
 
   // ── Runtime counters (modified by GameScene) ─────────────────────────────
 
@@ -76,6 +78,7 @@ export function defaultCommanderRunState(commanderId: string): CommanderRunState
     startingLivesBonus: 0,
     healEveryNKills: 0,
     poisonKillHealChance: 0,
+    stickyTargeting: false,
 
     killsSinceLastHeal: 0,
     waveStartLives: 0,
@@ -255,6 +258,7 @@ const MAKOONS: CommanderDef = {
     description: 'All tower base damage +12%; towers do not lose target on creep speed burst.',
     apply(state) {
       state.globalDamageMult = 1.12;
+      state.stickyTargeting = true;
     },
   },
   ability: {

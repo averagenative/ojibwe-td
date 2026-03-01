@@ -5,6 +5,8 @@ export interface ProjectileOptions {
   color?:       number;  // fill colour, default yellow
   radius?:      number;  // dot radius, default 5
   speed:        number;  // px/s
+  /** Multiplier applied to speed (e.g. 1.25 = 25% faster). Default 1.0. */
+  speedMult?:   number;
   damage:       number;
   /** If set, deals AoE damage to all creeps within this radius on arrival */
   splashRadius?: number;
@@ -73,7 +75,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
     const dx   = creep.x - this.x;
     const dy   = creep.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const step = (this.opts.speed * delta) / 1000;
+    const step = (this.opts.speed * (this.opts.speedMult ?? 1.0) * delta) / 1000;
 
     if (dist <= step) {
       this.hitCreep(creep);
@@ -90,7 +92,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
     const dx   = pos.x - this.x;
     const dy   = pos.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const step = (this.opts.speed * delta) / 1000;
+    const step = (this.opts.speed * (this.opts.speedMult ?? 1.0) * delta) / 1000;
 
     if (dist <= step) {
       this.arriveAtPosition(pos.x, pos.y);
