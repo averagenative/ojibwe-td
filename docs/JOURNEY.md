@@ -1,0 +1,251 @@
+# GreenTD — Project Journey
+
+How this project started, the questions that shaped it, and the decisions made along the way.
+
+---
+
+## How It Started
+
+The project began with a simple frustration: mobile tower defense games are unplayable because of ads. The original Green TD was a Warcraft 3 custom map that had genuine mechanical depth — aura stacking, tower synergies, meaningful wave variety — but it requires WC3 to play and hasn't been accessible in years.
+
+The idea: build a browser-native successor that preserves that design soul, strips out every friction point, and adds a roguelike progression layer to give it the replayability of Vampire Survivors.
+
+The working directory `/home/dmichael/projects/greentd/` already contained the extracted Green TD Evo v2.06 map files, including the 17,738-line Lua game logic and converted PNG assets — ready to use as temporary placeholder art.
+
+---
+
+## The Conversation — Prompts & Decisions
+
+### 1. Initial Concept Pitch
+
+**Prompt:**
+> "I want to build a web browser version of greentd a warcraft 3 tower defense map... I want a game with evolving towers and upgrades and eventually make it a rogue-like similar to vampire survivors... I want to eventually define multiple paths/maps and something that is very replayable..."
+
+**What came out of it:**
+- Confirmed the core vision: browser TD + roguelike meta = underserved market gap
+- Identified the key missing decisions: multiplayer vs solo, what "evolving towers" means, run structure, where meta-progression lives, asset IP concerns
+- Established the tech recommendation: Phaser 3 + TypeScript + Vite + localStorage
+
+**Key questions raised:**
+- Solo or multiplayer first?
+- What does "evolving towers" mean exactly?
+- What is one "run"?
+- Desktop-only or mobile browser too?
+- Do you have art resources for original assets?
+
+---
+
+### 2. Multiplayer Decision
+
+**Prompt:**
+> "I want to start solo first and maybe look at multiplayer in the future. I don't want to deal with sessions and websocket etc and all of that difficulty of net code"
+
+**Decision locked:** Solo first. Multiplayer deferred indefinitely.
+
+**Why this matters:** Removes an enormous category of complexity — no session management, no synchronization, no server infrastructure. The entire architecture can be client-side.
+
+---
+
+### 3. Tower Evolution System
+
+**Prompt (selecting from options presented):**
+> "Branching evolution paths (ice tower → frost nova OR blizzard)?"
+
+**What came out of it:**
+- Narrowed evolution model to BTD6-style: 3 upgrade paths per tower, pick 2 to advance past tier 3
+- Established that branch choice is **per-tower** and **permanent** with a gold-cost respec option
+- Defined that specialization should carry **meaningful drawbacks** — not just stat nerfs but specific mechanical conflicts between tower types
+- Established the "lean Vampire Survivors" direction for the roguelike layer
+
+---
+
+### 4. Full Design Session
+
+**Prompt:**
+> "branching evolution -- 1 run should be 15-20 minutes -- BTD6-style -- some of the upgrades should focus on specific upgrades should maybe have some drawbacks that make other types of towers weaker -- let's go with 6 archetypes -- I think permanent might be kind of interesting with respec costs -- I think it should be a tower level decision let's make decisions that lean more vampire survivors"
+
+**Decisions locked:**
+| Decision | Choice |
+|---|---|
+| Run length | 15-20 min, fixed wave count |
+| Branching | BTD6-style, 3 paths, pick 2 past tier 3 |
+| Branch scope | Per-tower, permanent, respec costs gold |
+| Archetypes | 6 to start |
+| Drawbacks | Specialization creates cross-tower mechanical conflicts |
+| Feel | Lean Vampire Survivors |
+
+**The 6 archetypes defined:**
+| Tower | Role | Drawback |
+|---|---|---|
+| Cannon | Single target, high damage | Armor shred path useless vs unarmored; execute path useless vs high-HP |
+| Frost | Slow and control | Heavy freeze shatters enemies, destroying Poison DoT stacks |
+| Mortar | AoE splash, ground only | Heavy spec blast radius disrupts Frost slow zones |
+| Poison | DoT stacking, attrition | Heavy spec makes creeps resistant to movement slows |
+| Tesla | Chain/bounce, multi-target | Heavy overload debuffs nearby allied towers via chain |
+| Aura | Passive buff to nearby towers | Deep spec on one type actively reduces effectiveness of others in range |
+
+---
+
+### 5. Platform and Meta-Progression
+
+**Prompt:**
+> "I want to go desktop browser first and pivot to mobile later. I think passive unlocks for new tower types and then a separate tree for stat bonuses. and yes currency from run to unlock new items/characters"
+
+**Decisions locked:**
+- Desktop browser primary; mobile deferred
+- Two meta-progression trees: **unlock tree** (tower types, upgrade path variants, maps) and **stat bonus tree** (starting gold, lives, cost reduction)
+- Run currency model: earn on any run completion or failure, spend in meta screen
+
+---
+
+### 6. Formalizing in OpenSpec
+
+**Prompt:**
+> "Now that we've discussed this, let's formalize it using OpenSpec. Can you: 1. Use the openspec CLI to create a new change called 'greentd-project'. 2. Create a proposal.md that captures the problem, who benefits, solution, and key technical approach. 3. Show me the generated proposal."
+
+**What happened:**
+- Discovered `openspec` CLI was installed at `/home/dmichael/.npm-global/bin/openspec`
+- Ran `openspec init` to initialize in the project
+- Ran `openspec new change greentd-project` to create the change directory
+- Wrote `proposal.md` capturing: Why, What Changes, Tower Archetypes, Replayability Design, Capabilities
+
+**OpenSpec structure created:**
+```
+openspec/
+├── changes/
+│   ├── archive/
+│   └── greentd-project/
+│       ├── .openspec.yaml
+│       ├── README.md
+│       ├── proposal.md
+│       └── tasks.md
+└── specs/
+```
+
+---
+
+### 7. Proposal Review
+
+**Prompt:**
+> "Let's review the OpenSpec proposal together: Does it capture everything we discussed? Are there sections that need more detail? Did we miss any important considerations? Should we adjust the scope or approach?"
+
+**Gaps identified and fixed:**
+- The 6 archetypes were named but not described — added full table with roles and specific drawbacks
+- Drawback mechanic was vague — specified exact cross-tower conflicts
+- Wave randomness was missing — added as explicit replayability pillar
+- Roguelike offers weren't VS-flavored — tightened to "global passive abilities that stack and compound"
+- Aura tower's strategic role was lost — highlighted it as the most "Green TD" mechanic
+- Endless mode was buried as an impl note — moved to future consideration
+- Multiple maps weren't framed as a replayability pillar — elevated alongside roguelike offers and wave randomness
+
+---
+
+### 8. Business Value Analysis
+
+**Prompt:**
+> "You are a Business Value Analyst. Review our OpenSpec proposal and add a section that identifies: 1. Who benefits and how (be specific about user personas). 2. What problem it solves. 3. Priority based on value delivered. 4. What happens if we don't build this. 5. Success metrics."
+
+**Added to proposal.md:**
+- **4 personas:** Mobile TD Refugee (primary), Nostalgic WC3 Player, Roguelike Enthusiast, Lunch-Break Gamer
+- **The Problem, Precisely:** "There is no answer to: I want to play a good, deep tower defense game right now, in my browser, for free, with no strings."
+- **Priority ordered by player value** (not technical interest): core loop → tower variety → roguelike layer → meta-progression → multiple maps → endless mode
+- **What if we don't build this:** gap stays unfilled; nostalgic audience shrinks, roguelike audience grows
+- **Success metrics:** engagement (session length, run completion rate, multi-run sessions), retention (day-7 return, meta spend rate), accessibility (time to first tower placed ≤ 90s)
+
+---
+
+### 9. Task Breakdown
+
+**Prompt:**
+> "Based on this proposal, let's create the tasks.md file. Break down the implementation into concrete achievable tasks. Order by dependencies. Each task should be doable in one focused session. Group into phases that each deliver working software. Use OpenSpec format."
+
+**Result:** 101 tasks across 11 phases written to `openspec/changes/greentd-project/tasks.md`.
+
+| Phase | Deliverable | Tasks |
+|---|---|---|
+| 1. Scaffold | Phaser 3 in browser | 6 |
+| 2. Walking Skeleton | Creeps walk a path, lives drain | 9 |
+| 3. Core TD Loop | Place tower, shoot, earn gold | 10 |
+| 4. All 6 Archetypes | Full tower roster functional | 9 |
+| 5. Wave System | 20 waves, scaling, randomized | 9 |
+| 6. Upgrade Trees | BTD6-style branches + respec + drawbacks | 14 |
+| 7. Roguelike Layer | Between-wave offer cards | 9 |
+| 8. Run Loop | Complete run start to finish | 7 |
+| 9. Meta-Progression | Persistent unlocks + stat trees | 9 |
+| 10. Second Map | Two maps, selection UI | 6 |
+| 11. Polish & Balance | Feels good, difficulty is right | 13 |
+
+---
+
+### 10. OpenSpec Status Report
+
+**Prompt:**
+> "Can you analyze the openspec/ directory and give me a status report: active projects, archived projects, task completion status, blockers."
+
+**Status at that point:**
+- 1 active change: `greentd-project`
+- 0 archived changes
+- `openspec list` reported `0/101 tasks`
+- No `status.json` exists — OpenSpec tracks state via checkbox format in tasks.md
+- One hard blocker identified: assets are Blizzard IP, original art required before public launch
+- `specs/` and `design.md` were skipped — soft risk if project grows
+
+---
+
+### 11. File-Based Task Coordination System
+
+**Prompt:**
+> "Can you set up a file-based task coordination system? Create a tasks/ directory structure, task files for backend/frontend/infrastructure, a script to distribute requirements to task files, and show how to manually add a task."
+
+**What was built:**
+```
+tasks/
+├── _template.md
+├── scripts/
+│   ├── distribute.sh     ← parses openspec tasks.md → creates task files
+│   └── new-task.sh       ← creates individual ad-hoc tasks
+├── infrastructure/pending/   ← Phase 1 (scaffold, build tooling)
+├── backend/pending/          ← Phases 2-6, 9 (game logic, systems, data)
+└── frontend/pending/         ← Phases 7-8, 10-11 (UI, scenes, polish)
+```
+
+11 task files generated from openspec tasks.md. State tracked by folder position: `pending/` → `in-progress/` → `done/`.
+
+---
+
+## Current State of the Repository
+
+```
+greentd/
+├── Green_TD_Evo_v2.06.w3x              ← original WC3 map (Blizzard IP, reference only)
+├── Green_TD_Evo_v2.06_extracted/       ← extracted map files (Lua, assets, data)
+├── assets/                             ← raw BLP assets
+├── converted_assets/                   ← PNG-converted assets (temporary game art)
+├── openspec/
+│   └── changes/greentd-project/
+│       ├── proposal.md                 ← full game design + business value
+│       └── tasks.md                   ← 101 implementation tasks (0 complete)
+├── tasks/
+│   ├── infrastructure/pending/         ← 1 file, 6 tasks
+│   ├── backend/pending/                ← 5 files + 1 manual, 52 tasks
+│   └── frontend/pending/              ← 5 files, 44 tasks
+└── docs/
+    ├── JOURNEY.md                      ← this file
+    ├── game-design.md
+    ├── openspec-guide.md
+    ├── task-system.md
+    └── tech-stack.md
+```
+
+**Nothing has been built yet.** All 101 tasks are pending. The next step is Phase 1: scaffold.
+
+---
+
+## What Comes Next
+
+1. `cd` into the project and run `npm create vite@latest` to start Phase 1
+2. Move `tasks/infrastructure/pending/phase-1-project-scaffold.md` to `in-progress/`
+3. Work through the 6 scaffold tasks
+4. Move to `done/` and start Phase 2
+
+The game doesn't exist yet. The plan does.

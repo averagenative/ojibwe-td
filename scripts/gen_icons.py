@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""
+Generate 8 original 64×64 PNG tower icons for Ojibwe TD.
+Uses only SVG primitives — no Blizzard-derived content.
+Run from any directory; outputs to converted_assets/.
+"""
+
+import os
+import subprocess
+import math
+
+OUT = os.path.join(os.path.dirname(__file__), '..', 'converted_assets')
+TMP = '/tmp/ojibwe_icons'
+os.makedirs(TMP, exist_ok=True)
+
+
+def icon(name: str, body: str) -> None:
+    """Wrap body SVG in the standard 64×64 template and convert to PNG."""
+    svg = f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Dark rounded background -->
+  <rect x="1" y="1" width="62" height="62" rx="9" ry="9"
+        fill="#0a120a" stroke="#1e301e" stroke-width="2"/>
+{body}
+</svg>"""
+    svg_path = os.path.join(TMP, f'{name}.svg')
+    png_path = os.path.join(OUT, f'{name}.png')
+
+    with open(svg_path, 'w') as f:
+        f.write(svg)
+
+    result = subprocess.run(
+        ['convert', '-background', 'none', '-density', '96', svg_path, png_path],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        print(f'  ERROR {name}: {result.stderr.strip()}')
+    else:
+        print(f'  ✓  {name}.png')
+
+
+def arm(cx, cy, r, angle_deg):
+    """Return (x, y) of a point at angle_deg from center at radius r."""
+    a = math.radians(angle_deg)
+    return cx + r * math.cos(a), cy + r * math.sin(a)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. CANNON — solid iron cannonball with specular highlight
+# ─────────────────────────────────────────────────────────────────────────────
+icon('icon-cannon', """
+  <!-- Ball shadow -->
+  <circle cx="33" cy="36" r="19" fill="#1a2233" opacity="0.6"/>
+  <!-- Ball body -->
+  <circle cx="31" cy="33" r="19" fill="#3c4e5a"/>
+  <!-- Mid tone band -->
+  <circle cx="31" cy="33" r="14" fill="#4a606e"/>
+  <!-- Specular highlight -->
+  <ellipse cx="25" cy="25" rx="6" ry="4" fill="#c0d4e0" opacity="0.55"
+           transform="rotate(-25 25 25)"/>
+  <ellipse cx="23" cy="23" rx="2.5" ry="1.5" fill="white" opacity="0.7"
+           transform="rotate(-25 23 23)"/>
+""")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. FROST — 6-arm snowflake, icy blue-white
+# ─────────────────────────────────────────────────────────────────────────────
+# Arms at 90°, 30°, 150° (and their opposites at 270°, 210°, 330°)
+_frost_lines = []
+for angle in [90, 30, 150]:
+    x1, y1 = arm(32, 32, 22, angle)
+    x2, y2 = arm(32, 32, 22, angle + 180)
+    _frost_lines.append(
+        f'  <line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}"/>'
+    )
+    # Crossbars at 55% and 85% from center on each arm end
+    for dist in [13, 20]:
+        for sign in [1, -1]:
+            ex, ey = arm(32, 32, dist * sign, angle)
+            bx1, by1 = arm(ex, ey, 5, angle + 90)
+            bx2, by2 = arm(ex, ey, 5, angle - 90)
+            _frost_lines.append(
+                f'  <line x1="{bx1:.1f}" y1="{by1:.1f}" x2="{bx2:.1f}" y2="{by2:.1f}"/>'
+            )
+
+icon('icon-frost', f"""
+  <g stroke="#88ccff" stroke-width="2.5" stroke-linecap="round">
+{chr(10).join(_frost_lines)}
+  </g>
+  <!-- Hex tips -->
+  {''.join(f'<circle cx="{arm(32,32,22,a)[0]:.1f}" cy="{arm(32,32,22,a)[1]:.1f}" r="2.5" fill="#bbddff"/>'
+           for a in [90, 150, 210, 270, 330, 30])}
+  <!-- Center hub -->
+  <circle cx="32" cy="32" r="4" fill="#ddeeff"/>
+""")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. MORTAR — starburst explosion (ground AoE)
+# ─────────────────────────────────────────────────────────────────────────────
+# 8-pointed star polygon: outer at r=21, inner at r=9, 8 points
+_mortar_pts = []
+for i in range(16):
+    r = 21 if i % 2 == 0 else 9
+    a = math.radians(i * 22.5 - 90)
+    _mortar_pts.append(f'{32 + r*math.cos(a):.1f},{32 + r*math.sin(a):.1f}')
+_mortar_star = ' '.join(_mortar_pts)
+
+icon('icon-mortar', f"""
+  <!-- Outer glow -->
+  <polygon points="{_mortar_star}" fill="#ff7700" opacity="0.35"/>
+  <!-- Core star -->
+  <polygon points="{_mortar_star}" fill="#ffaa22" transform="scale(0.85) translate(5.6 5.6)"/>
+  <!-- Hot center -->
+  <circle cx="32" cy="32" r="10" fill="#ffdd44"/>
+  <circle cx="32" cy="32" r="5"  fill="white" opacity="0.8"/>
+""")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. POISON — toxic green teardrop / drop
+# ─────────────────────────────────────────────────────────────────────────────
+icon('icon-poison', """
+  <!-- Drop shadow -->
+  <path d="M33,52 C33,52 14,36 14,27 A18,18 0 0,1 50,27 C50,36 33,52 33,52 Z"
+        fill="#001a00" opacity="0.4" transform="translate(1,2)"/>
+  <!-- Drop body -->
+  <path d="M32,51 C32,51 13,35 13,26 A19,19 0 0,1 51,26 C51,35 32,51 32,51 Z"
+        fill="#22bb44"/>
+  <!-- Inner sheen -->
+  <path d="M32,43 C32,43 19,32 19,26 A13,13 0 0,1 42,24 C44,32 32,43 32,43 Z"
+        fill="#44dd66" opacity="0.6"/>
+  <!-- Bubble highlight -->
+  <ellipse cx="26" cy="22" rx="4" ry="2.5" fill="white" opacity="0.45"
+           transform="rotate(-20 26 22)"/>
+  <!-- Skull dots (eyes) -->
+  <circle cx="27" cy="29" r="2.5" fill="#003300"/>
+  <circle cx="37" cy="29" r="2.5" fill="#003300"/>
+  <!-- Skull mouth (3 small lines) -->
+  <rect x="26" y="34" width="3" height="3" rx="1" fill="#003300"/>
+  <rect x="30.5" y="34" width="3" height="3" rx="1" fill="#003300"/>
+  <rect x="35" y="34" width="3" height="3" rx="1" fill="#003300"/>
+""")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. TESLA — lightning bolt, electric yellow
+# ─────────────────────────────────────────────────────────────────────────────
+icon('icon-tesla', """
+  <!-- Outer glow / shadow -->
+  <polygon points="40,8 27,32 35,32 24,56 45,28 35,28 46,8"
+           fill="#ff9900" opacity="0.3" transform="translate(1,1)"/>
+  <!-- Bolt body -->
+  <polygon points="39,8 26,32 34,32 23,56 44,28 34,28 45,8"
+           fill="#ffdd00"/>
+  <!-- Inner highlight -->
+  <polygon points="36,14 27,32 33,32 26,48 40,30 34,30 41,14"
+           fill="white" opacity="0.45"/>
+""")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. AURA — concentric golden radiance rings
+# ─────────────────────────────────────────────────────────────────────────────
+icon('icon-aura', """
+  <!-- Outer ring glow -->
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#ffcc00" stroke-width="2" opacity="0.25"/>
+  <!-- Outer ring -->
+  <circle cx="32" cy="32" r="22" fill="none" stroke="#ffcc00" stroke-width="3" opacity="0.55"/>
+  <!-- Mid ring -->
+  <circle cx="32" cy="32" r="15" fill="none" stroke="#ffdd44" stroke-width="3" opacity="0.75"/>
+  <!-- Inner ring -->
+  <circle cx="32" cy="32" r="9"  fill="none" stroke="#ffee88" stroke-width="3"/>
+  <!-- Core -->
+  <circle cx="32" cy="32" r="4"  fill="#fff0aa"/>
+  <!-- 8 radial tick marks between rings -->
+  """ + ''.join(
+      f'<line x1="{arm(32,32,11,a)[0]:.1f}" y1="{arm(32,32,11,a)[1]:.1f}"'
+      f'      x2="{arm(32,32,19,a)[0]:.1f}" y2="{arm(32,32,19,a)[1]:.1f}"'
+      f'      stroke="#ffdd44" stroke-width="1.5" opacity="0.6"/>'
+      for a in range(0, 360, 45)
+  ) + """
+""")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. DICE — classic six-face die
+# ─────────────────────────────────────────────────────────────────────────────
+# Dots layout for face 6: two columns of 3
+_dot_positions = [
+    (20, 20), (44, 20),   # top row
+    (20, 32), (44, 32),   # mid row
+    (20, 44), (44, 44),   # bottom row
+]
+_dots = ''.join(
+    f'<circle cx="{x}" cy="{y}" r="4" fill="#111"/>'
+    for x, y in _dot_positions
+)
+
+icon('icon-dice', f"""
+  <!-- Die body -->
+  <rect x="8" y="8" width="48" height="48" rx="10" ry="10"
+        fill="#f0f0e8" stroke="#888" stroke-width="2"/>
+  <!-- Top face highlight -->
+  <rect x="10" y="10" width="44" height="20" rx="8" ry="8"
+        fill="white" opacity="0.4"/>
+  <!-- Dots -->
+  {_dots}
+""")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8. MYSTERY — card back with 4-pointed star sparkle
+# ─────────────────────────────────────────────────────────────────────────────
+# 4-pointed star: outer r=20, inner r=8
+_star4 = []
+for i in range(8):
+    r = 20 if i % 2 == 0 else 8
+    a = math.radians(i * 45 - 90)
+    _star4.append(f'{32 + r*math.cos(a):.1f},{32 + r*math.sin(a):.1f}')
+_star4_pts = ' '.join(_star4)
+
+# Smaller secondary star rotated 45°
+_star4b = []
+for i in range(8):
+    r = 12 if i % 2 == 0 else 5
+    a = math.radians(i * 45 - 45)
+    _star4b.append(f'{32 + r*math.cos(a):.1f},{32 + r*math.sin(a):.1f}')
+_star4b_pts = ' '.join(_star4b)
+
+icon('icon-mystery', f"""
+  <!-- Outer glow -->
+  <polygon points="{_star4_pts}" fill="#aa44ff" opacity="0.3"
+           transform="scale(1.08) translate(-2.56 -2.56)"/>
+  <!-- Main star -->
+  <polygon points="{_star4_pts}" fill="#cc66ff"/>
+  <!-- Inner star -->
+  <polygon points="{_star4b_pts}" fill="#eebb ff"/>
+  <!-- Highlight -->
+  <polygon points="{_star4b_pts}" fill="white" opacity="0.5"
+           transform="scale(0.5) translate(32 32)"/>
+  <!-- Center dot -->
+  <circle cx="32" cy="32" r="4" fill="white" opacity="0.9"/>
+  <!-- Corner sparkle dots -->
+  <circle cx="18" cy="18" r="2" fill="#dd99ff" opacity="0.7"/>
+  <circle cx="46" cy="18" r="2" fill="#dd99ff" opacity="0.7"/>
+  <circle cx="18" cy="46" r="2" fill="#dd99ff" opacity="0.7"/>
+  <circle cx="46" cy="46" r="2" fill="#dd99ff" opacity="0.7"/>
+""")
+
+
+print('\nDone — 8 icons written to converted_assets/')
