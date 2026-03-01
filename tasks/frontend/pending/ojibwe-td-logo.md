@@ -13,31 +13,28 @@ phase: polish
 Create a proper logo for Ojibwe TD and wire it into the main menu and any
 future loading screens.
 
-## Logo Generation (manual step — do via ChatGPT/DALL-E)
+## Logo Generation (automated — run the script, then pick one)
 
-Generate the logo image manually via ChatGPT with DALL-E, then save it to
-`game/public/assets/ui/logo.png`.
+A dedicated script generates all three variants in one go:
 
-**Suggested prompt:**
+```bash
+node scripts/generate-logo.js
+```
 
-> Ojibwe TD — game logo, Anishinaabe Woodland art style, bold geometric flat
-> illustration, clean thick black outlines, limited palette of 4 colours:
-> forest green #2D5016, marsh green #6B8F3E, lake blue #4A7FA5, warm cream
-> #e8dcc8. The words "Ojibwe TD" in large stylised text with Woodland-art
-> decorative elements — feathers, birchbark scroll border, medicine wheel
-> motif, or eagle silhouette. Pure white background or transparent.
-> No photorealism, no gradients, no drop shadows. Square format 1024×1024.
+Output lands in `game/public/assets/logo-review/`:
+- `logo-v1-text.png` — text-forward (square, 1024×1024)
+- `logo-v2-emblem.png` — circular badge with thunderbird (square, 1024×1024)
+- `logo-v3-banner.png` — horizontal panel, bird left / text right (1792×1024)
 
-**Variants to try:**
-1. Text-forward: large "OJIBWE TD" lettering with small decorative border
-2. Emblem: circular badge design with text + central icon (eagle or thunderbird)
-3. Horizontal banner: text left, icon right — suitable for a header
+Review the three images, pick one, then:
 
-**Post-processing:**
-- Strip background via `node scripts/remove-backgrounds.js` (or remove.bg web)
-- Resize to 512×256 (or whatever fits the main menu layout) via
-  `scripts/resize-assets.js` with a custom size entry
-- Save final to `game/public/assets/ui/logo.png`
+```bash
+# Copy the winner
+cp game/public/assets/logo-review/logo-vN-*.png game/public/assets/ui/logo.png
+
+# Optional: strip white background
+node scripts/remove-backgrounds.js --only ui
+```
 
 ## Integration Acceptance Criteria
 
