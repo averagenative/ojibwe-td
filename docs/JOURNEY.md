@@ -569,3 +569,15 @@ TASK-041 transforms the bare-bones HTML shell into a cohesive branded experience
 **MainMenuScene title removed.** The large in-canvas "OJIBWE TD" text title is hidden — the HTML header logo now handles branding so there is no double title. `BootScene.preload()` still loads the `logo` texture key for potential in-game use (loading screen watermark etc.).
 
 **Test coverage.** `src/systems/__tests__/pageLayout.test.ts` adds 14 Vitest unit tests validating: logo `max-width` expression, responsive scaling constants, `game-container` flex behaviour, Phaser parent ID, background colour consistency, and no-overflow layout properties. `src/systems/__tests__/mobileCompat.test.ts` is extended with 15 tests confirming touch-action and viewport constraints remain intact alongside the new header layout. The full suite passes at 605 tests with 0 type errors.
+
+---
+
+### TASK-039 — Replace Hacker-Green Palette with Natural Ojibwe Colours
+
+The UI had an unintentional "90s hacker terminal" aesthetic: electric greens (`#00ff44`, `#00ff88`), near-black backgrounds (`0x0a0a0a`), and monospace fonts throughout. The generated art draws on a warm Northern Ontario palette — forest greens, granite greys, lake blues, marsh tones — making the mismatch jarring. TASK-039 reconciles the two.
+
+**Palette module.** A new `src/ui/palette.ts` exports a single `PAL` constant object containing every colour used across the UI. Numeric hex values cover scene backgrounds and Phaser graphics fills; string hex values cover Phaser text styles. This makes future palette adjustments a one-file edit. Key mappings: primary accent moves from neon `#00ff44` to marsh green `#6B8F3E`; secondary accent from `#00ff88` to lake blue `#4A7FA5`; backgrounds from near-black `0x0a0a0a` to deep forest `0x0d1208`; economy gold from `#ffcc00` to autumn gold `#c8952a`; danger from `#ff4444` to ember red `#b84c2a`. The Medicine Wheel colours on the Aura tower are left as culturally specified.
+
+**Systematic replacement.** Every hard-coded hex literal across nine UI files is replaced with the corresponding `PAL.*` reference: `MainMenuScene.ts`, `GameScene.ts`, `BetweenWaveScene.ts`, `GameOverScene.ts`, `HUD.ts`, `TowerPanel.ts`, `VignetteOverlay.ts`, `BossOfferPanel.ts`, and `UpgradePanel.ts`. The `fontFamily: 'monospace'` override is removed where it appeared; scene text now inherits the `Georgia` serif set in the Phaser game config, giving headers a warmer, less terminal feel.
+
+**Test coverage.** `src/systems/__tests__/palette.test.ts` adds 26 Vitest tests verifying: all required keys are present in `PAL`, numeric values are valid 24-bit integers, string values are valid CSS hex colours, contrast ratios meet the 4.5:1 WCAG AA threshold for primary text against panel backgrounds, and Medicine Wheel colours are unchanged from their culturally specified values. The full suite passes at 617 tests with 0 type errors.
