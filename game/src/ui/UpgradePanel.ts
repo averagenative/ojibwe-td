@@ -49,8 +49,13 @@ export class UpgradePanel {
 
   /** GameScene sets this so buying deducts gold and refreshes HUD. */
   onBuy?:    (cost: number) => void;
-  /** GameScene sets this so respec adds back the refund gold. */
-  onRespec?: (refund: number) => void;
+  /**
+   * GameScene sets this so respec adds back the refund gold.
+   * @param refund     Gold returned to the player after the respec fee.
+   * @param fee        Gold lost as the respec penalty (0.25 × totalSpent by default).
+   *                   The Resourceful offer uses this to grant a full refund.
+   */
+  onRespec?: (refund: number, fee: number) => void;
 
   constructor(
     scene:   Phaser.Scene,
@@ -325,9 +330,11 @@ export class UpgradePanel {
     const state = this.manager.getState(this.currentTower);
     if (!state || state.totalSpent === 0) return;
 
+    // Capture the fee BEFORE respec resets totalSpent to 0.
+    const fee    = this.manager.getRespecCost(this.currentTower);
     const refund = this.manager.respec(this.currentTower);
     if (refund > 0) {
-      this.onRespec?.(refund);
+      this.onRespec?.(refund, fee);
       this.refresh();
     }
   }

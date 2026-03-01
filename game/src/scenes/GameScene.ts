@@ -5,7 +5,9 @@ import { Tower, ALL_TOWER_DEFS } from '../entities/towers/Tower';
 import type { TowerDef } from '../entities/towers/Tower';
 import { Projectile } from '../entities/Projectile';
 import { WaveManager } from '../systems/WaveManager';
+import type { CreepKilledData } from '../systems/WaveManager';
 import { UpgradeManager } from '../systems/UpgradeManager';
+import { OfferManager } from '../systems/OfferManager';
 import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyManager';
 import { towerEffectiveDPS } from '../systems/BalanceCalc';
 import { HUD } from '../ui/HUD';
@@ -47,6 +49,7 @@ export class GameScene extends Phaser.Scene {
   // ── systems ───────────────────────────────────────────────────────────────
   private waveManager!:    WaveManager;
   private upgradeManager!: UpgradeManager;
+  private offerManager!:   OfferManager;
 
   // ── ui ────────────────────────────────────────────────────────────────────
   private hud!:            HUD;
@@ -100,6 +103,10 @@ export class GameScene extends Phaser.Scene {
       () => this.activeCreeps,
     );
 
+    // Roguelike offer system
+    this.offerManager = new OfferManager();
+    this.offerManager.setCurrentLives(this.lives);
+
     // Wave system
     const creepTypeDefs = this.cache.json.get('creep-types');
     const waveDefs      = this.cache.json.get('wave-defs');
@@ -110,21 +117,65 @@ export class GameScene extends Phaser.Scene {
 
     // ── Scene event listeners ──────────────────────────────────────────────
 
-    this.events.on('creep-killed', (reward: number) => {
-      this.gold += reward;
+    this.events.on('creep-killed', (data: CreepKilledData) => {
+      this.gold += data.reward;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
+
+      // ── Combat offer effects triggered on kill ─────────────────────────
+      const killEffects = this.offerManager.onKill();
+
+      // Chain Reaction: arc 20 lightning damage to nearest active creep.
+      if (killEffects.chainReaction) {
+        this.triggerChainReaction(data.x, data.y);
+      }
+
+      // Shockwave: every 10th kill deals 60 AoE damage in 80px radius.
+      if (killEffects.shockwave) {
+        this.triggerShockwave(data.x, data.y);
+      }
+
+      // Lifesteal: heal 1 life every 50 kills.
+      if (killEffects.lifeGain) {
+        this.lives = Math.min(this.lives + 1, this.mapData.startingLives);
+        this.hud.setLives(this.lives);
+        this.offerManager.setCurrentLives(this.lives);
+      }
+
+      // Bloodlust: +10% attack speed on all towers for 3 s.
+      if (this.offerManager.hasBloodlust()) {
+        for (const t of this.towers) t.applyBloodlust(3000);
+      }
+
+      // Afterburn: brief fire DoT on nearby creeps.
+      if (this.offerManager.hasAfterburn()) {
+        this.triggerAfterburn(data.x, data.y);
+      }
     });
 
-    // liveCost defaults to 1 for normal creeps; boss escape emits 3.
-    this.events.on('creep-escaped', (liveCost: number = 1) => {
+    // liveCost is 1 for normal creeps; boss escape emits 3.
+    this.events.on('creep-escaped', (data: { liveCost: number; reward: number }) => {
+      const liveCost = data?.liveCost ?? 1;
+      const reward   = data?.reward   ?? 0;
+
+      // Tax Collector: escaped creeps refund 50% of their gold value.
+      const taxRefund = this.offerManager.getEscapeRefund(reward);
+      if (taxRefund > 0) {
+        this.gold += taxRefund;
+        this.hud.setGold(this.gold);
+        this.upgradePanel?.refresh();
+      }
+
       this.lives = Math.max(0, this.lives - liveCost);
       this.hud.setLives(this.lives);
+      this.offerManager.setCurrentLives(this.lives);
       if (this.lives <= 0) this.triggerGameOver();
     });
 
     this.events.on('wave-bonus', (bonus: number) => {
-      this.gold += bonus;
+      // Gold Rush offer: wave completion bonus +50%.
+      const adjustedBonus = Math.round(bonus * this.offerManager.getWaveBonusMult());
+      this.gold += adjustedBonus;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
     });
@@ -139,7 +190,8 @@ export class GameScene extends Phaser.Scene {
     // ── Boss killed: award bonus gold, visual effects, offer ─────────────
     this.events.on('boss-killed', (data: BossKilledData) => {
       // Bonus gold reward (in addition to normal kill gold from 'creep-killed').
-      this.gold += data.rewardGold;
+      // War Chest offer: +200 additional gold on boss kills.
+      this.gold += data.rewardGold + this.offerManager.getBossKillBonus();
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
 
@@ -186,8 +238,10 @@ export class GameScene extends Phaser.Scene {
       this.gold -= cost;
       this.hud.setGold(this.gold);
     };
-    this.upgradePanel.onRespec = (refund) => {
-      this.gold += refund;
+    this.upgradePanel.onRespec = (refund: number, fee: number) => {
+      // Resourceful offer: respec is free — add back the normally-lost fee.
+      const actualRefund = this.offerManager.isRespecFree() ? refund + fee : refund;
+      this.gold += actualRefund;
       this.hud.setGold(this.gold);
     };
 
@@ -201,6 +255,19 @@ export class GameScene extends Phaser.Scene {
     // Input
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
+
+    // ── BetweenWaveScene offer-picked event ───────────────────────────────
+    // Fired by BetweenWaveScene after the player selects a card.
+    // Applies any instant-gold offer effect and reveals the next-wave button.
+    this.events.on('between-wave-offer-picked', (data: { offerId: string; instantGold: number }) => {
+      if (data.instantGold > 0) {
+        this.gold += data.instantGold;
+        this.hud.setGold(this.gold);
+        this.upgradePanel?.refresh();
+      }
+      // Now that the offer is chosen, show the next-wave button.
+      this.hud.setNextWaveVisible(true, this.currentWave + 1);
+    });
 
     // Debug overlay — dev builds only (stripped by Vite's dead-code elimination in prod)
     if (import.meta.env.DEV) {
@@ -378,9 +445,12 @@ export class GameScene extends Phaser.Scene {
     const { col, row } = this.worldToTile(worldX, worldY);
     if (!this.isBuildable(col, row)) return;
     if (this.isTileOccupied(col, row)) return;
-    if (this.gold < this.placementDef.cost) return;
 
-    this.gold -= this.placementDef.cost;
+    // Compute actual cost with all active offer modifiers (Merchant's Favor, etc.).
+    const actualCost = this.offerManager.applyPlacementCost(this.placementDef.cost);
+    if (this.gold < actualCost) return;
+
+    this.gold -= actualCost;
     this.hud.setGold(this.gold);
 
     const tower = new Tower(
@@ -391,6 +461,7 @@ export class GameScene extends Phaser.Scene {
       this.placementDef,
       () => this.activeCreeps,
       (proj) => this.projectiles.add(proj),
+      this.offerManager,
     );
 
     // Register with upgrade manager
@@ -421,8 +492,12 @@ export class GameScene extends Phaser.Scene {
 
   private sellTower(tower: Tower): void {
     // Refund includes base tower cost + upgrade investment, both at the sell rate.
+    // Scavenger offer raises the refund rate to 85%.
     const upgradeSpent = this.upgradeManager.getState(tower)?.totalSpent ?? 0;
-    const refund       = calculateSellRefund(tower.def.cost + upgradeSpent);
+    const refund       = calculateSellRefund(
+      tower.def.cost + upgradeSpent,
+      this.offerManager.getSellRefundRate(),
+    );
     this.gold += refund;
     this.hud.setGold(this.gold);
 
@@ -481,8 +556,39 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Update OfferManager wave state.
+    this.offerManager.setWavesCompleted(waveNum);
+    this.offerManager.resetWavePlacements();
+
+    // Interest: bonus gold = 2% of current gold each wave.
+    const interestBonus = this.offerManager.getInterestBonus(this.gold);
+    if (interestBonus > 0) {
+      this.gold += interestBonus;
+      this.hud.setGold(this.gold);
+    }
+
+    // Jackpot: 20% chance of +200 bonus gold each wave.
+    const jackpotBonus = this.offerManager.getJackpotBonus();
+    if (jackpotBonus > 0) {
+      this.gold += jackpotBonus;
+      this.hud.setGold(this.gold);
+    }
+
+    if (interestBonus > 0 || jackpotBonus > 0) {
+      this.upgradePanel?.refresh();
+    }
+
     this.gameState = 'between';
-    this.hud.setNextWaveVisible(true, this.currentWave + 1);
+
+    // Launch the roguelike offer selection scene (runs on top of GameScene).
+    // The next-wave button is hidden until the player picks an offer.
+    this.scene.launch('BetweenWaveScene', {
+      offerManager:      this.offerManager,
+      waveJustCompleted: waveNum,
+      nextWave:          this.currentWave + 1,
+    });
+    // NOTE: this.hud.setNextWaveVisible() is called by the 'between-wave-offer-picked'
+    // listener after the player makes their selection.
   }
 
   /**
@@ -565,6 +671,101 @@ export class GameScene extends Phaser.Scene {
       tower.setAuraDamageMult   (damageMult.get(tower)  ?? 1.0);
       tower.setAuraRangePct     (rangePct.get(tower)    ?? 0);
     }
+  }
+
+  // ── combat offer effects ──────────────────────────────────────────────────
+
+  /**
+   * Chain Reaction: arc 20 lightning damage to the nearest creep from kill position.
+   */
+  private triggerChainReaction(x: number, y: number): void {
+    let nearest: Creep | null = null;
+    let minDist               = Infinity;
+
+    for (const c of this.activeCreeps) {
+      if (!c.active) continue;
+      const d = Math.hypot(c.x - x, c.y - y);
+      if (d < minDist) { minDist = d; nearest = c; }
+    }
+
+    if (!nearest) return;
+
+    nearest.takeDamage(20);
+    this.drawLightningArc(x, y, nearest.x, nearest.y, 0x88ffff);
+  }
+
+  /**
+   * Shockwave: every 10th kill deals 60 AoE damage to creeps within 80 px.
+   */
+  private triggerShockwave(x: number, y: number): void {
+    const RADIUS = 80;
+    const DAMAGE = 60;
+
+    for (const c of this.activeCreeps) {
+      if (!c.active) continue;
+      if (Math.hypot(c.x - x, c.y - y) <= RADIUS) {
+        c.takeDamage(DAMAGE);
+      }
+    }
+
+    // Expanding ring visual.
+    const ring = this.add.graphics().setDepth(30);
+    ring.lineStyle(3, 0xffffff, 0.9);
+    ring.strokeCircle(x, y, 10);
+    this.tweens.add({
+      targets:  ring,
+      scaleX:   RADIUS / 10,
+      scaleY:   RADIUS / 10,
+      alpha:    0,
+      duration: 300,
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  /**
+   * Afterburn: apply a brief fire DoT to creeps within 60 px of the kill position.
+   */
+  private triggerAfterburn(x: number, y: number): void {
+    const RADIUS = 60;
+
+    for (const c of this.activeCreeps) {
+      if (!c.active) continue;
+      if (Math.hypot(c.x - x, c.y - y) <= RADIUS) {
+        c.applyDot(12, 500, 4); // 12 dmg × 4 ticks = 48 total over 2 s
+      }
+    }
+  }
+
+  /**
+   * Draw a brief jagged lightning arc between two world points.
+   */
+  private drawLightningArc(
+    x1: number, y1: number,
+    x2: number, y2: number,
+    color = 0xffffff,
+  ): void {
+    const gfx = this.add.graphics();
+    gfx.setDepth(30);
+    gfx.lineStyle(2, color, 0.9);
+    gfx.beginPath();
+    gfx.moveTo(x1, y1);
+
+    const mx1 = x1 + (x2 - x1) * 0.33 + (Math.random() - 0.5) * 18;
+    const my1 = y1 + (y2 - y1) * 0.33 + (Math.random() - 0.5) * 18;
+    const mx2 = x1 + (x2 - x1) * 0.66 + (Math.random() - 0.5) * 18;
+    const my2 = y1 + (y2 - y1) * 0.66 + (Math.random() - 0.5) * 18;
+
+    gfx.lineTo(mx1, my1);
+    gfx.lineTo(mx2, my2);
+    gfx.lineTo(x2, y2);
+    gfx.strokePath();
+
+    this.tweens.add({
+      targets:  gfx,
+      alpha:    0,
+      duration: 150,
+      onComplete: () => gfx.destroy(),
+    });
   }
 
   // ── boss visual effects ───────────────────────────────────────────────────
