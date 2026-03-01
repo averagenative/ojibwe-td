@@ -25,3 +25,6 @@ Thumbs.db
 
 # Empty placeholder (was for Blizzard assets — removed)
 assets/
+
+# Generated health-check logs
+logs/
