@@ -1,7 +1,7 @@
 ---
 id: TASK-08
 title: Run Loop & Game States
-status: pending
+status: done
 category: frontend
 phase: 8
 openspec_ref: "Phase 8"

@@ -129,6 +129,25 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - **No visual indicator for active offers**: Players have no way to see which offers they've
   already chosen during a run. Consider adding an offers-active HUD icon row or a popup list.
 
+### Run Loop & Game States (Phase 8 review)
+- **GameOverScene `won` field is dead code**: The `GameOverData.won` boolean and the `"VICTORY!"`
+  title branch remain in `GameOverScene.ts` but are never triggered — victories now route to
+  `RunCompleteScene`. Remove the `won` field and collapse the title to always show `"GAME OVER"`.
+  *(Fixed in this review — `won` removed, title hardcoded.)*
+- **`calculateRunCurrency` division by zero**: If `totalWaves = 0` is passed, `(wavesCompleted / 0)`
+  produces `NaN`. The parameter defaults to 20 and all callers pass `TOTAL_WAVES = 20`, so this is
+  unreachable in practice. Add a guard (`if (totalWaves <= 0) return 0`) if the function is ever
+  exposed as a public API.
+- **`wavesCompleted` display vs accumulator mismatch**: `GameOverScene` receives
+  `wavesCompleted: this.currentWave` (the wave the player was ON when they died), while
+  `runCurrencyEarned` is based on the last fully completed wave. E.g. dying on wave 5 shows
+  "Waves completed: 5 / 20" but only 4 waves' worth of crystals. Consider passing
+  `this.currentWave - 1` as `wavesCompleted` to the display, or renaming the label to "Wave reached".
+- **WaveManager.e2e.test.ts `wireGameEvents` was broken**: The mock event handlers expected raw
+  numbers for `creep-killed` and `creep-escaped`, but WaveManager emits objects (`{ reward, x, y }`
+  and `{ liveCost, reward }`). Fixed: destructure the objects in the mock handlers. This was a
+  pre-existing bug affecting 6 tests.
+
 ### UX / Feel
 - Upgrade panel should animate open/close (slide up) rather than snapping — low effort, high feel.
 - Selected tower range circle should pulse when the tower fires, giving audio-visual feedback.
