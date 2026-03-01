@@ -199,9 +199,9 @@ function wireGameEvents(scene: Phaser.Scene, state: GameState): void {
   // Cast through unknown to call our SceneEmitter.on while preserving the
   // Phaser.Scene type for other call sites.
   const ev = (scene as unknown as { events: SceneEmitter }).events;
-  ev.on('creep-killed',  (reward: unknown) => { state.gold  += (reward as number); });
-  ev.on('creep-escaped', (cost:   unknown) => { state.lives  = Math.max(0, state.lives - (cost as number)); });
-  ev.on('wave-bonus',    (bonus:  unknown) => { state.gold  += (bonus as number); });
+  ev.on('creep-killed',  (data: unknown) => { state.gold  += (data as { reward: number }).reward; });
+  ev.on('creep-escaped', (data: unknown) => { state.lives  = Math.max(0, state.lives - (data as { liveCost: number }).liveCost); });
+  ev.on('wave-bonus',    (bonus: unknown) => { state.gold  += (bonus as number); });
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
