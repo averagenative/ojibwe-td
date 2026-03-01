@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "balance": "esbuild scripts/generate-balance-table.ts --bundle --platform=node --format=esm | node --input-type=module",
+    "preevaluate-map": "esbuild scripts/evaluate-map.ts --bundle --platform=node --format=esm --outfile=dist/evaluate-map.mjs",
+    "evaluate-map": "node dist/evaluate-map.mjs",
     "check": "npm run typecheck && npm run lint && npm run test"
   },
   "devDependencies": {

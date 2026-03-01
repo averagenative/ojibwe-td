@@ -6,6 +6,8 @@ interface GameOverData {
   totalWaves:     number;
   won?:           boolean;
   runCurrency?:   number;
+  /** Stage ID (preferred for retry). */
+  stageId?:       string;
   mapId?:         string;
   commanderId?:   string;
 }
@@ -24,6 +26,7 @@ export class GameOverScene extends Phaser.Scene {
     const total       = data?.totalWaves    ?? 20;
     const won         = data?.won           ?? false;
     const currency    = data?.runCurrency   ?? 0;
+    const stageId     = data?.stageId       ?? undefined;
     const mapId       = data?.mapId         ?? 'map-01';
     const commanderId = data?.commanderId   ?? 'nokomis';
 
@@ -70,7 +73,7 @@ export class GameOverScene extends Phaser.Scene {
     // Buttons: RETRY | UPGRADES | MENU (three equal-width buttons)
     const btnY = cy + 90;
     this.makeButton(cx - 180, btnY, 'RETRY', () => {
-      this.scene.start('GameScene', { mapId, commanderId });
+      this.scene.start('GameScene', { stageId, mapId, commanderId });
     });
     this.makeButton(cx, btnY, 'UPGRADES', () => {
       this.scene.start('MetaMenuScene');

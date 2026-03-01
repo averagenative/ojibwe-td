@@ -8,7 +8,8 @@
  */
 
 export type UnlockEffect =
-  | { type: 'map'; mapId: string }
+  | { type: 'map';       mapId:      string }
+  | { type: 'stage';     stageId:    string }
   | { type: 'commander'; commanderId: string };
 
 export interface UnlockNode {
@@ -61,6 +62,24 @@ export const UNLOCK_NODES: UnlockNode[] = [
     prereqs:     [],
     effect:      { type: 'commander', commanderId: 'animikiikaa' },
   },
+
+  // ── Stage unlocks (Phase 12) ──────────────────────────────────────────────
+  {
+    id:          'unlock-stage-mitigomizh-01',
+    label:       'Mitigomizh \u2014 Oak Savanna Run',
+    description: 'Unlock the Oak Savanna Run stage: open ground with few chokepoints and high AoE demand.',
+    cost:        500,
+    prereqs:     ['unlock-map-02'],
+    effect:      { type: 'stage', stageId: 'mitigomizh-01' },
+  },
+  {
+    id:          'unlock-stage-biboon-aki-01',
+    label:       'Biboon-aki \u2014 Frozen Crossing',
+    description: 'Unlock the Frozen Crossing stage: a challenging winter map where frost towers are amplified.',
+    cost:        700,
+    prereqs:     ['unlock-stage-mitigomizh-01'],
+    effect:      { type: 'stage', stageId: 'biboon-aki-01' },
+  },
 ];
 
 /** Map IDs that require a meta-unlock to play. */
@@ -82,3 +101,16 @@ export function getCommanderUnlockNode(commanderId: string): UnlockNode | undefi
       (n.effect as { type: 'commander'; commanderId: string }).commanderId === commanderId,
   );
 }
+
+/** Look up the unlock node required to access a given stageId. */
+export function getStageUnlockNode(stageId: string): UnlockNode | undefined {
+  return UNLOCK_NODES.find(
+    n => n.effect.type === 'stage' &&
+      (n.effect as { type: 'stage'; stageId: string }).stageId === stageId,
+  );
+}
+
+/** Stage IDs that require a meta-unlock to play. */
+export const LOCKED_STAGE_IDS: string[] = UNLOCK_NODES
+  .filter(n => n.effect.type === 'stage')
+  .map(n => (n.effect as { type: 'stage'; stageId: string }).stageId);
