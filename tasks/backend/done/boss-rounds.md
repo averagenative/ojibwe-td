@@ -1,7 +1,7 @@
 ---
 id: TASK-013
 title: Boss Rounds
-status: pending
+status: done
 category: backend
 phase: 6
 openspec_ref: "Phase 6 (addendum)"

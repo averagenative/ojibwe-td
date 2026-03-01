@@ -1,7 +1,7 @@
 ---
 id: TASK-06b
 title: Tower Targeting & Behavior Controls
-status: pending
+status: in-progress
 category: backend
 phase: 6
 openspec_ref: "Phase 6 (addendum)"

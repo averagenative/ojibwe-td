@@ -1,12 +1,44 @@
 import Phaser from 'phaser';
+import { tickRegen } from '../data/bossDefs';
+
+// Re-export so existing imports from Creep.ts still work.
+export { tickRegen };
 
 export type CreepType = 'ground' | 'air';
 
+/**
+ * Boss mechanic tag — must match the `bossAbility` field in BossDef.
+ * Defined here (not in bossDefs.ts) to avoid circular runtime imports.
+ */
+export type BossAbility = 'armored' | 'slow-immune' | 'split' | 'regen';
+
 export interface CreepConfig {
-  hp: number;
-  speed: number;   // pixels per second (base, before status effects)
-  type: CreepType;
-  reward: number;  // gold on kill
+  hp:     number;
+  speed:  number;   // pixels per second (base, before status effects)
+  type:   CreepType;
+  reward: number;   // gold on kill
+
+  // ── Boss-specific fields (optional) ─────────────────────────────────────
+  isBoss?:             boolean;
+  bossAbility?:        BossAbility;
+  /** 0–1 fraction of incoming damage blocked by armor (Makwa). */
+  physicalResistPct?:  number;
+  /** If true, applySlow() is a no-op for this creep (Migizi). */
+  isSlowImmune?:       boolean;
+  /** If true, applyDot() is a no-op for this creep (Animikiins). */
+  isPoisonImmune?:     boolean;
+  /** HP regenerated per second as % of maxHp; 0 = none (Animikiins: 1). */
+  regenPercentPerSec?: number;
+  /** RGB hex tint applied to the body (boss visual). */
+  tint?:               number;
+  /** Bonus gold emitted via 'boss-killed' event on death. */
+  bossRewardGold?:     number;
+  /** Whether a bonus offer draw should fire on death. */
+  bossRewardOffer?:    boolean;
+  /** Boss identifier key (matches BossDef.key). */
+  bossKey?:            string;
+  /** Boss display name (Ojibwe animal name). */
+  bossName?:           string;
 }
 
 interface Waypoint {
@@ -19,9 +51,18 @@ const BODY_COLORS: Record<CreepType, number> = {
   air:    0x4488ff,
 };
 
+// Normal creep HP-bar dimensions
 const HP_BAR_WIDTH  = 30;
 const HP_BAR_HEIGHT = 4;
 const HP_BAR_OFFSET_Y = -20;
+
+// Boss HP-bar dimensions (larger, visible across the map)
+const BOSS_HP_BAR_WIDTH    = 64;
+const BOSS_HP_BAR_HEIGHT   = 8;
+const BOSS_HP_BAR_OFFSET_Y = -36;
+
+/** Regen cooldown after taking damage (ms). Animikiins-specific. */
+const REGEN_DAMAGE_COOLDOWN_MS = 3000;
 
 /** Data emitted on scene.events when a poisoned creep dies (used for DoT spread). */
 export interface CreepDiedPoisonedData {
@@ -34,10 +75,33 @@ export interface CreepDiedPoisonedData {
   isShattered: boolean;
 }
 
+/** Data emitted on scene.events when a boss creep is killed. */
+export interface BossKilledData {
+  bossKey:    string;
+  bossName:   string;
+  rewardGold: number;
+  rewardOffer: boolean;
+  tint:        number;
+  x:           number;
+  y:           number;
+}
+
 export class Creep extends Phaser.GameObjects.Container {
   public readonly maxHp: number;
   public readonly reward: number;
   public readonly creepType: CreepType;
+
+  // ── Boss flags ─────────────────────────────────────────────────────────────
+  public readonly isBossCreep:     boolean;
+  public readonly bossAbilityType: BossAbility | undefined;
+  private readonly physicalResistPct:   number;
+  private readonly slowImmune:          boolean;
+  private readonly poisonImmune:        boolean;
+  private readonly regenPercentPerSec:  number;
+  readonly bossRewardGold:   number;
+  readonly bossRewardOffer:  boolean;
+  readonly bossKey:          string;
+  readonly bossName:         string;
 
   private hp: number;
   private baseSpeed: number;
@@ -47,6 +111,9 @@ export class Creep extends Phaser.GameObjects.Container {
 
   private bodyRect!: Phaser.GameObjects.Rectangle;
   private hpBarFill!: Phaser.GameObjects.Rectangle;
+  private readonly hpBarMaxWidth: number;
+  /** Stored separately so status-effect color changes don't lose the tint. */
+  private readonly baseBodyColor: number;
 
   // ── status effects ────────────────────────────────────────────────────────
   private slowFactor  = 1.0; // 1 = full speed
@@ -65,6 +132,10 @@ export class Creep extends Phaser.GameObjects.Container {
   private damageAmpPct = 0;
   private shredTimer?: Phaser.Time.TimerEvent;
 
+  // ── Regen (Animikiins) ────────────────────────────────────────────────────
+  /** Remaining cooldown in ms before regen ticks resume. */
+  private regenCooldownMs = 0;
+
   constructor(
     scene: Phaser.Scene,
     waypoints: Waypoint[],
@@ -80,7 +151,22 @@ export class Creep extends Phaser.GameObjects.Container {
     this.creepType = config.type;
     this.waypoints = waypoints;
 
-    this.buildVisuals(config.type);
+    // Boss flags
+    this.isBossCreep          = config.isBoss            ?? false;
+    this.bossAbilityType      = config.bossAbility;
+    this.physicalResistPct    = config.physicalResistPct ?? 0;
+    this.slowImmune           = config.isSlowImmune      ?? false;
+    this.poisonImmune         = config.isPoisonImmune    ?? false;
+    this.regenPercentPerSec   = config.regenPercentPerSec ?? 0;
+    this.bossRewardGold       = config.bossRewardGold    ?? 0;
+    this.bossRewardOffer      = config.bossRewardOffer   ?? false;
+    this.bossKey              = config.bossKey           ?? '';
+    this.bossName             = config.bossName          ?? '';
+
+    this.hpBarMaxWidth  = this.isBossCreep ? BOSS_HP_BAR_WIDTH : HP_BAR_WIDTH;
+    this.baseBodyColor  = config.tint ?? BODY_COLORS[config.type];
+
+    this.buildVisuals(config);
     scene.add.existing(this);
   }
 
@@ -88,6 +174,18 @@ export class Creep extends Phaser.GameObjects.Container {
 
   step(delta: number): void {
     if (!this.active) return;
+
+    // HP regen (Animikiins)
+    if (this.regenPercentPerSec > 0 && this.hp < this.maxHp) {
+      const result = tickRegen(
+        this.hp, this.maxHp, this.regenPercentPerSec, this.regenCooldownMs, delta,
+      );
+      if (result.hp !== this.hp) {
+        this.hp = result.hp;
+        this.hpBarFill.width = this.hpBarMaxWidth * (this.hp / this.maxHp);
+      }
+      this.regenCooldownMs = result.regenCooldownMs;
+    }
 
     if (this.waypointIndex >= this.waypoints.length) {
       this.emit('reached-exit');
@@ -116,10 +214,18 @@ export class Creep extends Phaser.GameObjects.Container {
   takeDamage(amount: number): void {
     if (!this.active) return;
 
-    // Apply armor-shred damage amplification.
-    const amplified = amount * (1 + this.damageAmpPct);
+    // Apply armor (Makwa): reduces incoming damage.
+    const afterArmor = amount * (1 - this.physicalResistPct);
+    // Apply armor-shred damage amplification (Cannon-A counters Makwa's armor).
+    const amplified = afterArmor * (1 + this.damageAmpPct);
+
     this.hp = Math.max(0, this.hp - amplified);
-    this.hpBarFill.width = HP_BAR_WIDTH * (this.hp / this.maxHp);
+    this.hpBarFill.width = this.hpBarMaxWidth * (this.hp / this.maxHp);
+
+    // Regen cooldown: reset 3 s after any damage (Animikiins).
+    if (this.regenPercentPerSec > 0) {
+      this.regenCooldownMs = REGEN_DAMAGE_COOLDOWN_MS;
+    }
 
     if (this.hp <= 0) {
       // Emit spread event before destroying (GameScene handles the spread logic).
@@ -154,16 +260,27 @@ export class Creep extends Phaser.GameObjects.Container {
     return this.slowFactor < 1.0;
   }
 
+  /**
+   * Index of the next waypoint this creep is heading toward.
+   * Used by WaveManager to spawn Waabooz split copies along the remaining path.
+   */
+  getCurrentWaypointIndex(): number {
+    return this.waypointIndex;
+  }
+
   // ── status effects ────────────────────────────────────────────────────────
 
   /**
    * Apply a slow that reduces movement speed.
+   * No-op if this creep is slow-immune (Migizi).
    * Multiple calls take the strongest slow (lowest factor).
    * @param factor     0–1 speed multiplier (e.g. 0.5 = half speed)
    * @param durationMs How long the slow lasts
    */
   applySlow(factor: number, durationMs: number): void {
     if (!this.active) return;
+    if (this.slowImmune) return; // Migizi: immune to slow/freeze
+
     this.slowFactor = Math.min(this.slowFactor, factor);
     this.speedMultiplier = this.slowFactor;
     this.refreshStatusVisual();
@@ -193,12 +310,15 @@ export class Creep extends Phaser.GameObjects.Container {
 
   /**
    * Apply a poison DoT stack. Each stack ticks independently.
+   * No-op if this creep is poison-immune (Animikiins).
    * @param damage     Damage per tick
    * @param tickMs     Ms between ticks
    * @param ticks      Number of ticks before this stack expires
    */
   applyDot(damage: number, tickMs: number, ticks: number): void {
     if (!this.active) return;
+    if (this.poisonImmune) return; // Animikiins: immune to DoT
+
     this.lastDotParams = { damage, tickMs, ticks };
     this.dotStacks++;
     this.refreshStatusVisual();
@@ -227,6 +347,8 @@ export class Creep extends Phaser.GameObjects.Container {
 
   /**
    * Apply a damage vulnerability debuff from Cannon A (Armor Shred).
+   * This counteracts Makwa's physicalResistPct — at high enough pct, the
+   * armor is fully overcome.
    * @param pct        Damage amplification fraction (e.g. 0.15 = 15% more damage taken)
    * @param durationMs How long the debuff lasts
    */
@@ -270,21 +392,28 @@ export class Creep extends Phaser.GameObjects.Container {
 
   // ── private ───────────────────────────────────────────────────────────────
 
-  private buildVisuals(type: CreepType): void {
+  private buildVisuals(config: CreepConfig): void {
+    const isBoss   = this.isBossCreep;
+    const bodySize = isBoss ? 48 : 24;
+    const barW     = this.hpBarMaxWidth;
+    const barH     = isBoss ? BOSS_HP_BAR_HEIGHT   : HP_BAR_HEIGHT;
+    const barOffY  = isBoss ? BOSS_HP_BAR_OFFSET_Y : HP_BAR_OFFSET_Y;
+    const bodyColor = config.tint ?? BODY_COLORS[config.type];
+
     this.bodyRect = new Phaser.GameObjects.Rectangle(
-      this.scene, 0, 0, 24, 24, BODY_COLORS[type],
+      this.scene, 0, 0, bodySize, bodySize, bodyColor,
     );
 
     const hpBg = new Phaser.GameObjects.Rectangle(
-      this.scene, 0, HP_BAR_OFFSET_Y, HP_BAR_WIDTH, HP_BAR_HEIGHT, 0x333333,
+      this.scene, 0, barOffY, barW, barH, 0x333333,
     );
 
     this.hpBarFill = new Phaser.GameObjects.Rectangle(
       this.scene,
-      -(HP_BAR_WIDTH / 2),
-      HP_BAR_OFFSET_Y,
-      HP_BAR_WIDTH,
-      HP_BAR_HEIGHT,
+      -(barW / 2),
+      barOffY,
+      barW,
+      barH,
       0x00ff44,
     );
     this.hpBarFill.setOrigin(0, 0.5);
@@ -303,7 +432,8 @@ export class Creep extends Phaser.GameObjects.Container {
     } else if (poisoned) {
       this.bodyRect.setFillStyle(0x44ff66); // bright green: poisoned
     } else {
-      this.bodyRect.setFillStyle(BODY_COLORS[this.creepType]);
+      // Restore the base color (boss tint or normal type color).
+      this.bodyRect.setFillStyle(this.baseBodyColor);
     }
   }
 }

@@ -39,6 +39,19 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - **Tower callback pattern**: `onProjectileFired` and `onChainFired` passed as constructor
   args creates tight coupling. Consider a typed event bus on the scene.
 
+### Boss Rounds (Phase 6 addendum)
+- **Waabooz split at path end**: If Waabooz dies at or near the last waypoint,
+  `getCurrentWaypointIndex()` may return an index past `waypoints.length`, causing
+  `slice(parentWpIdx)` to produce an empty array. Mini-copies would spawn at the death
+  position with no remaining waypoints, immediately triggering `reached-exit`. Low
+  probability in gameplay but worth a guard.
+- **Boss offer panel pauses gameplay**: While the `BossOfferPanel` is open, creeps continue
+  moving (game is not paused). Consider auto-pausing during the offer panel or making
+  it appear between waves rather than immediately on boss death.
+- **Regen object allocation in step()**: `tickRegen` returns a new `{ hp, regenCooldownMs }`
+  object each frame for regen bosses. Negligible with 1 boss, but if regen becomes a
+  general creep mechanic, mutate state in place instead.
+
 ### Correctness Risks
 - **Frost shatter + Tesla overload interaction**: If a frozen creep is killed by a Tesla
   chain in overload mode, both shatter (destroys Poison stacks) and the Tesla debuff fire.
@@ -70,6 +83,10 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - No audio system. Sound effects and music are deferred to Phase 11 polish.
 - No accessibility pass has been done. Tab navigation, contrast ratios, and screen reader
   labels are all out of scope for MVP but should be tracked.
+- **GameScene missing `shutdown()` cleanup**: All `scene.events.on(...)` listeners registered
+  in `create()` (creep-killed, creep-escaped, wave-bonus, boss-wave-start, boss-killed,
+  creep-died-poisoned) have no corresponding `off()` calls. If the scene is restarted,
+  listeners accumulate. Add a `shutdown()` method that removes all scene event subscriptions.
 
 ---
 
@@ -88,4 +105,7 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
 
 <!-- HEALTH_CHECK_START -->
+Last run: 2026-02-28 22:08:13
+Findings: 27 total (27 new task files created, 0 already tracked)
+Task files: /home/dmichael/projects/greentd/tasks/health/pending/
 <!-- HEALTH_CHECK_END -->

@@ -1,7 +1,7 @@
 ---
 id: TASK-014
 title: Tower Level vs. Creep HP Scaling Design
-status: pending
+status: in-progress
 category: backend
 phase: 6
 openspec_ref: "Phase 6 (addendum)"

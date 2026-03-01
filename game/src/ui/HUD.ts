@@ -6,6 +6,11 @@ const DEPTH      = 100;
 
 type SpeedCallback = (multiplier: number) => void;
 
+/** Wave numbers that are boss waves (every 5th). */
+function isBossWaveNumber(n: number): boolean {
+  return n > 0 && n % 5 === 0;
+}
+
 export class HUD extends Phaser.GameObjects.Container {
   private livesText: Phaser.GameObjects.Text;
   private goldText:  Phaser.GameObjects.Text;
@@ -64,8 +69,14 @@ export class HUD extends Phaser.GameObjects.Container {
     this.goldText.setText(`⬡  ${gold}`);
   }
 
+  /** Update the wave counter.  Boss waves display a ★ icon and orange colour. */
   setWave(current: number, total: number): void {
-    this.waveText.setText(`Wave ${current} / ${total}`);
+    const boss  = isBossWaveNumber(current);
+    const label = boss
+      ? `★ Wave ${current} / ${total}`
+      : `Wave ${current} / ${total}`;
+    this.waveText.setText(label);
+    this.waveText.setColor(boss ? '#ff8844' : '#aaaaaa');
   }
 
   // ── speed controls ────────────────────────────────────────────────────────
@@ -147,7 +158,7 @@ export class HUD extends Phaser.GameObjects.Container {
    */
   createNextWaveButton(onClick: () => void): void {
     const { width } = this.scene.scale;
-    const btnW = 200;
+    const btnW = 220;
     const btnX = width - PADDING - btnW / 2;
     const btnY = HUD_HEIGHT / 2;
 
@@ -169,18 +180,73 @@ export class HUD extends Phaser.GameObjects.Container {
     this.nextWaveBg.on('pointerup', onClick);
   }
 
-  /** Show/hide the next-wave button. waveNumber is the wave about to start. */
+  /**
+   * Show/hide the next-wave button.
+   * waveNumber is the wave about to start.
+   * Boss waves (multiple of 5) display a ★ icon and warm orange colour.
+   */
   setNextWaveVisible(visible: boolean, waveNumber: number): void {
     if (!this.nextWaveBg || !this.nextWaveLabel) return;
     this.nextWaveBg.setVisible(visible);
     this.nextWaveLabel.setVisible(visible);
 
     if (visible) {
-      const label = waveNumber === 1 ? 'START WAVE 1 ▶' : `WAVE ${waveNumber} ▶`;
+      const boss = isBossWaveNumber(waveNumber);
+      let label: string;
+      if (waveNumber === 1) {
+        label = 'START WAVE 1 ▶';
+      } else if (boss) {
+        label = `★ BOSS WAVE ${waveNumber} ★`;
+      } else {
+        label = `WAVE ${waveNumber} ▶`;
+      }
       this.nextWaveLabel.setText(label);
+
+      const textCol  = boss ? '#ff8844' : '#00ff44';
+      const strokeN  = boss ? 0xff8844  : 0x00ff44;
+      this.nextWaveLabel.setColor(textCol);
+      this.nextWaveBg.setStrokeStyle(2, strokeN);
+
       this.waveText.setVisible(false);
     } else {
       this.waveText.setVisible(true);
     }
+  }
+
+  // ── boss warning ──────────────────────────────────────────────────────────
+
+  /**
+   * Display a large animated "BOSS WAVE" warning text centred on the viewport.
+   * The text fades in, holds for ~1.5 s, then fades out.
+   *
+   * @param bossName Ojibwe animal name to include in the warning
+   *                 (e.g. "Makwa", "Migizi", "Waabooz", "Animikiins")
+   */
+  showBossWarning(bossName: string): void {
+    const { width, height } = this.scene.scale;
+    const cy = height / 2;
+
+    const warning = this.scene.add.text(
+      width / 2, cy,
+      `⚠ BOSS WAVE ⚠\n${bossName}`,
+      {
+        fontSize:        '52px',
+        color:           '#ff4422',
+        fontFamily:      'monospace',
+        fontStyle:       'bold',
+        align:           'center',
+        stroke:          '#000000',
+        strokeThickness: 5,
+      },
+    ).setOrigin(0.5, 0.5).setDepth(DEPTH + 50).setAlpha(0);
+
+    this.scene.tweens.add({
+      targets:  warning,
+      alpha:    1,
+      duration: 300,
+      yoyo:     true,
+      hold:     1500,
+      onComplete: () => warning.destroy(),
+    });
   }
 }

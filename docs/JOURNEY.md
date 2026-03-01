@@ -261,3 +261,13 @@ Key architectural decision: tower definitions and upgrade stats were split into 
 Notable cross-tower interactions shipped: Frost's shatter mechanic destroys Poison DoT stacks on frozen enemies (preventing spread cascades), Tesla's overload path applies an attack debuff to nearby allied towers via chain-fire callbacks, Aura's deep specialisation halves its bonus for off-type towers in range, and Mortar cluster sub-projectiles fire from the impact point via `Projectile.onImpact` callbacks. These mechanics give each tower a genuine identity and create the kind of synergy-vs-drawback decisions that defined Green TD's original depth.
 
 The UpgradePanel UI (160 px strip above the tower-info panel) displays three path columns with tier pips, buy buttons styled by affordability, and a locked overlay on the locked path. Sell refunds were updated to include total upgrade spend at a 50% rate.
+
+---
+
+## Phase 6 (addendum) — Boss Rounds (2026-02-28)
+
+Boss rounds were added as major tension spikes at waves 5, 10, 15, and 20 — each replacing the normal creep pack with a single powerful boss creep named after Ojibwe animals. The four archetypes — Makwa (Bear), Migizi (Eagle), Waabooz (Hare), and Animikiins (Little Thunderbird) — each carry a distinct ability that forces players to think about their tower composition rather than just raw DPS.
+
+The four `BossDef` constants live in a Phaser-free `src/data/bossDefs.ts` module, continuing the pattern established for tower defs. Alongside the definitions, three pure-function helpers were extracted: `calculateBossHp` (derives boss HP from the wave's normal creep pool total), `computeWaaboozSplitConfig` (produces the stats for Waabooz's three mini-copies on first death), and `tickRegen` (handles Animikiins' 1%-per-second HP regeneration with a 3-second post-hit cooldown). All three are exercised by a 31-test suite in `BossRounds.test.ts` — no Phaser required.
+
+Key design decisions: Makwa's 30% physical resistance counters Cannon builds unless they invest in the armor-shred path; Migizi's slow immunity hard-counters Frost/Poison control builds, rewarding players who diversified into Cannon or Tesla; Waabooz's split mechanic intentionally punishes burst damage (Cannon, Mortar) and rewards DoT towers since poison stacks persist onto the three mini-copies; Animikiins' poison immunity makes it Poison tower's only true hard counter across all 20 waves. Boss HP values are derived analytically from the wave's creep pool and count, so they scale correctly as wave data changes. Each boss kill awards a large gold bonus and triggers a guaranteed roguelike offer draw; escaping a boss costs 3 lives instead of 1, giving the late game meaningful stakes.

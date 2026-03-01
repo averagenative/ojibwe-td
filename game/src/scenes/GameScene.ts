@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { Creep } from '../entities/Creep';
-import type { CreepDiedPoisonedData } from '../entities/Creep';
+import type { CreepDiedPoisonedData, BossKilledData } from '../entities/Creep';
 import { Tower, ALL_TOWER_DEFS } from '../entities/towers/Tower';
 import type { TowerDef } from '../entities/towers/Tower';
 import { Projectile } from '../entities/Projectile';
@@ -10,6 +10,7 @@ import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyMan
 import { HUD } from '../ui/HUD';
 import { TowerPanel, PANEL_HEIGHT } from '../ui/TowerPanel';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
+import { BossOfferPanel } from '../ui/BossOfferPanel';
 import type { MapData } from '../types/MapData';
 import { TILE } from '../types/MapData';
 
@@ -57,6 +58,10 @@ export class GameScene extends Phaser.Scene {
   // ── selection ─────────────────────────────────────────────────────────────
   private selectedTower: Tower | null = null;
 
+  // ── boss offer ────────────────────────────────────────────────────────────
+  /** Non-null while a boss offer panel is visible (blocks map pointer events). */
+  private bossOfferPanel: BossOfferPanel | null = null;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -96,28 +101,56 @@ export class GameScene extends Phaser.Scene {
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
 
+    // ── Scene event listeners ──────────────────────────────────────────────
+
     this.events.on('creep-killed', (reward: number) => {
       this.gold += reward;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
     });
-    this.events.on('creep-escaped', () => {
-      this.lives = Math.max(0, this.lives - 1);
+
+    // liveCost defaults to 1 for normal creeps; boss escape emits 3.
+    this.events.on('creep-escaped', (liveCost: number = 1) => {
+      this.lives = Math.max(0, this.lives - liveCost);
       this.hud.setLives(this.lives);
       if (this.lives <= 0) this.triggerGameOver();
     });
+
     this.events.on('wave-bonus', (bonus: number) => {
       this.gold += bonus;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
     });
 
+    // ── Boss-wave start: show HUD warning ─────────────────────────────────
+    this.events.on('boss-wave-start', (data: { bossKey: string; bossName: string }) => {
+      this.hud.showBossWarning(data.bossName);
+      // Refresh wave display to show boss indicator (★).
+      this.hud.setWave(this.currentWave, TOTAL_WAVES);
+    });
+
+    // ── Boss killed: award bonus gold, visual effects, offer ─────────────
+    this.events.on('boss-killed', (data: BossKilledData) => {
+      // Bonus gold reward (in addition to normal kill gold from 'creep-killed').
+      this.gold += data.rewardGold;
+      this.hud.setGold(this.gold);
+      this.upgradePanel?.refresh();
+
+      // Visual effects: screen flash + large particle burst.
+      this.triggerBossDeathScreenFlash();
+      this.triggerBossDeathParticles(data.x, data.y, data.tint);
+
+      // Bonus roguelike offer: show a choice panel where the player
+      // picks one of three rewards.
+      if (data.rewardOffer) {
+        this.openBossOfferPanel(data.bossName);
+      }
+    });
+
     // ── Frost shatter drawback ────────────────────────────────────────────
     // When a creep that has shatterActive dies with DoT stacks, Creep.takeDamage
     // emits 'creep-died-poisoned' with isShattered=true BEFORE calling destroy().
     // The handler below checks that flag to suppress Poison C's spread mechanic.
-    // (DoT timers are cleaned up naturally in Creep.destroy(), so no manual
-    //  clearDoTs call is needed on death.)
 
     // ── Poison C: DoT spread on death ────────────────────────────────────
     this.events.on('creep-died-poisoned', (data: CreepDiedPoisonedData) => {
@@ -251,6 +284,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerDown(ptr: Phaser.Input.Pointer): void {
+    // While a boss offer panel is open, block all map interactions.
+    if (this.bossOfferPanel && !this.bossOfferPanel.isClosed()) return;
+
     // Filter clicks in HUD strip (top) and bottom UI panels
     const bottomLimit = this.scale.height
       - PANEL_HEIGHT
@@ -506,6 +542,109 @@ export class GameScene extends Phaser.Scene {
       tower.setAuraDamageMult   (damageMult.get(tower)  ?? 1.0);
       tower.setAuraRangePct     (rangePct.get(tower)    ?? 0);
     }
+  }
+
+  // ── boss visual effects ───────────────────────────────────────────────────
+
+  /**
+   * Brief full-screen white flash on boss death.
+   * The rectangle fades from 0.7 alpha → 0 over 350 ms.
+   */
+  private triggerBossDeathScreenFlash(): void {
+    const { width, height } = this.scale;
+    const flash = this.add.rectangle(
+      width / 2, height / 2, width, height, 0xffffff, 0.7,
+    ).setDepth(500);
+
+    this.tweens.add({
+      targets:  flash,
+      alpha:    0,
+      duration: 350,
+      ease:     'Power1',
+      onComplete: () => flash.destroy(),
+    });
+  }
+
+  /**
+   * Spawn a burst of animated circles emanating from the boss's death position.
+   * Uses 16 particles in varying directions for a dramatic visual.
+   *
+   * @param x     World X of the boss at death
+   * @param y     World Y of the boss at death
+   * @param tint  Boss colour tint for particle colours
+   */
+  private triggerBossDeathParticles(x: number, y: number, tint: number): void {
+    const PARTICLE_COUNT = 16;
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const angle  = (i / PARTICLE_COUNT) * Math.PI * 2;
+      const speed  = Phaser.Math.Between(80, 200);
+      const radius = Phaser.Math.Between(4, 10);
+
+      const circle = this.add.circle(x, y, radius, tint, 1).setDepth(490);
+
+      const targetX = x + Math.cos(angle) * speed;
+      const targetY = y + Math.sin(angle) * speed;
+
+      this.tweens.add({
+        targets:  circle,
+        x:        targetX,
+        y:        targetY,
+        alpha:    0,
+        scaleX:   0,
+        scaleY:   0,
+        duration: Phaser.Math.Between(500, 800),
+        ease:     'Power2',
+        onComplete: () => circle.destroy(),
+      });
+    }
+  }
+
+  /**
+   * Open the roguelike boss-reward offer panel.
+   * The player picks one of three rewards; the panel then closes.
+   * While the panel is visible, map pointer events are blocked.
+   *
+   * @param bossName Ojibwe name of the slain boss (used in the panel title)
+   */
+  private openBossOfferPanel(bossName: string): void {
+    // Dismiss any lingering panel before opening a new one.
+    this.bossOfferPanel?.close();
+
+    this.bossOfferPanel = new BossOfferPanel(
+      this,
+      bossName,
+      [
+        {
+          label:       'Gold Rush',
+          description: '+400 Gold\n\nFuel your next\ntower investments.',
+          onChoose: () => {
+            this.gold += 400;
+            this.hud.setGold(this.gold);
+            this.upgradePanel?.refresh();
+          },
+        },
+        {
+          label:       'Iron Will',
+          description: '+5 Lives\n\nForgive a few\nfuture mistakes.',
+          onChoose: () => {
+            this.lives += 5;
+            this.hud.setLives(this.lives);
+          },
+        },
+        {
+          label:       'Balanced',
+          description: '+250 Gold\n+2 Lives\n\nA steady hand\nin victory.',
+          onChoose: () => {
+            this.gold  += 250;
+            this.lives += 2;
+            this.hud.setGold(this.gold);
+            this.hud.setLives(this.lives);
+            this.upgradePanel?.refresh();
+          },
+        },
+      ],
+    );
   }
 
   private triggerGameOver(): void {
