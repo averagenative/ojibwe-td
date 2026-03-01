@@ -25,6 +25,15 @@ interface WaveDef {
   boss?:      string;
 }
 
+/** Data emitted on scene.events when a creep is killed by a tower. */
+export interface CreepKilledData {
+  reward: number;
+  /** World X position of the creep at death (used by Chain Reaction, Afterburn). */
+  x:      number;
+  /** World Y position of the creep at death. */
+  y:      number;
+}
+
 /**
  * Manages wave spawning and completion detection.
  *
@@ -32,8 +41,8 @@ interface WaveDef {
  *  - 'wave-complete' (waveNumber: number) — all creeps from this wave have died or escaped
  *
  * Also emits on scene.events:
- *  - 'creep-killed'     (reward: number)        — creep killed by a tower
- *  - 'creep-escaped'    (liveCost: number)       — creep reached the exit (1 = normal, 3 = boss)
+ *  - 'creep-killed'     (CreepKilledData)        — creep killed by a tower
+ *  - 'creep-escaped'    ({ liveCost, reward })   — creep reached exit
  *  - 'wave-bonus'       (gold: number)           — wave completion bonus
  *  - 'boss-wave-start'  ({ bossKey, bossName })  — fired when a boss wave begins
  *  - 'boss-killed'      (BossKilledData)         — fired when a boss creep is killed
@@ -182,8 +191,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     creep.once('reached-exit', () => {
       this.activeCreeps.delete(creep);
-      // Boss escape costs 3 lives.
-      this.scene.events.emit('creep-escaped', 3);
+      // Boss escape costs 3 lives; reward passed for Tax Collector.
+      this.scene.events.emit('creep-escaped', { liveCost: 3, reward: creep.reward });
       this.onSettled();
     });
 
@@ -191,7 +200,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       // ── Waabooz split mechanic ───────────────────────────────────────────
       creep.once('died', () => {
         this.activeCreeps.delete(creep);
-        this.scene.events.emit('creep-killed', creep.reward);
+        this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
 
         const bossKilledData: BossKilledData = {
           bossKey:    bossDef.key,
@@ -242,7 +251,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       // ── All other boss types ─────────────────────────────────────────────
       creep.once('died', () => {
         this.activeCreeps.delete(creep);
-        this.scene.events.emit('creep-killed', creep.reward);
+        this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
 
         const bossKilledData: BossKilledData = {
           bossKey:    bossDef.key,
@@ -267,14 +276,14 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     creep.once('reached-exit', () => {
       this.activeCreeps.delete(creep);
-      // Normal creeps cost 1 life on escape.
-      this.scene.events.emit('creep-escaped', 1);
+      // Normal creeps cost 1 life on escape; also pass reward for Tax Collector.
+      this.scene.events.emit('creep-escaped', { liveCost: 1, reward: creep.reward });
       this.onSettled();
     });
 
     creep.once('died', () => {
       this.activeCreeps.delete(creep);
-      this.scene.events.emit('creep-killed', creep.reward);
+      this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
       this.onSettled();
     });
   }
@@ -290,13 +299,13 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     creep.once('reached-exit', () => {
       this.activeCreeps.delete(creep);
-      this.scene.events.emit('creep-escaped', 1);
+      this.scene.events.emit('creep-escaped', { liveCost: 1, reward: creep.reward });
       this.onSettled();
     });
 
     creep.once('died', () => {
       this.activeCreeps.delete(creep);
-      this.scene.events.emit('creep-killed', creep.reward);
+      this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
       this.onSettled();
     });
   }

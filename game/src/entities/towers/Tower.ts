@@ -8,6 +8,7 @@ import {
   defaultBehaviorToggles,
 } from '../../data/targeting';
 import type { TowerBehaviorToggles } from '../../data/targeting';
+import type { OfferManager } from '../../systems/OfferManager';
 
 // Re-export pure data types & constants from the Phaser-free data module so
 // existing importers of Tower.ts continue to work unchanged.
@@ -63,6 +64,13 @@ export class Tower extends Phaser.GameObjects.Container {
   private debuffMultiplier = 1.0;
   private debuffTimer?:    Phaser.Time.TimerEvent;
 
+  // Bloodlust: temporary attack-speed bonus from combat offer (0.90 = 10% faster).
+  private bloodlustMult  = 1.0;
+  private bloodlustTimer?: Phaser.Time.TimerEvent;
+
+  // Reference to the run's OfferManager — undefined in unit tests and pre-offer runs.
+  private offerManager?: OfferManager;
+
   /**
    * Optional callback set by UpgradeManager when Tesla overload mode is active.
    * Fires with the chain-hit positions after each Tesla chain.
@@ -77,6 +85,7 @@ export class Tower extends Phaser.GameObjects.Container {
     def: TowerDef,
     getCreeps: () => ReadonlySet<Creep>,
     onProjectileFired: (proj: Projectile) => void,
+    offerManager?: OfferManager,
   ) {
     const px = tileCol * tileSize + tileSize / 2;
     const py = tileRow * tileSize + tileSize / 2;
@@ -90,6 +99,7 @@ export class Tower extends Phaser.GameObjects.Container {
     this.behaviorToggles  = defaultBehaviorToggles();
     this.getCreeps        = getCreeps;
     this.onProjectileFired = onProjectileFired;
+    this.offerManager     = offerManager;
 
     this.rangeGfx = this.buildRangeCircle();
     this.buildBody();
@@ -121,7 +131,7 @@ export class Tower extends Phaser.GameObjects.Container {
 
     this.attackElapsed += delta;
     const effectiveInterval =
-      this.upgStats.attackIntervalMs * this.intervalMultiplier * this.debuffMultiplier;
+      this.upgStats.attackIntervalMs * this.intervalMultiplier * this.debuffMultiplier * this.bloodlustMult;
 
     if (this.attackElapsed >= effectiveInterval) {
       this.attackElapsed = 0;
@@ -169,6 +179,20 @@ export class Tower extends Phaser.GameObjects.Container {
   }
 
   /**
+   * Apply a temporary attack-speed bonus (Bloodlust offer).
+   * @param durationMs How long the bonus lasts (e.g. 3000 ms)
+   */
+  applyBloodlust(durationMs: number): void {
+    if (this.def.isAura) return;
+    this.bloodlustMult = 0.90; // 10% faster attacks
+    this.bloodlustTimer?.destroy();
+    this.bloodlustTimer = this.scene.time.addEvent({
+      delay:    durationMs,
+      callback: () => { this.bloodlustMult = 1.0; },
+    });
+  }
+
+  /**
    * Apply a temporary attack-speed penalty (Tesla C — Overload drawback).
    * @param mult       >1 makes attacks slower (e.g. 1.25 = 25% slower)
    * @param durationMs Duration of the debuff
@@ -196,6 +220,7 @@ export class Tower extends Phaser.GameObjects.Container {
     this.rangeGfx.destroy();
     this.auraPulseGfx?.destroy();
     this.debuffTimer?.destroy();
+    this.bloodlustTimer?.destroy();
     this.destroy();
   }
 
@@ -226,9 +251,28 @@ export class Tower extends Phaser.GameObjects.Container {
     const target = this.findTarget(/* groundOnly */ true);
     if (!target) return;
 
-    const effectiveDamage = Math.round(this.upgStats.damage * this.auraDamageMult);
+    const om = this.offerManager;
+
+    // Apply global damage multiplier (Last Stand, Veteran Arms).
+    const globalMult      = om?.getGlobalDamageMult() ?? 1.0;
+    const effectiveDamage = Math.round(
+      Math.round(this.upgStats.damage * this.auraDamageMult) * globalMult,
+    );
     const clusterCount    = this.upgStats.clusterCount;
     const splashR         = this.upgStats.splashRadius;
+
+    // Mortar-synergy onHit effects (Toxic Shrapnel, Explosive Residue, Acid Rain).
+    const toxicShrapnel   = om?.hasToxicShrapnel()    ?? false;
+    const explosiveResidu = om?.hasExplosiveResidue()  ?? false;
+    const acidRain        = om?.hasAcidRain()          ?? false;
+    let   mortarOnHit: ((c: Creep) => void) | undefined;
+    if (toxicShrapnel || explosiveResidu || acidRain) {
+      mortarOnHit = (c: Creep) => {
+        if (toxicShrapnel)   c.applyDot(10, 500, 4);   // small Poison DoT
+        if (explosiveResidu) c.applySlow(0.80, 2000);   // 20% slow for 2 s
+        if (acidRain)        c.applyDot(8,  600, 3);   // weak additional Poison
+      };
+    }
 
     const opts: ProjectileOptions = {
       color:        this.def.projectileColor ?? 0xff8800,
@@ -238,6 +282,7 @@ export class Tower extends Phaser.GameObjects.Container {
       splashRadius: splashR > 0 ? splashR : undefined,
       groundOnly:   this.def.groundOnly,
       getCreeps:    this.getCreeps,
+      onHit:        mortarOnHit,
     };
 
     if (clusterCount > 0) {
@@ -279,7 +324,15 @@ export class Tower extends Phaser.GameObjects.Container {
   private fireTesla(target: Creep): void {
     const chainCount   = this.upgStats.chainCount;
     const chainRange   = this.def.chainRange ?? 110;
-    const primaryDmg   = Math.round(this.upgStats.damage * this.auraDamageMult);
+    const om           = this.offerManager;
+
+    // Apply global damage multiplier and combat offers to primary damage.
+    const globalMult       = om?.getGlobalDamageMult()              ?? 1.0;
+    const heartseekerMult  = om?.getHeartseekerMult(target.getHpRatio()) ?? 1.0;
+    const critMult         = (om?.critRoll() ?? false) ? 3.0 : 1.0;
+    const primaryDmg       = Math.round(
+      this.upgStats.damage * this.auraDamageMult * globalMult * heartseekerMult * critMult,
+    );
     const chainDmg     = Math.round(primaryDmg * this.upgStats.chainDamageRatio);
     const getCreeps    = this.getCreeps;
     const scene        = this.scene;
@@ -307,11 +360,20 @@ export class Tower extends Phaser.GameObjects.Container {
           inRange.sort((a, b) => a.dist - b.dist);
         }
 
-        const candidates = inRange.slice(0, chainCount);
+        // Lightning Rod: slowed primary target attracts 1 extra chain hit.
+        const lightningRodExtra = om?.getLightningRodExtra(hitCreep.isSlowed()) ?? 0;
+        const candidates = inRange.slice(0, chainCount + lightningRodExtra);
 
         const chainPositions: Array<{ x: number; y: number }> = [];
-        for (const { creep } of candidates) {
-          creep.takeDamage(chainDmg);
+        for (let ci = 0; ci < candidates.length; ci++) {
+          const { creep } = candidates[ci];
+          // Compose synergy multipliers: Static Field, Grounded, Overcharge.
+          const sfMult    = om?.getStaticFieldMult(creep.isSlowed())  ?? 1.0;
+          const gndMult   = om?.getGroundedMult(creep.isArmored)     ?? 1.0;
+          const overMult  = om?.getOverchargeMult(ci)                ?? 1.0;
+          const finalDmg  = Math.round(chainDmg * sfMult * gndMult * overMult);
+
+          creep.takeDamage(finalDmg);
           drawLightningArc(scene, hitCreep.x, hitCreep.y, creep.x, creep.y);
           if (overloadMode) {
             chainPositions.push({ x: creep.x, y: creep.y });
@@ -330,7 +392,17 @@ export class Tower extends Phaser.GameObjects.Container {
 
   /** Standard single-target projectile (Cannon, Frost, Poison) */
   private fireAt(target: Creep): void {
-    const effectiveDamage = Math.round(this.upgStats.damage * this.auraDamageMult);
+    const om = this.offerManager;
+
+    // ── Base damage with aura buff ────────────────────────────────────────────
+    const baseDamage = Math.round(this.upgStats.damage * this.auraDamageMult);
+
+    // ── Global combat-offer multipliers ───────────────────────────────────────
+    const globalMult      = om?.getGlobalDamageMult()              ?? 1.0;
+    const heartseekerMult = om?.getHeartseekerMult(target.getHpRatio()) ?? 1.0;
+    const critMult        = (om?.critRoll() ?? false) ? 3.0 : 1.0;
+
+    let effectiveDamage = Math.round(baseDamage * globalMult * heartseekerMult * critMult);
 
     // ── Cannon: execute check ────────────────────────────────────────────────
     if (this.def.key === 'cannon' && this.upgStats.executeThreshold > 0) {
@@ -353,31 +425,52 @@ export class Tower extends Phaser.GameObjects.Container {
 
     switch (this.def.key) {
       case 'cannon': {
-        if (this.upgStats.armorShredPct > 0) {
-          const pct = this.upgStats.armorShredPct;
-          const dur = this.upgStats.armorShredDuration;
-          onHit = (c: Creep) => c.applyArmorShred(pct, dur);
+        // Brittle Ice: +20% damage to frost-slowed targets.
+        const brittleIceMult = om?.getBrittleIceMult(target.isSlowed()) ?? 1.0;
+        if (brittleIceMult > 1.0) {
+          effectiveDamage = Math.round(effectiveDamage * brittleIceMult);
+        }
+
+        const armorShredPct = this.upgStats.armorShredPct;
+        const armorShredDur = this.upgStats.armorShredDuration;
+        const cryoActive    = om?.hasCryoCannon() ?? false;
+
+        if (armorShredPct > 0 || cryoActive) {
+          onHit = (c: Creep) => {
+            if (armorShredPct > 0) c.applyArmorShred(armorShredPct, armorShredDur);
+            // Cryo Cannon: slow targets by 20% for 1.5 s.
+            if (cryoActive) c.applySlow(0.80, 1500);
+          };
         }
         break;
       }
 
       case 'frost': {
-        const sf   = this.upgStats.slowFactor;
-        const sd   = this.upgStats.slowDurationMs;
+        const sf = this.upgStats.slowFactor;
+        const sd = this.upgStats.slowDurationMs;
+        // Venomfrost: slow factor 30% stronger on Poison-stacked targets.
+        const effectiveSf = om
+          ? om.getVenomfrostSlowFactor(sf, target.getDotStacks() > 0)
+          : sf;
+        // Glacial Surge: +15% damage to already-slowed targets.
+        const glacialMult = om?.getGlacialSurgeMult(target.isSlowed()) ?? 1.0;
+        if (glacialMult > 1.0) {
+          effectiveDamage = Math.round(effectiveDamage * glacialMult);
+        }
         // Chill Only toggle: apply slow but never trigger shatter (preserves Poison DoTs).
         const shat = this.upgStats.shatterOnDeath && !this.behaviorToggles.chillOnly;
         onHit = (c: Creep) => {
-          c.applySlow(sf, sd);
+          c.applySlow(effectiveSf, sd);
           if (shat) c.applyShatter();
         };
         break;
       }
 
       case 'poison': {
-        const totalDmg       = this.upgStats.dotDamageBase + this.upgStats.dotDamageBonus;
-        const maxStacks      = this.upgStats.maxDotStacks;
+        const totalDmg    = this.upgStats.dotDamageBase + this.upgStats.dotDamageBonus;
+        const maxStacks   = this.upgStats.maxDotStacks;
         // Stack Cap toggle: maintain exactly one stack per creep (spread efficiency mode).
-        const maintainOne    = this.behaviorToggles.maintainOneStack;
+        const maintainOne = this.behaviorToggles.maintainOneStack;
         onHit = (c: Creep) => {
           if (maintainOne) {
             // Only apply if the creep has no active DoT stacks.

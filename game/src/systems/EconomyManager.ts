@@ -1,12 +1,13 @@
-/** Fraction of total spent (tower + upgrades) returned on sell */
+/** Default fraction of total spent (tower + upgrades) returned on sell. */
 const SELL_REFUND_RATE = 0.7;
 
 /**
  * Calculate gold refunded when selling a tower.
  * @param totalSpent - Total gold spent on tower placement + all upgrades
+ * @param rate       - Refund rate fraction (default 0.7; Scavenger offer raises to 0.85)
  */
-export function calculateSellRefund(totalSpent: number): number {
-  return Math.floor(totalSpent * SELL_REFUND_RATE);
+export function calculateSellRefund(totalSpent: number, rate = SELL_REFUND_RATE): number {
+  return Math.floor(totalSpent * rate);
 }
 
 /**
