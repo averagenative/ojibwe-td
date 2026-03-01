@@ -293,10 +293,16 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - No audio system. Sound effects and music are deferred to Phase 11 polish.
 - No accessibility pass has been done. Tab navigation, contrast ratios, and screen reader
   labels are all out of scope for MVP but should be tracked.
-- **GameScene missing `shutdown()` cleanup**: All `scene.events.on(...)` listeners registered
-  in `create()` (creep-killed, creep-escaped, wave-bonus, boss-wave-start, boss-killed,
-  creep-died-poisoned) have no corresponding `off()` calls. If the scene is restarted,
-  listeners accumulate. Add a `shutdown()` method that removes all scene event subscriptions.
+- ~~**GameScene missing `shutdown()` cleanup**~~ **Fixed (TASK-022)**: `GameScene.shutdown()`
+  uses targeted `this.events.off()` for each game event, calls `waveManager.cleanup()`, and
+  clears entity collections to prevent stale references and duplicate listeners on scene restart.
+  Registered via `this.events.once('shutdown', ...)` in `create()`.
+- **Input listener cleanup on restart**: `this.input.on('pointermove'/'pointerdown', ...)`
+  listeners registered in `create()` are cleaned up by Phaser's InputPlugin.shutdown()
+  automatically, but this is implicit. If future issues arise, consider explicit removal.
+- **WaveManager.on('wave-complete') listener**: Registered in `create()` on a per-run
+  WaveManager instance. Safe because the old instance is replaced on restart, but an explicit
+  `this.waveManager.off('wave-complete', ...)` in `shutdown()` would be more defensive.
 
 ---
 

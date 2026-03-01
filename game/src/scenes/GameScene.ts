@@ -78,6 +78,9 @@ export class GameScene extends Phaser.Scene {
   private commanderState: CommanderRunState | null = null;
   private selectedCommanderId = 'nokomis';
 
+  // ── audio (wired in Phase 21) ─────────────────────────────────────────────
+  private audioManager?: { destroy(): void };
+
   // ── debug overlay (dev builds only) ───────────────────────────────────────
   private debugOverlay: Phaser.GameObjects.Text | null = null;
   private debugVisible = false;
@@ -372,6 +375,10 @@ export class GameScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       this.input.keyboard?.on('keydown-B', this.toggleDebugOverlay, this);
     }
+
+    // Register cleanup for scene stop/restart — Phaser emits 'shutdown' but does
+    // NOT auto-call a shutdown() method, so we must wire it ourselves.
+    this.events.once('shutdown', this.shutdown, this);
   }
 
   update(_time: number, delta: number): void {
@@ -404,6 +411,36 @@ export class GameScene extends Phaser.Scene {
     if (import.meta.env.DEV && this.debugVisible) {
       this.refreshDebugOverlay();
     }
+  }
+
+  /**
+   * Called automatically by Phaser when the scene is stopped or restarted.
+   * Removes all scene-event listeners to prevent duplicate handlers accumulating
+   * across runs (each restart without cleanup would double the handler count,
+   * causing duplicate gold awards, double life deductions, etc.).
+   */
+  shutdown(): void {
+    // Remove game-specific listeners registered in create().
+    // Do NOT use removeAllListeners() — that would strip Phaser's internal
+    // plugin listeners (TweenManager, TimerManager, InputPlugin, etc.) and
+    // break the scene on restart.
+    this.events.off('creep-killed');
+    this.events.off('creep-escaped');
+    this.events.off('wave-bonus');
+    this.events.off('boss-wave-start');
+    this.events.off('boss-killed');
+    this.events.off('creep-died-poisoned');
+    this.events.off('between-wave-offer-picked');
+
+    // Cancel any active wave-spawn timers.
+    this.waveManager?.cleanup();
+
+    // Audio system cleanup — wired in Phase 21.
+    this.audioManager?.destroy();
+
+    // Drop entity references so GC can reclaim memory after restart.
+    this.activeCreeps?.clear();
+    this.projectiles?.clear();
   }
 
   // ── speed ─────────────────────────────────────────────────────────────────
