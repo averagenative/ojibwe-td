@@ -51,6 +51,7 @@ export class Tower extends Phaser.GameObjects.Container {
 
   private getCreeps:         () => ReadonlySet<Creep>;
   private onProjectileFired: (proj: Projectile) => void;
+  private onFired?:          (towerKey: string) => void;
 
   // Step-based attack timing (replaces Phaser timer for buff support)
   private attackElapsed      = 0;
@@ -86,6 +87,7 @@ export class Tower extends Phaser.GameObjects.Container {
     getCreeps: () => ReadonlySet<Creep>,
     onProjectileFired: (proj: Projectile) => void,
     offerManager?: OfferManager,
+    onFired?: (towerKey: string) => void,
   ) {
     const px = tileCol * tileSize + tileSize / 2;
     const py = tileRow * tileSize + tileSize / 2;
@@ -97,9 +99,10 @@ export class Tower extends Phaser.GameObjects.Container {
     this.upgStats         = defaultUpgradeStats(def);
     this.priority         = def.defaultPriority;
     this.behaviorToggles  = defaultBehaviorToggles();
-    this.getCreeps        = getCreeps;
+    this.getCreeps         = getCreeps;
     this.onProjectileFired = onProjectileFired;
-    this.offerManager     = offerManager;
+    this.offerManager      = offerManager;
+    this.onFired           = onFired;
 
     this.rangeGfx = this.buildRangeCircle();
     this.buildBody();
@@ -237,6 +240,8 @@ export class Tower extends Phaser.GameObjects.Container {
     const target = this.findTarget(this.def.groundOnly);
     if (!target) return;
 
+    this.onFired?.(this.def.key);
+
     if (this.upgStats.chainCount > 0) {
       this.fireTesla(target);
       return;
@@ -252,6 +257,8 @@ export class Tower extends Phaser.GameObjects.Container {
 
     const target = this.findTarget(/* groundOnly */ true);
     if (!target) return;
+
+    this.onFired?.(this.def.key);
 
     const om = this.offerManager;
 

@@ -22,6 +22,7 @@ import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/co
 import { getStageDef, getStageByPathFile } from '../data/stageDefs';
 import type { StageDef } from '../data/stageDefs';
 import { SaveManager } from '../meta/SaveManager';
+import { AudioManager } from '../systems/AudioManager';
 
 const DEFAULT_TOTAL_WAVES = 20;
 const HUD_HEIGHT          = 48; // must match HUD.ts
@@ -86,8 +87,8 @@ export class GameScene extends Phaser.Scene {
   private commanderState: CommanderRunState | null = null;
   private selectedCommanderId = 'nokomis';
 
-  // ── audio (wired in Phase 21) ─────────────────────────────────────────────
-  private audioManager?: { destroy(): void };
+  // ── audio ─────────────────────────────────────────────────────────────────
+  private audioManager?: AudioManager;
 
   // ── debug overlay (dev builds only) ───────────────────────────────────────
   private debugOverlay: Phaser.GameObjects.Text | null = null;
@@ -175,10 +176,19 @@ export class GameScene extends Phaser.Scene {
 
     this.renderMap();
 
+    // Audio system — initialise (or resume) the singleton for this run.
+    this.audioManager = AudioManager.getInstance(this);
+    this.audioManager.startMusic();
+
     // HUD (top strip)
     this.hud = new HUD(this, this.lives, this.gold);
     this.hud.setWave(0, this.totalWaves);
     this.hud.createSpeedControls((mult) => this.onSpeedChange(mult));
+    const amForMute = AudioManager.getInstance();
+    this.hud.createMuteButton(amForMute.isMuted(), () => {
+      amForMute.toggleMute();
+      return amForMute.isMuted();
+    });
 
     // Commander HUD elements (name, portrait, ability button)
     if (this.commanderDef && this.commanderState) {
@@ -213,6 +223,8 @@ export class GameScene extends Phaser.Scene {
     // ── Scene event listeners ──────────────────────────────────────────────
 
     this.events.on('creep-killed', (data: CreepKilledData) => {
+      AudioManager.getInstance().playCreepKilled();
+
       // Bounty Hunter: kill rewards worth 20% more.
       const rewardMult = this.offerManager.getKillRewardMult();
       // Oshkaabewis: +1 gold per creep kill (stacks with base reward)
@@ -272,6 +284,7 @@ export class GameScene extends Phaser.Scene {
 
     // liveCost is 1 for normal creeps; boss escape emits 3.
     this.events.on('creep-escaped', (data: { liveCost: number; reward: number }) => {
+      AudioManager.getInstance().playCreepEscaped();
       const liveCost = data?.liveCost ?? 1;
       const reward   = data?.reward   ?? 0;
 
@@ -311,6 +324,8 @@ export class GameScene extends Phaser.Scene {
 
     // ── Boss killed: award bonus gold, visual effects, offer ─────────────
     this.events.on('boss-killed', (data: BossKilledData) => {
+      AudioManager.getInstance().playBossDeath();
+
       // Bonus gold reward (in addition to normal kill gold from 'creep-killed').
       // War Chest offer: +200 additional gold on boss kills.
       this.gold += data.rewardGold + this.offerManager.getBossKillBonus();
@@ -573,6 +588,7 @@ export class GameScene extends Phaser.Scene {
   // ── placement ─────────────────────────────────────────────────────────────
 
   private enterPlacementMode(def: TowerDef): void {
+    AudioManager.getInstance().playUiClick();
     this.placementDef = def;
     this.rangePreview.setVisible(true);
     this.placementMarker.setVisible(true);
@@ -618,6 +634,14 @@ export class GameScene extends Phaser.Scene {
     this.gold -= actualCost;
     this.hud.setGold(this.gold);
 
+    // Play placement sound: woody thunk for combat towers, soft hum for aura.
+    const am = AudioManager.getInstance();
+    if (this.placementDef.isAura) {
+      am.playProjectileFired('aura');
+    } else {
+      am.playTowerPlaced();
+    }
+
     const tower = new Tower(
       this,
       col,
@@ -627,6 +651,7 @@ export class GameScene extends Phaser.Scene {
       () => this.activeCreeps,
       (proj) => this.projectiles.add(proj),
       this.offerManager,
+      (key) => AudioManager.getInstance().playProjectileFired(key),
     );
 
     // Register with upgrade manager
@@ -641,6 +666,7 @@ export class GameScene extends Phaser.Scene {
 
   private selectTower(tower: Tower): void {
     if (this.placementDef) return;
+    AudioManager.getInstance().playUiClick();
     this.deselectTower();
     this.selectedTower = tower;
     tower.setRangeVisible(true);
@@ -733,6 +759,7 @@ export class GameScene extends Phaser.Scene {
 
     if (waveNum >= this.totalWaves) {
       this.gameState = 'over';
+      AudioManager.getInstance().playVictory();
       this.scene.start('GameOverScene', {
         wavesCompleted: this.totalWaves,
         totalWaves:     this.totalWaves,
@@ -773,6 +800,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.gameState = 'between';
+    AudioManager.getInstance().playWaveComplete();
 
     // Launch the roguelike offer selection scene (runs on top of GameScene).
     // The next-wave button is hidden until the player picks an offer.
@@ -1126,6 +1154,7 @@ export class GameScene extends Phaser.Scene {
   private triggerGameOver(): void {
     if (this.gameState === 'over') return;
     this.gameState = 'over';
+    AudioManager.getInstance().playGameOver();
     this.waveManager.cleanup();
     this.scene.start('GameOverScene', {
       wavesCompleted: this.currentWave,
