@@ -1,7 +1,7 @@
 ---
 id: TASK-11
 title: Polish & Balance
-status: in-progress
+status: done
 category: frontend
 phase: 11
 openspec_ref: "Phase 11"
