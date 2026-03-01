@@ -1,7 +1,7 @@
 ---
 id: TASK-021
 title: Audio System — Sound Effects & Music
-status: pending
+status: done
 category: backend
 phase: 11
 openspec_ref: ""

@@ -290,7 +290,7 @@ should be addressed during the next relevant phase or in a dedicated polish pass
   but verify no Phase 3 era import paths still reference the old stub interface.
 - `converted_assets/` icons are placeholder PNGs. Original animal-themed icon redesign
   (Tasks #4 → #5 in original plan) is deferred but needed before any public release.
-- No audio system. Sound effects and music are deferred to Phase 11 polish.
+- ~~No audio system. Sound effects and music are deferred to Phase 11 polish.~~ **Resolved (TASK-021)**: AudioManager provides procedural WebAudio SFX and background music.
 - No accessibility pass has been done. Tab navigation, contrast ratios, and screen reader
   labels are all out of scope for MVP but should be tracked.
 - ~~**GameScene missing `shutdown()` cleanup**~~ **Fixed (TASK-022)**: `GameScene.shutdown()`
@@ -706,6 +706,67 @@ are added.
 Both are exported from `unlockDefs.ts` but not consumed by any production code. They follow
 the pattern of `LOCKED_MAP_IDS` / `getMapUnlockNode()` (also test-only). These exports are
 consumed by the new unit tests and may be needed by future stage-gating logic.
+
+---
+
+## Code Review Findings — TASK-021 (Audio System)
+
+*Non-blocking items surfaced during review. Not required for merge.*
+
+### Music plays while AudioContext is muted (CPU waste)
+When the user's saved state has `audioMuted: true`, the music scheduler still runs
+and creates OscillatorNode/GainNode pairs every ~0.42s. The gain chain outputs silence
+(masterGain.value=0), but the Web Audio thread still processes the nodes. For a simple
+pentatonic arpeggio this is negligible, but if music complexity grows, consider stopping
+the scheduler entirely when muted and restarting on unmute.
+
+### Background music starts in constructor, not on explicit call
+`_initAudioContext()` calls `_startMusic()` at the end of the constructor. The
+`startMusic()` call in `GameScene.create()` is a no-op on first run (guarded by
+`_musicRunning`). This means music begins the moment any code calls `getInstance()` —
+currently fine since only GameScene does so, but if AudioManager is accessed earlier
+(e.g. MainMenuScene for UI click sounds), music would start on the main menu.
+
+### Mute button and speed buttons are scene objects, not Container children
+`HUD.createMuteButton()` and `createSpeedControls()` add game objects directly to the
+scene (`this.scene.add.rectangle(...)`) rather than to the HUD Container. They are
+cleaned up by Phaser on scene destroy, so no leak occurs. But `HUD.destroy()` won't
+clean them up if called mid-scene. Consistent with existing HUD patterns — note for
+a future refactor to make HUD fully self-contained.
+
+### No volume slider UI
+The AudioManager exposes `setMasterVolume`, `setSfxVolume`, and `setMusicVolume`, but
+the only UI control is a binary mute toggle. A settings panel with volume sliders would
+give players finer control. Defer to a dedicated settings/options menu task.
+
+### "No audio system" tech debt note is now resolved
+The entry in Known Technical Debt — "No audio system. Sound effects and music are
+deferred to Phase 11 polish." — is addressed by this task's AudioManager implementation.
+
+### Phase 13 — Endless Mode (review findings)
+
+- **`getWaveInfo()` returns null for endless waves (>20)**: Commander ability previews
+  that call `WaveManager.getWaveInfo(n)` for waves beyond the authored wave data will
+  receive `null`. If a future commander ability targets upcoming waves, this will need
+  a fallback path for procedurally-generated waves. Low priority — current callers
+  already guard against null.
+
+- **HUD shows "Wave X / 20" for waves 1–20 in endless mode**: The `∞` prefix only
+  appears once `current > 20`. During the first 20 waves of an endless run, the
+  display looks identical to normal mode. Consider adding a subtle indicator (e.g.
+  blue tint or `∞` prefix) from wave 1 in endless mode so the player knows they chose
+  the right mode. Cosmetic only.
+
+- **Give Up button not stored as instance property**: `HUD.createGiveUpButton()` adds
+  its bg/label via `this.scene.add.*` without storing references. This prevents
+  showing/hiding the button later (e.g. during pause). Consistent with other HUD
+  elements (`createSpeedControls`, `createAbilityButton`), but all of these would
+  benefit from tracked references if a future HUD redesign adds show/hide logic.
+
+- **Redundant modulo in boss rotation**: Line `ENDLESS_BOSS_ROTATION[(rotIdx +
+  ENDLESS_BOSS_ROTATION.length) % ENDLESS_BOSS_ROTATION.length]` — the `+ length`
+  guard is unnecessary since `rotIdx` is always ≥ 0 (result of `Math.floor` on a
+  non-negative). Harmless but could be simplified to `ENDLESS_BOSS_ROTATION[rotIdx]`.
 
 ---
 
