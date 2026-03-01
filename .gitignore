@@ -28,3 +28,6 @@ Thumbs.db
 
 # Generated health-check logs
 logs/
+
+# External curriculum (not part of this project)
+/docs/agentic_sdlc_curriculum/
