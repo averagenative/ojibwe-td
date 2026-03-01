@@ -67,10 +67,46 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - **Projectile target chase**: Each projectile calls `Phaser.Math.Distance.Between` every
   frame. Pool projectile objects rather than creating/destroying per shot.
 
+### Targeting & Behavior (TASK-06b review)
+- **BehaviorPanel `as unknown as Visible` casts**: Three casts in `setAllVisible()` and `refresh()`
+  work around `Phaser.GameObjects.GameObject` not declaring the `Visible` mixin. Correct at
+  runtime but fragile if Phaser drops the mixin from a concrete type. Consider storing objects
+  typed as `Phaser.GameObjects.Components.Visible` or using a union type.
+- **ESLint warnings in Tower.ts callbacks**: 5 `explicit-function-return-type` warnings on inline
+  arrow functions inside `fireTesla` / `fireAt` closures. Harmless (return types inferred) but
+  silencing them with explicit annotations would be cleaner.
+- **`findTarget()` creates a `candidates` array per attack**: Fine at current tower counts and
+  attack intervals (1000-2500ms), but if tower count grows significantly or attack intervals
+  shrink via aura stacking, consider a shared pre-filtered candidate list updated once per frame.
+- **Aura tower `defaultPriority` is unused**: `AURA_DEF.defaultPriority` is set to `FIRST` but
+  never read since aura towers don't attack. The value exists only to satisfy the required field;
+  consider making `defaultPriority` optional on TowerDef and defaulting to FIRST in the Tower
+  constructor, so isAura defs don't carry a misleading value.
+
 ### UX / Feel
 - Upgrade panel should animate open/close (slide up) rather than snapping — low effort, high feel.
 - Selected tower range circle should pulse when the tower fires, giving audio-visual feedback.
 - "Chill Only" toggle (Frost targeting task) should have a tooltip explaining the Poison synergy.
+- **BehaviorPanel toggle labels**: "ARMOR FOCUS OFF" / "HOLD FIRE OFF" could be confusing — the
+  word "OFF" looks like a button to turn something off. Consider "ARMOR FOCUS: ON" / "ARMOR FOCUS: OFF"
+  with a colon, or use a visual on/off indicator (filled vs hollow square) instead of text.
+
+### Balance Calc (TASK-014 review)
+- **`computeStatsForBalance` duplicates `UpgradeManager.computeEffectiveStats`**: Both functions
+  implement identical upgrade stat accumulation logic. If upgrade tier effects change, both must
+  be updated in lockstep. Consider extracting a shared `computeUpgradeStats(towerDef, tierState, upgDef)`
+  pure function that both callsites consume.
+- **`esbuild` not in explicit devDependencies**: The `npm run balance` script relies on esbuild,
+  which is currently available only as a transitive dependency of Vite. If Vite drops esbuild
+  (e.g. switching to Rolldown), the balance script will break. Add `esbuild` to devDependencies.
+- **Balance table Tesla DPS_PATH = 'B' shows no single-target improvement**: Tesla path B
+  (Arc Damage) only increases `chainDamageRatio`, which affects multi-target chain damage but
+  not the single-target DPS formula. The balance table will show identical kill times across
+  all Tesla B tiers. Consider switching Tesla's DPS_PATH to 'C' (Overload, which adds damageDelta)
+  or documenting that Tesla B is a multi-target path and the table is single-target only.
+- **Debug overlay `getHpRatio() * maxHp` for current HP**: This reconstructs current HP from
+  ratio × max. If Creep ever exposes a `getCurrentHp()` directly (already present per TASK-06b
+  memory notes), prefer using that to avoid floating-point round-trip drift.
 
 ---
 
