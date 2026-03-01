@@ -12,7 +12,7 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 1280,
   height: 720,
-  backgroundColor: '#0a0a0a',
+  backgroundColor: '#0d1208',
   parent: 'game-container',
   scene: [
     BootScene,          // 1. Loads assets, shows progress bar
