@@ -553,3 +553,19 @@ TASK-017 gives Ojibwe TD a narrative soul. The mechanics have always been solid;
 **Campaign arc.** The four acts follow the land's disturbance and restoration: Act 1 (*Zaaga'iganing* — The Arrival) frames the threat; Act 2 (*Mashkiig* — Wetlands) reveals that Waabooz is a displaced spirit, not an enemy; Act 3 (*Mitigomizh* — Savanna) introduces Animikiins as an omen rather than an adversary; Act 4 (*Biboon-aki* — Winter Lands) offers two ending variants — a hopeful resolution for a clean run (no lives lost) and a bittersweet but valid one for a run where lives were sacrificed. Neither is framed as a "bad" ending. Throughout, creeps are displaced spirits and animals out of balance, not invaders; the player is restoring harmony, not conquering.
 
 **Integration.** `GameScene` calls `vignetteManager.checkTrigger(TriggerType.WAVE_START, ...)` and `TriggerType.WAVE_COMPLETE` at the appropriate points in the wave lifecycle; boss-kill and boss-escape events are connected via the existing `creep-killed`/`creep-escaped` scene events. `MainMenuScene` gains a CODEX button with a badge driven by `SaveManager.getNewCodexEntryCount()`. 56 Vitest unit tests in `src/systems/__tests__/storyProgression.test.ts` cover the VignetteManager trigger logic, per-run deduplication, SaveManager persistence, and CodexScene entry unlock states. The full suite passes at 529 tests with 0 type errors.
+
+---
+
+## TASK-041 — Logo & Page Layout Redesign (2026-03-01)
+
+TASK-041 transforms the bare-bones HTML shell into a cohesive branded experience. Previously the game was a white page with a Phaser canvas dropped in; now the entire browser window is part of the visual design.
+
+**HTML shell restructure.** `game/index.html` gains a `<header id="game-header">` containing an `<img>` for the transparent Ojibwe TD logo PNG. Phaser mounts into a dedicated `<div id="game-container">` below the header rather than directly on `document.body`. The structure mirrors the design sketch from the task spec: a centred logo header at the top, then the full canvas below it.
+
+**CSS layout.** A new `game/src/style.css` (linked from `index.html`) sets `body` and `html` to `height: 100%; overflow: hidden; background: #0d1208` — the dark forest green that makes the logo's transparent background read correctly. The header is centred with `display: flex; justify-content: center; align-items: center; padding: 12px 0`. The logo scales responsively via `max-width: min(520px, 90vw); height: auto`, never clips on narrow viewports (≥ 320 px), and never triggers a horizontal scrollbar. `#game-container` takes `flex: 1` in a column flex layout so it fills all viewport height below the header via `calc`.
+
+**Phaser config update.** `game/src/main.ts` now points `parent: 'game-container'` and sets `backgroundColor: '#0d1208'` so there is no white flash before BootScene fires. The Scale Manager remains `Phaser.Scale.FIT` with `autoCenter: Phaser.Scale.CENTER_BOTH`, so the canvas letter-boxes cleanly within the container at any window size.
+
+**MainMenuScene title removed.** The large in-canvas "OJIBWE TD" text title is hidden — the HTML header logo now handles branding so there is no double title. `BootScene.preload()` still loads the `logo` texture key for potential in-game use (loading screen watermark etc.).
+
+**Test coverage.** `src/systems/__tests__/pageLayout.test.ts` adds 14 Vitest unit tests validating: logo `max-width` expression, responsive scaling constants, `game-container` flex behaviour, Phaser parent ID, background colour consistency, and no-overflow layout properties. `src/systems/__tests__/mobileCompat.test.ts` is extended with 15 tests confirming touch-action and viewport constraints remain intact alongside the new header layout. The full suite passes at 605 tests with 0 type errors.

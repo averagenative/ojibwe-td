@@ -1,7 +1,7 @@
 ---
 id: TASK-041
 title: Logo & Page Layout Redesign
-status: pending
+status: done
 priority: critical
 phase: polish
 ---

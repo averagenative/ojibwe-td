@@ -862,6 +862,47 @@ Surfaced during code review of Story Progression & Lore System (2026-03-01).
    creator (who is Ojibwe) should review all text before shipping. All 17 vignettes and
    22 codex entries currently have `reviewed: false`. Track as a pre-launch gate.
 
+### TASK-041: Logo & Page Layout (non-blocking)
+
+1. **MainMenuScene background mismatch** — `createBackground()` draws an opaque
+   `0x0a0a0a` rectangle over the entire canvas. The body/Phaser config now use
+   `#0d1208` (forest green). Consider updating the MainMenuScene background to
+   `0x0d1208` (or a complementary dark green) so the in-canvas background matches
+   the HTML shell. Not a bug — purely visual consistency.
+
+2. **"Tower Defense" subtitle vertical orphaning** — After removing the large
+   "OJIBWE TD" title text, the "Tower Defense" subtitle at `cy - 194` and the
+   tower icon row at `cy - 152` sit in the upper canvas with empty space above
+   them where the title used to be. Consider shifting them up or adding an
+   in-canvas logo watermark using the `logo` texture key that BootScene now loads.
+
+3. **56 pre-existing lint warnings** — All `@typescript-eslint/explicit-function-return-type`
+   warnings, spread across Tower.ts, GameScene.ts, AudioManager.ts, UpgradeManager.ts,
+   and several test files. None introduced by this task. Consider a lint-fix pass or
+   adding return types during the next polish phase.
+
+4. **Palette coverage gap — 5 UI files still use old neon palette + monospace** —
+   `CodexScene.ts`, `MetaMenuScene.ts`, `CommanderSelectScene.ts`, `BehaviorPanel.ts`,
+   and `BootScene.ts` still reference `#00ff44`, `#ff4444`, `fontFamily: 'monospace'`
+   etc. These were outside the TASK-039 scope (only 9 files were targeted). A follow-up
+   task should sweep these files to import from `PAL` for full consistency.
+
+5. **AFFINITY_COLORS in MainMenuScene uses hardcoded tower-identity hex values** —
+   Lines 32-37 define per-tower colours (`cannon: 0x778888`, `frost: 0x3366aa`, etc.)
+   and a fallback `0x888888`. These are tower-identity data colours, not UI theme
+   colours. Consider moving them to `towerDefs.ts` or a `PAL.tower.*` sub-object so
+   that tower identity colours are centralized alongside the UI palette.
+
+6. **GameOverScene colour arithmetic is fragile** — `hoverBg = bgColor + 0x191919`
+   and `bgColor - 0x0a0000` rely on 24-bit hex addition/subtraction that can overflow
+   across RGB channels. Consider using a `lighten(color, amount)` helper or defining
+   explicit hover-state colours in PAL.
+
+7. **GameScene VFX colours not in PAL** — Tesla chain lightning (`0x88ffff`),
+   mortar chain effect (`0xff88ff`), and a white flash (`0xffffff`) are visual effect
+   colours that remain inline. These are tower-specific VFX, not UI theme, but could
+   be moved to PAL or towerDefs for single-source-of-truth.
+
 ---
 
 ## Health Check Findings

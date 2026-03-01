@@ -1,7 +1,7 @@
 ---
 id: TASK-039
 title: Replace Hacker-Green Palette with Natural Ojibwe Colours
-status: pending
+status: in-progress
 priority: high
 phase: polish
 ---
