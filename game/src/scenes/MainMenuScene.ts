@@ -9,6 +9,7 @@ import {
   SEASON_PALETTE,
 } from '../data/stageDefs';
 import type { RegionDef, StageDef } from '../data/stageDefs';
+import { PAL } from '../ui/palette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -104,7 +105,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   private createBackground(): void {
     const { width, height } = this.scale;
-    this.add.rectangle(width / 2, height / 2, width, height, 0x0a0a0a)
+    this.add.rectangle(width / 2, height / 2, width, height, PAL.bgDark)
       .setDepth(DEPTH_BG);
 
     const gfx = this.add.graphics().setDepth(DEPTH_BG);
@@ -121,7 +122,7 @@ export class MainMenuScene extends Phaser.Scene {
     // "OJIBWE TD" title is now in the HTML header — no in-scene duplicate.
 
     this.add.text(cx, cy - 260, 'Tower Defense', {
-      fontSize: '22px', color: '#44aa44', fontFamily: 'monospace',
+      fontSize: '22px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BG + 2);
 
     // Tower icons
@@ -135,7 +136,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Section header
     this.add.text(cx, this.regionRowY - REGION_H / 2 - 18, 'SELECT REGION', {
-      fontSize: '13px', color: '#446644', fontFamily: 'monospace',
+      fontSize: '13px', color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION);
   }
 
@@ -166,7 +167,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Ojibwe name (primary)
     this.add.text(bx, by - 22, region.name, {
-      fontSize: '14px', color: pal.text, fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: '14px', color: pal.text, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     // English translation (secondary, smaller)
@@ -174,19 +175,19 @@ export class MainMenuScene extends Phaser.Scene {
     const english = parts[1] ? '(' + parts[1] : '';
     if (english) {
       this.add.text(bx, by - 4, english, {
-        fontSize: '10px', color: '#556655', fontFamily: 'monospace',
+        fontSize: '10px', color: PAL.textMuted, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
     }
 
     // Stage count
     const stageCount = region.stages.length;
     this.add.text(bx, by + 16, `${stageCount} stage${stageCount !== 1 ? 's' : ''}`, {
-      fontSize: '10px', color: '#445544', fontFamily: 'monospace',
+      fontSize: '10px', color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     // Season label
     this.add.text(bx, by + 30, region.seasonalTheme.toUpperCase(), {
-      fontSize: '9px', color: '#334433', fontFamily: 'monospace',
+      fontSize: '9px', color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     bg.on('pointerover', () => {
@@ -232,7 +233,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.refreshStageTiles();
 
     this.add.text(cx, this.stageRowY - STAGE_H / 2 - 16, 'SELECT STAGE', {
-      fontSize: '11px', color: '#446644', fontFamily: 'monospace',
+      fontSize: '11px', color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_STAGE);
   }
 
@@ -276,19 +277,19 @@ export class MainMenuScene extends Phaser.Scene {
   ): Phaser.GameObjects.GameObject[] {
     const created: Phaser.GameObjects.GameObject[] = [];
 
-    const bgColor = isLocked ? 0x0d0d0d : 0x111111;
+    const bgColor = isLocked ? PAL.bgPanelLocked : PAL.bgPanel;
 
     const bg = this.add.rectangle(bx, by, STAGE_W, STAGE_H, bgColor)
-      .setStrokeStyle(2, isLocked ? 0x333333 : 0x225522)
+      .setStrokeStyle(2, isLocked ? PAL.borderLocked : PAL.borderInactive)
       .setInteractive({ useHandCursor: !isLocked })
       .setDepth(DEPTH_STAGE)
       .setName('stage-bg');
     created.push(bg);
 
     // Stage name
-    const nameColor = isLocked ? '#444444' : '#ffffff';
+    const nameColor = isLocked ? PAL.textLocked : '#ffffff';
     const nameText = this.add.text(bx, by - STAGE_H / 2 + 18, stage.name, {
-      fontSize: '16px', color: nameColor, fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: '16px', color: nameColor, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
     created.push(nameText);
 
@@ -297,9 +298,9 @@ export class MainMenuScene extends Phaser.Scene {
     created.push(...stars);
 
     // Description (short)
-    const descColor = isLocked ? '#333333' : '#778877';
+    const descColor = isLocked ? PAL.textLockedDim : PAL.textDesc;
     const desc = this.add.text(bx, by - 4, stage.description, {
-      fontSize: '10px', color: descColor, fontFamily: 'monospace',
+      fontSize: '10px', color: descColor, fontFamily: PAL.fontBody,
       wordWrap: { width: STAGE_W - 24 }, align: 'center',
     }).setOrigin(0.5, 0).setDepth(DEPTH_STAGE + 1);
     created.push(desc);
@@ -313,7 +314,7 @@ export class MainMenuScene extends Phaser.Scene {
 
       const lockLabel = this.add.text(bx, by + STAGE_H / 2 - 16,
         `LOCKED  ${cost} crystals`, {
-          fontSize: '11px', color: '#664422', fontFamily: 'monospace', fontStyle: 'bold',
+          fontSize: '11px', color: PAL.textLockWarning, fontFamily: PAL.fontBody, fontStyle: 'bold',
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
       created.push(lockLabel);
 
@@ -327,33 +328,33 @@ export class MainMenuScene extends Phaser.Scene {
       const bestWave = SaveManager.getInstance().getEndlessRecord(stage.pathFile);
       if (bestWave > 0) {
         const bestText = this.add.text(bx, by + STAGE_H / 2 - 14, `∞ Best: Wave ${bestWave}`, {
-          fontSize: '11px', color: '#44aaff', fontFamily: 'monospace',
+          fontSize: '11px', color: PAL.accentBlue, fontFamily: PAL.fontBody,
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
         created.push(bestText);
       }
 
       // ENDLESS button (below the tile)
       const endlessBtnY = by + STAGE_H / 2 + 18;
-      const endlessBg = this.add.rectangle(bx, endlessBtnY, 160, 26, 0x001133)
-        .setStrokeStyle(1, 0x226688)
+      const endlessBg = this.add.rectangle(bx, endlessBtnY, 160, 26, PAL.bgEndlessBtn)
+        .setStrokeStyle(1, PAL.borderEndless)
         .setInteractive({ useHandCursor: true })
         .setDepth(DEPTH_STAGE + 1);
       const endlessLabel = this.add.text(bx, endlessBtnY, '∞ ENDLESS', {
-        fontSize: '12px', color: '#44aaff', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: '12px', color: PAL.accentBlue, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_STAGE + 2);
       created.push(endlessBg, endlessLabel);
 
-      endlessBg.on('pointerover', () => { endlessBg.setFillStyle(0x002255); endlessLabel.setColor('#88ccff'); });
-      endlessBg.on('pointerout',  () => { endlessBg.setFillStyle(0x001133); endlessLabel.setColor('#44aaff'); });
+      endlessBg.on('pointerover', () => { endlessBg.setFillStyle(PAL.bgEndlessBtnHover); endlessLabel.setColor(PAL.accentBlueLight); });
+      endlessBg.on('pointerout',  () => { endlessBg.setFillStyle(PAL.bgEndlessBtn); endlessLabel.setColor(PAL.accentBlue); });
       endlessBg.on('pointerup',   () => {
         this.selectedStageId = stage.id;
         this.highlightStage(stage.id);
         this.scene.start('CommanderSelectScene', { stageId: stage.id, isEndless: true });
       });
 
-      bg.on('pointerover', () => bg.setFillStyle(0x1a2a1a));
+      bg.on('pointerover', () => bg.setFillStyle(PAL.bgPanelHover));
       bg.on('pointerout', () => {
-        if (this.selectedStageId !== stage.id) bg.setFillStyle(0x111111);
+        if (this.selectedStageId !== stage.id) bg.setFillStyle(PAL.bgPanel);
       });
       bg.on('pointerup', () => {
         this.selectedStageId = stage.id;
@@ -368,14 +369,14 @@ export class MainMenuScene extends Phaser.Scene {
   private buildDifficultyStars(
     cx: number, cy: number, difficulty: number, isLocked: boolean,
   ): Phaser.GameObjects.Text[] {
-    const filled = isLocked ? '#333333' : '#ffcc00';
-    const empty  = isLocked ? '#222222' : '#334433';
+    const filled = isLocked ? PAL.textLockedDim : PAL.gold;
+    const empty  = isLocked ? PAL.textLockedDim : PAL.textFaint;
     const stars: Phaser.GameObjects.Text[] = [];
     const totalW = 5 * 14;
     for (let i = 0; i < 5; i++) {
       const x = cx - totalW / 2 + i * 14 + 7;
       const t = this.add.text(x, cy, i < difficulty ? '★' : '☆', {
-        fontSize: '13px', color: i < difficulty ? filled : empty, fontFamily: 'monospace',
+        fontSize: '13px', color: i < difficulty ? filled : empty, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
       stars.push(t);
     }
@@ -391,7 +392,7 @@ export class MainMenuScene extends Phaser.Scene {
     const dotGap = 13;
     const totalW = affinities.length * dotGap - dotGap + dotR * 2;
     const label  = this.add.text(cx - totalW / 2 - 32, cy, 'best:', {
-      fontSize: '9px', color: '#446644', fontFamily: 'monospace',
+      fontSize: '9px', color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0, 0.5).setDepth(DEPTH_STAGE + 1);
     objs.push(label);
 
@@ -419,8 +420,8 @@ export class MainMenuScene extends Phaser.Scene {
         const isSelected = stage.id === stageId;
         const isLocked = stage.unlockId !== null && !SaveManager.getInstance().isUnlocked(stage.unlockId);
         if (!isLocked) {
-          obj.setFillStyle(isSelected ? 0x1a2a1a : 0x111111);
-          obj.setStrokeStyle(2, isSelected ? 0x00ff44 : 0x225522);
+          obj.setFillStyle(isSelected ? PAL.bgPanelHover : PAL.bgPanel);
+          obj.setStrokeStyle(2, isSelected ? PAL.borderActive : PAL.borderInactive);
         }
         stageIdx++;
       }
@@ -434,18 +435,18 @@ export class MainMenuScene extends Phaser.Scene {
     const btnW = 240;
     const btnH = 52;
 
-    this.startBtn = this.add.rectangle(cx, btnY, btnW, btnH, 0x005500)
-      .setStrokeStyle(2, 0x00ff44)
+    this.startBtn = this.add.rectangle(cx, btnY, btnW, btnH, PAL.bgStartBtn)
+      .setStrokeStyle(2, PAL.borderActive)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_BUTTONS);
 
     this.startLabel = this.add.text(cx, btnY, 'START GAME', {
-      fontSize: '22px', color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: '22px', color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    this.startBtn.on('pointerover',  () => { this.startBtn.setFillStyle(0x007700); this.startLabel.setColor('#ffffff'); });
-    this.startBtn.on('pointerout',   () => { this.startBtn.setFillStyle(0x005500); this.startLabel.setColor('#00ff44'); });
-    this.startBtn.on('pointerdown',  () => this.startBtn.setFillStyle(0x003300));
+    this.startBtn.on('pointerover',  () => { this.startBtn.setFillStyle(PAL.bgStartBtnHover); this.startLabel.setColor('#ffffff'); });
+    this.startBtn.on('pointerout',   () => { this.startBtn.setFillStyle(PAL.bgStartBtn); this.startLabel.setColor(PAL.accentGreen); });
+    this.startBtn.on('pointerdown',  () => this.startBtn.setFillStyle(PAL.bgStartBtnPress));
     this.startBtn.on('pointerup',    () => {
       this.scene.start('CommanderSelectScene', { stageId: this.selectedStageId });
     });
@@ -458,30 +459,30 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Upgrades / meta button
     const metaX = cx - bottomBtnW / 2 - bottomGap / 2;
-    const metaBg = this.add.rectangle(metaX, bottomBtnY, bottomBtnW, bottomBtnH, 0x111133)
-      .setStrokeStyle(2, 0x335577)
+    const metaBg = this.add.rectangle(metaX, bottomBtnY, bottomBtnW, bottomBtnH, PAL.bgMetaBtn)
+      .setStrokeStyle(2, PAL.borderMeta)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_BUTTONS);
     const metaLabel = this.add.text(metaX, bottomBtnY, 'UPGRADES', {
-      fontSize: '15px', color: '#5588aa', fontFamily: 'monospace',
+      fontSize: '15px', color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    metaBg.on('pointerover', () => metaLabel.setColor('#88ccff'));
-    metaBg.on('pointerout',  () => metaLabel.setColor('#5588aa'));
+    metaBg.on('pointerover', () => metaLabel.setColor(PAL.accentBlueLight));
+    metaBg.on('pointerout',  () => metaLabel.setColor(PAL.accentBlue));
     metaBg.on('pointerup',   () => this.scene.start('MetaMenuScene'));
 
     // Codex button
     const codexX = cx + bottomBtnW / 2 + bottomGap / 2;
-    const codexBg = this.add.rectangle(codexX, bottomBtnY, bottomBtnW, bottomBtnH, 0x111a11)
-      .setStrokeStyle(2, 0x336633)
+    const codexBg = this.add.rectangle(codexX, bottomBtnY, bottomBtnW, bottomBtnH, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderCodex)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_BUTTONS);
     const codexLabel = this.add.text(codexX, bottomBtnY, 'CODEX', {
-      fontSize: '15px', color: '#44aa44', fontFamily: 'monospace',
+      fontSize: '15px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    codexBg.on('pointerover', () => codexLabel.setColor('#88ff88'));
-    codexBg.on('pointerout',  () => codexLabel.setColor('#44aa44'));
+    codexBg.on('pointerover', () => codexLabel.setColor(PAL.textPrimary));
+    codexBg.on('pointerout',  () => codexLabel.setColor(PAL.textSecondary));
     codexBg.on('pointerup',   () => this.scene.start('CodexScene', { returnTo: 'MainMenuScene' }));
 
     // Notification badge — show if there are unlocked codex entries
@@ -494,16 +495,16 @@ export class MainMenuScene extends Phaser.Scene {
     if (newEntries > 0) {
       const badgeX = codexX + bottomBtnW / 2 - 6;
       const badgeY = bottomBtnY - bottomBtnH / 2 + 6;
-      this.add.circle(badgeX, badgeY, 10, 0xff4444).setDepth(DEPTH_BUTTONS + 2);
+      this.add.circle(badgeX, badgeY, 10, PAL.dangerN).setDepth(DEPTH_BUTTONS + 2);
       this.add.text(badgeX, badgeY, `${newEntries}`, {
-        fontSize: '10px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: '10px', color: '#ffffff', fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
     }
   }
 
   private createFooter(cx: number, height: number): void {
     this.add.text(cx, height - 14, 'Solo Desktop · v0.1.0 · Placeholder Art · Inspired by Green TD', {
-      fontSize: '11px', color: '#334433', fontFamily: 'monospace',
+      fontSize: '11px', color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BG + 1);
   }
 }

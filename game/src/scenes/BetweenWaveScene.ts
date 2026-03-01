@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { OfferManager } from '../systems/OfferManager';
 import type { OfferDef } from '../data/offerDefs';
+import { PAL } from '../ui/palette';
 
 /** Data passed from GameScene when launching this scene. */
 interface BetweenWaveData {
@@ -17,9 +18,9 @@ const SPACING  = CARD_W + 24;
 
 // Category display metadata
 const CAT_META: Record<string, { label: string; color: string }> = {
-  combat:  { label: 'COMBAT',  color: '#ff6644' },
-  economy: { label: 'ECONOMY', color: '#ffcc22' },
-  synergy: { label: 'SYNERGY', color: '#44aaff' },
+  combat:  { label: 'COMBAT',  color: PAL.bossWarning },
+  economy: { label: 'ECONOMY', color: PAL.gold },
+  synergy: { label: 'SYNERGY', color: PAL.accentBlue },
 };
 
 /**
@@ -55,8 +56,8 @@ export class BetweenWaveScene extends Phaser.Scene {
       `WAVE  ${waveJustCompleted}  COMPLETE  —  CHOOSE A POWER-UP`,
       {
         fontSize:   '18px',
-        color:      '#00ff88',
-        fontFamily: 'monospace',
+        color:      PAL.accentBlue,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       },
     ).setOrigin(0.5).setDepth(DEPTH);
@@ -66,8 +67,8 @@ export class BetweenWaveScene extends Phaser.Scene {
       `Wave ${nextWave} begins after your choice`,
       {
         fontSize:   '13px',
-        color:      '#556655',
-        fontFamily: 'monospace',
+        color:      PAL.textMuted,
+        fontFamily: PAL.fontBody,
       },
     ).setOrigin(0.5).setDepth(DEPTH);
 
@@ -88,11 +89,11 @@ export class BetweenWaveScene extends Phaser.Scene {
     by:           number,
     offerManager: OfferManager,
   ): void {
-    const meta   = CAT_META[offer.category] ?? { label: 'OFFER', color: '#aaaaaa' };
+    const meta   = CAT_META[offer.category] ?? { label: 'OFFER', color: PAL.textNeutral };
     const stroke = this.hexStringToInt(meta.color);
 
     // ── Card background ──────────────────────────────────────────────────────
-    const card = this.add.rectangle(bx, by, CARD_W, CARD_H, 0x0d1520)
+    const card = this.add.rectangle(bx, by, CARD_W, CARD_H, PAL.bgCard)
       .setStrokeStyle(2, stroke, 0.5)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH);
@@ -101,7 +102,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     this.add.text(bx, by - CARD_H / 2 + 18, meta.label, {
       fontSize:   '10px',
       color:      meta.color,
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5).setDepth(DEPTH + 1);
 
@@ -117,7 +118,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     this.add.text(bx, by - CARD_H / 2 + 65, offer.name, {
       fontSize:   '16px',
       color:      '#ffffff',
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
       wordWrap:   { width: CARD_W - 24 },
       align:      'center',
@@ -126,8 +127,8 @@ export class BetweenWaveScene extends Phaser.Scene {
     // ── Description ──────────────────────────────────────────────────────────
     this.add.text(bx, by + 10, offer.description, {
       fontSize:   '13px',
-      color:      '#aabbcc',
-      fontFamily: 'monospace',
+      color:      PAL.textCardDesc,
+      fontFamily: PAL.fontBody,
       wordWrap:   { width: CARD_W - 28 },
       align:      'center',
     }).setOrigin(0.5).setDepth(DEPTH + 1);
@@ -135,17 +136,17 @@ export class BetweenWaveScene extends Phaser.Scene {
     // ── "Choose" hint ────────────────────────────────────────────────────────
     this.add.text(bx, by + CARD_H / 2 - 22, '▶  CHOOSE', {
       fontSize:   '11px',
-      color:      '#334455',
-      fontFamily: 'monospace',
+      color:      PAL.textDim,
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5).setDepth(DEPTH + 1);
 
     // ── Hover / click interactions ───────────────────────────────────────────
     card.on('pointerover', () => {
-      card.setFillStyle(0x182a40).setStrokeStyle(2, stroke, 1.0);
+      card.setFillStyle(PAL.bgCardHover).setStrokeStyle(2, stroke, 1.0);
     });
     card.on('pointerout', () => {
-      card.setFillStyle(0x0d1520).setStrokeStyle(2, stroke, 0.5);
+      card.setFillStyle(PAL.bgCard).setStrokeStyle(2, stroke, 0.5);
     });
     card.on('pointerup', () => this.pickOffer(offer, offerManager));
   }

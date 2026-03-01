@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PAL } from './palette';
 
 /** A single selectable reward shown in the boss offer panel. */
 export interface BossOffer {
@@ -43,8 +44,8 @@ export class BossOfferPanel {
     const cardX = width  / 2;
     const cardY = height / 2;
 
-    const card = scene.add.rectangle(cardX, cardY, cardW, cardH, 0x111118)
-      .setStrokeStyle(2, 0xff4422)
+    const card = scene.add.rectangle(cardX, cardY, cardW, cardH, PAL.bgBossPanel)
+      .setStrokeStyle(2, PAL.borderBoss)
       .setDepth(PANEL_DEPTH);
 
     // ── Title ────────────────────────────────────────────────────────────────
@@ -54,8 +55,8 @@ export class BossOfferPanel {
       `⚔  ${bossName.toUpperCase()}  DEFEATED  —  CHOOSE YOUR REWARD`,
       {
         fontSize:        '16px',
-        color:           '#ff4422',
-        fontFamily:      'monospace',
+        color:           PAL.bossWarning,
+        fontFamily:      PAL.fontBody,
         fontStyle:       'bold',
         stroke:          '#000000',
         strokeThickness: 3,
@@ -73,15 +74,15 @@ export class BossOfferPanel {
       const offer = offers[i];
       const bx    = rowStartX + i * (btnW + 14);
 
-      const btnBg = scene.add.rectangle(bx, btnY, btnW, btnH, 0x1a1a2a)
-        .setStrokeStyle(1, 0x445566)
+      const btnBg = scene.add.rectangle(bx, btnY, btnW, btnH, PAL.bgBossCard)
+        .setStrokeStyle(1, PAL.borderBossCard)
         .setInteractive({ useHandCursor: true })
         .setDepth(PANEL_DEPTH + 1);
 
       const btnLabel = scene.add.text(bx, btnY - 26, offer.label, {
         fontSize:  '17px',
-        color:     '#ffcc44',
-        fontFamily: 'monospace',
+        color:     PAL.textBossCardLabel,
+        fontFamily: PAL.fontBody,
         fontStyle: 'bold',
         wordWrap:  { width: btnW - 20 },
         align:     'center',
@@ -89,19 +90,19 @@ export class BossOfferPanel {
 
       const btnDesc = scene.add.text(bx, btnY + 16, offer.description, {
         fontSize:  '13px',
-        color:     '#99aabb',
-        fontFamily: 'monospace',
+        color:     PAL.textCardDesc,
+        fontFamily: PAL.fontBody,
         wordWrap:  { width: btnW - 20 },
         align:     'center',
       }).setOrigin(0.5, 0.5).setDepth(PANEL_DEPTH + 2);
 
       btnBg.on('pointerover', () => {
-        btnBg.setFillStyle(0x2a2a3e).setStrokeStyle(2, 0xffcc44);
-        btnLabel.setColor('#ffe077');
+        btnBg.setFillStyle(PAL.bgBossCardHover).setStrokeStyle(2, PAL.goldN);
+        btnLabel.setColor(PAL.gold);
       });
       btnBg.on('pointerout', () => {
-        btnBg.setFillStyle(0x1a1a2a).setStrokeStyle(1, 0x445566);
-        btnLabel.setColor('#ffcc44');
+        btnBg.setFillStyle(PAL.bgBossCard).setStrokeStyle(1, PAL.borderBossCard);
+        btnLabel.setColor(PAL.textBossCardLabel);
       });
       btnBg.on('pointerup', () => {
         offer.onChoose();

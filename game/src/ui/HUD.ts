@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PAL } from './palette';
 
 const HUD_HEIGHT = 48;
 const PADDING    = 16;
@@ -32,26 +33,26 @@ export class HUD extends Phaser.GameObjects.Container {
     const bg = new Phaser.GameObjects.Rectangle(
       scene, width / 2, HUD_HEIGHT / 2, width, HUD_HEIGHT, 0x000000, 0.8,
     );
-    bg.setStrokeStyle(1, 0x224422);
+    bg.setStrokeStyle(1, PAL.borderInactive);
 
     this.livesText = scene.add.text(PADDING, HUD_HEIGHT / 2, `♥  ${lives}`, {
       fontSize: '20px',
-      color: '#ff4444',
-      fontFamily: 'monospace',
+      color: PAL.danger,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
 
     this.goldText = scene.add.text(width / 2, HUD_HEIGHT / 2, `⬡  ${gold}`, {
       fontSize: '20px',
-      color: '#ffcc00',
-      fontFamily: 'monospace',
+      color: PAL.gold,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
 
     this.waveText = scene.add.text(width - PADDING, HUD_HEIGHT / 2, 'Wave 0 / 20', {
       fontSize: '18px',
-      color: '#aaaaaa',
-      fontFamily: 'monospace',
+      color: PAL.textNeutral,
+      fontFamily: PAL.fontBody,
     }).setOrigin(1, 0.5).setDepth(DEPTH + 1);
 
     this.add([bg, this.livesText, this.goldText, this.waveText]);
@@ -61,8 +62,8 @@ export class HUD extends Phaser.GameObjects.Container {
 
   setLives(lives: number): void {
     this.livesText.setText(`♥  ${lives}`);
-    if (lives <= 5)       this.livesText.setColor('#ff0000');
-    else if (lives <= 10) this.livesText.setColor('#ff6600');
+    if (lives <= 5)       this.livesText.setColor(PAL.danger);
+    else if (lives <= 10) this.livesText.setColor(PAL.dangerWarm);
   }
 
   setGold(gold: number): void {
@@ -79,7 +80,7 @@ export class HUD extends Phaser.GameObjects.Container {
       const boss  = current % 5 === 0;
       const label = boss ? `★ ∞ Wave ${current}` : `∞ Wave ${current}`;
       this.waveText.setText(label);
-      this.waveText.setColor(boss ? '#ff8844' : '#44aaff');
+      this.waveText.setColor(boss ? PAL.waveWarning : PAL.accentBlue);
       return;
     }
     const boss  = isBossWaveNumber(current);
@@ -87,7 +88,7 @@ export class HUD extends Phaser.GameObjects.Container {
       ? `★ Wave ${current} / ${total}`
       : `Wave ${current} / ${total}`;
     this.waveText.setText(label);
-    this.waveText.setColor(boss ? '#ff8844' : '#aaaaaa');
+    this.waveText.setColor(boss ? PAL.waveWarning : PAL.textNeutral);
   }
 
   // ── speed controls ────────────────────────────────────────────────────────
@@ -115,26 +116,26 @@ export class HUD extends Phaser.GameObjects.Container {
       const cx = startX + i * (btnW + gap) + btnW / 2;
       const isActive = mult === 1; // 1× is default
 
-      const bgColor   = isActive ? 0x005500 : 0x222222;
-      const textColor = isActive ? '#00ff44' : '#888888';
+      const bgColor   = isActive ? PAL.bgSpeedBtnActive : PAL.bgSpeedBtn;
+      const textColor = isActive ? PAL.accentGreen : PAL.textInactive;
 
       const btnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, bgColor)
-        .setStrokeStyle(1, isActive ? 0x00ff44 : 0x444444)
+        .setStrokeStyle(1, isActive ? PAL.borderSpeedActive : PAL.borderNeutral)
         .setInteractive({ useHandCursor: true })
         .setDepth(DEPTH + 2);
 
       const btnLabel = this.scene.add.text(cx, cy, label, {
         fontSize: '14px',
         color: textColor,
-        fontFamily: 'monospace',
+        fontFamily: PAL.fontBody,
         fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
 
       btnBg.on('pointerover', () => {
-        if (this.activeSpeed !== mult) btnBg.setFillStyle(0x333333);
+        if (this.activeSpeed !== mult) btnBg.setFillStyle(PAL.bgBtnHover);
       });
       btnBg.on('pointerout', () => {
-        if (this.activeSpeed !== mult) btnBg.setFillStyle(0x222222);
+        if (this.activeSpeed !== mult) btnBg.setFillStyle(PAL.bgSpeedBtn);
       });
       btnBg.on('pointerup', () => {
         this.setActiveSpeed(mult);
@@ -156,9 +157,9 @@ export class HUD extends Phaser.GameObjects.Container {
   private setActiveSpeed(mult: number): void {
     this.activeSpeed = mult;
     const palette: Array<{ bg: number; stroke: number; text: string }> = [
-      { bg: 0x222222, stroke: 0x444444, text: '#888888' },
-      { bg: 0x005500, stroke: 0x00ff44, text: '#00ff44' },
-      { bg: 0x004488, stroke: 0x0088ff, text: '#44aaff' },
+      { bg: PAL.bgSpeedBtn,       stroke: PAL.borderNeutral,      text: PAL.textInactive  },
+      { bg: PAL.bgSpeedBtnActive, stroke: PAL.borderSpeedActive,  text: PAL.accentGreen  },
+      { bg: PAL.bgSpeedBtnFast,   stroke: PAL.borderSpeedFast,    text: PAL.accentBlue   },
     ];
     const mults = [0, 1, 2];
     for (let i = 0; i < this.speedBtns.length; i++) {
@@ -181,21 +182,21 @@ export class HUD extends Phaser.GameObjects.Container {
     const btnX = width - PADDING - btnW / 2;
     const btnY = HUD_HEIGHT / 2;
 
-    this.nextWaveBg = this.scene.add.rectangle(btnX, btnY, btnW, 36, 0x004400)
-      .setStrokeStyle(2, 0x00ff44)
+    this.nextWaveBg = this.scene.add.rectangle(btnX, btnY, btnW, 36, PAL.bgNextWave)
+      .setStrokeStyle(2, PAL.borderNextWave)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 2)
       .setVisible(false);
 
     this.nextWaveLabel = this.scene.add.text(btnX, btnY, '', {
       fontSize: '14px',
-      color: '#00ff44',
-      fontFamily: 'monospace',
+      color: PAL.accentGreen,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3).setVisible(false);
 
-    this.nextWaveBg.on('pointerover', () => this.nextWaveBg?.setFillStyle(0x006600));
-    this.nextWaveBg.on('pointerout',  () => this.nextWaveBg?.setFillStyle(0x004400));
+    this.nextWaveBg.on('pointerover', () => this.nextWaveBg?.setFillStyle(PAL.bgNextWaveHover));
+    this.nextWaveBg.on('pointerout',  () => this.nextWaveBg?.setFillStyle(PAL.bgNextWave));
     this.nextWaveBg.on('pointerup', onClick);
   }
 
@@ -227,8 +228,8 @@ export class HUD extends Phaser.GameObjects.Container {
       }
       this.nextWaveLabel.setText(label);
 
-      const textCol  = boss ? '#ff8844' : (isEndlessWave ? '#44aaff' : '#00ff44');
-      const strokeN  = boss ? 0xff8844  : (isEndlessWave ? 0x44aaff : 0x00ff44);
+      const textCol  = boss ? PAL.waveWarning : (isEndlessWave ? PAL.accentBlue : PAL.accentGreen);
+      const strokeN  = boss ? PAL.waveWarningN : (isEndlessWave ? PAL.borderNextWaveEnd : PAL.borderNextWave);
       this.nextWaveLabel.setColor(textCol);
       this.nextWaveBg.setStrokeStyle(2, strokeN);
 
@@ -251,20 +252,20 @@ export class HUD extends Phaser.GameObjects.Container {
     const btnX  = 400;
     const btnY  = HUD_HEIGHT / 2;
 
-    const bg = this.scene.add.rectangle(btnX, btnY, btnW, btnH, 0x220000)
-      .setStrokeStyle(1, 0xcc2222)
+    const bg = this.scene.add.rectangle(btnX, btnY, btnW, btnH, PAL.bgGiveUp)
+      .setStrokeStyle(1, PAL.borderGiveUp)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 2);
 
     const label = this.scene.add.text(btnX, btnY, 'GIVE UP', {
       fontSize:   '13px',
-      color:      '#cc4444',
-      fontFamily: 'monospace',
+      color:      PAL.danger,
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
 
-    bg.on('pointerover', () => { bg.setFillStyle(0x440000); label.setColor('#ff6666'); });
-    bg.on('pointerout',  () => { bg.setFillStyle(0x220000); label.setColor('#cc4444'); });
+    bg.on('pointerover', () => { bg.setFillStyle(PAL.bgGiveUpHover); label.setColor(PAL.dangerLight); });
+    bg.on('pointerout',  () => { bg.setFillStyle(PAL.bgGiveUp); label.setColor(PAL.danger); });
     bg.on('pointerup',   onClick);
   }
 
@@ -279,8 +280,8 @@ export class HUD extends Phaser.GameObjects.Container {
     // Position after lives text (approx x=100)
     this.scene.add.text(100, cy, `${commanderName} · ${auraName}`, {
       fontSize: '11px',
-      color: '#88cc88',
-      fontFamily: 'monospace',
+      color: PAL.textSecondary,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
   }
 
@@ -298,25 +299,25 @@ export class HUD extends Phaser.GameObjects.Container {
     const btnX = this.scene.scale.width / 2 - 140;
     const btnW = 120;
 
-    this.abilityBtnBg = this.scene.add.rectangle(btnX, cy, btnW, 30, 0x222244)
-      .setStrokeStyle(1, 0x6666cc)
+    this.abilityBtnBg = this.scene.add.rectangle(btnX, cy, btnW, 30, PAL.bgAbilityBtn)
+      .setStrokeStyle(1, PAL.borderAbility)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 2);
 
     this.abilityBtnLabel = this.scene.add.text(btnX, cy, abilityName, {
       fontSize: '10px',
-      color: '#aaaaff',
-      fontFamily: 'monospace',
+      color: PAL.textAbility,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
       wordWrap: { width: btnW - 8 },
       align: 'center',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
 
     this.abilityBtnBg.on('pointerover', () => {
-      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(0x333366);
+      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(PAL.bgAbilityBtnHover);
     });
     this.abilityBtnBg.on('pointerout', () => {
-      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(0x222244);
+      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(PAL.bgAbilityBtn);
     });
     this.abilityBtnBg.on('pointerup', () => {
       onActivate();
@@ -327,11 +328,11 @@ export class HUD extends Phaser.GameObjects.Container {
   disableAbilityButton(): void {
     if (this.abilityBtnBg) {
       this.abilityBtnBg.disableInteractive();
-      this.abilityBtnBg.setFillStyle(0x111111);
-      this.abilityBtnBg.setStrokeStyle(1, 0x333333);
+      this.abilityBtnBg.setFillStyle(PAL.bgPanelDark);
+      this.abilityBtnBg.setStrokeStyle(1, PAL.borderPanel);
     }
     if (this.abilityBtnLabel) {
-      this.abilityBtnLabel.setColor('#444444');
+      this.abilityBtnLabel.setColor(PAL.textDisabled);
     }
   }
 
@@ -352,18 +353,18 @@ export class HUD extends Phaser.GameObjects.Container {
     const cx   = 305;         // just right of speed buttons (speed btns end ~258)
     const cy   = HUD_HEIGHT / 2;
 
-    this.muteBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, 0x222222)
-      .setStrokeStyle(1, 0x444444)
+    this.muteBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, PAL.bgSpeedBtn)
+      .setStrokeStyle(1, PAL.borderNeutral)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 2);
 
     this.muteBtnLabel = this.scene.add.text(cx, cy, initialMuted ? '🔇' : '🔊', {
       fontSize:   '14px',
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
 
-    this.muteBtnBg.on('pointerover', () => this.muteBtnBg?.setFillStyle(0x333333));
-    this.muteBtnBg.on('pointerout',  () => this.muteBtnBg?.setFillStyle(0x222222));
+    this.muteBtnBg.on('pointerover', () => this.muteBtnBg?.setFillStyle(PAL.bgBtnHover));
+    this.muteBtnBg.on('pointerout',  () => this.muteBtnBg?.setFillStyle(PAL.bgSpeedBtn));
     this.muteBtnBg.on('pointerup', () => {
       const muted = onToggle();
       this.muteBtnLabel?.setText(muted ? '🔇' : '🔊');
@@ -388,8 +389,8 @@ export class HUD extends Phaser.GameObjects.Container {
       `⚠ BOSS WAVE ⚠\n${bossName}`,
       {
         fontSize:        '52px',
-        color:           '#ff4422',
-        fontFamily:      'monospace',
+        color:           PAL.bossWarning,
+        fontFamily:      PAL.fontTitle,
         fontStyle:       'bold',
         align:           'center',
         stroke:          '#000000',
