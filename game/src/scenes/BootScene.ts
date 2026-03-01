@@ -44,6 +44,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   private loadAssets(): void {
+    // Logo (preloaded for optional in-scene use, e.g. loading watermark)
+    this.load.image('logo', 'assets/ui/logo.png');
+
     // Tower icons (original art generated for Ojibwe TD)
     this.load.image('icon-cannon',  'assets/icons/icon-cannon.png');
     this.load.image('icon-frost',   'assets/icons/icon-frost.png');

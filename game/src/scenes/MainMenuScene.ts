@@ -118,16 +118,9 @@ export class MainMenuScene extends Phaser.Scene {
   // ── Title ──────────────────────────────────────────────────────────────────
 
   private createTitle(cx: number, cy: number): void {
-    // Glow shadow
-    this.add.text(cx, cy - 260, 'OJIBWE TD', {
-      fontSize: '68px', color: '#003300', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setAlpha(0.4).setDepth(DEPTH_BG + 1);
+    // "OJIBWE TD" title is now in the HTML header — no in-scene duplicate.
 
-    this.add.text(cx, cy - 260, 'OJIBWE TD', {
-      fontSize: '68px', color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(DEPTH_BG + 2);
-
-    this.add.text(cx, cy - 194, 'Tower Defense', {
+    this.add.text(cx, cy - 260, 'Tower Defense', {
       fontSize: '22px', color: '#44aa44', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(DEPTH_BG + 2);
 
@@ -136,7 +129,7 @@ export class MainMenuScene extends Phaser.Scene {
     const iconSpacing = 60;
     const rowW = (icons.length - 1) * iconSpacing;
     icons.forEach((key, i) => {
-      this.add.image(cx - rowW / 2 + i * iconSpacing, cy - 152, key)
+      this.add.image(cx - rowW / 2 + i * iconSpacing, cy - 228, key)
         .setDisplaySize(36, 36).setAlpha(0.6).setDepth(DEPTH_BG + 2);
     });
 
