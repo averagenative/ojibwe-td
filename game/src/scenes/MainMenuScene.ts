@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
+import { ALL_CODEX_ENTRIES } from '../data/codexDefs';
 import {
   ALL_REGIONS,
   ALL_STAGES,
@@ -456,19 +457,55 @@ export class MainMenuScene extends Phaser.Scene {
       this.scene.start('CommanderSelectScene', { stageId: this.selectedStageId });
     });
 
+    // Bottom row: UPGRADES | CODEX (side by side)
+    const bottomBtnW = 115;
+    const bottomBtnH = 42;
+    const bottomBtnY = height - 52;
+    const bottomGap  = 8;
+
     // Upgrades / meta button
-    const metaBtnY = height - 52;
-    const metaBg = this.add.rectangle(cx, metaBtnY, btnW, 42, 0x111133)
+    const metaX = cx - bottomBtnW / 2 - bottomGap / 2;
+    const metaBg = this.add.rectangle(metaX, bottomBtnY, bottomBtnW, bottomBtnH, 0x111133)
       .setStrokeStyle(2, 0x335577)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_BUTTONS);
-    const metaLabel = this.add.text(cx, metaBtnY, 'UPGRADES', {
-      fontSize: '18px', color: '#5588aa', fontFamily: 'monospace',
+    const metaLabel = this.add.text(metaX, bottomBtnY, 'UPGRADES', {
+      fontSize: '15px', color: '#5588aa', fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     metaBg.on('pointerover', () => metaLabel.setColor('#88ccff'));
     metaBg.on('pointerout',  () => metaLabel.setColor('#5588aa'));
     metaBg.on('pointerup',   () => this.scene.start('MetaMenuScene'));
+
+    // Codex button
+    const codexX = cx + bottomBtnW / 2 + bottomGap / 2;
+    const codexBg = this.add.rectangle(codexX, bottomBtnY, bottomBtnW, bottomBtnH, 0x111a11)
+      .setStrokeStyle(2, 0x336633)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH_BUTTONS);
+    const codexLabel = this.add.text(codexX, bottomBtnY, 'CODEX', {
+      fontSize: '15px', color: '#44aa44', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+    codexBg.on('pointerover', () => codexLabel.setColor('#88ff88'));
+    codexBg.on('pointerout',  () => codexLabel.setColor('#44aa44'));
+    codexBg.on('pointerup',   () => this.scene.start('CodexScene', { returnTo: 'MainMenuScene' }));
+
+    // Notification badge — show if there are unlocked codex entries
+    const save = SaveManager.getInstance();
+    const unlockedCount = ALL_CODEX_ENTRIES.filter(
+      e => e.defaultUnlocked || save.isCodexUnlocked(e.id),
+    ).length;
+    const defaultCount = ALL_CODEX_ENTRIES.filter(e => e.defaultUnlocked).length;
+    const newEntries = unlockedCount - defaultCount;
+    if (newEntries > 0) {
+      const badgeX = codexX + bottomBtnW / 2 - 6;
+      const badgeY = bottomBtnY - bottomBtnH / 2 + 6;
+      this.add.circle(badgeX, badgeY, 10, 0xff4444).setDepth(DEPTH_BUTTONS + 2);
+      this.add.text(badgeX, badgeY, `${newEntries}`, {
+        fontSize: '10px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
+    }
   }
 
   private createFooter(cx: number, height: number): void {

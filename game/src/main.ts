@@ -6,6 +6,7 @@ import { GameScene } from './scenes/GameScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { BetweenWaveScene } from './scenes/BetweenWaveScene';
 import { MetaMenuScene } from './scenes/MetaMenuScene';
+import { CodexScene } from './scenes/CodexScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -21,6 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
     BetweenWaveScene,   // 4. Roguelike offer selection (launched on top of GameScene)
     GameOverScene,      // 5. End of run — lives hit 0
     MetaMenuScene,      // 6. Meta-progression unlocks (currency + unlock tree)
+    CodexScene,         // 7. Lore codex browser (accessible from menus)
   ],
   scale: {
     mode: Phaser.Scale.FIT,
