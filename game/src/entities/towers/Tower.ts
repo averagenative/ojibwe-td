@@ -3,80 +3,18 @@ import type { Creep } from '../Creep';
 import { Projectile } from '../Projectile';
 import type { ProjectileOptions } from '../Projectile';
 
-// ── TowerDef ─────────────────────────────────────────────────────────────────
-
-export interface TowerDef {
-  key:              string;
-  name:             string;
-  cost:             number;
-  range:            number;            // px — attack range or aura radius
-  damage:           number;
-  attackIntervalMs: number;            // base attack speed; use Infinity for Aura
-  projectileSpeed:  number;            // px/s
-  bodyColor:        number;
-
-  // Projectile appearance
-  projectileColor?:  number;
-  projectileRadius?: number;
-
-  // Tower behaviour flags
-  groundOnly?:          boolean;       // Mortar: cannot target air creeps
-  splashRadius?:        number;        // Mortar: AoE radius on impact
-  chainCount?:          number;        // Tesla: number of extra chain targets
-  chainRange?:          number;        // Tesla: max chain reach from primary hit
-  chainDamageRatio?:    number;        // Tesla: chain damage fraction (default 0.6)
-  isAura?:              boolean;       // Aura tower: no attack, buffs nearby towers
-  auraIntervalMult?:    number;        // Aura: interval multiplier for nearby towers (<1 = faster)
-  /** Per-creep effect applied on each hit (Frost slow, Poison DoT) */
-  onHitEffect?:         (creep: Creep) => void;
-}
-
-// ── Tower definitions ─────────────────────────────────────────────────────────
-
-export const CANNON_DEF: TowerDef = {
-  key: 'cannon',  name: 'Cannon',  cost: 100,
-  range: 160,  damage: 40,  attackIntervalMs: 1000,  projectileSpeed: 300,
-  bodyColor: 0x778888,  projectileColor: 0xffdd00,  projectileRadius: 5,
-};
-
-export const FROST_DEF: TowerDef = {
-  key: 'frost',  name: 'Frost',  cost: 125,
-  range: 140,  damage: 15,  attackIntervalMs: 1200,  projectileSpeed: 280,
-  bodyColor: 0x3366aa,  projectileColor: 0x88ccff,  projectileRadius: 5,
-  onHitEffect: (creep) => creep.applySlow(0.5, 2500),
-};
-
-export const MORTAR_DEF: TowerDef = {
-  key: 'mortar',  name: 'Mortar',  cost: 175,
-  range: 200,  damage: 60,  attackIntervalMs: 2500,  projectileSpeed: 180,
-  bodyColor: 0x996633,  projectileColor: 0xff8800,  projectileRadius: 7,
-  groundOnly: true,  splashRadius: 55,
-};
-
-export const POISON_DEF: TowerDef = {
-  key: 'poison',  name: 'Poison',  cost: 125,
-  range: 130,  damage: 0,  attackIntervalMs: 1500,  projectileSpeed: 250,
-  bodyColor: 0x338844,  projectileColor: 0x55ff99,  projectileRadius: 5,
-  onHitEffect: (creep) => creep.applyDot(6, 500, 8),
-};
-
-export const TESLA_DEF: TowerDef = {
-  key: 'tesla',  name: 'Tesla',  cost: 200,
-  range: 160,  damage: 35,  attackIntervalMs: 1500,  projectileSpeed: 500,
-  bodyColor: 0xbbaa22,  projectileColor: 0xffff44,  projectileRadius: 4,
-  chainCount: 3,  chainRange: 110,  chainDamageRatio: 0.6,
-};
-
-export const AURA_DEF: TowerDef = {
-  key: 'aura',  name: 'Aura',  cost: 150,
-  range: 180,  damage: 0,  attackIntervalMs: Infinity,  projectileSpeed: 0,
-  bodyColor: 0xbb9922,
-  isAura: true,  auraIntervalMult: 0.8, // towers in range attack 25% faster
-};
-
-export const ALL_TOWER_DEFS: TowerDef[] = [
+// Re-export pure data types & constants from the Phaser-free data module so
+// existing importers of Tower.ts continue to work unchanged.
+export type { TowerDef, TowerUpgradeStats } from '../../data/towerDefs';
+export {
+  defaultUpgradeStats,
   CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
-];
+  ALL_TOWER_DEFS,
+} from '../../data/towerDefs';
+
+// Local aliases for use within this file (avoids re-importing from data module).
+import type { TowerDef, TowerUpgradeStats } from '../../data/towerDefs';
+import { defaultUpgradeStats } from '../../data/towerDefs';
 
 // ── Tower class ───────────────────────────────────────────────────────────────
 
@@ -87,7 +25,11 @@ export class Tower extends Phaser.GameObjects.Container {
   readonly tileCol: number;
   readonly tileRow: number;
 
+  /** Live stat block — updated by UpgradeManager after each upgrade. */
+  upgStats: TowerUpgradeStats;
+
   private rangeGfx:          Phaser.GameObjects.Graphics;
+  private rangeVisible       = false;
   private auraPulseGfx?:     Phaser.GameObjects.Graphics;
   private auraPulseRadius  = 0;
 
@@ -96,7 +38,21 @@ export class Tower extends Phaser.GameObjects.Container {
 
   // Step-based attack timing (replaces Phaser timer for buff support)
   private attackElapsed      = 0;
-  private intervalMultiplier = 1.0; // set by Aura towers each frame
+  private intervalMultiplier = 1.0; // set by Aura towers each frame (speed buff)
+
+  // Per-frame aura buffs received from Aura towers — reset every frame.
+  private auraDamageMult  = 1.0;
+  private auraRangePct    = 0;
+
+  // Temporary attack debuff applied by Tesla overload (C upgrade).
+  private debuffMultiplier = 1.0;
+  private debuffTimer?:    Phaser.Time.TimerEvent;
+
+  /**
+   * Optional callback set by UpgradeManager when Tesla overload mode is active.
+   * Fires with the chain-hit positions after each Tesla chain.
+   */
+  onChainFired?: (positions: Array<{ x: number; y: number }>) => void;
 
   constructor(
     scene: Phaser.Scene,
@@ -114,6 +70,7 @@ export class Tower extends Phaser.GameObjects.Container {
     this.def              = def;
     this.tileCol          = tileCol;
     this.tileRow          = tileRow;
+    this.upgStats         = defaultUpgradeStats(def);
     this.getCreeps        = getCreeps;
     this.onProjectileFired = onProjectileFired;
 
@@ -146,12 +103,22 @@ export class Tower extends Phaser.GameObjects.Container {
     }
 
     this.attackElapsed += delta;
-    const effectiveInterval = this.def.attackIntervalMs * this.intervalMultiplier;
+    const effectiveInterval =
+      this.upgStats.attackIntervalMs * this.intervalMultiplier * this.debuffMultiplier;
 
     if (this.attackElapsed >= effectiveInterval) {
       this.attackElapsed = 0;
       this.tryAttack();
     }
+  }
+
+  /**
+   * Called by UpgradeManager after any upgrade purchase or respec.
+   * Stores the new stat block and rebuilds visual elements that depend on range.
+   */
+  applyUpgradeStats(stats: TowerUpgradeStats): void {
+    this.upgStats = stats;
+    this.refreshRangeCircle();
   }
 
   /**
@@ -162,7 +129,45 @@ export class Tower extends Phaser.GameObjects.Container {
     this.intervalMultiplier = mult;
   }
 
+  getIntervalMultiplier(): number {
+    return this.intervalMultiplier;
+  }
+
+  /** Set per-frame damage multiplier from an Aura tower. */
+  setAuraDamageMult(mult: number): void {
+    this.auraDamageMult = mult;
+  }
+
+  getAuraDamageMult(): number {
+    return this.auraDamageMult;
+  }
+
+  /** Set per-frame range % bonus from an Aura tower (0.1 = +10%). */
+  setAuraRangePct(pct: number): void {
+    this.auraRangePct = pct;
+  }
+
+  getAuraRangePct(): number {
+    return this.auraRangePct;
+  }
+
+  /**
+   * Apply a temporary attack-speed penalty (Tesla C — Overload drawback).
+   * @param mult       >1 makes attacks slower (e.g. 1.25 = 25% slower)
+   * @param durationMs Duration of the debuff
+   */
+  applyAttackDebuff(mult: number, durationMs: number): void {
+    if (this.def.isAura) return; // aura towers are never debuffed
+    this.debuffMultiplier = mult;
+    this.debuffTimer?.destroy();
+    this.debuffTimer = this.scene.time.addEvent({
+      delay: durationMs,
+      callback: () => { this.debuffMultiplier = 1.0; },
+    });
+  }
+
   setRangeVisible(visible: boolean): void {
+    this.rangeVisible = visible;
     this.rangeGfx.setVisible(visible);
   }
 
@@ -173,13 +178,14 @@ export class Tower extends Phaser.GameObjects.Container {
   sell(): void {
     this.rangeGfx.destroy();
     this.auraPulseGfx?.destroy();
+    this.debuffTimer?.destroy();
     this.destroy();
   }
 
   // ── attack ────────────────────────────────────────────────────────────────
 
   private tryAttack(): void {
-    if (this.def.splashRadius) {
+    if (this.upgStats.splashRadius > 0) {
       this.fireMortar();
       return;
     }
@@ -187,7 +193,7 @@ export class Tower extends Phaser.GameObjects.Container {
     const target = this.findNearest(this.def.groundOnly);
     if (!target) return;
 
-    if (this.def.chainCount) {
+    if (this.upgStats.chainCount > 0) {
       this.fireTesla(target);
       return;
     }
@@ -200,19 +206,50 @@ export class Tower extends Phaser.GameObjects.Container {
     const target = this.findNearest(/* groundOnly */ true);
     if (!target) return;
 
+    const effectiveDamage = Math.round(this.upgStats.damage * this.auraDamageMult);
+    const clusterCount    = this.upgStats.clusterCount;
+    const splashR         = this.upgStats.splashRadius;
+
     const opts: ProjectileOptions = {
       color:        this.def.projectileColor ?? 0xff8800,
       radius:       this.def.projectileRadius ?? 7,
       speed:        this.def.projectileSpeed,
-      damage:       this.def.damage,
-      splashRadius: this.def.splashRadius,
+      damage:       effectiveDamage,
+      splashRadius: splashR > 0 ? splashR : undefined,
       groundOnly:   this.def.groundOnly,
       getCreeps:    this.getCreeps,
     };
 
+    if (clusterCount > 0) {
+      const scene        = this.scene;
+      const baseDmg      = Math.max(1, Math.round(effectiveDamage * 0.5));
+      const getCreeps    = this.getCreeps;
+      const fireProjFn   = this.onProjectileFired;
+
+      opts.onImpact = (cx: number, cy: number) => {
+        for (let i = 0; i < clusterCount; i++) {
+          const angle = (i / clusterCount) * Math.PI * 2;
+          const scatter = 40;
+          const px = cx + Math.cos(angle) * scatter;
+          const py = cy + Math.sin(angle) * scatter;
+
+          const sub = new Projectile(scene, cx, cy, { x: px, y: py }, {
+            color:        0xffaa44,
+            radius:       4,
+            speed:        200,
+            damage:       baseDmg,
+            splashRadius: 25,
+            groundOnly:   true,
+            getCreeps,
+          });
+          fireProjFn(sub);
+        }
+      };
+    }
+
     const proj = new Projectile(
       this.scene, this.x, this.y,
-      { x: target.x, y: target.y }, // fixed position snapshot
+      { x: target.x, y: target.y },
       opts,
     );
     this.onProjectileFired(proj);
@@ -220,20 +257,21 @@ export class Tower extends Phaser.GameObjects.Container {
 
   /** Tesla: fires at primary target; onHit chains to nearby creeps */
   private fireTesla(target: Creep): void {
-    const chainCount = this.def.chainCount!;
-    const chainRange = this.def.chainRange!;
-    const chainDmg   = Math.round(this.def.damage * (this.def.chainDamageRatio ?? 0.6));
-    const getCreeps  = this.getCreeps;
-    const scene      = this.scene;
+    const chainCount   = this.upgStats.chainCount;
+    const chainRange   = this.def.chainRange ?? 110;
+    const primaryDmg   = Math.round(this.upgStats.damage * this.auraDamageMult);
+    const chainDmg     = Math.round(primaryDmg * this.upgStats.chainDamageRatio);
+    const getCreeps    = this.getCreeps;
+    const scene        = this.scene;
+    const overloadMode = this.upgStats.overloadMode;
+    const onChainFired = this.onChainFired;
 
     const opts: ProjectileOptions = {
       color:  this.def.projectileColor ?? 0xffff44,
       radius: this.def.projectileRadius ?? 4,
       speed:  this.def.projectileSpeed,
-      damage: this.def.damage,
+      damage: primaryDmg,
       onHit: (hitCreep) => {
-        this.def.onHitEffect?.(hitCreep);
-
         // Find nearest unchained creeps within chainRange
         const candidates = [...getCreeps()]
           .filter(c => c.active && c !== hitCreep)
@@ -242,9 +280,17 @@ export class Tower extends Phaser.GameObjects.Container {
           .sort((a, b) => a.dist - b.dist)
           .slice(0, chainCount);
 
+        const chainPositions: Array<{ x: number; y: number }> = [];
         for (const { creep } of candidates) {
           creep.takeDamage(chainDmg);
           drawLightningArc(scene, hitCreep.x, hitCreep.y, creep.x, creep.y);
+          if (overloadMode) {
+            chainPositions.push({ x: creep.x, y: creep.y });
+          }
+        }
+
+        if (overloadMode && chainPositions.length > 0 && onChainFired) {
+          onChainFired(chainPositions);
         }
       },
     };
@@ -255,12 +301,69 @@ export class Tower extends Phaser.GameObjects.Container {
 
   /** Standard single-target projectile (Cannon, Frost, Poison) */
   private fireAt(target: Creep): void {
+    const effectiveDamage = Math.round(this.upgStats.damage * this.auraDamageMult);
+
+    // ── Cannon: execute check ────────────────────────────────────────────────
+    if (this.def.key === 'cannon' && this.upgStats.executeThreshold > 0) {
+      if (target.getHpRatio() <= this.upgStats.executeThreshold) {
+        // Deal lethal damage via normal projectile for visual feedback.
+        const opts: ProjectileOptions = {
+          color:  0xff4400,
+          radius: this.def.projectileRadius ?? 5,
+          speed:  this.def.projectileSpeed * 1.5,
+          damage: target.maxHp * 2,
+        };
+        const proj = new Projectile(this.scene, this.x, this.y, target, opts);
+        this.onProjectileFired(proj);
+        return;
+      }
+    }
+
+    // ── Build per-tower onHit effect ─────────────────────────────────────────
+    let onHit: ((c: Creep) => void) | undefined;
+
+    switch (this.def.key) {
+      case 'cannon': {
+        if (this.upgStats.armorShredPct > 0) {
+          const pct = this.upgStats.armorShredPct;
+          const dur = this.upgStats.armorShredDuration;
+          onHit = (c: Creep) => c.applyArmorShred(pct, dur);
+        }
+        break;
+      }
+
+      case 'frost': {
+        const sf  = this.upgStats.slowFactor;
+        const sd  = this.upgStats.slowDurationMs;
+        const shat = this.upgStats.shatterOnDeath;
+        onHit = (c: Creep) => {
+          c.applySlow(sf, sd);
+          if (shat) c.applyShatter();
+        };
+        break;
+      }
+
+      case 'poison': {
+        const totalDmg = this.upgStats.dotDamageBase + this.upgStats.dotDamageBonus;
+        const maxStacks = this.upgStats.maxDotStacks;
+        onHit = (c: Creep) => {
+          if (maxStacks > 0 && c.getDotStacks() >= maxStacks) return;
+          c.applyDot(totalDmg, 500, 8);
+        };
+        break;
+      }
+
+      default:
+        onHit = this.def.onHitEffect ? (c) => this.def.onHitEffect!(c) : undefined;
+        break;
+    }
+
     const opts: ProjectileOptions = {
       color:  this.def.projectileColor ?? 0xffdd00,
       radius: this.def.projectileRadius ?? 5,
       speed:  this.def.projectileSpeed,
-      damage: this.def.damage,
-      onHit:  this.def.onHitEffect ? (c) => this.def.onHitEffect!(c) : undefined,
+      damage: effectiveDamage,
+      onHit,
     };
 
     const proj = new Projectile(this.scene, this.x, this.y, target, opts);
@@ -270,8 +373,9 @@ export class Tower extends Phaser.GameObjects.Container {
   // ── targeting ─────────────────────────────────────────────────────────────
 
   private findNearest(groundOnly = false): Creep | null {
+    const effectiveRange = this.upgStats.range * (1 + this.auraRangePct);
     let nearest: Creep | null = null;
-    let nearestDist = this.def.range + 1;
+    let nearestDist = effectiveRange + 1;
 
     for (const creep of this.getCreeps()) {
       if (!creep.active) continue;
@@ -292,18 +396,33 @@ export class Tower extends Phaser.GameObjects.Container {
   // ── visuals ───────────────────────────────────────────────────────────────
 
   private buildRangeCircle(): Phaser.GameObjects.Graphics {
-    const color      = this.def.isAura ? 0xffdd44 : 0xffffff;
+    const color       = this.def.isAura ? 0xffdd44 : 0xffffff;
     const strokeAlpha = this.def.isAura ? 0.4 : 0.25;
     const fillAlpha   = this.def.isAura ? 0.06 : 0.04;
 
     const gfx = this.scene.add.graphics();
     gfx.lineStyle(1, color, strokeAlpha);
     gfx.fillStyle(color, fillAlpha);
-    gfx.strokeCircle(this.x, this.y, this.def.range);
-    gfx.fillCircle(this.x, this.y, this.def.range);
+    gfx.strokeCircle(this.x, this.y, this.upgStats.range);
+    gfx.fillCircle(this.x, this.y, this.upgStats.range);
     gfx.setVisible(false);
     gfx.setDepth(5);
     return gfx;
+  }
+
+  private refreshRangeCircle(): void {
+    const wasVisible = this.rangeVisible;
+    this.rangeGfx.clear();
+
+    const color       = this.def.isAura ? 0xffdd44 : 0xffffff;
+    const strokeAlpha = this.def.isAura ? 0.4 : 0.25;
+    const fillAlpha   = this.def.isAura ? 0.06 : 0.04;
+
+    this.rangeGfx.lineStyle(1, color, strokeAlpha);
+    this.rangeGfx.fillStyle(color, fillAlpha);
+    this.rangeGfx.strokeCircle(this.x, this.y, this.upgStats.range);
+    this.rangeGfx.fillCircle(this.x, this.y, this.upgStats.range);
+    this.rangeGfx.setVisible(wasVisible);
   }
 
   private buildBody(): void {
@@ -330,9 +449,9 @@ export class Tower extends Phaser.GameObjects.Container {
   private stepAuraPulse(delta: number): void {
     if (!this.auraPulseGfx) return;
     this.auraPulseRadius += (delta / 1000) * 55;
-    if (this.auraPulseRadius > this.def.range) this.auraPulseRadius = 0;
+    if (this.auraPulseRadius > this.upgStats.range) this.auraPulseRadius = 0;
 
-    const alpha = (1 - this.auraPulseRadius / this.def.range) * 0.45;
+    const alpha = (1 - this.auraPulseRadius / this.upgStats.range) * 0.45;
     this.auraPulseGfx.clear();
     this.auraPulseGfx.lineStyle(2, 0xffdd44, alpha);
     this.auraPulseGfx.strokeCircle(this.x, this.y, this.auraPulseRadius);

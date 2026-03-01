@@ -23,6 +23,17 @@ const HP_BAR_WIDTH  = 30;
 const HP_BAR_HEIGHT = 4;
 const HP_BAR_OFFSET_Y = -20;
 
+/** Data emitted on scene.events when a poisoned creep dies (used for DoT spread). */
+export interface CreepDiedPoisonedData {
+  x:           number;
+  y:           number;
+  dotDamage:   number;
+  dotTickMs:   number;
+  dotTicks:    number;
+  /** True when the Frost shatter mechanic is active — prevents spread. */
+  isShattered: boolean;
+}
+
 export class Creep extends Phaser.GameObjects.Container {
   public readonly maxHp: number;
   public readonly reward: number;
@@ -42,6 +53,17 @@ export class Creep extends Phaser.GameObjects.Container {
   private slowTimer?: Phaser.Time.TimerEvent;
   private dotStacks   = 0;
   private dotTimers: Phaser.Time.TimerEvent[] = [];
+
+  // Frost shatter: set when a Frost-C tower's slow is applied.
+  // Cleared when the slow expires.
+  private shatterActive = false;
+
+  // Tracks the most-recently applied DoT params for spread-on-death purposes.
+  private lastDotParams: { damage: number; tickMs: number; ticks: number } | null = null;
+
+  // Armor shred: damage amplification applied by Cannon-A upgrades.
+  private damageAmpPct = 0;
+  private shredTimer?: Phaser.Time.TimerEvent;
 
   constructor(
     scene: Phaser.Scene,
@@ -93,10 +115,25 @@ export class Creep extends Phaser.GameObjects.Container {
 
   takeDamage(amount: number): void {
     if (!this.active) return;
-    this.hp = Math.max(0, this.hp - amount);
+
+    // Apply armor-shred damage amplification.
+    const amplified = amount * (1 + this.damageAmpPct);
+    this.hp = Math.max(0, this.hp - amplified);
     this.hpBarFill.width = HP_BAR_WIDTH * (this.hp / this.maxHp);
 
     if (this.hp <= 0) {
+      // Emit spread event before destroying (GameScene handles the spread logic).
+      if (this.dotStacks > 0 && this.lastDotParams) {
+        const data: CreepDiedPoisonedData = {
+          x:           this.x,
+          y:           this.y,
+          dotDamage:   this.lastDotParams.damage,
+          dotTickMs:   this.lastDotParams.tickMs,
+          dotTicks:    this.lastDotParams.ticks,
+          isShattered: this.shatterActive,
+        };
+        this.scene.events.emit('creep-died-poisoned', data);
+      }
       this.setActive(false).setVisible(false);
       this.emit('died', this);
       this.destroy();
@@ -105,6 +142,16 @@ export class Creep extends Phaser.GameObjects.Container {
 
   getHpRatio(): number {
     return this.hp / this.maxHp;
+  }
+
+  /** Current number of active DoT stacks. */
+  getDotStacks(): number {
+    return this.dotStacks;
+  }
+
+  /** True while any slow is active (used by Frost shatter logic). */
+  isSlowed(): boolean {
+    return this.slowFactor < 1.0;
   }
 
   // ── status effects ────────────────────────────────────────────────────────
@@ -126,11 +173,22 @@ export class Creep extends Phaser.GameObjects.Container {
       delay: durationMs,
       callback: () => {
         if (!this.active) return;
-        this.slowFactor = 1.0;
+        this.slowFactor      = 1.0;
         this.speedMultiplier = 1.0;
+        this.shatterActive   = false; // shatter clears when the slow expires
         this.refreshStatusVisual();
       },
     });
+  }
+
+  /**
+   * Mark this creep as shattered (Frost C upgrade).
+   * Shatter is active as long as the creep is slowed; it prevents
+   * Poison C's DoT spread from triggering on this creep's death.
+   */
+  applyShatter(): void {
+    if (!this.active) return;
+    this.shatterActive = true;
   }
 
   /**
@@ -141,6 +199,7 @@ export class Creep extends Phaser.GameObjects.Container {
    */
   applyDot(damage: number, tickMs: number, ticks: number): void {
     if (!this.active) return;
+    this.lastDotParams = { damage, tickMs, ticks };
     this.dotStacks++;
     this.refreshStatusVisual();
 
@@ -166,10 +225,44 @@ export class Creep extends Phaser.GameObjects.Container {
     this.dotTimers.push(timer);
   }
 
+  /**
+   * Apply a damage vulnerability debuff from Cannon A (Armor Shred).
+   * @param pct        Damage amplification fraction (e.g. 0.15 = 15% more damage taken)
+   * @param durationMs How long the debuff lasts
+   */
+  applyArmorShred(pct: number, durationMs: number): void {
+    if (!this.active) return;
+    // Skip entirely if the existing shred is already stronger — don't cut its
+    // timer short by creating a new (shorter-duration) replacement.
+    if (pct < this.damageAmpPct) return;
+    this.damageAmpPct = pct;
+
+    this.shredTimer?.destroy();
+    this.shredTimer = this.scene.time.addEvent({
+      delay: durationMs,
+      callback: () => {
+        if (!this.active) return;
+        this.damageAmpPct = 0;
+      },
+    });
+  }
+
+  /**
+   * Immediately destroy all active DoT stacks and their timers.
+   * (Available for future mechanics that need to cancel ongoing DoTs.)
+   */
+  clearDoTs(): void {
+    for (const t of this.dotTimers) t.destroy();
+    this.dotTimers = [];
+    this.dotStacks = 0;
+    this.refreshStatusVisual();
+  }
+
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   destroy(fromScene?: boolean): void {
     this.slowTimer?.destroy();
+    this.shredTimer?.destroy();
     for (const t of this.dotTimers) t.destroy();
     this.dotTimers = [];
     super.destroy(fromScene);

@@ -1,17 +1,17 @@
 ---
 id: TASK-06
 title: Tower Upgrade Trees
-status: pending
+status: done
 category: backend
 phase: 6
 openspec_ref: "Phase 6"
-depends_on: []
+depends_on: ["TASK-05"]
 created: 2026-02-28
 ---
 
 ## Description
 
-Phase 6 of the GreenTD implementation. See proposal.md for full context.
+Add per-tower upgrade trees to provide in-run progression depth. Each of the 6 tower types has 3 upgrade paths × 5 tiers. Advancing a path to tier 3+ locks out the third path, creating meaningful specialisation choices. A respec option lets the player reset and rebuild, at a gold cost. The upgrade panel opens when a placed tower is selected.
 
 ## Acceptance Criteria
 
@@ -29,6 +29,10 @@ Phase 6 of the GreenTD implementation. See proposal.md for full context.
 - [ ] Implement Frost shatter drawback (deep freeze path destroys Poison DoT stacks on frozen creep death)
 - [ ] Implement Tesla overload drawback (deep overload path applies brief debuff to allied towers hit by chain)
 - [ ] Implement Aura specialization drawback (deep spec on one path reduces aura bonus for non-matching tower types in range)
+- [ ] Sell a tower with active upgrades: refund MUST include upgrade investment at configured rate
+- [ ] Attempting to upgrade during an active wave MUST either be allowed or blocked consistently (define which)
+- [ ] Upgrade panel renders correctly at all supported viewport widths (≥ 800 px)
+- [ ] Unit tests cover: apply-tier, path-lock, respec gold calculation, invalid-upgrade guard
 
 ## Notes
 

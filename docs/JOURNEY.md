@@ -249,3 +249,15 @@ greentd/
 4. Move to `done/` and start Phase 2
 
 The game doesn't exist yet. The plan does.
+
+---
+
+## Phase 6 — Tower Upgrade Trees (2026-02-28)
+
+Phase 6 delivered the full BTD6-style upgrade system: three upgrade paths per tower, five tiers each, with a path-lock rule that forces a meaningful choice once you push any path to tier 3 (advancing A locks C, and vice versa; path B is always available). All six archetypes received complete upgrade trees covering single-target DPS, crowd control, area damage, damage-over-time, chain/bounce, and passive aura mechanics.
+
+Key architectural decision: tower definitions and upgrade stats were split into a Phaser-free module (`src/data/towerDefs.ts`) so the UpgradeManager and its 18-test unit-test suite could run in Node/jsdom without pulling in the full Phaser runtime. The UpgradeManager owns all upgrade state and applies it back to towers via `applyStatsToTower()`. A respec option was added at a 25% gold penalty on total spend, giving players a recovery path without trivialising build commitment.
+
+Notable cross-tower interactions shipped: Frost's shatter mechanic destroys Poison DoT stacks on frozen enemies (preventing spread cascades), Tesla's overload path applies an attack debuff to nearby allied towers via chain-fire callbacks, Aura's deep specialisation halves its bonus for off-type towers in range, and Mortar cluster sub-projectiles fire from the impact point via `Projectile.onImpact` callbacks. These mechanics give each tower a genuine identity and create the kind of synergy-vs-drawback decisions that defined Green TD's original depth.
+
+The UpgradePanel UI (160 px strip above the tower-info panel) displays three path columns with tier pips, buy buttons styled by affordability, and a locked overlay on the locked path. Sell refunds were updated to include total upgrade spend at a 50% rate.

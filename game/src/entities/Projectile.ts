@@ -14,6 +14,11 @@ export interface ProjectileOptions {
   onHit?:        (creep: Creep) => void;
   /** Required when splashRadius is set */
   getCreeps?:    () => ReadonlySet<Creep>;
+  /**
+   * Called when a position-target projectile arrives at its destination.
+   * Used by Mortar cluster submunitions (Mortar C upgrade).
+   */
+  onImpact?:     (x: number, y: number) => void;
 }
 
 /**
@@ -113,6 +118,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
       this.applyAoe(cx, cy);
       this.splashVisual(cx, cy);
     }
+    this.opts.onImpact?.(cx, cy);
   }
 
   private applyAoe(cx: number, cy: number): void {

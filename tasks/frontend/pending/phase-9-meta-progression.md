@@ -5,13 +5,13 @@ status: pending
 category: frontend
 phase: 9
 openspec_ref: "Phase 9"
-depends_on: []
+depends_on: ["TASK-08"]
 created: 2026-02-28
 ---
 
 ## Description
 
-Phase 9 of the GreenTD implementation. See proposal.md for full context.
+Add persistent cross-run progression. Players spend run currency in a meta menu to unlock new towers/upgrade path variants (unlock tree) and purchase cumulative stat bonuses (stat bonus tree). State is persisted in localStorage. Purchased unlocks and stat bonuses are applied at the start of each new run, making the game easier over time and rewarding continued play.
 
 ## Acceptance Criteria
 
@@ -24,6 +24,10 @@ Phase 9 of the GreenTD implementation. See proposal.md for full context.
 - [ ] Implement unlock effects at game start (hide locked towers from placement panel; hide locked upgrade paths)
 - [ ] Implement stat bonus effects at run start (read purchased nodes, apply to initial gold/lives/costs)
 - [ ] Add Meta button to MainMenu and end screens
+- [ ] If localStorage is unavailable or full, the game MUST degrade gracefully (warn user, run without persistence — do not crash)
+- [ ] SaveManager MUST version its schema; incompatible saved data MUST be reset with a user-visible notice
+- [ ] Purchasing a node MUST be idempotent (re-purchase of an owned node is a no-op, not a double-charge)
+- [ ] Stat bonus tree preview MUST show the cumulative effect before the player commits currency
 
 ## Notes
 

@@ -14,6 +14,7 @@ export default defineConfig({
     // Vitest config lives here alongside Vite config (zero extra config file)
     environment: 'jsdom',  // DOM available for any Phaser-adjacent code
     globals: true,          // describe/it/expect without imports in test files
+    setupFiles: ['src/systems/__tests__/setup.ts'],
     include: ['src/**/*.test.ts'],
     exclude: ['src/scenes/**', 'src/main.ts'],  // skip Phaser scene files
     coverage: {

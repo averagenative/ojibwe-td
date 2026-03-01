@@ -1,17 +1,21 @@
 import Phaser from 'phaser';
 import { Creep } from '../entities/Creep';
+import type { CreepDiedPoisonedData } from '../entities/Creep';
 import { Tower, ALL_TOWER_DEFS } from '../entities/towers/Tower';
 import type { TowerDef } from '../entities/towers/Tower';
 import { Projectile } from '../entities/Projectile';
 import { WaveManager } from '../systems/WaveManager';
-import { calculateRunCurrency } from '../systems/EconomyManager';
+import { UpgradeManager } from '../systems/UpgradeManager';
+import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyManager';
 import { HUD } from '../ui/HUD';
 import { TowerPanel, PANEL_HEIGHT } from '../ui/TowerPanel';
+import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import type { MapData } from '../types/MapData';
 import { TILE } from '../types/MapData';
 
-const TOTAL_WAVES = 20;
-const HUD_HEIGHT  = 48; // must match HUD.ts
+const TOTAL_WAVES       = 20;
+const HUD_HEIGHT        = 48; // must match HUD.ts
+const DOT_SPREAD_RADIUS = 80; // px — Poison C spread radius
 
 type GameState = 'pregame' | 'wave' | 'between' | 'over';
 
@@ -38,10 +42,12 @@ export class GameScene extends Phaser.Scene {
   private projectiles:  Set<Projectile> = new Set();
 
   // ── systems ───────────────────────────────────────────────────────────────
-  private waveManager!: WaveManager;
+  private waveManager!:    WaveManager;
+  private upgradeManager!: UpgradeManager;
 
   // ── ui ────────────────────────────────────────────────────────────────────
-  private hud!: HUD;
+  private hud!:          HUD;
+  private upgradePanel!: UpgradePanel;
 
   // ── placement ─────────────────────────────────────────────────────────────
   private placementDef: TowerDef | null = null;
@@ -76,6 +82,12 @@ export class GameScene extends Phaser.Scene {
     this.hud.setWave(0, TOTAL_WAVES);
     this.hud.createSpeedControls((mult) => this.onSpeedChange(mult));
 
+    // Upgrade system
+    this.upgradeManager = new UpgradeManager(
+      () => this.towers,
+      () => this.activeCreeps,
+    );
+
     // Wave system
     const creepTypeDefs = this.cache.json.get('creep-types');
     const waveDefs      = this.cache.json.get('wave-defs');
@@ -87,6 +99,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on('creep-killed', (reward: number) => {
       this.gold += reward;
       this.hud.setGold(this.gold);
+      this.upgradePanel?.refresh();
     });
     this.events.on('creep-escaped', () => {
       this.lives = Math.max(0, this.lives - 1);
@@ -96,6 +109,26 @@ export class GameScene extends Phaser.Scene {
     this.events.on('wave-bonus', (bonus: number) => {
       this.gold += bonus;
       this.hud.setGold(this.gold);
+      this.upgradePanel?.refresh();
+    });
+
+    // ── Frost shatter drawback ────────────────────────────────────────────
+    // When a creep that has shatterActive dies with DoT stacks, Creep.takeDamage
+    // emits 'creep-died-poisoned' with isShattered=true BEFORE calling destroy().
+    // The handler below checks that flag to suppress Poison C's spread mechanic.
+    // (DoT timers are cleaned up naturally in Creep.destroy(), so no manual
+    //  clearDoTs call is needed on death.)
+
+    // ── Poison C: DoT spread on death ────────────────────────────────────
+    this.events.on('creep-died-poisoned', (data: CreepDiedPoisonedData) => {
+      if (data.isShattered) return; // Frost C prevents the spread
+      if (!this.upgradeManager.hasPoisonSpread()) return;
+
+      this.upgradeManager.spreadDot(
+        data.x, data.y,
+        data.dotDamage, data.dotTickMs, data.dotTicks,
+        DOT_SPREAD_RADIUS,
+      );
     });
 
     // Placement preview (follows mouse when in placement mode)
@@ -106,6 +139,17 @@ export class GameScene extends Phaser.Scene {
 
     // Tower panel (bottom strip — all 6 towers)
     new TowerPanel(this, ALL_TOWER_DEFS, (def) => this.enterPlacementMode(def), () => this.gold);
+
+    // Upgrade panel (above tower panel — shown when a tower is selected)
+    this.upgradePanel = new UpgradePanel(this, this.upgradeManager, () => this.gold);
+    this.upgradePanel.onBuy = (cost) => {
+      this.gold -= cost;
+      this.hud.setGold(this.gold);
+    };
+    this.upgradePanel.onRespec = (refund) => {
+      this.gold += refund;
+      this.hud.setGold(this.gold);
+    };
 
     // Next-wave button (right portion of HUD strip)
     this.hud.createNextWaveButton(() => this.startNextWave());
@@ -207,8 +251,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerDown(ptr: Phaser.Input.Pointer): void {
-    // Ignore clicks in HUD strip (top) and tower panel (bottom)
-    if (ptr.y < HUD_HEIGHT || ptr.y > this.scale.height - PANEL_HEIGHT) return;
+    // Filter clicks in HUD strip (top) and bottom UI panels
+    const bottomLimit = this.scale.height
+      - PANEL_HEIGHT
+      - (this.upgradePanel.isOpen() ? UPGRADE_PANEL_HEIGHT : 0);
+
+    if (ptr.y < HUD_HEIGHT || ptr.y > bottomLimit) return;
 
     if (ptr.rightButtonDown()) {
       this.handleRightClick(ptr);
@@ -288,6 +336,9 @@ export class GameScene extends Phaser.Scene {
       (proj) => this.projectiles.add(proj),
     );
 
+    // Register with upgrade manager
+    this.upgradeManager.registerTower(tower);
+
     tower.on('pointerup', () => this.selectTower(tower));
     this.towers.push(tower);
     this.exitPlacementMode();
@@ -300,19 +351,24 @@ export class GameScene extends Phaser.Scene {
     this.deselectTower();
     this.selectedTower = tower;
     tower.setRangeVisible(true);
+    this.upgradePanel.showForTower(tower);
   }
 
   private deselectTower(): void {
     this.selectedTower?.setRangeVisible(false);
     this.selectedTower = null;
+    this.upgradePanel.hide();
   }
 
   private sellTower(tower: Tower): void {
-    const refund = tower.getSellValue();
+    // Refund includes base tower cost + upgrade investment, both at the sell rate.
+    const upgradeSpent = this.upgradeManager.getState(tower)?.totalSpent ?? 0;
+    const refund       = calculateSellRefund(tower.def.cost + upgradeSpent);
     this.gold += refund;
     this.hud.setGold(this.gold);
 
-    if (this.selectedTower === tower) this.selectedTower = null;
+    if (this.selectedTower === tower) this.deselectTower();
+    this.upgradeManager.removeTower(tower);
     this.towers = this.towers.filter(t => t !== tower);
     tower.sell();
   }
@@ -372,30 +428,83 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Recalculate aura buffs every frame.
-   * Resets all towers to 1.0×, then applies the best (lowest) multiplier
-   * from any Aura tower in range.
+   *
+   * Three types of buffs are propagated from Aura towers:
+   *   1. Attack speed  (intervalMultiplier — lower = faster)
+   *   2. Damage        (auraDamageMult — multiplicative)
+   *   3. Range         (auraRangePct   — additive % bonus)
+   *
+   * Deep aura specialisation drawback (tier ≥ 3 on a path):
+   *   - Speed spec:  non-combat towers (isAura) receive only 50% of the speed boost.
+   *   - Damage spec: non-combat towers (isAura) receive only 50% of the damage boost.
+   *   - Range spec:  aura towers themselves receive 0 range bonus.
    */
   private updateAuras(): void {
-    const multipliers = new Map<Tower, number>();
-    for (const t of this.towers) multipliers.set(t, 1.0);
+    // Per-frame maps: reset to neutral defaults
+    const speedMult  = new Map<Tower, number>();
+    const damageMult = new Map<Tower, number>();
+    const rangePct   = new Map<Tower, number>();
+
+    for (const t of this.towers) {
+      speedMult.set(t,  1.0);
+      damageMult.set(t, 1.0);
+      rangePct.set(t,   0);
+    }
 
     for (const aura of this.towers) {
       if (!aura.def.isAura) continue;
-      const mult = aura.def.auraIntervalMult ?? 1.0;
+
+      const stats     = aura.upgStats;
+      const auraRange = stats.range; // use upgraded range for aura reach
+      const specType  = stats.auraSpecType;
 
       for (const tower of this.towers) {
-        if (tower === aura || tower.def.isAura) continue;
-        const dx = tower.x - aura.x;
-        const dy = tower.y - aura.y;
-        if (Math.sqrt(dx * dx + dy * dy) <= aura.def.range) {
-          const current = multipliers.get(tower) ?? 1.0;
-          multipliers.set(tower, Math.min(current, mult));
+        if (tower === aura) continue;
+
+        const dx   = tower.x - aura.x;
+        const dy   = tower.y - aura.y;
+        if (Math.sqrt(dx * dx + dy * dy) > auraRange) continue;
+
+        const isAuraTower = tower.def.isAura;
+
+        // ── 1. Speed aura ──────────────────────────────────────────────────
+        const rawSpeedMult = stats.auraIntervalMult;
+        if (rawSpeedMult < 1.0) {
+          // Deep speed spec: aura towers only get 50% of the speed bonus
+          const effMult = (specType === 'speed' && isAuraTower)
+            ? 1.0 - (1.0 - rawSpeedMult) * 0.5
+            : rawSpeedMult;
+          const cur = speedMult.get(tower) ?? 1.0;
+          speedMult.set(tower, Math.min(cur, effMult)); // best = lowest
+        }
+
+        // ── 2. Damage aura ─────────────────────────────────────────────────
+        const rawDamageMult = stats.auraDamageMult;
+        if (rawDamageMult > 1.0) {
+          // Deep damage spec: aura towers only get 50% of the damage bonus
+          const effMult = (specType === 'damage' && isAuraTower)
+            ? 1.0 + (rawDamageMult - 1.0) * 0.5
+            : rawDamageMult;
+          const cur = damageMult.get(tower) ?? 1.0;
+          damageMult.set(tower, Math.max(cur, effMult)); // best = highest
+        }
+
+        // ── 3. Range aura ──────────────────────────────────────────────────
+        const rawRangePct = stats.auraRangePct;
+        if (rawRangePct > 0) {
+          // Deep range spec: aura towers themselves receive 0 range bonus
+          const effPct = (specType === 'range' && isAuraTower) ? 0 : rawRangePct;
+          const cur = rangePct.get(tower) ?? 0;
+          rangePct.set(tower, Math.max(cur, effPct)); // best = highest
         }
       }
     }
 
-    for (const [tower, mult] of multipliers) {
-      tower.setIntervalMultiplier(mult);
+    // Apply all computed buffs
+    for (const tower of this.towers) {
+      tower.setIntervalMultiplier(speedMult.get(tower)  ?? 1.0);
+      tower.setAuraDamageMult   (damageMult.get(tower)  ?? 1.0);
+      tower.setAuraRangePct     (rangePct.get(tower)    ?? 0);
     }
   }
 
