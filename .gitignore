@@ -23,8 +23,8 @@ Thumbs.db
 # Claude Code local config
 .claude/
 
-# Empty placeholder (was for Blizzard assets — removed)
-assets/
+# Root-level assets/ only (was for Blizzard IP — now empty)
+/assets/
 
 # Generated health-check logs
 logs/
