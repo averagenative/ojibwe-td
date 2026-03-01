@@ -1,7 +1,7 @@
 ---
 id: TASK-017
 title: Story Progression & Lore System
-status: pending
+status: in-progress
 category: frontend
 phase: 13
 openspec_ref: "Phase 13"

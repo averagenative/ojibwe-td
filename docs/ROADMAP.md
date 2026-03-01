@@ -768,6 +768,100 @@ deferred to Phase 11 polish." — is addressed by this task's AudioManager imple
   guard is unnecessary since `rotIdx` is always ≥ 0 (result of `Math.floor` on a
   non-negative). Harmless but could be simplified to `ENDLESS_BOSS_ROTATION[rotIdx]`.
 
+### Mobile Browser Support (TASK-019 review)
+- **Sell tower requires right-click**: `GameScene.handleRightClick()` is the only way to sell a
+  tower. Right-click has no equivalent on mobile. Add a "SELL" button to the UpgradePanel or
+  BehaviorPanel that appears when a tower is selected, or support long-press to sell.
+- **Hover effects don't fire on touch**: All interactive elements (`TowerPanel`, `HUD`,
+  `BetweenWaveScene` cards, `MainMenuScene` buttons, `GameOverScene` buttons, `MetaMenuScene`
+  nodes) use `pointerover`/`pointerout` for visual feedback. These events don't fire on touch
+  devices. Add `pointerdown`/`pointerup` visual states (press-darken or press-scale) as a
+  tactile feedback alternative.
+- **No landscape orientation prompt**: The game is designed for 16:9 landscape (1280×720). On a
+  phone held in portrait, the canvas is scaled to ~375×210 with large black bars. Consider
+  adding a "Rotate your device" overlay when `window.innerHeight > window.innerWidth`.
+- **Scaled touch targets are small on phones**: With Phaser `Scale.FIT`, a 52px tower button in
+  game coordinates becomes ~27px on an iPhone SE in landscape (667px viewport). This meets
+  Apple's 24px absolute minimum but is below the recommended 44px. A future iteration could
+  use a smaller base resolution (e.g. 960×540) for larger effective UI elements.
+- **Safe area insets not handled**: Phones with notches/dynamic islands (iPhone X+) may clip
+  HUD elements. Future work: apply `env(safe-area-inset-*)` CSS padding to `#game-container`.
+- **`BetweenWaveScene` card spacing assumes 1280px width**: Three 220px cards with 244px
+  spacing are centred at `cx ± SPACING`. On very narrow portrait viewports the cards are
+  extremely compressed. Consider reducing card count or adding horizontal scroll on narrow
+  screens.
+- **No `contextmenu` prevention**: On Android Chrome, long-press on the canvas triggers the
+  browser context menu. Add `document.addEventListener('contextmenu', e => e.preventDefault())`
+  or use CSS `touch-callout: none` / `-webkit-touch-callout: none` on the canvas.
+
+---
+
+## TASK-020 Review Findings (non-blocking)
+
+Surfaced during code review of Wire Commander Ability Effects (2026-03-01).
+
+1. **Creep.ts repeated `scene.data.get` cast** — `takeDamage()`, `applySlow()`, and
+   `applyDot()` each independently read `this.scene?.data?.get('commanderState')` and
+   cast to `{ ignoreArmorAndImmunity?: boolean }`. Extract to a private getter
+   (`private get cmdIgnoreFlags(): boolean`) to reduce duplication and eliminate the
+   `as` cast repetition.
+
+2. **Mortar cluster sub-projectiles lack `speedMult`** — The Bizhiw aura projectile
+   speed bonus applies to primary mortar projectiles but not to the cluster
+   sub-munitions spawned in the `onImpact` callback. Cluster sub-projectiles use
+   a hardcoded `speed: 200` without `speedMult`. Low priority since sub-munitions
+   travel only ~40px, but inconsistent.
+
+3. **Tower constructor arity (10 params)** — Adding `commanderState` brings the
+   Tower constructor to 10 positional parameters. Consider migrating to an options
+   object pattern (`TowerOptions { scene, col, row, tileSize, def, getCreeps,
+   onProjectileFired, offerManager?, onFired?, commanderState? }`) for readability.
+
+4. **`currentTarget` always written even without stickyTargeting** — `findTarget()`
+   stores the result in `this.currentTarget` on every call regardless of whether
+   sticky targeting is enabled. Harmless (pointer assignment), but could be guarded
+   behind a `if (this.commanderState?.stickyTargeting)` check for clarity.
+
+---
+
+## TASK-017 Review Findings — Story Progression & Lore System (non-blocking)
+
+Surfaced during code review of Story Progression & Lore System (2026-03-01).
+
+1. **Codex notification badge doesn't track "seen in Codex"** — The badge on the CODEX
+   button in MainMenuScene counts all non-default unlocked entries, not entries unlocked
+   since the player last opened the Codex. The badge persists even after viewing all entries.
+   To fix: add a `lastSeenCodexIds: string[]` field to SaveManager, updated when CodexScene
+   is opened. Compare against `unlockedCodexIds` for the badge count.
+
+2. **Concurrent boss-killed + wave-complete vignettes** — `tryShowBetweenWaveVignette()`
+   shows at most one vignette per between-wave window (boss > wave-complete > wave-start
+   priority). If a boss is killed on the same wave that has a WAVE_COMPLETE vignette
+   (e.g. wave 3 or 10), the wave-complete vignette is permanently skipped since
+   `currentWave` changes before the next window. Low risk — current authored data does
+   not place bosses on vignette-bearing waves. Future authoring should avoid this overlap,
+   or implement a vignette queue.
+
+3. **BOSS_ESCAPED and COMMANDER_UNLOCKED triggers defined but unused** — Both trigger
+   types are defined in `TriggerType` and accepted by `getVignettesForTrigger()`, but no
+   vignettes use them and no code emits them. They exist for future extensibility. No
+   action required — just documenting the gap.
+
+4. **GameOverScene color arithmetic is approximate** — `makeButton()` computes hover and
+   press colors with `bgColor + 0x191919` and `bgColor - 0x0a0000`. This produces
+   slightly different hover tints than the original hardcoded values (e.g. `0x331919`
+   instead of `0x330000`). Functionally fine but could use proper per-channel blending
+   for precise control.
+
+5. **VignetteOverlay typewriter timer with empty lines** — If a VignetteDef ever had an
+   empty `lines: []` array, `fullText` would be `""` and `repeat: -1` would cause an
+   infinite timer. All current vignettes have 3–4 lines so this is safe. Add a guard
+   `if (this.fullText.length === 0)` in `show()` for defensive coding.
+
+6. **All vignette and codex text marked `reviewed: false`** — Per the task notes, the
+   creator (who is Ojibwe) should review all text before shipping. All 17 vignettes and
+   22 codex entries currently have `reviewed: false`. Track as a pre-launch gate.
+
 ---
 
 ## Health Check Findings

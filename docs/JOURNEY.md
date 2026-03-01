@@ -521,3 +521,17 @@ TASK-020 closes the gap between the Commander system scaffolded in TASK-018 and 
 `GameScene` also publishes `tileSize` on `scene.data` — used by the Tesla AoE path to compute the one-tile splash radius at runtime without hard-coding a constant in Tower.ts. The Tower constructor gains a 10th optional `commanderState` parameter; `GameScene` passes `this.commanderState ?? undefined` when placing towers.
 
 47 unit tests in `src/systems/__tests__/commanderAbilityWiring.test.ts` cover all four effects: baseline (no commander), each effect in isolation, simultaneous activation, and flag-off deactivation. All four AC items are verified programmatically with no Phaser mocks needed — the test suite stubs only the minimal `scene.data` object via a plain `Map`. The full suite runs at 520 tests with 0 type errors.
+
+---
+
+## TASK-019 — Mobile-Friendly Browser Game (2026-03-01)
+
+TASK-019 makes Ojibwe TD fully playable on mobile browsers (iOS Safari, Android Chrome) without pinch-zoom, overflow, or tiny tap targets.
+
+**Viewport and CSS overhaul.** The `index.html` viewport meta tag gains `maximum-scale=1.0, user-scalable=no` to lock the zoom level and prevent the iOS double-tap zoom. The body styles are restructured so `html` and `body` both carry `width: 100%; height: 100%; overflow: hidden` — eliminating any stray scroll bars — while `#game-container` takes over the full `100%` fill. The legacy `min-height: 100vh` on body is removed because `#game-container` now owns the layout. The `canvas` element receives `touch-action: none`, which prevents the browser from intercepting scroll/pinch gestures before Phaser sees them.
+
+**Phaser Scale.FIT already in place.** `main.ts` configured `Phaser.Scale.FIT` with `autoCenter: Phaser.Scale.CENTER_BOTH` from the outset, so the 1280×720 canvas letter-boxes cleanly into any phone viewport. The CSS changes above ensure the container fills the viewport so Phaser has the full screen to scale into.
+
+**Touch input.** Phaser's `pointerdown` / `pointerup` events unify mouse and touch natively — no mouse-only guards existed in placement or selection code, so touch just works. Tower panel buttons are 52 px (game-coordinate), which exceeds the 44 px minimum tap target. Offer cards already use full-container hit areas. The on-screen Start Wave and Pause buttons are Phaser text objects, always visible regardless of keyboard availability.
+
+**Mobile compatibility test suite.** `src/systems/__tests__/mobileCompat.test.ts` adds 15 Vitest unit tests that guard against future regressions. The suite validates: button sizes meet the ≥44 px minimum; panel height proportions leave ≥50 % of the canvas for gameplay; scale-factor arithmetic confirms buttons remain physically tappable on iPhone SE (375 × 667); and boundary cases (zero viewport, non-integer constants) are handled cleanly. Constants are mirrored from the UI source files — because those import Phaser and cannot load in jsdom — with inline comments directing future editors to keep them in sync. The full suite passes at 488 tests with 0 type errors.
