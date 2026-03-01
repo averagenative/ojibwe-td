@@ -16,10 +16,10 @@ rather than disappearing into git history.
 | 4 | Tower Archetypes (all 6) | done |
 | 5 | Wave System | done |
 | 6 | Tower Upgrade Trees | done |
-| 6b | Tower Targeting & Behavior Controls | pending |
-| 7 | Roguelike Offer Layer | pending |
-| 8 | Run Loop & Game States | pending |
-| 9 | Meta-Progression | pending |
+| 6b | Tower Targeting & Behavior Controls | done |
+| 7 | Roguelike Offer Layer | done |
+| 8 | Run Loop & Game States | done |
+| 9 | Meta-Progression | done |
 | 10 | Second Map | pending |
 | 11 | Polish & Balance | pending |
 
@@ -147,6 +147,25 @@ should be addressed during the next relevant phase or in a dedicated polish pass
   numbers for `creep-killed` and `creep-escaped`, but WaveManager emits objects (`{ reward, x, y }`
   and `{ liveCost, reward }`). Fixed: destructure the objects in the mock handlers. This was a
   pre-existing bug affecting 6 tests.
+
+### Meta-Progression (Phase 9 review)
+- **SaveManager singleton persists across scene restarts**: `SaveManager._instance` is a module-level
+  static. If the game is hot-reloaded during dev (Vite HMR), the singleton survives but localStorage
+  may have been cleared externally. Low risk in production but can confuse during development. Consider
+  adding a `_resetForTests()` call in dev mode or detecting HMR.
+- **MetaMenuScene `UNLOCK_NODES.find()` called on every refresh**: `refreshUnlockNodeUI()` and
+  `refreshStatNodeUI()` call `UNLOCK_NODES.find(n => n.id === nodeId)` per node per refresh. With 5
+  unlock + 10 stat nodes this is negligible, but if node counts grow significantly, pre-index by ID.
+- **Sell refund rate can exceed 1.0**: `sellRate = offerManager.getSellRefundRate() + metaStatBonuses.sellRefundBonus`
+  has no upper clamp. If Scavenger (0.85) + meta bonus (0.05) combine, the rate is 0.90 — currently
+  fine, but adding more sell-refund nodes or offers could push it above 1.0 (selling for profit).
+  Add a `Math.min(1.0, sellRate)` clamp if more sources are added.
+- **No "Reset progress" button in MetaMenuScene**: Players have no in-game way to reset their meta
+  progression without clearing browser storage. Consider adding a "Reset All" button with a
+  confirmation dialog for players who want a fresh start.
+- **MetaMenuScene has no resize handler**: If the browser window is resized while on the meta menu,
+  UI elements retain their original positions. All other scenes have the same limitation, so this is
+  consistent but worth addressing in Phase 11 polish.
 
 ### UX / Feel
 - Upgrade panel should animate open/close (slide up) rather than snapping — low effort, high feel.
