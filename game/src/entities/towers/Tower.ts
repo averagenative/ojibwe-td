@@ -2,6 +2,12 @@ import Phaser from 'phaser';
 import type { Creep } from '../Creep';
 import { Projectile } from '../Projectile';
 import type { ProjectileOptions } from '../Projectile';
+import {
+  TargetingPriority,
+  pickTarget,
+  defaultBehaviorToggles,
+} from '../../data/targeting';
+import type { TowerBehaviorToggles } from '../../data/targeting';
 
 // Re-export pure data types & constants from the Phaser-free data module so
 // existing importers of Tower.ts continue to work unchanged.
@@ -11,6 +17,9 @@ export {
   CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
   ALL_TOWER_DEFS,
 } from '../../data/towerDefs';
+// Re-export targeting types so callers need only one import.
+export { TargetingPriority } from '../../data/targeting';
+export type { TowerBehaviorToggles } from '../../data/targeting';
 
 // Local aliases for use within this file (avoids re-importing from data module).
 import type { TowerDef, TowerUpgradeStats } from '../../data/towerDefs';
@@ -27,6 +36,12 @@ export class Tower extends Phaser.GameObjects.Container {
 
   /** Live stat block — updated by UpgradeManager after each upgrade. */
   upgStats: TowerUpgradeStats;
+
+  /** Current targeting priority — compared fresh on every attack cycle. */
+  priority: TargetingPriority;
+
+  /** Per-instance behavioral toggles — no cost, freely settable by BehaviorPanel. */
+  behaviorToggles: TowerBehaviorToggles;
 
   private rangeGfx:          Phaser.GameObjects.Graphics;
   private rangeVisible       = false;
@@ -71,6 +86,8 @@ export class Tower extends Phaser.GameObjects.Container {
     this.tileCol          = tileCol;
     this.tileRow          = tileRow;
     this.upgStats         = defaultUpgradeStats(def);
+    this.priority         = def.defaultPriority;
+    this.behaviorToggles  = defaultBehaviorToggles();
     this.getCreeps        = getCreeps;
     this.onProjectileFired = onProjectileFired;
 
@@ -190,7 +207,7 @@ export class Tower extends Phaser.GameObjects.Container {
       return;
     }
 
-    const target = this.findNearest(this.def.groundOnly);
+    const target = this.findTarget(this.def.groundOnly);
     if (!target) return;
 
     if (this.upgStats.chainCount > 0) {
@@ -203,7 +220,10 @@ export class Tower extends Phaser.GameObjects.Container {
 
   /** Mortar: fires at the ground position of the nearest ground creep */
   private fireMortar(): void {
-    const target = this.findNearest(/* groundOnly */ true);
+    // Hold Fire toggle: suppress firing without disturbing the attack timer.
+    if (this.behaviorToggles.holdFire) return;
+
+    const target = this.findTarget(/* groundOnly */ true);
     if (!target) return;
 
     const effectiveDamage = Math.round(this.upgStats.damage * this.auraDamageMult);
@@ -265,6 +285,8 @@ export class Tower extends Phaser.GameObjects.Container {
     const scene        = this.scene;
     const overloadMode = this.upgStats.overloadMode;
     const onChainFired = this.onChainFired;
+    // Capture toggle at fire time so mid-flight changes don't affect this shot.
+    const chainToExit  = this.behaviorToggles.chainToExit;
 
     const opts: ProjectileOptions = {
       color:  this.def.projectileColor ?? 0xffff44,
@@ -272,13 +294,20 @@ export class Tower extends Phaser.GameObjects.Container {
       speed:  this.def.projectileSpeed,
       damage: primaryDmg,
       onHit: (hitCreep) => {
-        // Find nearest unchained creeps within chainRange
-        const candidates = [...getCreeps()]
+        // Collect candidates within chainRange
+        const inRange = [...getCreeps()]
           .filter(c => c.active && c !== hitCreep)
           .map(c => ({ creep: c, dist: Math.hypot(c.x - hitCreep.x, c.y - hitCreep.y) }))
-          .filter(({ dist }) => dist <= chainRange)
-          .sort((a, b) => a.dist - b.dist)
-          .slice(0, chainCount);
+          .filter(({ dist }) => dist <= chainRange);
+
+        // Chain Direction toggle: prefer exit-closer vs nearest
+        if (chainToExit) {
+          inRange.sort((a, b) => b.creep.getProgressScore() - a.creep.getProgressScore());
+        } else {
+          inRange.sort((a, b) => a.dist - b.dist);
+        }
+
+        const candidates = inRange.slice(0, chainCount);
 
         const chainPositions: Array<{ x: number; y: number }> = [];
         for (const { creep } of candidates) {
@@ -333,9 +362,10 @@ export class Tower extends Phaser.GameObjects.Container {
       }
 
       case 'frost': {
-        const sf  = this.upgStats.slowFactor;
-        const sd  = this.upgStats.slowDurationMs;
-        const shat = this.upgStats.shatterOnDeath;
+        const sf   = this.upgStats.slowFactor;
+        const sd   = this.upgStats.slowDurationMs;
+        // Chill Only toggle: apply slow but never trigger shatter (preserves Poison DoTs).
+        const shat = this.upgStats.shatterOnDeath && !this.behaviorToggles.chillOnly;
         onHit = (c: Creep) => {
           c.applySlow(sf, sd);
           if (shat) c.applyShatter();
@@ -344,10 +374,17 @@ export class Tower extends Phaser.GameObjects.Container {
       }
 
       case 'poison': {
-        const totalDmg = this.upgStats.dotDamageBase + this.upgStats.dotDamageBonus;
-        const maxStacks = this.upgStats.maxDotStacks;
+        const totalDmg       = this.upgStats.dotDamageBase + this.upgStats.dotDamageBonus;
+        const maxStacks      = this.upgStats.maxDotStacks;
+        // Stack Cap toggle: maintain exactly one stack per creep (spread efficiency mode).
+        const maintainOne    = this.behaviorToggles.maintainOneStack;
         onHit = (c: Creep) => {
-          if (maxStacks > 0 && c.getDotStacks() >= maxStacks) return;
+          if (maintainOne) {
+            // Only apply if the creep has no active DoT stacks.
+            if (c.getDotStacks() >= 1) return;
+          } else {
+            if (maxStacks > 0 && c.getDotStacks() >= maxStacks) return;
+          }
           c.applyDot(totalDmg, 500, 8);
         };
         break;
@@ -372,25 +409,36 @@ export class Tower extends Phaser.GameObjects.Container {
 
   // ── targeting ─────────────────────────────────────────────────────────────
 
-  private findNearest(groundOnly = false): Creep | null {
+  /**
+   * Find the best target according to the tower's current priority.
+   * Called fresh on every attack cycle so priority changes take effect immediately.
+   * Also handles the Cannon Armor Focus overlay (narrow pool to armored creeps
+   * when any are in range and the toggle is active).
+   */
+  private findTarget(groundOnly = false): Creep | null {
     const effectiveRange = this.upgStats.range * (1 + this.auraRangePct);
-    let nearest: Creep | null = null;
-    let nearestDist = effectiveRange + 1;
 
-    for (const creep of this.getCreeps()) {
-      if (!creep.active) continue;
-      if (groundOnly && creep.creepType === 'air') continue;
-
-      const dx   = creep.x - this.x;
-      const dy   = creep.y - this.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearest     = creep;
-      }
+    // Build in-range candidate list
+    const candidates: Creep[] = [];
+    for (const c of this.getCreeps()) {
+      if (!c.active) continue;
+      if (groundOnly && c.creepType === 'air') continue;
+      const dx = c.x - this.x;
+      const dy = c.y - this.y;
+      if (dx * dx + dy * dy > effectiveRange * effectiveRange) continue;
+      candidates.push(c);
     }
 
-    return nearest;
+    if (candidates.length === 0) return null;
+
+    // Cannon Armor Focus: narrow pool to armored creeps when any are in range.
+    let pool: Creep[] = candidates;
+    if (this.def.key === 'cannon' && this.behaviorToggles.armorFocus) {
+      const armored = candidates.filter(c => c.isArmored);
+      if (armored.length > 0) pool = armored;
+    }
+
+    return pickTarget(pool, this.priority, this.x, this.y);
   }
 
   // ── visuals ───────────────────────────────────────────────────────────────

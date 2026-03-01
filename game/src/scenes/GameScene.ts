@@ -10,6 +10,7 @@ import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyMan
 import { HUD } from '../ui/HUD';
 import { TowerPanel, PANEL_HEIGHT } from '../ui/TowerPanel';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
+import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
 import type { MapData } from '../types/MapData';
 import { TILE } from '../types/MapData';
 
@@ -46,8 +47,9 @@ export class GameScene extends Phaser.Scene {
   private upgradeManager!: UpgradeManager;
 
   // ── ui ────────────────────────────────────────────────────────────────────
-  private hud!:          HUD;
-  private upgradePanel!: UpgradePanel;
+  private hud!:            HUD;
+  private upgradePanel!:   UpgradePanel;
+  private behaviorPanel!:  BehaviorPanel;
 
   // ── placement ─────────────────────────────────────────────────────────────
   private placementDef: TowerDef | null = null;
@@ -151,6 +153,9 @@ export class GameScene extends Phaser.Scene {
       this.hud.setGold(this.gold);
     };
 
+    // Behavior panel (above upgrade panel — targeting priority + per-tower toggle)
+    this.behaviorPanel = new BehaviorPanel(this);
+
     // Next-wave button (right portion of HUD strip)
     this.hud.createNextWaveButton(() => this.startNextWave());
     this.hud.setNextWaveVisible(true, 1);
@@ -251,10 +256,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerDown(ptr: Phaser.Input.Pointer): void {
-    // Filter clicks in HUD strip (top) and bottom UI panels
+    // Filter clicks in HUD strip (top) and bottom UI panels.
+    // BehaviorPanel and UpgradePanel are always open/closed together.
+    const panelsOpen  = this.upgradePanel.isOpen();
     const bottomLimit = this.scale.height
       - PANEL_HEIGHT
-      - (this.upgradePanel.isOpen() ? UPGRADE_PANEL_HEIGHT : 0);
+      - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
 
     if (ptr.y < HUD_HEIGHT || ptr.y > bottomLimit) return;
 
@@ -352,12 +359,14 @@ export class GameScene extends Phaser.Scene {
     this.selectedTower = tower;
     tower.setRangeVisible(true);
     this.upgradePanel.showForTower(tower);
+    this.behaviorPanel.showForTower(tower);
   }
 
   private deselectTower(): void {
     this.selectedTower?.setRangeVisible(false);
     this.selectedTower = null;
     this.upgradePanel.hide();
+    this.behaviorPanel.hide();
   }
 
   private sellTower(tower: Tower): void {
