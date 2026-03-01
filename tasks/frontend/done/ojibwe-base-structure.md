@@ -1,7 +1,7 @@
 ---
 id: TASK-015
 title: Ojibwe Base Structure (Home Target)
-status: in-progress
+status: done
 category: frontend
 phase: 5
 openspec_ref: "Phase 5 (addendum)"
