@@ -130,8 +130,10 @@ export class Tower extends Phaser.GameObjects.Container {
     }
 
     this.attackElapsed += delta;
+    // Blitz Protocol: permanent +15% faster attack (mult = 0.85).
+    const blitzMult = this.offerManager?.getBlitzProtocolAttackSpeedMult() ?? 1.0;
     const effectiveInterval =
-      this.upgStats.attackIntervalMs * this.intervalMultiplier * this.debuffMultiplier * this.bloodlustMult;
+      this.upgStats.attackIntervalMs * this.intervalMultiplier * this.debuffMultiplier * this.bloodlustMult * blitzMult;
 
     if (this.attackElapsed >= effectiveInterval) {
       this.attackElapsed = 0;
@@ -365,16 +367,31 @@ export class Tower extends Phaser.GameObjects.Container {
         const candidates = inRange.slice(0, chainCount + lightningRodExtra);
 
         const chainPositions: Array<{ x: number; y: number }> = [];
+        const thunderQuake = om?.hasThunderQuake() ?? false;
         for (let ci = 0; ci < candidates.length; ci++) {
           const { creep } = candidates[ci];
-          // Compose synergy multipliers: Static Field, Grounded, Overcharge.
-          const sfMult    = om?.getStaticFieldMult(creep.isSlowed())  ?? 1.0;
-          const gndMult   = om?.getGroundedMult(creep.isArmored)     ?? 1.0;
-          const overMult  = om?.getOverchargeMult(ci)                ?? 1.0;
-          const finalDmg  = Math.round(chainDmg * sfMult * gndMult * overMult);
+          // Compose synergy multipliers: Static Field, Grounded, Overcharge, Voltaic Slime.
+          const sfMult    = om?.getStaticFieldMult(creep.isSlowed())      ?? 1.0;
+          const gndMult   = om?.getGroundedMult(creep.isArmored)         ?? 1.0;
+          const overMult  = om?.getOverchargeMult(ci)                    ?? 1.0;
+          const vsMult    = om?.getVoltaicSlimeMult(creep.getDotStacks() > 0) ?? 1.0;
+          const finalDmg  = Math.round(chainDmg * sfMult * gndMult * overMult * vsMult);
 
           creep.takeDamage(finalDmg);
           drawLightningArc(scene, hitCreep.x, hitCreep.y, creep.x, creep.y);
+
+          // Thunder Quake: 15 AoE damage in 30px radius around each chain hit.
+          if (thunderQuake) {
+            const TQ_RADIUS = 30;
+            const TQ_DAMAGE = 15;
+            for (const nearby of getCreeps()) {
+              if (!nearby.active || nearby === creep) continue;
+              if (Math.hypot(nearby.x - creep.x, nearby.y - creep.y) <= TQ_RADIUS) {
+                nearby.takeDamage(TQ_DAMAGE);
+              }
+            }
+          }
+
           if (overloadMode) {
             chainPositions.push({ x: creep.x, y: creep.y });
           }
@@ -431,15 +448,18 @@ export class Tower extends Phaser.GameObjects.Container {
           effectiveDamage = Math.round(effectiveDamage * brittleIceMult);
         }
 
-        const armorShredPct = this.upgStats.armorShredPct;
-        const armorShredDur = this.upgStats.armorShredDuration;
-        const cryoActive    = om?.hasCryoCannon() ?? false;
+        const armorShredPct     = this.upgStats.armorShredPct;
+        const armorShredDur     = this.upgStats.armorShredDuration;
+        const cryoActive        = om?.hasCryoCannon()        ?? false;
+        const concussionActive  = om?.hasConcussionShell()   ?? false;
 
-        if (armorShredPct > 0 || cryoActive) {
+        if (armorShredPct > 0 || cryoActive || concussionActive) {
           onHit = (c: Creep) => {
             if (armorShredPct > 0) c.applyArmorShred(armorShredPct, armorShredDur);
             // Cryo Cannon: slow targets by 20% for 1.5 s.
             if (cryoActive) c.applySlow(0.80, 1500);
+            // Concussion Shell: slow targets by 15% for 600ms.
+            if (concussionActive) c.applySlow(0.85, 600);
           };
         }
         break;
@@ -509,7 +529,9 @@ export class Tower extends Phaser.GameObjects.Container {
    * when any are in range and the toggle is active).
    */
   private findTarget(groundOnly = false): Creep | null {
-    const effectiveRange = this.upgStats.range * (1 + this.auraRangePct);
+    // Overgrowth: Poison towers gain +15% range.
+    const overgrowthBonus = this.offerManager?.getOvergrowthRangeBonus(this.def.key) ?? 0;
+    const effectiveRange = this.upgStats.range * (1 + this.auraRangePct + overgrowthBonus);
 
     // Build in-range candidate list
     const candidates: Creep[] = [];

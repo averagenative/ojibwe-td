@@ -1,10 +1,13 @@
 import Phaser from 'phaser';
+import { SaveManager } from '../meta/SaveManager';
 
 interface GameOverData {
   wavesCompleted: number;
   totalWaves:     number;
   won?:           boolean;
   runCurrency?:   number;
+  mapId?:         string;
+  commanderId?:   string;
 }
 
 export class GameOverScene extends Phaser.Scene {
@@ -17,10 +20,17 @@ export class GameOverScene extends Phaser.Scene {
     const cx = width / 2;
     const cy = height / 2;
 
-    const waves    = data?.wavesCompleted ?? 0;
-    const total    = data?.totalWaves    ?? 20;
-    const won      = data?.won           ?? false;
-    const currency = data?.runCurrency   ?? 0;
+    const waves       = data?.wavesCompleted ?? 0;
+    const total       = data?.totalWaves    ?? 20;
+    const won         = data?.won           ?? false;
+    const currency    = data?.runCurrency   ?? 0;
+    const mapId       = data?.mapId         ?? 'map-01';
+    const commanderId = data?.commanderId   ?? 'nokomis';
+
+    // Persist run currency to meta-progression save.
+    if (currency > 0) {
+      SaveManager.getInstance().addCurrency(currency);
+    }
 
     this.add.rectangle(cx, cy, width, height, 0x0a0a0a);
 
@@ -49,22 +59,34 @@ export class GameOverScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.makeButton(cx - 130, cy + 75, 'RETRY', () => {
-      this.scene.start('GameScene');
-    });
+    // Total crystals banked
+    const totalCrystals = SaveManager.getInstance().getCurrency();
+    this.add.text(cx, cy + 22, `Total crystals: ${totalCrystals}`, {
+      fontSize: '16px',
+      color: '#557799',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
 
-    this.makeButton(cx + 130, cy + 75, 'MENU', () => {
+    // Buttons: RETRY | UPGRADES | MENU (three equal-width buttons)
+    const btnY = cy + 90;
+    this.makeButton(cx - 180, btnY, 'RETRY', () => {
+      this.scene.start('GameScene', { mapId, commanderId });
+    });
+    this.makeButton(cx, btnY, 'UPGRADES', () => {
+      this.scene.start('MetaMenuScene');
+    });
+    this.makeButton(cx + 180, btnY, 'MENU', () => {
       this.scene.start('MainMenuScene');
     });
   }
 
   private makeButton(x: number, y: number, label: string, onClick: () => void): void {
-    const bg = this.add.rectangle(x, y, 200, 52, 0x1a0000)
+    const bg = this.add.rectangle(x, y, 160, 52, 0x1a0000)
       .setStrokeStyle(2, 0xff2222)
       .setInteractive({ useHandCursor: true });
 
     const text = this.add.text(x, y, label, {
-      fontSize: '20px',
+      fontSize: '18px',
       color: '#ff4444',
       fontFamily: 'monospace',
       fontStyle: 'bold',

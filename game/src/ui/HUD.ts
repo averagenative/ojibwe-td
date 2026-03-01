@@ -213,6 +213,73 @@ export class HUD extends Phaser.GameObjects.Container {
     }
   }
 
+  // ── commander display ───────────────────────────────────────────────────
+
+  /**
+   * Show the active commander's name and aura name beside the lives text.
+   * Called once during GameScene create() if a commander is active.
+   */
+  createCommanderDisplay(commanderName: string, auraName: string): void {
+    const cy = HUD_HEIGHT / 2;
+    // Position after lives text (approx x=100)
+    this.scene.add.text(100, cy, `${commanderName} · ${auraName}`, {
+      fontSize: '11px',
+      color: '#88cc88',
+      fontFamily: 'monospace',
+    }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
+  }
+
+  // ── ability button ─────────────────────────────────────────────────────
+
+  private abilityBtnBg?: Phaser.GameObjects.Rectangle;
+  private abilityBtnLabel?: Phaser.GameObjects.Text;
+
+  /**
+   * Create a one-shot ability button in the HUD strip (left of gold text).
+   * Greys out after activation.
+   */
+  createAbilityButton(abilityName: string, onActivate: () => void): void {
+    const cy = HUD_HEIGHT / 2;
+    const btnX = this.scene.scale.width / 2 - 140;
+    const btnW = 120;
+
+    this.abilityBtnBg = this.scene.add.rectangle(btnX, cy, btnW, 30, 0x222244)
+      .setStrokeStyle(1, 0x6666cc)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 2);
+
+    this.abilityBtnLabel = this.scene.add.text(btnX, cy, abilityName, {
+      fontSize: '10px',
+      color: '#aaaaff',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      wordWrap: { width: btnW - 8 },
+      align: 'center',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
+
+    this.abilityBtnBg.on('pointerover', () => {
+      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(0x333366);
+    });
+    this.abilityBtnBg.on('pointerout', () => {
+      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(0x222244);
+    });
+    this.abilityBtnBg.on('pointerup', () => {
+      onActivate();
+    });
+  }
+
+  /** Grey out the ability button after it's been used. */
+  disableAbilityButton(): void {
+    if (this.abilityBtnBg) {
+      this.abilityBtnBg.disableInteractive();
+      this.abilityBtnBg.setFillStyle(0x111111);
+      this.abilityBtnBg.setStrokeStyle(1, 0x333333);
+    }
+    if (this.abilityBtnLabel) {
+      this.abilityBtnLabel.setColor('#444444');
+    }
+  }
+
   // ── boss warning ──────────────────────────────────────────────────────────
 
   /**

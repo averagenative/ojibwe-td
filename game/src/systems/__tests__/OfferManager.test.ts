@@ -503,6 +503,182 @@ describe('OfferManager', () => {
     });
   });
 
+  // ── Phase 10 offer methods ─────────────────────────────────────────────────
+
+  describe('getBlitzProtocolAttackSpeedMult', () => {
+    it('returns 1.0 without Blitz Protocol', () => {
+      expect(om.getBlitzProtocolAttackSpeedMult()).toBe(1.0);
+    });
+
+    it('returns 0.85 with Blitz Protocol (15% faster)', () => {
+      om.applyOffer('blitz-protocol');
+      expect(om.getBlitzProtocolAttackSpeedMult()).toBe(0.85);
+    });
+  });
+
+  describe('getKillRewardMult', () => {
+    it('returns 1.0 without Bounty Hunter', () => {
+      expect(om.getKillRewardMult()).toBe(1.0);
+    });
+
+    it('returns 1.2 with Bounty Hunter (+20%)', () => {
+      om.applyOffer('bounty-hunter');
+      expect(om.getKillRewardMult()).toBe(1.2);
+    });
+  });
+
+  describe('salvage (one-time 100% sell refund)', () => {
+    it('isSalvageAvailable returns false without offer', () => {
+      expect(om.isSalvageAvailable()).toBe(false);
+    });
+
+    it('isSalvageAvailable returns true when offer active and not consumed', () => {
+      om.applyOffer('salvage');
+      expect(om.isSalvageAvailable()).toBe(true);
+    });
+
+    it('consumeSalvage makes it unavailable', () => {
+      om.applyOffer('salvage');
+      om.consumeSalvage();
+      expect(om.isSalvageAvailable()).toBe(false);
+    });
+
+    it('multiple consumeSalvage calls do not crash', () => {
+      om.applyOffer('salvage');
+      om.consumeSalvage();
+      om.consumeSalvage(); // idempotent
+      expect(om.isSalvageAvailable()).toBe(false);
+    });
+  });
+
+  describe('getSupplyCacheBonus', () => {
+    it('returns 0 without Supply Cache', () => {
+      expect(om.getSupplyCacheBonus(5)).toBe(0);
+    });
+
+    it('returns 10 * towerCount with Supply Cache', () => {
+      om.applyOffer('supply-cache');
+      expect(om.getSupplyCacheBonus(0)).toBe(0);
+      expect(om.getSupplyCacheBonus(1)).toBe(10);
+      expect(om.getSupplyCacheBonus(5)).toBe(50);
+    });
+  });
+
+  describe('getVoltaicSlimeMult', () => {
+    it('returns 1.0 without offer', () => {
+      expect(om.getVoltaicSlimeMult(true)).toBe(1.0);
+    });
+
+    it('returns 1.25 for poisoned targets with offer', () => {
+      om.applyOffer('voltaic-slime');
+      expect(om.getVoltaicSlimeMult(true)).toBe(1.25);
+    });
+
+    it('returns 1.0 for non-poisoned targets with offer', () => {
+      om.applyOffer('voltaic-slime');
+      expect(om.getVoltaicSlimeMult(false)).toBe(1.0);
+    });
+  });
+
+  describe('hasConcussionShell', () => {
+    it('returns false by default', () => {
+      expect(om.hasConcussionShell()).toBe(false);
+    });
+
+    it('returns true when active', () => {
+      om.applyOffer('concussion-shell');
+      expect(om.hasConcussionShell()).toBe(true);
+    });
+  });
+
+  describe('getOvergrowthRangeBonus', () => {
+    it('returns 0 without offer', () => {
+      expect(om.getOvergrowthRangeBonus('poison')).toBe(0);
+    });
+
+    it('returns 0.15 for poison towers with offer', () => {
+      om.applyOffer('overgrowth');
+      expect(om.getOvergrowthRangeBonus('poison')).toBe(0.15);
+    });
+
+    it('returns 0 for non-poison towers with offer', () => {
+      om.applyOffer('overgrowth');
+      expect(om.getOvergrowthRangeBonus('cannon')).toBe(0);
+      expect(om.getOvergrowthRangeBonus('frost')).toBe(0);
+      expect(om.getOvergrowthRangeBonus('tesla')).toBe(0);
+    });
+  });
+
+  describe('hasThunderQuake', () => {
+    it('returns false by default', () => {
+      expect(om.hasThunderQuake()).toBe(false);
+    });
+
+    it('returns true when active', () => {
+      om.applyOffer('thunder-quake');
+      expect(om.hasThunderQuake()).toBe(true);
+    });
+  });
+
+  describe('reaperMarkRoll', () => {
+    it('returns false without offer', () => {
+      expect(om.reaperMarkRoll()).toBe(false);
+    });
+
+    it('fires probabilistically at ~5% rate (run 2000 trials)', () => {
+      om.applyOffer('reapers-mark');
+      let hits = 0;
+      for (let i = 0; i < 2000; i++) {
+        if (om.reaperMarkRoll()) hits++;
+      }
+      // 5% of 2000 = 100; allow wide tolerance [30, 200].
+      expect(hits).toBeGreaterThan(30);
+      expect(hits).toBeLessThan(200);
+    });
+  });
+
+  describe('iron-barrage in getGlobalDamageMult', () => {
+    it('adds +4% per 5 waves completed', () => {
+      om.applyOffer('iron-barrage');
+      om.setWavesCompleted(10);
+      expect(om.getGlobalDamageMult()).toBeCloseTo(1.08); // 2 × 4%
+    });
+
+    it('no bonus below 5 waves', () => {
+      om.applyOffer('iron-barrage');
+      om.setWavesCompleted(4);
+      expect(om.getGlobalDamageMult()).toBe(1.0);
+    });
+
+    it('stacks multiplicatively with Veteran Arms', () => {
+      om.applyOffer('iron-barrage');
+      om.applyOffer('veteran-arms');
+      om.setWavesCompleted(10);
+      // iron-barrage: 1.08, veteran-arms: 1.10, compose: 1.08 * 1.10 = 1.188
+      expect(om.getGlobalDamageMult()).toBeCloseTo(1.188);
+    });
+  });
+
+  // ── offerDefs validation (updated count) ──────────────────────────────────
+
+  describe('offerDefs has at least 42 offers (Phase 10 added 10)', () => {
+    it('has at least 42 offers total', () => {
+      expect(ALL_OFFERS.length).toBeGreaterThanOrEqual(42);
+    });
+
+    it('all 10 Phase 10 offer IDs exist', () => {
+      const ids = new Set(ALL_OFFERS.map(o => o.id));
+      const phase10Ids = [
+        'iron-barrage', 'reapers-mark', 'blitz-protocol',
+        'bounty-hunter', 'salvage', 'supply-cache',
+        'voltaic-slime', 'concussion-shell', 'overgrowth', 'thunder-quake',
+      ];
+      for (const id of phase10Ids) {
+        expect(ids.has(id)).toBe(true);
+      }
+    });
+  });
+
   // ── EconomyManager integration (calculateSellRefund with rate) ─────────────
 
   describe('calculateSellRefund with custom rate', () => {

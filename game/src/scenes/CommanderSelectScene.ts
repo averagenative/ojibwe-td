@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ALL_COMMANDERS } from '../data/commanderDefs';
 import type { CommanderDef } from '../data/commanderDefs';
+import { SaveManager } from '../meta/SaveManager';
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ const ROLE_COLORS: Record<string, number> = {
  */
 export class CommanderSelectScene extends Phaser.Scene {
   private selectedId = 'nokomis';
+  private selectedMapId = 'map-01';
   private cardBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private confirmBtn!: Phaser.GameObjects.Rectangle;
   private confirmLabel!: Phaser.GameObjects.Text;
@@ -42,6 +44,10 @@ export class CommanderSelectScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'CommanderSelectScene' });
+  }
+
+  init(data?: { mapId?: string }): void {
+    this.selectedMapId = data?.mapId ?? 'map-01';
   }
 
   create(): void {
@@ -99,7 +105,10 @@ export class CommanderSelectScene extends Phaser.Scene {
       this.confirmLabel.setColor('#00ff44');
     });
     this.confirmBtn.on('pointerup', () => {
-      this.scene.start('GameScene', { commanderId: this.selectedId });
+      this.scene.start('GameScene', {
+        commanderId: this.selectedId,
+        mapId:       this.selectedMapId,
+      });
     });
 
     // Back button
@@ -125,7 +134,8 @@ export class CommanderSelectScene extends Phaser.Scene {
   // ── Card builder ──────────────────────────────────────────────────────────
 
   private buildCard(def: CommanderDef, bx: number, by: number): void {
-    const isLocked = !def.defaultUnlocked; // TODO: check SaveManager when available
+    const save = SaveManager.getInstance();
+    const isLocked = !def.defaultUnlocked && !save.isUnlocked('unlock-' + def.id);
     const roleColor = ROLE_COLORS[def.role] ?? 0xaaaaaa;
 
     // Card background
@@ -214,24 +224,16 @@ export class CommanderSelectScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
     }
 
-    // Click handler
+    // Click handler — first click selects; second click on the same card opens the sheet.
     bg.on('pointerup', () => {
       if (isLocked) return;
-      this.selectedId = def.id;
-      this.highlightCard(def.id);
+      if (this.selectedId === def.id && !this.sheetContainer) {
+        this.openCharacterSheet(def);
+      } else {
+        this.selectedId = def.id;
+        this.highlightCard(def.id);
+      }
     });
-
-    // Double-click or single click opens character sheet (for unlocked commanders)
-    if (!isLocked) {
-      bg.on('pointerup', () => {
-        if (this.selectedId === def.id && !this.sheetContainer) {
-          this.openCharacterSheet(def);
-        } else {
-          this.selectedId = def.id;
-          this.highlightCard(def.id);
-        }
-      });
-    }
   }
 
   private highlightCard(selectedId: string): void {

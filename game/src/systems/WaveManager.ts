@@ -81,6 +81,27 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   isActive():      boolean { return this.waveActive; }
   getWaveNumber(): number  { return this.currentWave; }
 
+  /**
+   * Returns a summary of a wave's creep composition for commander ability previews.
+   * Returns null if the wave number is out of range.
+   */
+  getWaveInfo(waveNum: number): { count: number; types: string[]; totalRewardGold: number } | null {
+    const waveDef = this.waveDefs[waveNum - 1];
+    if (!waveDef) return null;
+
+    const types = [...new Set(waveDef.pool)];
+    const avgReward = waveDef.pool.reduce((sum, key) => {
+      const def = this.creepTypeDefs.find(d => d.key === key);
+      return sum + (def?.reward ?? 0);
+    }, 0) / waveDef.pool.length;
+
+    return {
+      count:           waveDef.count,
+      types,
+      totalRewardGold: Math.round(avgReward * waveDef.count),
+    };
+  }
+
   startWave(waveNumber: number): void {
     const waveDef = this.waveDefs[waveNumber - 1];
     if (!waveDef) return;

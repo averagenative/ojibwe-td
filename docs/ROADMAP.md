@@ -20,9 +20,10 @@ rather than disappearing into git history.
 | 7 | Roguelike Offer Layer | done |
 | 8 | Run Loop & Game States | done |
 | 9 | Meta-Progression | done |
-| 10 | Second Map | pending |
+| 10 | Second Map | review-complete |
 | 11 | Polish & Balance | pending |
-| 12 | Tower Commanders | in-progress |
+| 12 | Tower Commanders | review-complete |
+| 13 | Mobile Browser Support | pending |
 
 ---
 
@@ -169,35 +170,79 @@ should be addressed during the next relevant phase or in a dedicated polish pass
   consistent but worth addressing in Phase 11 polish.
 
 ### Tower Commanders (Phase 12 review)
-- **Character Sheet detail view not implemented**: The acceptance criteria require a full character
-  sheet accessible from the commander selection screen (tap/click for details) showing lore,
-  clan/totem illustration placeholder, aura mechanical detail, ability timing, and codex link.
-  Currently only card summaries are shown; no detail popup exists. Also requires Codex integration
-  (viewable from Codex without being in a run).
-- **SaveManager not wired into CommanderSelectScene**: `isCommanderUnlocked()` always returns true.
-  When Phase 9 (SaveManager) is merged into the same branch, wire the unlock check via
-  `SaveManager.getInstance().isUnlocked('unlock-commander-' + id)` and add commander unlock nodes
-  to `unlockDefs.ts`.
-- **Bizhiw aura: projectile travel speed +25% not implemented**: The acceptance criteria specify
-  +25% projectile travel speed for Cannon and Frost towers. The aura flag is set but Projectile.ts
-  does not read it. Needs a `projectileSpeedMult` field on Tower or Projectile that is set when the
-  Bizhiw aura is active.
-- **Makoons aura: "towers do not lose target on creep speed burst" not implemented**: Tower.ts
-  `findTarget()` re-acquires targets each attack cycle. The "do not lose target" mechanic requires
-  sticky target retention when a creep speed-bursts out of range, which is a Tower.ts change.
-- **Animikiikaa aura: chain AoE on impact not wired into Tower.ts**: `isAnimikiikaaAuraActive()`
-  is exposed on GameScene but Tesla tower's chain logic in Tower.ts does not call it to trigger
-  a 1-tile AoE on each chain jump impact.
-- **Animikiikaa ability: "chains ignore target limits" not implemented**: Great Thunder ability
-  applies 3x speed but does not remove the target limit on Tesla chain bounces.
-- **Makoons ability: armor/immunity ignore not wired into Tower/Creep**: `isBearsChargeActive()`
-  is exposed but Tower.ts/Creep.ts damage pipeline does not check it to bypass armor or immunity
-  flags during the 6-second window.
-- **Commander portrait icons need asset generation**: All `portraitIcon` fields reference
-  `cmd-*` keys but no corresponding assets exist. Needs icon generation (gen_icons.py or manual).
-- **Stat tooltip doesn't show commander aura effects**: The acceptance criteria state "if a
-  commander's aura modifies tower stats, those modifications are visible in the tower's stat
-  tooltip." Currently no tooltip reflects commander-sourced buffs.
+**Blocking issues fixed in this review pass:**
+- **CommanderSelectScene not registered in main.ts**: Scene was defined but never added to Phaser
+  config. Fixed: added import and scene registration.
+- **MainMenuScene not wired to CommanderSelectScene**: START GAME went directly to GameScene.
+  Fixed: MainMenuScene → CommanderSelectScene → GameScene flow.
+- **HUD.createCommanderDisplay() and createAbilityButton() missing**: GameScene called methods
+  that didn't exist on HUD. Fixed: implemented both methods plus disableAbilityButton().
+- **Duplicate activateCommanderAbility()**: Two copies existed in GameScene. Fixed: removed
+  the incomplete duplicate, kept the version using waveManager.getWaveInfo().
+- **Double pointerup handler bug in CommanderSelectScene**: Unlocked cards had two separate
+  `bg.on('pointerup')` handlers — both fired on every click, making the first click always
+  open the character sheet instead of selecting the card. Fixed: merged into single handler
+  (first click selects, second click on same card opens sheet).
+- **waveStartLives never updated between waves**: Nokomis ability would always restore to
+  initial lives, not current-wave-start lives. Fixed: snapshot in startNextWave().
+- **absorbEscapes never cleared**: Waabizii's ability had no cleanup — once activated, escape
+  absorption persisted for the rest of the run. Fixed: cleared in onWaveComplete().
+- **Lifesteal offer max-lives cap inconsistent**: Lifesteal capped at mapData.startingLives,
+  ignoring commander's startingLivesBonus (Waabizii +2). Fixed: consistent max across all heal sources.
+- **GameOverScene RETRY didn't pass commanderId**: Retrying a run lost the commander selection.
+  Fixed: commanderId flows through GameScene → GameOverScene → RETRY → GameScene.
+
+**Non-blocking items remaining:**
+- **Codex integration for character sheets**: Acceptance criteria require sheets viewable from Codex
+  without being in a run. No Codex system exists yet — defer to Codex task (TASK-017).
+- **SaveManager not wired into CommanderSelectScene lock check**: `isLocked` uses
+  `def.defaultUnlocked` only. Wire via `SaveManager.getInstance().isUnlocked('unlock-commander-' + id)`
+  and add commander unlock nodes to `unlockDefs.ts`.
+- **Bizhiw aura: projectile travel speed +25% not wired into Projectile.ts**: The
+  `projectileSpeedMult` state field is set but Projectile.ts does not read it.
+- **Makoons aura: "towers do not lose target on creep speed burst" not wired**: Tower.ts
+  `findTarget()` re-acquires targets each attack cycle. Sticky target retention is a Tower.ts change.
+- **Animikiikaa aura: chain AoE on impact not wired into Tower.ts**: `teslaChainAoE` flag set
+  but Tesla chain logic doesn't trigger 1-tile AoE on each chain jump.
+- **Makoons ability: armor/immunity ignore not wired into damage pipeline**: `ignoreArmorAndImmunity`
+  flag set but Tower.ts/Creep.ts doesn't check it to bypass armor or immunity flags.
+- **Commander portrait icons need asset generation**: `portraitIcon` fields reference keys with no
+  corresponding assets. Needs icon generation (gen_icons.py or manual).
+- **Stat tooltip doesn't show commander aura effects**: Acceptance criteria state aura-sourced
+  stat modifications should be visible in tower tooltips. Currently no tooltip reflects these.
+
+### Second Map (Phase 10 review)
+**Blocking issues fixed in this review pass:**
+- **Missing map selection UI on MainMenuScene**: Acceptance criteria required map cards with lock
+  state and path thumbnails. MainMenuScene only had START GAME button going directly to
+  CommanderSelectScene. Fixed: added two-card map selection UI with path thumbnail previews,
+  lock state from SaveManager, and unlock cost display. Clicking a locked map sends the player
+  to MetaMenuScene.
+- **MapId not flowing through scene chain**: CommanderSelectScene passed only `commanderId` to
+  GameScene — `mapId` always defaulted to 'map-01'. Fixed: MainMenuScene passes `mapId` to
+  CommanderSelectScene via init data; CommanderSelectScene passes both `commanderId` and `mapId`
+  to GameScene.
+- **MainMenuScene UPGRADES button dead with TODO**: The button had a TODO comment and no-op click
+  handler, despite MetaMenuScene being fully built and registered. Fixed: wired to MetaMenuScene,
+  removed TODO comment.
+- **CommanderSelectScene TODO comment**: `isLocked` check had `// TODO: check SaveManager when
+  available`. SaveManager IS available. Fixed: uses `SaveManager.getInstance().isUnlocked()` with
+  fallback to `defaultUnlocked` flag. Removed TODO.
+
+**Non-blocking items remaining:**
+- **Commander unlock nodes not yet in unlockDefs.ts**: `SaveManager.isUnlocked('unlock-' + def.id)`
+  returns false for all commanders since no commander unlock nodes exist. Currently, only the
+  default-unlocked Nokomis is selectable. This is correct until commander unlock nodes are added
+  to `unlockDefs.ts` (likely Phase 12 or a dedicated task).
+- **`getIronBarrageMult()` is redundant**: The Iron Barrage multiplier is already composed into
+  `getGlobalDamageMult()` directly (line 211–213). The standalone `getIronBarrageMult()` method
+  (line 301–304) is never called. Remove the dead method or use it in place of the inline code.
+- **HUD commander display/ability button not added to HUD Container**: Objects created via
+  `this.scene.add.*` rather than added to the container. Consistent with other HUD methods
+  (speed controls, next-wave button) — all are direct scene objects. Not a leak (scene restart
+  destroys all objects) but makes HUD.destroy() incomplete if called mid-scene.
+- **No map selection thumbnail animation**: Map cards show static path lines. Consider adding a
+  subtle creep-dot animation along the path to help players visualize movement direction.
 
 ### UX / Feel
 - Upgrade panel should animate open/close (slide up) rather than snapping — low effort, high feel.
@@ -258,9 +303,60 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 
 - **Endless mode**: Wave count uncapped, enemy stats scale logarithmically, leaderboard by wave reached.
 - **Multiplayer**: Deferred by design decision (Session 2). Revisit after solo loop is polished.
-- **Mobile**: Primary target is desktop browser. Responsive layout work deferred to post-MVP.
+- **Mobile**: Promoted to Phase 13. See below.
 - **Modding / map editor**: Low priority but architecturally possible given JSON-driven wave and map defs.
 - **Steam / Electron wrapper**: If the game gains traction, desktop distribution via Electron is straightforward.
+
+---
+
+## Phase 13 — Mobile Browser Support
+
+Make the game fully playable on mobile browsers (iOS Safari, Android Chrome) without
+degrading the desktop experience.
+
+### Input & Touch
+- Replace pointer-based click handlers with touch-aware input (tap to place, tap to select)
+- Tower placement: tap grid cell to place; long-press or double-tap to cancel
+- Tower selection: tap existing tower to select/deselect; prevent accidental placement on occupied cells
+- Drag-to-pan the map (if viewport is larger than screen)
+- Pinch-to-zoom support (optional, depends on map size vs screen size)
+- Prevent browser default gestures (pull-to-refresh, back-swipe, double-tap-to-zoom)
+
+### Responsive Layout & Scaling
+- Auto-detect screen size and orientation; scale the Phaser canvas to fill viewport
+- Recalculate tile size or camera zoom so the full map is visible without horizontal scroll
+- Handle orientation changes (portrait ↔ landscape) — prefer landscape, show rotate prompt in portrait
+- Ensure `PANEL_HEIGHT`, `HUD_HEIGHT`, and `UPGRADE_PANEL_HEIGHT` scale proportionally or use relative units
+- Handle notch/safe-area insets (CSS `env(safe-area-inset-*)`)
+
+### UI Panels (HUD, TowerPanel, UpgradePanel, BehaviorPanel)
+- Increase touch target sizes to minimum 44×44px (Apple HIG guideline)
+- Tower panel icons: enlarge or switch to a scrollable horizontal strip
+- Upgrade panel: make tier pips and path buttons finger-friendly
+- Behavior panel: enlarge priority buttons and toggle labels
+- Speed controls and next-wave button: scale up for touch
+- Consider a slide-up drawer pattern for panels instead of fixed bottom bar
+- BossOfferPanel / BetweenWaveScene offer cards: ensure readable text size and tappable buttons
+
+### Scenes & Menus
+- MainMenuScene: enlarge buttons, ensure map selection cards are tappable
+- CommanderSelectScene: character cards and sheet must be scrollable/swipeable on small screens
+- MetaMenuScene: unlock/stat node buttons must be touch-friendly; scrollable if content overflows
+- GameOverScene / RunCompleteScene: enlarge buttons, ensure all interactive elements are reachable
+
+### Performance
+- Profile on mid-range mobile devices (target: 30fps minimum)
+- Reduce draw calls if needed (texture atlases, reduce particle effects on mobile)
+- Consider lowering resolution on low-DPI devices
+- Test memory usage — mobile browsers have stricter limits
+
+### Testing
+- Manual testing on iOS Safari (iPhone SE / iPhone 14 size) and Android Chrome (Pixel 5 / Galaxy S21)
+- Test with browser DevTools device emulation for rapid iteration
+- Verify all six tower types are placeable and selectable via touch
+- Verify all panel interactions work (upgrade buy, respec, targeting priority, behavior toggles)
+- Verify boss offer panel and between-wave offer panel are usable
+- Verify meta menu (unlock/stat purchase) works on touch
 
 ---
 

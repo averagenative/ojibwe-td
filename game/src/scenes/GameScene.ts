@@ -33,6 +33,9 @@ export class GameScene extends Phaser.Scene {
   private mapData!: MapData;
   private waypoints: PixelWaypoint[] = [];
 
+  // ── selected map (set via init()) ─────────────────────────────────────────
+  private selectedMapId = 'map-01';
+
   // ── game state ────────────────────────────────────────────────────────────
   private lives       = 20;
   private gold        = 200;
@@ -83,21 +86,36 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
-  /** Called by Phaser before create() — captures scene-start data. */
-  init(data?: { commanderId?: string }): void {
+  /** Called by Phaser before preload() — captures scene-start data and resets state. */
+  init(data?: { commanderId?: string; mapId?: string }): void {
     this.selectedCommanderId = data?.commanderId ?? 'nokomis';
+    this.selectedMapId       = data?.mapId       ?? 'map-01';
+
+    // Reset all mutable state so re-starting with a different map or commander is clean.
+    this.activeCreeps    = new Set();
+    this.towers          = [];
+    this.projectiles     = new Set();
+    this.currentWave     = 0;
+    this.gameState       = 'pregame';
+    this.speedMultiplier = 1;
+    this.selectedTower   = null;
+    this.placementDef    = null;
+    this.bossOfferPanel  = null;
+    this.debugOverlay    = null;
+    this.debugVisible    = false;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   preload(): void {
-    this.load.json('map-01',       'data/maps/map-01.json');
+    // Load the correct map JSON by key (same key = reused from cache across runs).
+    this.load.json(this.selectedMapId, `data/maps/${this.selectedMapId}.json`);
     this.load.json('creep-types',  'data/creep-types.json');
     this.load.json('wave-defs',    'data/waves.json');
   }
 
   create(): void {
-    this.mapData   = this.cache.json.get('map-01') as MapData;
+    this.mapData   = this.cache.json.get(this.selectedMapId) as MapData;
     this.lives     = this.mapData.startingLives;
     this.gold      = this.mapData.startingGold;
     this.waypoints = this.buildPixelWaypoints();
@@ -163,9 +181,11 @@ export class GameScene extends Phaser.Scene {
     // ── Scene event listeners ──────────────────────────────────────────────
 
     this.events.on('creep-killed', (data: CreepKilledData) => {
+      // Bounty Hunter: kill rewards worth 20% more.
+      const rewardMult = this.offerManager.getKillRewardMult();
       // Oshkaabewis: +1 gold per creep kill (stacks with base reward)
-      const cmdBonus = this.commanderState?.killGoldBonus ?? 0;
-      this.gold += data.reward + cmdBonus;
+      const cmdBonus   = this.commanderState?.killGoldBonus ?? 0;
+      this.gold += Math.round(data.reward * rewardMult) + cmdBonus;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
 
@@ -189,6 +209,11 @@ export class GameScene extends Phaser.Scene {
         this.triggerChainReaction(data.x, data.y);
       }
 
+      // Reaper's Mark: 5% chance to arc 40 lightning damage.
+      if (this.offerManager.reaperMarkRoll()) {
+        this.triggerReapersMark(data.x, data.y);
+      }
+
       // Shockwave: every 10th kill deals 60 AoE damage in 80px radius.
       if (killEffects.shockwave) {
         this.triggerShockwave(data.x, data.y);
@@ -196,7 +221,8 @@ export class GameScene extends Phaser.Scene {
 
       // Lifesteal: heal 1 life every 50 kills.
       if (killEffects.lifeGain) {
-        this.lives = Math.min(this.lives + 1, this.mapData.startingLives);
+        const maxLives = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
+        this.lives = Math.min(this.lives + 1, maxLives);
         this.hud.setLives(this.lives);
         this.offerManager.setCurrentLives(this.lives);
       }
@@ -566,11 +592,18 @@ export class GameScene extends Phaser.Scene {
   private sellTower(tower: Tower): void {
     // Refund includes base tower cost + upgrade investment, both at the sell rate.
     // Scavenger offer raises the refund rate to 85%.
+    // Salvage offer: one-time full (100%) refund on next sell.
     const upgradeSpent = this.upgradeManager.getState(tower)?.totalSpent ?? 0;
-    const refund       = calculateSellRefund(
-      tower.def.cost + upgradeSpent,
-      this.offerManager.getSellRefundRate(),
-    );
+    let refund: number;
+    if (this.offerManager.isSalvageAvailable()) {
+      refund = tower.def.cost + upgradeSpent; // 100% refund
+      this.offerManager.consumeSalvage();
+    } else {
+      refund = calculateSellRefund(
+        tower.def.cost + upgradeSpent,
+        this.offerManager.getSellRefundRate(),
+      );
+    }
     this.gold += refund;
     this.hud.setGold(this.gold);
 
@@ -612,6 +645,20 @@ export class GameScene extends Phaser.Scene {
     this.gameState = 'wave';
     this.hud.setWave(this.currentWave, TOTAL_WAVES);
     this.hud.setNextWaveVisible(false, 0);
+
+    // Snapshot lives at wave start (for Nokomis ability restore).
+    if (this.commanderState) {
+      this.commanderState.waveStartLives = this.lives;
+    }
+
+    // Supply Cache: +10 gold per owned tower at wave start.
+    const supplyCacheBonus = this.offerManager.getSupplyCacheBonus(this.towers.length);
+    if (supplyCacheBonus > 0) {
+      this.gold += supplyCacheBonus;
+      this.hud.setGold(this.gold);
+      this.upgradePanel?.refresh();
+    }
+
     this.waveManager.startWave(this.currentWave);
   }
 
@@ -625,8 +672,15 @@ export class GameScene extends Phaser.Scene {
         totalWaves:     TOTAL_WAVES,
         won:            true,
         runCurrency:    calculateRunCurrency(TOTAL_WAVES, TOTAL_WAVES, true),
+        mapId:          this.selectedMapId,
+        commanderId:    this.selectedCommanderId,
       });
       return;
+    }
+
+    // Clear Waabizii's absorb-escapes at wave end (one-wave duration).
+    if (this.commanderState) {
+      this.commanderState.absorbEscapes = false;
     }
 
     // Update OfferManager wave state.
@@ -1011,6 +1065,88 @@ export class GameScene extends Phaser.Scene {
       totalWaves:     TOTAL_WAVES,
       won:            false,
       runCurrency:    calculateRunCurrency(this.currentWave, TOTAL_WAVES, false),
+      mapId:          this.selectedMapId,
+      commanderId:    this.selectedCommanderId,
     });
+  }
+
+  // ── commander ability ─────────────────────────────────────────────────────
+
+  private activateCommanderAbility(): void {
+    if (!this.commanderDef || !this.commanderState) return;
+    if (this.commanderState.abilityUsed) return;
+
+    this.commanderState.abilityUsed = true;
+    this.hud.disableAbilityButton();
+
+    const ctx: AbilityContext = {
+      currentWave:    this.currentWave,
+      currentLives:   this.lives,
+      waveStartLives: this.commanderState.waveStartLives,
+      startingLives:  this.mapData.startingLives,
+      currentGold:    this.gold,
+      addGold: (amount) => {
+        this.gold += amount;
+        this.hud.setGold(this.gold);
+        this.upgradePanel?.refresh();
+      },
+      setLives: (lives) => {
+        this.lives = lives;
+        this.hud.setLives(this.lives);
+        this.offerManager.setCurrentLives(this.lives);
+      },
+      addTimedEffect: (durationMs, onEnd) => {
+        this.time.delayedCall(durationMs, onEnd);
+      },
+      showMessage: (text, durationMs) => {
+        this.showTemporaryMessage(text, durationMs);
+      },
+      getWaveCreepInfo: (waveNum) => {
+        return this.waveManager.getWaveInfo(waveNum);
+      },
+    };
+
+    this.commanderDef.ability.activate(this.commanderState, ctx);
+  }
+
+  private showTemporaryMessage(text: string, durationMs: number): void {
+    const { width, height } = this.scale;
+    const msg = this.add.text(width / 2, height / 2 - 80, text, {
+      fontSize:        '18px',
+      color:           '#ffffff',
+      fontFamily:      'monospace',
+      backgroundColor: '#000000cc',
+      padding:         { x: 12, y: 8 },
+      align:           'center',
+    }).setOrigin(0.5).setDepth(200);
+
+    this.tweens.add({
+      targets:  msg,
+      alpha:    0,
+      delay:    Math.max(0, durationMs - 600),
+      duration: 600,
+      onComplete: () => msg.destroy(),
+    });
+  }
+
+  // ── Reaper's Mark ─────────────────────────────────────────────────────────
+
+  /**
+   * Reaper's Mark: arc 40 lightning damage to the nearest creep from kill position.
+   */
+  private triggerReapersMark(x: number, y: number): void {
+    let nearest: Creep | null = null;
+    let minDist               = Infinity;
+
+    for (const c of this.activeCreeps) {
+      if (!c.active) continue;
+      const d = Math.hypot(c.x - x, c.y - y);
+      if (d < minDist) { minDist = d; nearest = c; }
+    }
+
+    if (!nearest) return;
+
+    nearest.takeDamage(40);
+    this.drawLightningArc(x, y, nearest.x, nearest.y, 0xff88ff);
   }
 }
