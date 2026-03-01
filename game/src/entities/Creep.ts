@@ -1,5 +1,9 @@
 import Phaser from 'phaser';
 import { tickRegen } from '../data/bossDefs';
+import {
+  computeArrivalThreshold,
+  advanceWaypointIndex,
+} from '../data/pathing';
 
 // Re-export so existing imports from Creep.ts still work.
 export { tickRegen };
@@ -197,20 +201,34 @@ export class Creep extends Phaser.GameObjects.Container {
       return;
     }
 
-    const target = this.waypoints[this.waypointIndex];
-    const dx = target.x - this.x;
-    const dy = target.y - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    const effectiveSpeed = this.baseSpeed * this.speedMultiplier;
+    const stepDist = (effectiveSpeed * delta) / 1000;
 
-    if (dist < 2) {
-      this.waypointIndex++;
+    // Speed-aware arrival threshold: max(WAYPOINT_ARRIVAL_PX, stepDist) ensures
+    // that even on a slow frame a creep cannot travel past a waypoint without
+    // registering arrival.  advanceWaypointIndex() rechecks each successive
+    // waypoint in the same frame — no early return — so the creep begins moving
+    // toward the new target immediately (eliminates the corner pause).
+    const arrivalThreshold = computeArrivalThreshold(stepDist);
+    this.waypointIndex = advanceWaypointIndex(
+      this.x, this.y, this.waypoints, this.waypointIndex, arrivalThreshold,
+    );
+
+    if (this.waypointIndex >= this.waypoints.length) {
+      this.emit('reached-exit');
+      this.setActive(false).setVisible(false);
       return;
     }
 
-    const effectiveSpeed = this.baseSpeed * this.speedMultiplier;
-    const step = (effectiveSpeed * delta) / 1000;
-    this.x += (dx / dist) * step;
-    this.y += (dy / dist) * step;
+    const target = this.waypoints[this.waypointIndex];
+    const dx = target.x - this.x;
+    const dy = target.y - this.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 0) {
+      this.x += (dx / dist) * stepDist;
+      this.y += (dy / dist) * stepDist;
+    }
   }
 
   // ── combat ────────────────────────────────────────────────────────────────
