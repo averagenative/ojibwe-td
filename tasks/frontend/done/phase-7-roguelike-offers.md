@@ -1,7 +1,7 @@
 ---
 id: TASK-07
 title: Roguelike Offer Layer
-status: in-progress
+status: done
 category: frontend
 phase: 7
 openspec_ref: "Phase 7"
