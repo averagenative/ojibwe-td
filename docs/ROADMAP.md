@@ -592,6 +592,32 @@ no-op on invalid wave, `wave-bonus` naming inconsistency) are still open.
 
 ---
 
+## Code Review Findings — TASK-026 (Creep Corner Pathing)
+
+*Non-blocking items surfaced during review. Not required for merge.*
+
+### Arrival threshold increased from 2px to 8px
+The old hardcoded `dist < 2` threshold was replaced with `WAYPOINT_ARRIVAL_PX = 8`.
+This is intentional (a 2px threshold was too tight for reliable arrival detection), but
+it means creeps now "cut corners" slightly more — up to 8px offset at turns. Visually
+negligible in the current tile sizes (40–48px), but if a future map uses very small tiles
+or tight corridors, verify corner clipping doesn't look off.
+
+### Extreme lag spike can skip all waypoints in one frame
+The `while` loop in `advanceWaypointIndex` advances past every waypoint within
+`arrivalThreshold` of the creep's position. If `delta` is enormous (multi-second freeze),
+`stepDist` becomes very large, and the threshold could encompass all remaining waypoints,
+causing an instant exit. Phaser clamps `delta` to `game.config.fps.deltaSmoothing`, so this
+is unlikely in practice. If needed, cap `delta` in `Creep.step()` to e.g. 500ms.
+
+### No sub-frame corner interpolation
+After advancing past a waypoint, the creep moves the full `stepDist` toward the next
+waypoint from its current position — it does not snap to the waypoint first, nor does it
+split the step between the old and new direction. Standard for TD games and visually fine,
+but worth noting if pixel-perfect path tracing (e.g., motion trails) is added later.
+
+---
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
