@@ -458,11 +458,16 @@ export class GameScene extends Phaser.Scene {
         this.hud.setGold(this.gold);
         this.upgradePanel?.refresh();
       }
-      // Now that the offer is chosen, show the next-wave button.
-      this.hud.setNextWaveVisible(true, this.currentWave + 1, this.isEndlessMode);
 
-      // Check for between-wave vignettes (offer screen shown first, then vignette).
-      this.tryShowBetweenWaveVignette();
+      // Show any between-wave vignette first; reveal the next-wave button only
+      // after it's dismissed (or immediately if there's no vignette to show).
+      // This prevents the boss-wave warning / commander messages from overlapping
+      // with the story panel.
+      const revealNextWave = () => {
+        this.hud.setNextWaveVisible(true, this.currentWave + 1, this.isEndlessMode);
+      };
+      const hadVignette = this.tryShowBetweenWaveVignette(revealNextWave);
+      if (!hadVignette) revealNextWave();
     });
 
     // Debug overlay — dev builds only (stripped by Vite's dead-code elimination in prod)
@@ -902,9 +907,13 @@ export class GameScene extends Phaser.Scene {
   /**
    * After the offer is picked, check for any between-wave vignettes to show.
    * Checks in priority order: BOSS_KILLED (queued), WAVE_COMPLETE, WAVE_START (next).
-   * Vignettes do NOT delay the next wave — the next-wave button is already visible.
+   *
+   * @param onDismiss  Called when the vignette is dismissed (or not called if no
+   *                   vignette fires). The caller is responsible for showing the
+   *                   next-wave button in this callback.
+   * @returns  true if a vignette was shown, false if none matched.
    */
-  private tryShowBetweenWaveVignette(): void {
+  private tryShowBetweenWaveVignette(onDismiss?: () => void): boolean {
     let result = null;
 
     // 1. Boss-killed vignette (queued from the boss-killed event).
@@ -925,9 +934,11 @@ export class GameScene extends Phaser.Scene {
 
     if (result) {
       this.vignetteOverlay.show(result.vignette, result.seenBefore, () => {
-        // Dismissed — no further action. Next-wave button is already visible.
+        onDismiss?.();
       });
+      return true;
     }
+    return false;
   }
 
   /**
