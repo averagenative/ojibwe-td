@@ -20,6 +20,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..');
 const ASSETS = join(REPO_ROOT, 'game/public/assets');
 
+// Load .env
+const envPath = join(REPO_ROOT, '.env');
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+    const match = line.match(/^([A-Z_]+)=(.+)$/);
+    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].trim();
+  }
+}
+
 const API_KEY = process.env.REMOVEBG_API_KEY;
 if (!API_KEY) {
   console.error('Set REMOVEBG_API_KEY environment variable.');
