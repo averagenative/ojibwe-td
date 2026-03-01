@@ -179,6 +179,38 @@ Do NOT redo work that is already done.
   return 1
 }
 
+# ── Remote sync ───────────────────────────────────────────────────────────────
+#
+# Pull collaborator commits before picking up any work.
+# Non-fatal: if the pull fails (network down, merge conflict), we log and
+# continue with local state rather than aborting the pipeline entirely.
+
+sync_with_remote() {
+  log "Syncing with remote…"
+  local out
+  if ! out=$(git -C "$REPO_DIR" fetch origin 2>&1); then
+    log "WARNING: git fetch failed — working with local state."
+    return 0
+  fi
+
+  local behind
+  behind=$(git -C "$REPO_DIR" rev-list HEAD..origin/main --count 2>/dev/null || echo 0)
+
+  if [ "$behind" -eq 0 ]; then
+    log "Remote: already up to date."
+    return 0
+  fi
+
+  log "Remote: $behind new commit(s) — pulling…"
+  if ! out=$(git -C "$REPO_DIR" pull --rebase origin main 2>&1); then
+    log "WARNING: git pull --rebase failed — manual rebase may be needed."
+    log "$out"
+    return 0
+  fi
+  echo "$out" | sed 's/^/  /'
+  log "Remote: sync complete."
+}
+
 # ── Task helpers ──────────────────────────────────────────────────────────────
 
 find_next_task() {
@@ -248,6 +280,9 @@ main() {
 
   [ -n "$task_file" ] || { log "No pending tasks — nothing to do."; exit 0; }
   [ -f "$task_file"  ] || die "Task file not found: $task_file"
+
+  # Pull any collaborator commits before touching the repo
+  sync_with_remote
 
   local title done_path mdl
   title=$(get_title "$task_file")

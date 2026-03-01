@@ -52,6 +52,38 @@ task_model() {
   fi
 }
 
+# ── Remote sync ────────────────────────────────────────────────────────────────
+#
+# Pull collaborator commits before creating worktrees.  Worktrees branch from
+# HEAD, so syncing here means every worker starts from the latest shared state.
+# Non-fatal: logs and continues with local state if the pull fails.
+
+sync_with_remote() {
+  log "Syncing with remote…"
+  local out
+  if ! out=$(git -C "$REPO_DIR" fetch origin 2>&1); then
+    log "WARNING: git fetch failed — working with local state."
+    return 0
+  fi
+
+  local behind
+  behind=$(git -C "$REPO_DIR" rev-list HEAD..origin/main --count 2>/dev/null || echo 0)
+
+  if [ "$behind" -eq 0 ]; then
+    log "Remote: already up to date."
+    return 0
+  fi
+
+  log "Remote: $behind new commit(s) — pulling…"
+  if ! out=$(git -C "$REPO_DIR" pull --rebase origin main 2>&1); then
+    log "WARNING: git pull --rebase failed — manual rebase may be needed."
+    log "$out"
+    return 0
+  fi
+  echo "$out" | sed 's/^/  /'
+  log "Remote: sync complete."
+}
+
 # ── Task helpers ───────────────────────────────────────────────────────────────
 
 find_pending_tasks() {
@@ -393,6 +425,9 @@ main() {
   hr
 
   mkdir -p "$WORKTREES_DIR"
+
+  # Pull collaborator commits before branching worktrees
+  sync_with_remote
 
   # Resolve task list
   local tasks=()
