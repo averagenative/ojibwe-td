@@ -92,16 +92,34 @@ find_pending_tasks() {
   local limit="$1"
   local count=0
   local dirs=("$TASKS_DIR/backend/pending" "$TASKS_DIR/frontend/pending")
+  # Collect all pending tasks with a numeric priority prefix for sorting:
+  #   0=critical  1=high  2=medium  3=low  4=unset
+  local tmpfile
+  tmpfile=$(mktemp)
   for dir in "${dirs[@]}"; do
     [ -d "$dir" ] || continue
     while IFS= read -r -d '' f; do
       if grep -q "^status: pending$" "$f" 2>/dev/null; then
-        echo "$f"
-        count=$(( count + 1 ))
-        [ "$count" -ge "$limit" ] && return
+        local pri
+        pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}')
+        local rank
+        case "$pri" in
+          critical) rank=0 ;;
+          high)     rank=1 ;;
+          medium)   rank=2 ;;
+          low)      rank=3 ;;
+          *)        rank=4 ;;
+        esac
+        echo "${rank}|${f}"
       fi
-    done < <(find "$dir" -maxdepth 1 -name "*.md" -print0 | sort -z)
-  done
+    done < <(find "$dir" -maxdepth 1 -name "*.md" -print0)
+  done | sort > "$tmpfile"
+  while IFS='|' read -r _rank f; do
+    echo "$f"
+    count=$(( count + 1 ))
+    [ "$count" -ge "$limit" ] && break
+  done < "$tmpfile"
+  rm -f "$tmpfile"
 }
 
 claim_task() {
