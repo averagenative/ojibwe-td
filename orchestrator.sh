@@ -27,7 +27,9 @@ TASKS_DIR="$REPO_DIR/tasks"
 
 DEFAULT_MODEL="sonnet"  # used unless task_model() selects opus
 MAX_RETRIES=8           # max attempts per agent before giving up
-RETRY_DELAY=90          # seconds to wait after a context/rate-limit hit
+RETRY_DELAY=90          # seconds to wait after a transient rate/context limit
+QUOTA_WAIT=1800         # seconds to wait after quota/billing exhaustion (30 min)
+QUOTA_MAX_WAIT=48       # max quota-wait cycles before giving up (~24 h)
 
 CHECKPOINT_FILE="$REPO_DIR/.orch_checkpoint"
 
@@ -119,6 +121,7 @@ run_agent() {
   local work_dir="${3:-$REPO_DIR}"
   local model="${4:-$DEFAULT_MODEL}"
   local attempt=0
+  local quota_waits=0
   local prompt="$base_prompt"
 
   log "$label — model: $model"
@@ -149,12 +152,37 @@ run_agent() {
       return 0
     fi
 
-    # ── Detect context / rate / overload / quota limits ────────────────────
+    # ── Tier 1: Quota / billing exhaustion — save state, wait 30 min ───────
+    # These are not transient; retrying immediately wastes quota on errors.
+    # Save a checkpoint so --resume can pick up after tokens replenish.
     if grep -qiE \
-      "context.*(length|window|limit|exceeded)|too many tokens|token.*limit|rate.limit|overloaded|529|request.*too large|maximum.*context|prompt.*too long|quota.*exceeded|billing|credit" \
+      "credit.*balance|billing|monthly.*limit|usage.*limit|quota.*exceeded|402 |payment.required" \
       "$tmp" 2>/dev/null
     then
-      log "$label — limit detected; waiting ${RETRY_DELAY}s before retry…"
+      rm -f "$tmp"
+      quota_waits=$(( quota_waits + 1 ))
+      attempt=$(( attempt - 1 ))  # don't consume a regular retry slot
+
+      save_checkpoint "$CURRENT_STAGE" "$CURRENT_TASK_FILE"
+      log "$label — QUOTA EXHAUSTED (wait $quota_waits/$QUOTA_MAX_WAIT) —"
+      log "  Checkpoint saved. Resume with:  ./orchestrator.sh --resume"
+      log "  Waiting ${QUOTA_WAIT}s (~$(( QUOTA_WAIT / 60 )) min) before retry…"
+
+      if [ "$quota_waits" -ge "$QUOTA_MAX_WAIT" ]; then
+        log "$label — quota still exhausted after $QUOTA_MAX_WAIT waits (~24 h) — aborting"
+        return 1
+      fi
+
+      sleep "$QUOTA_WAIT"
+      continue
+    fi
+
+    # ── Tier 2: Transient rate / context / overload — wait 90 s ────────────
+    if grep -qiE \
+      "context.*(length|window|limit|exceeded)|too many tokens|token.*limit|rate.limit|overloaded|529|request.*too large|maximum.*context|prompt.*too long" \
+      "$tmp" 2>/dev/null
+    then
+      log "$label — transient limit; waiting ${RETRY_DELAY}s before retry…"
       rm -f "$tmp"
       sleep "$RETRY_DELAY"
 

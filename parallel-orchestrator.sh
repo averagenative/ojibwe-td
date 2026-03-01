@@ -28,6 +28,8 @@ DEFAULT_MODEL="sonnet"
 REVIEW_MODEL="opus"
 MAX_RETRIES=8
 RETRY_DELAY=90
+QUOTA_WAIT=1800         # seconds to wait after quota/billing exhaustion (30 min)
+QUOTA_MAX_WAIT=48       # max quota-wait cycles before giving up (~24 h)
 PARALLEL_LIMIT=2         # max simultaneous implement+review workers
 
 PARALLEL_STATE_FILE="$REPO_DIR/.orch_parallel_state"
@@ -123,6 +125,7 @@ run_agent() {
   local model="$4"
   local log_prefix="$5"   # e.g. "task-slug" for per-worker log lines
   local attempt=0
+  local quota_waits=0
   local prompt="$base_prompt"
 
   while [ $attempt -lt "$MAX_RETRIES" ]; do
@@ -152,11 +155,34 @@ run_agent() {
       return 0
     fi
 
+    # ── Tier 1: Quota / billing exhaustion — save state, wait 30 min ───────
     if grep -qiE \
-      "context.*(length|window|limit|exceeded)|too many tokens|token.*limit|rate.limit|overloaded|529|request.*too large|maximum.*context|prompt.*too long|quota.*exceeded|billing|credit" \
+      "credit.*balance|billing|monthly.*limit|usage.*limit|quota.*exceeded|402 |payment.required" \
       "$tmp" 2>/dev/null
     then
-      log "[$log_prefix] $label — limit hit; waiting ${RETRY_DELAY}s…"
+      rm -f "$tmp"
+      quota_waits=$(( quota_waits + 1 ))
+      attempt=$(( attempt - 1 ))  # don't consume a regular retry slot
+
+      log "[$log_prefix] $label — QUOTA EXHAUSTED (wait $quota_waits/$QUOTA_MAX_WAIT)"
+      log "[$log_prefix]   State preserved. Resume with:  ./parallel-orchestrator.sh --resume"
+      log "[$log_prefix]   Waiting ${QUOTA_WAIT}s (~$(( QUOTA_WAIT / 60 )) min) before retry…"
+
+      if [ "$quota_waits" -ge "$QUOTA_MAX_WAIT" ]; then
+        log "[$log_prefix] $label — quota still exhausted after $QUOTA_MAX_WAIT waits — aborting"
+        return 1
+      fi
+
+      sleep "$QUOTA_WAIT"
+      continue
+    fi
+
+    # ── Tier 2: Transient rate / context / overload — wait 90 s ────────────
+    if grep -qiE \
+      "context.*(length|window|limit|exceeded)|too many tokens|token.*limit|rate.limit|overloaded|529|request.*too large|maximum.*context|prompt.*too long" \
+      "$tmp" 2>/dev/null
+    then
+      log "[$log_prefix] $label — transient limit; waiting ${RETRY_DELAY}s…"
       rm -f "$tmp"
       sleep "$RETRY_DELAY"
       prompt="$(printf '[RESUME] Previous attempt hit a limit. Check current state and continue.\n\n%s' "$base_prompt")"
