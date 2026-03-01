@@ -1,7 +1,7 @@
 ---
 id: TASK-020
 title: Wire Commander Ability Effects
-status: pending
+status: done
 category: frontend
 phase: 12
 openspec_ref: ""
