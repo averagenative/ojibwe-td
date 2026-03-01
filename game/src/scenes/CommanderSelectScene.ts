@@ -38,6 +38,8 @@ export class CommanderSelectScene extends Phaser.Scene {
   private selectedMapId   = 'map-01';
   /** Stage ID passed from MainMenuScene (preferred over mapId for new flow). */
   private selectedStageId: string | undefined;
+  /** Endless mode flag — passed from MainMenuScene, forwarded to GameScene. */
+  private isEndless       = false;
   private cardBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private confirmBtn!:   Phaser.GameObjects.Rectangle;
   private confirmLabel!: Phaser.GameObjects.Text;
@@ -49,9 +51,10 @@ export class CommanderSelectScene extends Phaser.Scene {
     super({ key: 'CommanderSelectScene' });
   }
 
-  init(data?: { mapId?: string; stageId?: string }): void {
+  init(data?: { mapId?: string; stageId?: string; isEndless?: boolean }): void {
     this.selectedStageId = data?.stageId;
-    this.selectedMapId   = data?.mapId ?? 'map-01';
+    this.selectedMapId   = data?.mapId    ?? 'map-01';
+    this.isEndless       = data?.isEndless ?? false;
   }
 
   create(): void {
@@ -113,6 +116,7 @@ export class CommanderSelectScene extends Phaser.Scene {
         commanderId: this.selectedId,
         stageId:     this.selectedStageId,
         mapId:       this.selectedMapId,
+        isEndless:   this.isEndless,
       });
     });
 

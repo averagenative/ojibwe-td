@@ -10,6 +10,8 @@ interface GameOverData {
   stageId?:       string;
   mapId?:         string;
   commanderId?:   string;
+  /** True when the run was played in endless mode. */
+  isEndless?:     boolean;
 }
 
 export class GameOverScene extends Phaser.Scene {
@@ -29,6 +31,7 @@ export class GameOverScene extends Phaser.Scene {
     const stageId     = data?.stageId       ?? undefined;
     const mapId       = data?.mapId         ?? 'map-01';
     const commanderId = data?.commanderId   ?? 'nokomis';
+    const isEndless   = data?.isEndless     ?? false;
 
     // Persist run currency to meta-progression save.
     if (currency > 0) {
@@ -37,7 +40,7 @@ export class GameOverScene extends Phaser.Scene {
 
     this.add.rectangle(cx, cy, width, height, 0x0a0a0a);
 
-    // Title
+    // Title — endless runs always end in game-over (no victory possible)
     const titleText  = won ? 'VICTORY!'   : 'GAME OVER';
     const titleColor = won ? '#00ff44'    : '#ff2222';
     this.add.text(cx, cy - 140, titleText, {
@@ -47,8 +50,11 @@ export class GameOverScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // Waves survived
-    this.add.text(cx, cy - 55, `Waves completed: ${waves} / ${total}`, {
+    // Waves label — endless shows "Endless — Wave Reached: N"
+    const wavesLabel = isEndless
+      ? `Endless \u2014 Wave Reached: ${waves}`
+      : `Waves completed: ${waves} / ${total}`;
+    this.add.text(cx, cy - 55, wavesLabel, {
       fontSize: '24px',
       color: '#aaaaaa',
       fontFamily: 'monospace',
@@ -73,7 +79,7 @@ export class GameOverScene extends Phaser.Scene {
     // Buttons: RETRY | UPGRADES | MENU (three equal-width buttons)
     const btnY = cy + 90;
     this.makeButton(cx - 180, btnY, 'RETRY', () => {
-      this.scene.start('GameScene', { stageId, mapId, commanderId });
+      this.scene.start('GameScene', { stageId, mapId, commanderId, isEndless });
     });
     this.makeButton(cx, btnY, 'UPGRADES', () => {
       this.scene.start('MetaMenuScene');

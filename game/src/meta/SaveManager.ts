@@ -19,10 +19,15 @@ interface SaveData {
   unlocks:          string[];
   /** ID of the last stage the player started a run on. Used for retry continuity. */
   lastPlayedStage:  string;
+  /**
+   * Best endless-mode wave reached per map, keyed by mapId (e.g. 'map-01').
+   * Value is the highest wave number the player survived before dying.
+   */
+  endlessRecords:   Record<string, number>;
 }
 
 function defaultSaveData(): SaveData {
-  return { version: SCHEMA_VER, currency: 0, unlocks: [], lastPlayedStage: 'zaagaiganing-01' };
+  return { version: SCHEMA_VER, currency: 0, unlocks: [], lastPlayedStage: 'zaagaiganing-01', endlessRecords: {} };
 }
 
 export class SaveManager {
@@ -71,6 +76,29 @@ export class SaveManager {
   /** Get the ID of the last stage the player started. */
   getLastPlayedStage(): string {
     return this.data.lastPlayedStage;
+  }
+
+  // ── Endless mode records ────────────────────────────────────────────────────
+
+  /**
+   * Return the best endless-mode wave reached on a given map (0 if never played).
+   * @param mapId  The pathFile / mapId key (e.g. 'map-01').
+   */
+  getEndlessRecord(mapId: string): number {
+    return this.data.endlessRecords?.[mapId] ?? 0;
+  }
+
+  /**
+   * Update the endless record for a map if `wave` exceeds the stored value.
+   * Idempotent — no-op when the new wave is not higher than the current record.
+   */
+  updateEndlessRecord(mapId: string, wave: number): void {
+    if (!this.data.endlessRecords) this.data.endlessRecords = {};
+    const current = this.data.endlessRecords[mapId] ?? 0;
+    if (wave > current) {
+      this.data.endlessRecords[mapId] = wave;
+      this._save();
+    }
   }
 
   /**

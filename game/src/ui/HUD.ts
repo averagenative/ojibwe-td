@@ -69,8 +69,19 @@ export class HUD extends Phaser.GameObjects.Container {
     this.goldText.setText(`⬡  ${gold}`);
   }
 
-  /** Update the wave counter.  Boss waves display a ★ icon and orange colour. */
-  setWave(current: number, total: number): void {
+  /**
+   * Update the wave counter.  Boss waves display a ★ icon and orange colour.
+   * In endless mode (isEndless=true, current > 20) the ∞ symbol replaces the
+   * total and the text is tinted blue to signal post-campaign play.
+   */
+  setWave(current: number, total: number, isEndless?: boolean): void {
+    if (isEndless && current > 20) {
+      const boss  = current % 5 === 0;
+      const label = boss ? `★ ∞ Wave ${current}` : `∞ Wave ${current}`;
+      this.waveText.setText(label);
+      this.waveText.setColor(boss ? '#ff8844' : '#44aaff');
+      return;
+    }
     const boss  = isBossWaveNumber(current);
     const label = boss
       ? `★ Wave ${current} / ${total}`
@@ -184,17 +195,23 @@ export class HUD extends Phaser.GameObjects.Container {
    * Show/hide the next-wave button.
    * waveNumber is the wave about to start.
    * Boss waves (multiple of 5) display a ★ icon and warm orange colour.
+   * In endless mode (isEndless=true, waveNumber > 20) the ∞ symbol is prepended.
    */
-  setNextWaveVisible(visible: boolean, waveNumber: number): void {
+  setNextWaveVisible(visible: boolean, waveNumber: number, isEndless?: boolean): void {
     if (!this.nextWaveBg || !this.nextWaveLabel) return;
     this.nextWaveBg.setVisible(visible);
     this.nextWaveLabel.setVisible(visible);
 
     if (visible) {
-      const boss = isBossWaveNumber(waveNumber);
+      const isEndlessWave = isEndless && waveNumber > 20;
+      const boss = isEndlessWave ? (waveNumber % 5 === 0) : isBossWaveNumber(waveNumber);
       let label: string;
       if (waveNumber === 1) {
         label = 'START WAVE 1 ▶';
+      } else if (isEndlessWave && boss) {
+        label = `★ ∞ BOSS WAVE ${waveNumber} ★`;
+      } else if (isEndlessWave) {
+        label = `∞ WAVE ${waveNumber} ▶`;
       } else if (boss) {
         label = `★ BOSS WAVE ${waveNumber} ★`;
       } else {
@@ -202,8 +219,8 @@ export class HUD extends Phaser.GameObjects.Container {
       }
       this.nextWaveLabel.setText(label);
 
-      const textCol  = boss ? '#ff8844' : '#00ff44';
-      const strokeN  = boss ? 0xff8844  : 0x00ff44;
+      const textCol  = boss ? '#ff8844' : (isEndlessWave ? '#44aaff' : '#00ff44');
+      const strokeN  = boss ? 0xff8844  : (isEndlessWave ? 0x44aaff : 0x00ff44);
       this.nextWaveLabel.setColor(textCol);
       this.nextWaveBg.setStrokeStyle(2, strokeN);
 
@@ -211,6 +228,36 @@ export class HUD extends Phaser.GameObjects.Container {
     } else {
       this.waveText.setVisible(true);
     }
+  }
+
+  // ── give up button (endless mode) ─────────────────────────────────────────
+
+  /**
+   * Create a "GIVE UP" button for endless mode.  Placed between the speed
+   * controls and the gold text so it doesn't overlap other HUD elements.
+   * Clicking it immediately triggers the provided callback (ends the run).
+   */
+  createGiveUpButton(onClick: () => void): void {
+    const btnW  = 100;
+    const btnH  = 30;
+    const btnX  = 400;
+    const btnY  = HUD_HEIGHT / 2;
+
+    const bg = this.scene.add.rectangle(btnX, btnY, btnW, btnH, 0x220000)
+      .setStrokeStyle(1, 0xcc2222)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 2);
+
+    const label = this.scene.add.text(btnX, btnY, 'GIVE UP', {
+      fontSize:   '13px',
+      color:      '#cc4444',
+      fontFamily: 'monospace',
+      fontStyle:  'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
+
+    bg.on('pointerover', () => { bg.setFillStyle(0x440000); label.setColor('#ff6666'); });
+    bg.on('pointerout',  () => { bg.setFillStyle(0x220000); label.setColor('#cc4444'); });
+    bg.on('pointerup',   onClick);
   }
 
   // ── commander display ───────────────────────────────────────────────────

@@ -81,6 +81,10 @@ export class GameScene extends Phaser.Scene {
   /** Non-null while a boss offer panel is visible (blocks map pointer events). */
   private bossOfferPanel: BossOfferPanel | null = null;
 
+  // ── endless mode ──────────────────────────────────────────────────────────
+  /** True when the player chose endless mode for this run. */
+  private isEndlessMode = false;
+
   // ── commander ────────────────────────────────────────────────────────────
   private commanderDef: CommanderDef | null = null;
   private commanderState: CommanderRunState | null = null;
@@ -98,8 +102,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Called by Phaser before preload() — captures scene-start data and resets state. */
-  init(data?: { commanderId?: string; stageId?: string; mapId?: string }): void {
+  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean }): void {
     this.selectedCommanderId = data?.commanderId ?? 'nokomis';
+    this.isEndlessMode       = data?.isEndless   ?? false;
 
     // Resolve stage: prefer stageId, fall back to mapId (backward compat), then default.
     if (data?.stageId) {
@@ -210,6 +215,10 @@ export class GameScene extends Phaser.Scene {
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
 
+    if (this.isEndlessMode) {
+      this.waveManager.enableEndless();
+    }
+
     // ── Scene event listeners ──────────────────────────────────────────────
 
     this.events.on('creep-killed', (data: CreepKilledData) => {
@@ -306,7 +315,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on('boss-wave-start', (data: { bossKey: string; bossName: string }) => {
       this.hud.showBossWarning(data.bossName);
       // Refresh wave display to show boss indicator (★).
-      this.hud.setWave(this.currentWave, this.totalWaves);
+      this.hud.setWave(this.currentWave, this.totalWaves, this.isEndlessMode);
     });
 
     // ── Boss killed: award bonus gold, visual effects, offer ─────────────
@@ -383,6 +392,11 @@ export class GameScene extends Phaser.Scene {
     this.hud.createNextWaveButton(() => this.startNextWave());
     this.hud.setNextWaveVisible(true, 1);
 
+    // Endless-mode: Give Up button so players can end the session gracefully.
+    if (this.isEndlessMode) {
+      this.hud.createGiveUpButton(() => this.triggerGameOver());
+    }
+
     // Input
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
@@ -397,7 +411,7 @@ export class GameScene extends Phaser.Scene {
         this.upgradePanel?.refresh();
       }
       // Now that the offer is chosen, show the next-wave button.
-      this.hud.setNextWaveVisible(true, this.currentWave + 1);
+      this.hud.setNextWaveVisible(true, this.currentWave + 1, this.isEndlessMode);
     });
 
     // Debug overlay — dev builds only (stripped by Vite's dead-code elimination in prod)
@@ -709,7 +723,7 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState === 'over') return;
     this.currentWave++;
     this.gameState = 'wave';
-    this.hud.setWave(this.currentWave, this.totalWaves);
+    this.hud.setWave(this.currentWave, this.totalWaves, this.isEndlessMode);
     this.hud.setNextWaveVisible(false, 0);
 
     // Snapshot lives at wave start (for Nokomis ability restore).
@@ -731,7 +745,8 @@ export class GameScene extends Phaser.Scene {
   private onWaveComplete(waveNum: number): void {
     if (this.gameState === 'over') return;
 
-    if (waveNum >= this.totalWaves) {
+    if (waveNum >= this.totalWaves && !this.isEndlessMode) {
+      // Normal mode: all waves cleared — victory screen.
       this.gameState = 'over';
       this.scene.start('GameOverScene', {
         wavesCompleted: this.totalWaves,
@@ -744,6 +759,7 @@ export class GameScene extends Phaser.Scene {
       });
       return;
     }
+    // Endless mode: ignore the totalWaves limit and continue generating waves.
 
     // Clear Waabizii's absorb-escapes at wave end (one-wave duration).
     if (this.commanderState) {
@@ -1127,14 +1143,26 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState === 'over') return;
     this.gameState = 'over';
     this.waveManager.cleanup();
+
+    let runCurrency: number;
+    if (this.isEndlessMode) {
+      // Endless currency: floor(wavesCompleted / 5).
+      runCurrency = Math.floor(this.currentWave / 5);
+      // Persist the best wave reached for this map.
+      SaveManager.getInstance().updateEndlessRecord(this.selectedMapId, this.currentWave);
+    } else {
+      runCurrency = calculateRunCurrency(this.currentWave, this.totalWaves, false);
+    }
+
     this.scene.start('GameOverScene', {
       wavesCompleted: this.currentWave,
       totalWaves:     this.totalWaves,
       won:            false,
-      runCurrency:    calculateRunCurrency(this.currentWave, this.totalWaves, false),
+      runCurrency,
       stageId:        this.selectedStageId,
       mapId:          this.selectedMapId,
       commanderId:    this.selectedCommanderId,
+      isEndless:      this.isEndlessMode,
     });
   }
 
