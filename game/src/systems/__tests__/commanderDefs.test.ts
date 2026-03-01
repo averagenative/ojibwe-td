@@ -129,6 +129,7 @@ describe('defaultCommanderRunState', () => {
     expect(state.ignoreArmorAndImmunity).toBe(false);
     expect(state.teslaSpeedBoostDivisor).toBe(1.0);
     expect(state.teslaUnlimitedChains).toBe(false);
+    expect(state.stickyTargeting).toBe(false);
     expect(state.absorbEscapes).toBe(false);
   });
 
@@ -167,9 +168,10 @@ describe('Aura effects', () => {
     expect(state.teslaChainAoE).toBe(true);
   });
 
-  it('Makoons sets globalDamageMult = 1.12', () => {
+  it('Makoons sets globalDamageMult = 1.12 and stickyTargeting = true', () => {
     const state = applyAura('makoons');
     expect(state.globalDamageMult).toBe(1.12);
+    expect(state.stickyTargeting).toBe(true);
   });
 
   it('Oshkaabewis sets +1 kill gold and 4 offer cards', () => {

@@ -9,6 +9,7 @@ import {
 } from '../../data/targeting';
 import type { TowerBehaviorToggles } from '../../data/targeting';
 import type { OfferManager } from '../../systems/OfferManager';
+import type { CommanderRunState } from '../../data/commanderDefs';
 
 // Re-export pure data types & constants from the Phaser-free data module so
 // existing importers of Tower.ts continue to work unchanged.
@@ -72,6 +73,12 @@ export class Tower extends Phaser.GameObjects.Container {
   // Reference to the run's OfferManager — undefined in unit tests and pre-offer runs.
   private offerManager?: OfferManager;
 
+  // Reference to the run's CommanderRunState — undefined when no commander is selected.
+  private commanderState?: CommanderRunState;
+
+  // Sticky targeting (Makoons aura): retain the current target between attack cycles.
+  private currentTarget: Creep | null = null;
+
   /**
    * Optional callback set by UpgradeManager when Tesla overload mode is active.
    * Fires with the chain-hit positions after each Tesla chain.
@@ -88,6 +95,7 @@ export class Tower extends Phaser.GameObjects.Container {
     onProjectileFired: (proj: Projectile) => void,
     offerManager?: OfferManager,
     onFired?: (towerKey: string) => void,
+    commanderState?: CommanderRunState,
   ) {
     const px = tileCol * tileSize + tileSize / 2;
     const py = tileRow * tileSize + tileSize / 2;
@@ -103,6 +111,7 @@ export class Tower extends Phaser.GameObjects.Container {
     this.onProjectileFired = onProjectileFired;
     this.offerManager      = offerManager;
     this.onFired           = onFired;
+    this.commanderState    = commanderState;
 
     this.rangeGfx = this.buildRangeCircle();
     this.buildBody();
@@ -287,6 +296,7 @@ export class Tower extends Phaser.GameObjects.Container {
       color:        this.def.projectileColor ?? 0xff8800,
       radius:       this.def.projectileRadius ?? 7,
       speed:        this.def.projectileSpeed,
+      speedMult:    this.commanderState?.projectileSpeedMult ?? 1.0,
       damage:       effectiveDamage,
       splashRadius: splashR > 0 ? splashR : undefined,
       groundOnly:   this.def.groundOnly,
@@ -349,11 +359,17 @@ export class Tower extends Phaser.GameObjects.Container {
     const onChainFired = this.onChainFired;
     // Capture toggle at fire time so mid-flight changes don't affect this shot.
     const chainToExit  = this.behaviorToggles.chainToExit;
+    // Animikiikaa aura: capture AoE flag + radius at fire time.
+    const cmdChainAoE  = this.commanderState?.teslaChainAoE ?? false;
+    const aoeTileSize  = cmdChainAoE ? (this.scene.data?.get('tileSize') as number ?? 40) : 0;
+    // Bizhiw aura: projectile speed multiplier.
+    const projSpeedMult = this.commanderState?.projectileSpeedMult ?? 1.0;
 
     const opts: ProjectileOptions = {
       color:  this.def.projectileColor ?? 0xffff44,
       radius: this.def.projectileRadius ?? 4,
       speed:  this.def.projectileSpeed,
+      speedMult: projSpeedMult,
       damage: primaryDmg,
       onHit: (hitCreep) => {
         // Collect candidates within chainRange
@@ -386,6 +402,16 @@ export class Tower extends Phaser.GameObjects.Container {
 
           creep.takeDamage(finalDmg);
           drawLightningArc(scene, hitCreep.x, hitCreep.y, creep.x, creep.y);
+
+          // Animikiikaa aura: 1-tile AoE splash on each chain jump.
+          if (cmdChainAoE) {
+            for (const nearby of getCreeps()) {
+              if (!nearby.active || nearby === creep) continue;
+              if (Math.hypot(nearby.x - creep.x, nearby.y - creep.y) <= aoeTileSize) {
+                nearby.takeDamage(chainDmg);
+              }
+            }
+          }
 
           // Thunder Quake: 15 AoE damage in 30px radius around each chain hit.
           if (thunderQuake) {
@@ -433,10 +459,11 @@ export class Tower extends Phaser.GameObjects.Container {
       if (target.getHpRatio() <= this.upgStats.executeThreshold) {
         // Deal lethal damage via normal projectile for visual feedback.
         const opts: ProjectileOptions = {
-          color:  0xff4400,
-          radius: this.def.projectileRadius ?? 5,
-          speed:  this.def.projectileSpeed * 1.5,
-          damage: target.maxHp * 2,
+          color:    0xff4400,
+          radius:   this.def.projectileRadius ?? 5,
+          speed:    this.def.projectileSpeed * 1.5,
+          speedMult: this.commanderState?.projectileSpeedMult ?? 1.0,
+          damage:   target.maxHp * 2,
         };
         const proj = new Projectile(this.scene, this.x, this.y, target, opts);
         this.onProjectileFired(proj);
@@ -516,10 +543,11 @@ export class Tower extends Phaser.GameObjects.Container {
     }
 
     const opts: ProjectileOptions = {
-      color:  this.def.projectileColor ?? 0xffdd00,
-      radius: this.def.projectileRadius ?? 5,
-      speed:  this.def.projectileSpeed,
-      damage: effectiveDamage,
+      color:    this.def.projectileColor ?? 0xffdd00,
+      radius:   this.def.projectileRadius ?? 5,
+      speed:    this.def.projectileSpeed,
+      speedMult: this.commanderState?.projectileSpeedMult ?? 1.0,
+      damage:   effectiveDamage,
       onHit,
     };
 
@@ -539,6 +567,18 @@ export class Tower extends Phaser.GameObjects.Container {
     // Overgrowth: Poison towers gain +15% range.
     const overgrowthBonus = this.offerManager?.getOvergrowthRangeBonus(this.def.key) ?? 0;
     const effectiveRange = this.upgStats.range * (1 + this.auraRangePct + overgrowthBonus);
+    const rangeSq = effectiveRange * effectiveRange;
+
+    // Makoons aura — sticky target retention: keep current target if still alive and in range.
+    if (this.commanderState?.stickyTargeting && this.currentTarget) {
+      const ct = this.currentTarget;
+      if (ct.active && !(groundOnly && ct.creepType === 'air')) {
+        const dx = ct.x - this.x;
+        const dy = ct.y - this.y;
+        if (dx * dx + dy * dy <= rangeSq) return ct;
+      }
+      this.currentTarget = null;
+    }
 
     // Build in-range candidate list
     const candidates: Creep[] = [];
@@ -547,7 +587,7 @@ export class Tower extends Phaser.GameObjects.Container {
       if (groundOnly && c.creepType === 'air') continue;
       const dx = c.x - this.x;
       const dy = c.y - this.y;
-      if (dx * dx + dy * dy > effectiveRange * effectiveRange) continue;
+      if (dx * dx + dy * dy > rangeSq) continue;
       candidates.push(c);
     }
 
@@ -560,7 +600,9 @@ export class Tower extends Phaser.GameObjects.Container {
       if (armored.length > 0) pool = armored;
     }
 
-    return pickTarget(pool, this.priority, this.x, this.y);
+    const result = pickTarget(pool, this.priority, this.x, this.y);
+    this.currentTarget = result;
+    return result;
   }
 
   // ── visuals ───────────────────────────────────────────────────────────────

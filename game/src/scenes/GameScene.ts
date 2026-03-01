@@ -179,6 +179,11 @@ export class GameScene extends Phaser.Scene {
       this.commanderState.waveStartLives = this.lives;
     }
 
+    // Expose commander state and tile size on scene.data for entity-level reads
+    // (Creep reads ignoreArmorAndImmunity; Tower reads tileSize for AoE radius).
+    this.data.set('commanderState', this.commanderState);
+    this.data.set('tileSize', this.mapData.tileSize);
+
     this.renderMap();
 
     // Audio system — initialise (or resume) the singleton for this run.
@@ -666,6 +671,7 @@ export class GameScene extends Phaser.Scene {
       (proj) => this.projectiles.add(proj),
       this.offerManager,
       (key) => AudioManager.getInstance().playProjectileFired(key),
+      this.commanderState ?? undefined,
     );
 
     // Register with upgrade manager

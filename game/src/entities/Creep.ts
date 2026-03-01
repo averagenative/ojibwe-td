@@ -236,8 +236,12 @@ export class Creep extends Phaser.GameObjects.Container {
   takeDamage(amount: number): void {
     if (!this.active) return;
 
+    // Makoons ability: bypass armor when ignoreArmorAndImmunity is active.
+    const cmdState = this.scene?.data?.get('commanderState') as { ignoreArmorAndImmunity?: boolean } | undefined;
+    const ignoreFlags = cmdState?.ignoreArmorAndImmunity ?? false;
+
     // Apply armor (Makwa): reduces incoming damage.
-    const afterArmor = amount * (1 - this.physicalResistPct);
+    const afterArmor = ignoreFlags ? amount : amount * (1 - this.physicalResistPct);
     // Apply armor-shred damage amplification (Cannon-A counters Makwa's armor).
     const amplified = afterArmor * (1 + this.damageAmpPct);
 
@@ -335,7 +339,9 @@ export class Creep extends Phaser.GameObjects.Container {
    */
   applySlow(factor: number, durationMs: number): void {
     if (!this.active) return;
-    if (this.slowImmune) return; // Migizi: immune to slow/freeze
+    // Makoons ability: bypass slow immunity when ignoreArmorAndImmunity is active.
+    const cmdState = this.scene?.data?.get('commanderState') as { ignoreArmorAndImmunity?: boolean } | undefined;
+    if (this.slowImmune && !(cmdState?.ignoreArmorAndImmunity)) return; // Migizi: immune to slow/freeze
 
     this.slowFactor = Math.min(this.slowFactor, factor);
     this.speedMultiplier = this.slowFactor;
@@ -373,7 +379,9 @@ export class Creep extends Phaser.GameObjects.Container {
    */
   applyDot(damage: number, tickMs: number, ticks: number): void {
     if (!this.active) return;
-    if (this.poisonImmune) return; // Animikiins: immune to DoT
+    // Makoons ability: bypass poison immunity when ignoreArmorAndImmunity is active.
+    const cmdState = this.scene?.data?.get('commanderState') as { ignoreArmorAndImmunity?: boolean } | undefined;
+    if (this.poisonImmune && !(cmdState?.ignoreArmorAndImmunity)) return; // Animikiins: immune to DoT
 
     this.lastDotParams = { damage, tickMs, ticks };
     this.dotStacks++;
