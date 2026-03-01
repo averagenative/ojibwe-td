@@ -207,6 +207,10 @@ export class OfferManager {
     if (this.activeIds.has('veteran-arms') && this.wavesCompleted >= 5) {
       mult *= 1.0 + Math.floor(this.wavesCompleted / 5) * 0.05;
     }
+    // Iron Barrage: +4% per 5 waves (independent of Veteran Arms).
+    if (this.activeIds.has('iron-barrage') && this.wavesCompleted >= 5) {
+      mult *= 1.0 + Math.floor(this.wavesCompleted / 5) * 0.04;
+    }
     return mult;
   }
 
@@ -287,4 +291,77 @@ export class OfferManager {
   hasExplosiveResidue(): boolean { return this.activeIds.has('explosive-residue'); }
   hasAcidRain():         boolean { return this.activeIds.has('acid-rain');         }
   hasCryoCannon():       boolean { return this.activeIds.has('cryo-cannon');       }
+
+  // ── Phase 10 offers ────────────────────────────────────────────────────────
+
+  /**
+   * Iron Barrage: +4% global damage per 5 waves cleared (stacks with Veteran Arms).
+   * Combined into getGlobalDamageMult() alongside existing combat offers.
+   */
+  getIronBarrageMult(): number {
+    if (!this.activeIds.has('iron-barrage') || this.wavesCompleted < 5) return 1.0;
+    return 1.0 + Math.floor(this.wavesCompleted / 5) * 0.04;
+  }
+
+  /**
+   * Reaper's Mark: 5% chance on kill to trigger a 40-damage arc.
+   * Returns true when the arc should fire.
+   */
+  reaperMarkRoll(): boolean {
+    return this.activeIds.has('reapers-mark') && Math.random() < 0.05;
+  }
+
+  /**
+   * Blitz Protocol: permanent +15% attack speed (interval multiplier 0.85).
+   * Applied in Tower.step() as an additional interval factor.
+   */
+  getBlitzProtocolAttackSpeedMult(): number {
+    return this.activeIds.has('blitz-protocol') ? 0.85 : 1.0;
+  }
+
+  /**
+   * Bounty Hunter: kill rewards worth 20% more.
+   * Applied in GameScene creep-killed handler.
+   */
+  getKillRewardMult(): number {
+    return this.activeIds.has('bounty-hunter') ? 1.2 : 1.0;
+  }
+
+  /**
+   * Salvage: one-time 100% sell refund on the next sell.
+   * Returns true if salvage is available (offer active and not yet consumed).
+   */
+  isSalvageAvailable(): boolean {
+    return this.activeIds.has('salvage') && !this._salvageConsumed;
+  }
+  consumeSalvage(): void { this._salvageConsumed = true; }
+  private _salvageConsumed = false;
+
+  /**
+   * Supply Cache: +10 gold per owned tower at wave start.
+   */
+  getSupplyCacheBonus(towerCount: number): number {
+    return this.activeIds.has('supply-cache') ? towerCount * 10 : 0;
+  }
+
+  /**
+   * Voltaic Slime: Tesla chains deal +25% damage to Poison-stacked creeps.
+   */
+  getVoltaicSlimeMult(hasDotStacks: boolean): number {
+    return (this.activeIds.has('voltaic-slime') && hasDotStacks) ? 1.25 : 1.0;
+  }
+
+  /** Concussion Shell: Cannon shots apply a 15% slow for 600ms. */
+  hasConcussionShell(): boolean { return this.activeIds.has('concussion-shell'); }
+
+  /**
+   * Overgrowth: Poison towers gain +15% range bonus.
+   * @param towerKey tower definition key
+   */
+  getOvergrowthRangeBonus(towerKey: string): number {
+    return (this.activeIds.has('overgrowth') && towerKey === 'poison') ? 0.15 : 0;
+  }
+
+  /** Thunder Quake: Tesla chain hits AoE 15 dmg in 30px. */
+  hasThunderQuake(): boolean { return this.activeIds.has('thunder-quake'); }
 }
