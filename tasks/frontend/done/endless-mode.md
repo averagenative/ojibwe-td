@@ -1,7 +1,7 @@
 ---
 id: TASK-023
 title: Endless Mode
-status: in-progress
+status: done
 category: frontend
 phase: 13
 openspec_ref: ""
