@@ -178,8 +178,8 @@ describe('commanderDefs ↔ unlockDefs alignment', () => {
 // ── UNLOCK_NODES overall integrity (extended from phase10 tests) ────────────
 
 describe('UNLOCK_NODES overall integrity with commander nodes', () => {
-  it('total node count is 5 (1 map + 4 commanders)', () => {
-    expect(UNLOCK_NODES).toHaveLength(5);
+  it('total node count is 7 (1 map + 4 commanders + 2 stages)', () => {
+    expect(UNLOCK_NODES).toHaveLength(7);
   });
 
   it('all node IDs are globally unique', () => {

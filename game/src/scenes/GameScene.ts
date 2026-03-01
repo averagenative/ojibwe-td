@@ -19,10 +19,13 @@ import type { MapData } from '../types/MapData';
 import { TILE } from '../types/MapData';
 import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
+import { getStageDef, getStageByPathFile } from '../data/stageDefs';
+import type { StageDef } from '../data/stageDefs';
+import { SaveManager } from '../meta/SaveManager';
 
-const TOTAL_WAVES       = 20;
-const HUD_HEIGHT        = 48; // must match HUD.ts
-const DOT_SPREAD_RADIUS = 80; // px — Poison C spread radius
+const DEFAULT_TOTAL_WAVES = 20;
+const HUD_HEIGHT          = 48; // must match HUD.ts
+const DOT_SPREAD_RADIUS   = 80; // px — Poison C spread radius
 
 type GameState = 'pregame' | 'wave' | 'between' | 'over';
 
@@ -33,8 +36,13 @@ export class GameScene extends Phaser.Scene {
   private mapData!: MapData;
   private waypoints: PixelWaypoint[] = [];
 
-  // ── selected map (set via init()) ─────────────────────────────────────────
-  private selectedMapId = 'map-01';
+  // ── selected stage / map (set via init()) ────────────────────────────────
+  private selectedStageId = 'zaagaiganing-01';
+  private selectedMapId   = 'map-01';
+  /** Resolved StageDef for the current run (null if stage unknown). */
+  private activeStageDef: StageDef | null = null;
+  /** Total wave count for this run — derived from StageDef.waveCount. */
+  private totalWaves = DEFAULT_TOTAL_WAVES;
 
   // ── game state ────────────────────────────────────────────────────────────
   private lives       = 20;
@@ -90,9 +98,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Called by Phaser before preload() — captures scene-start data and resets state. */
-  init(data?: { commanderId?: string; mapId?: string }): void {
+  init(data?: { commanderId?: string; stageId?: string; mapId?: string }): void {
     this.selectedCommanderId = data?.commanderId ?? 'nokomis';
-    this.selectedMapId       = data?.mapId       ?? 'map-01';
+
+    // Resolve stage: prefer stageId, fall back to mapId (backward compat), then default.
+    if (data?.stageId) {
+      const stage = getStageDef(data.stageId);
+      this.activeStageDef    = stage ?? null;
+      this.selectedStageId   = data.stageId;
+      this.selectedMapId     = stage?.pathFile ?? data.mapId ?? 'map-01';
+    } else if (data?.mapId) {
+      const stage = getStageByPathFile(data.mapId);
+      this.activeStageDef    = stage ?? null;
+      this.selectedStageId   = stage?.id ?? 'zaagaiganing-01';
+      this.selectedMapId     = data.mapId;
+    } else {
+      this.activeStageDef    = getStageDef('zaagaiganing-01') ?? null;
+      this.selectedStageId   = 'zaagaiganing-01';
+      this.selectedMapId     = 'map-01';
+    }
+
+    this.totalWaves = this.activeStageDef?.waveCount ?? DEFAULT_TOTAL_WAVES;
+
+    // Persist last-played stage for retry continuity.
+    SaveManager.getInstance().setLastPlayedStage(this.selectedStageId);
 
     // Reset all mutable state so re-starting with a different map or commander is clean.
     this.activeCreeps    = new Set();
@@ -148,7 +177,7 @@ export class GameScene extends Phaser.Scene {
 
     // HUD (top strip)
     this.hud = new HUD(this, this.lives, this.gold);
-    this.hud.setWave(0, TOTAL_WAVES);
+    this.hud.setWave(0, this.totalWaves);
     this.hud.createSpeedControls((mult) => this.onSpeedChange(mult));
 
     // Commander HUD elements (name, portrait, ability button)
@@ -277,7 +306,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on('boss-wave-start', (data: { bossKey: string; bossName: string }) => {
       this.hud.showBossWarning(data.bossName);
       // Refresh wave display to show boss indicator (★).
-      this.hud.setWave(this.currentWave, TOTAL_WAVES);
+      this.hud.setWave(this.currentWave, this.totalWaves);
     });
 
     // ── Boss killed: award bonus gold, visual effects, offer ─────────────
@@ -680,7 +709,7 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState === 'over') return;
     this.currentWave++;
     this.gameState = 'wave';
-    this.hud.setWave(this.currentWave, TOTAL_WAVES);
+    this.hud.setWave(this.currentWave, this.totalWaves);
     this.hud.setNextWaveVisible(false, 0);
 
     // Snapshot lives at wave start (for Nokomis ability restore).
@@ -702,13 +731,14 @@ export class GameScene extends Phaser.Scene {
   private onWaveComplete(waveNum: number): void {
     if (this.gameState === 'over') return;
 
-    if (waveNum >= TOTAL_WAVES) {
+    if (waveNum >= this.totalWaves) {
       this.gameState = 'over';
       this.scene.start('GameOverScene', {
-        wavesCompleted: TOTAL_WAVES,
-        totalWaves:     TOTAL_WAVES,
+        wavesCompleted: this.totalWaves,
+        totalWaves:     this.totalWaves,
         won:            true,
-        runCurrency:    calculateRunCurrency(TOTAL_WAVES, TOTAL_WAVES, true),
+        runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
+        stageId:        this.selectedStageId,
         mapId:          this.selectedMapId,
         commanderId:    this.selectedCommanderId,
       });
@@ -1099,9 +1129,10 @@ export class GameScene extends Phaser.Scene {
     this.waveManager.cleanup();
     this.scene.start('GameOverScene', {
       wavesCompleted: this.currentWave,
-      totalWaves:     TOTAL_WAVES,
+      totalWaves:     this.totalWaves,
       won:            false,
-      runCurrency:    calculateRunCurrency(this.currentWave, TOTAL_WAVES, false),
+      runCurrency:    calculateRunCurrency(this.currentWave, this.totalWaves, false),
+      stageId:        this.selectedStageId,
       mapId:          this.selectedMapId,
       commanderId:    this.selectedCommanderId,
     });

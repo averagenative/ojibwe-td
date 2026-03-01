@@ -34,10 +34,12 @@ const ROLE_COLORS: Record<string, number> = {
  * then confirms to start the run.
  */
 export class CommanderSelectScene extends Phaser.Scene {
-  private selectedId = 'nokomis';
-  private selectedMapId = 'map-01';
+  private selectedId      = 'nokomis';
+  private selectedMapId   = 'map-01';
+  /** Stage ID passed from MainMenuScene (preferred over mapId for new flow). */
+  private selectedStageId: string | undefined;
   private cardBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
-  private confirmBtn!: Phaser.GameObjects.Rectangle;
+  private confirmBtn!:   Phaser.GameObjects.Rectangle;
   private confirmLabel!: Phaser.GameObjects.Text;
 
   // Character sheet overlay elements (created on demand)
@@ -47,8 +49,9 @@ export class CommanderSelectScene extends Phaser.Scene {
     super({ key: 'CommanderSelectScene' });
   }
 
-  init(data?: { mapId?: string }): void {
-    this.selectedMapId = data?.mapId ?? 'map-01';
+  init(data?: { mapId?: string; stageId?: string }): void {
+    this.selectedStageId = data?.stageId;
+    this.selectedMapId   = data?.mapId ?? 'map-01';
   }
 
   create(): void {
@@ -108,6 +111,7 @@ export class CommanderSelectScene extends Phaser.Scene {
     this.confirmBtn.on('pointerup', () => {
       this.scene.start('GameScene', {
         commanderId: this.selectedId,
+        stageId:     this.selectedStageId,
         mapId:       this.selectedMapId,
       });
     });

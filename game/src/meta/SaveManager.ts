@@ -14,13 +14,15 @@ const SAVE_KEY     = 'ojibwe-td-save';
 const SCHEMA_VER   = 1;
 
 interface SaveData {
-  version:  number;
-  currency: number;
-  unlocks:  string[];
+  version:          number;
+  currency:         number;
+  unlocks:          string[];
+  /** ID of the last stage the player started a run on. Used for retry continuity. */
+  lastPlayedStage:  string;
 }
 
 function defaultSaveData(): SaveData {
-  return { version: SCHEMA_VER, currency: 0, unlocks: [] };
+  return { version: SCHEMA_VER, currency: 0, unlocks: [], lastPlayedStage: 'zaagaiganing-01' };
 }
 
 export class SaveManager {
@@ -66,6 +68,19 @@ export class SaveManager {
     return this.data.unlocks.includes(id);
   }
 
+  /** Get the ID of the last stage the player started. */
+  getLastPlayedStage(): string {
+    return this.data.lastPlayedStage;
+  }
+
+  /**
+   * Persist the last-played stage ID so retry brings the player back to the same stage.
+   */
+  setLastPlayedStage(stageId: string): void {
+    this.data.lastPlayedStage = stageId;
+    this._save();
+  }
+
   /**
    * Purchase an unlock. Idempotent — re-buying returns true without deducting gold.
    * Returns false if the player cannot afford it.
@@ -92,7 +107,11 @@ export class SaveManager {
         this._save(); // persist the reset
         return;
       }
-      this.data = parsed;
+      // Back-fill fields added in later schema iterations (same version — no reset needed).
+      this.data = {
+        ...defaultSaveData(),
+        ...parsed,
+      };
     } catch {
       // Malformed JSON — start fresh
       this.data = defaultSaveData();
