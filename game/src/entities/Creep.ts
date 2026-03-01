@@ -17,6 +17,7 @@ export interface CreepConfig {
   speed:  number;   // pixels per second (base, before status effects)
   type:   CreepType;
   reward: number;   // gold on kill
+  isArmored?: boolean; // optional; defaults to false
 
   // ── Boss-specific fields (optional) ─────────────────────────────────────
   isBoss?:             boolean;
@@ -87,9 +88,11 @@ export interface BossKilledData {
 }
 
 export class Creep extends Phaser.GameObjects.Container {
-  public readonly maxHp: number;
-  public readonly reward: number;
+  public readonly maxHp:     number;
+  public readonly reward:    number;
   public readonly creepType: CreepType;
+  /** True when this creep subtype is flagged as armored (used by Cannon Armor Focus). */
+  public readonly isArmored: boolean;
 
   // ── Boss flags ─────────────────────────────────────────────────────────────
   public readonly isBossCreep:     boolean;
@@ -149,6 +152,7 @@ export class Creep extends Phaser.GameObjects.Container {
     this.baseSpeed = config.speed;
     this.reward    = config.reward;
     this.creepType = config.type;
+    this.isArmored = config.isArmored ?? false;
     this.waypoints = waypoints;
 
     // Boss flags
@@ -248,6 +252,40 @@ export class Creep extends Phaser.GameObjects.Container {
 
   getHpRatio(): number {
     return this.hp / this.maxHp;
+  }
+
+  /** Current raw HP value (used by targeting priority comparators). */
+  getCurrentHp(): number {
+    return this.hp;
+  }
+
+  /**
+   * A monotonically-increasing floating-point score indicating how far along
+   * the path this creep has traveled.  Higher = closer to the exit.
+   *
+   * Integer part = waypointIndex (index of the NEXT waypoint the creep is
+   * heading toward).  Fractional part = progress within the current segment.
+   */
+  getProgressScore(): number {
+    const idx = this.waypointIndex;
+    if (idx <= 0) return 0;
+    if (idx >= this.waypoints.length) return this.waypoints.length;
+
+    const target = this.waypoints[idx];
+    const prev   = this.waypoints[idx - 1];
+    const segLen = Math.hypot(target.x - prev.x, target.y - prev.y);
+    const remaining = Math.hypot(target.x - this.x, target.y - this.y);
+    const progress = segLen > 0 ? (segLen - remaining) / segLen : 0;
+    return idx - 1 + progress;
+  }
+
+  /**
+   * Returns a buff count for MOST_BUFFED priority:
+   *   • +1 per active Poison DoT stack
+   *   • +1 if a Frost chill is currently active
+   */
+  getBuffCount(): number {
+    return this.dotStacks + (this.isSlowed() ? 1 : 0);
   }
 
   /** Current number of active DoT stacks. */
