@@ -372,6 +372,16 @@ The 272-test suite across all ten test files passes cleanly, and the unused `vi`
 
 ---
 
+## TASK-025 — Boss Wave E2E Tests (2026-03-01)
+
+This task locked in the boss wave pipeline with a 7-test end-to-end suite (`WaveManager.boss.e2e.test.ts`) that exercises the full chain from `startWave(5)` through boss spawn, damage, death, and the Waabooz split mechanic all the way to `wave-complete` — headlessly, with no browser or game loop required.
+
+The key engineering challenge was isolating the boss-specific flow from the Phaser runtime and from the real boss definitions. The solution uses two layered mocks: `vi.mock('phaser', ...)` replaces the runtime with the same minimal in-process `EventEmitter` established in the normal-wave E2E test, and `vi.mock('../../data/bossDefs', ...)` replaces `BOSS_DEFS` with a deterministic Waabooz definition and stubs `computeWaaboozSplitConfig` with a `vi.fn()` that always returns exactly two mini-copies — making split-count assertions unconditionally correct regardless of future changes to the real split formula. A `MockCreep` stub extends the normal-wave version with boss-specific fields (`isBossCreep`, `bossAbilityType`, `bossKey`, `maxHp`) and a real `takeDamage(amount)` method that emits `'died'` when HP is drained to zero, replicating the real Creep's death contract without touching any DOM or canvas APIs.
+
+Tests cover all seven acceptance criteria: exactly one boss spawns with the correct `bossKey` and `bossAbilityType`; `boss-wave-start` fires with the correct `{ bossKey, bossName }` payload; `boss.takeDamage(boss.maxHp)` triggers `boss-killed` on the scene with the expected `bossKey`; Waabooz death removes the boss and spawns exactly two non-boss mini-copies positioned at the parent waypoint index; `wave-complete` fires only after *both* mini-copies escape (not after the first alone); `wave-complete` fires after both mini-copies are killed; and — guarding the ROADMAP-noted risk — Waabooz dying at the final waypoint (where `waypoints.slice(waypointIndex)` returns an empty array) does not throw, correctly falls back to spawning mini-copies at the boss position, and still fires `wave-complete` once both resolve. The full suite of 315 tests across ten test files passes cleanly.
+
+---
+
 ## Phase 10 — Second Map (2026-03-01)
 
 Phase 10 expanded the game from a single arena into a proper map roster, delivering the second playable map, a map-selection UI, and ten new roguelike offers that deepen the mid-to-late-game decision space.
