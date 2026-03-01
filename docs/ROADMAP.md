@@ -905,6 +905,73 @@ Surfaced during code review of Story Progression & Lore System (2026-03-01).
 
 ---
 
+## Code Review Findings — TASK-041 (Logo & Page Layout Redesign)
+
+*Non-blocking observations from the Opus review gate (2026-03-01).*
+
+1. **MainMenuScene background colour mismatch** — `createBackground()` in
+   `MainMenuScene.ts:107` paints a `0x0a0a0a` (dark grey) rectangle over the
+   Phaser config background `#0d1208` (dark forest green). Since the rectangle
+   covers the full canvas, the effective in-scene background is grey rather
+   than the intended forest-green that the HTML body uses. Consider changing
+   `0x0a0a0a` → `0x0d1208` for visual consistency between the page and the
+   canvas interior.
+
+2. **"Tower Defense" subtitle positioning** — After removing the "OJIBWE TD"
+   in-scene title, the "Tower Defense" subtitle moved from y = `cy - 194` to
+   `cy - 260` (the old title position). This places it at the very top of the
+   720px canvas (y ≈ 100). With the HTML header adding ~80px above the canvas,
+   the subtitle may feel visually disconnected from the logo. Consider moving
+   it down slightly (e.g. `cy - 220`) after a visual pass.
+
+3. **No `@types/node` for test tooling** — The layout contract test needed to
+   read `style.css` via Node.js `fs` because Vitest strips CSS content by
+   default. The workaround uses a dynamic `import('node:fs')` which compiles
+   but has no type safety. Adding `@types/node` to devDependencies would let
+   future tests use Node.js APIs with full type checking.
+
+---
+
+## Non-blocking Findings — TASK-039 (Natural Colour Palette)
+
+*Surfaced during code review of TASK-039 (2026-03-01). None of these block the merge.*
+
+### Out-of-scope files still using `fontFamily: 'monospace'` and neon-green `#00ff44`
+
+The palette migration covered the 9 files listed in the task's acceptance criteria. The
+following files were not in scope but still contain the old terminal-aesthetic values:
+
+| File | `monospace` refs | `#00ff44` / `0x00ff44` refs |
+|------|------------------|-----------------------------|
+| `src/scenes/BootScene.ts` | 2 | 2 (title + progress bar) |
+| `src/scenes/CodexScene.ts` | ~12 | 3 |
+| `src/scenes/CommanderSelectScene.ts` | ~33 | 3 |
+| `src/scenes/MetaMenuScene.ts` | ~10 | 4 |
+| `src/ui/BehaviorPanel.ts` | 5 | 0 |
+
+**Recommendation:** Create a follow-up task to extend `PAL` adoption to these 5 files.
+
+### Fragile hex arithmetic in `GameOverScene.makeButton()`
+
+`GameOverScene.ts` line 103: `hoverBg = bgColor + 0x191919` and line 117:
+`bgColor - 0x0a0000` compute hover/press states by adding/subtracting hex offsets.
+This works only when no RGB channel overflows. Consider replacing with a
+`lighten(color, amount)` helper or explicit PAL entries.
+
+### Map tile rendering colours
+
+`GameScene.drawMap()` (lines 587–594) uses hardcoded earthy browns (`0x2a2010`,
+`0x3a3020`) and dark greens (`0x142014`) for tile grid rendering. These are
+map-specific rendering colours, not UI theme values. If a second visual theme is
+ever added, these should move into map metadata or PAL.
+
+### Lightning effect colour
+
+`GameScene.ts` line 1388 uses `0xff88ff` (magenta) for a specific ability's
+lightning arc. This is a gameplay visual effect, not a UI element.
+
+---
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
