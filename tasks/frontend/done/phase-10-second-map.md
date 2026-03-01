@@ -1,7 +1,7 @@
 ---
 id: TASK-10
 title: Second Map
-status: pending
+status: done
 category: frontend
 phase: 10
 openspec_ref: "Phase 10"

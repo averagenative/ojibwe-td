@@ -22,6 +22,7 @@ rather than disappearing into git history.
 | 9 | Meta-Progression | done |
 | 10 | Second Map | pending |
 | 11 | Polish & Balance | pending |
+| 12 | Tower Commanders | in-progress |
 
 ---
 
@@ -166,6 +167,37 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - **MetaMenuScene has no resize handler**: If the browser window is resized while on the meta menu,
   UI elements retain their original positions. All other scenes have the same limitation, so this is
   consistent but worth addressing in Phase 11 polish.
+
+### Tower Commanders (Phase 12 review)
+- **Character Sheet detail view not implemented**: The acceptance criteria require a full character
+  sheet accessible from the commander selection screen (tap/click for details) showing lore,
+  clan/totem illustration placeholder, aura mechanical detail, ability timing, and codex link.
+  Currently only card summaries are shown; no detail popup exists. Also requires Codex integration
+  (viewable from Codex without being in a run).
+- **SaveManager not wired into CommanderSelectScene**: `isCommanderUnlocked()` always returns true.
+  When Phase 9 (SaveManager) is merged into the same branch, wire the unlock check via
+  `SaveManager.getInstance().isUnlocked('unlock-commander-' + id)` and add commander unlock nodes
+  to `unlockDefs.ts`.
+- **Bizhiw aura: projectile travel speed +25% not implemented**: The acceptance criteria specify
+  +25% projectile travel speed for Cannon and Frost towers. The aura flag is set but Projectile.ts
+  does not read it. Needs a `projectileSpeedMult` field on Tower or Projectile that is set when the
+  Bizhiw aura is active.
+- **Makoons aura: "towers do not lose target on creep speed burst" not implemented**: Tower.ts
+  `findTarget()` re-acquires targets each attack cycle. The "do not lose target" mechanic requires
+  sticky target retention when a creep speed-bursts out of range, which is a Tower.ts change.
+- **Animikiikaa aura: chain AoE on impact not wired into Tower.ts**: `isAnimikiikaaAuraActive()`
+  is exposed on GameScene but Tesla tower's chain logic in Tower.ts does not call it to trigger
+  a 1-tile AoE on each chain jump impact.
+- **Animikiikaa ability: "chains ignore target limits" not implemented**: Great Thunder ability
+  applies 3x speed but does not remove the target limit on Tesla chain bounces.
+- **Makoons ability: armor/immunity ignore not wired into Tower/Creep**: `isBearsChargeActive()`
+  is exposed but Tower.ts/Creep.ts damage pipeline does not check it to bypass armor or immunity
+  flags during the 6-second window.
+- **Commander portrait icons need asset generation**: All `portraitIcon` fields reference
+  `cmd-*` keys but no corresponding assets exist. Needs icon generation (gen_icons.py or manual).
+- **Stat tooltip doesn't show commander aura effects**: The acceptance criteria state "if a
+  commander's aura modifies tower stats, those modifications are visible in the tower's stat
+  tooltip." Currently no tooltip reflects commander-sourced buffs.
 
 ### UX / Feel
 - Upgrade panel should animate open/close (slide up) rather than snapping — low effort, high feel.
