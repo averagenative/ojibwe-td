@@ -1,7 +1,7 @@
 ---
 id: TASK-012
 title: Write end-to-end test for wave completion flow
-status: pending
+status: done
 category: backend
 phase: 5
 openspec_ref: "Phase 5"

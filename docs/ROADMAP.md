@@ -83,6 +83,52 @@ should be addressed during the next relevant phase or in a dedicated polish pass
   consider making `defaultPriority` optional on TowerDef and defaulting to FIRST in the Tower
   constructor, so isAura defs don't carry a misleading value.
 
+### Ojibwe Base (TASK-015 review)
+- **Celebration animation races scene transition**: The original implementation called
+  `playCelebration()` then immediately `scene.start('GameOverScene')`, destroying the scene
+  before any celebration tweens could render. Fixed in this review with a 1200ms `delayedCall`,
+  but a callback-based approach (like `playCollapse`) would be more robust if celebration
+  timing changes.
+- **No `life-lost` event — uses `creep-escaped` instead**: The acceptance criteria reference
+  subscribing to a `life-lost` event. The implementation piggybacks on `creep-escaped`, which
+  is functionally equivalent but diverges from the spec's naming. If a dedicated `life-lost`
+  event is introduced later, the base should subscribe to that instead.
+- **Map 2 untested**: The base reads position from the final waypoint, which should work on
+  any map, but no Map 2 exists yet (TASK-10). Verify OjibweBase renders correctly once Map 2
+  lands — particularly tile sizes, exit position, and whether the 2×2 scale looks right.
+- **No pixel-art sprite path**: The task notes mention upgrading from procedural graphics to
+  a sprite in TASK-11's polish pass. When that happens, the `drawWigwam`/`drawMedicineWheel`
+  code becomes dead code — either remove it or make the render mode configurable.
+
+### Roguelike Offer Layer (Phase 7 review)
+- **OfferManager not reset between runs**: `OfferManager` is created in `GameScene.create()`, but
+  if the scene is restarted for a new run, `activeIds`, `totalKills`, `totalTowersPlaced`, etc.
+  carry over. Either construct a fresh `OfferManager` per `create()` call (current behaviour is
+  correct since `create()` re-runs), or add an explicit `reset()` method and call it on new-run
+  to make the lifecycle unambiguous.
+- **`getJackpotBonus()` non-deterministic in tests**: Uses `Math.random()` inline, making it
+  impossible to test deterministically. Consider injecting a random source or exposing a
+  `setRng(fn)` method for test seeding.
+- **`critRoll()` similarly non-deterministic**: Same `Math.random()` concern. Both should share
+  a seeded RNG when Phase 11 adds replays or balance regression testing.
+- **BetweenWaveScene cleanup on scene restart**: If `GameScene` is stopped/restarted while
+  `BetweenWaveScene` is active, the overlay persists. Add a `shutdown()` handler or listen for
+  `GameScene`'s `shutdown` event to stop `BetweenWaveScene`.
+- **`drawLightningArc` duplicated**: `GameScene` introduces its own `drawLightningArc` private
+  method while `Tower.ts` has a module-level `drawLightningArc` function. Extract to a shared
+  utility (e.g. `src/utils/vfx.ts`) to avoid drift.
+- **Mortar onHit not gated by tower type**: `mortarOnHit` is built inside `fireMortar()` which
+  is only called for mortar towers, so this is safe. But the `onHit` callback on ProjectileOptions
+  is generic — if a future tower type reuses `fireMortar`-like code, the mortar-synergy offers
+  (Toxic Shrapnel, Explosive Residue, Acid Rain) could bleed into non-mortar projectiles.
+  Consider guarding with a `towerType` check if more projectile types are added.
+- **`applyPlacementCost` has side effects**: Increments `towerPlacedThisWave` and
+  `totalTowersPlaced` even when called for cost-checking (e.g. UI display). Currently only called
+  at actual placement, but the method name ("apply") correctly signals mutation. Document this or
+  split into `getPlacementCost` (pure) + `recordPlacement` (mutation) if needed later.
+- **No visual indicator for active offers**: Players have no way to see which offers they've
+  already chosen during a run. Consider adding an offers-active HUD icon row or a popup list.
+
 ### UX / Feel
 - Upgrade panel should animate open/close (slide up) rather than snapping — low effort, high feel.
 - Selected tower range circle should pulse when the tower fires, giving audio-visual feedback.
@@ -107,6 +153,18 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - **Debug overlay `getHpRatio() * maxHp` for current HP**: This reconstructs current HP from
   ratio × max. If Creep ever exposes a `getCurrentHp()` directly (already present per TASK-06b
   memory notes), prefer using that to avoid floating-point round-trip drift.
+
+### Wave E2E Tests (TASK-012 review)
+- **No boss-wave e2e coverage**: The wave completion e2e test only covers normal (non-boss) waves.
+  Boss wave flow (spawnBoss → boss-killed event → split mechanic → wave-complete) should be
+  exercised in a dedicated boss-wave e2e test. Deferred because it requires mocking `BOSS_DEFS`
+  and `computeWaaboozSplitConfig`, which adds significant mock surface area.
+- **WaveManager.startWave silently no-ops on invalid wave**: `startWave(999)` returns early without
+  warning. Consider emitting a `wave-error` event or logging a warning for debugging purposes.
+- **`wave-bonus` event naming inconsistency**: The task acceptance criteria reference `wave-complete`
+  as the gold-awarding event, but the implementation uses a separate `wave-bonus` scene event for
+  gold and `wave-complete` (on WaveManager's own EventEmitter) for flow control. Document this
+  split clearly — it's correct but non-obvious.
 
 ---
 
