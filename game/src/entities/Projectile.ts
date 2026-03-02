@@ -19,12 +19,12 @@ export interface ProjectileOptions {
   getCreeps?:    () => ReadonlySet<Creep>;
   /**
    * Called when a position-target projectile arrives at its destination.
-   * Used by Mortar cluster submunitions (Mortar C upgrade).
+   * Used by Rock Hurler cluster submunitions (Cluster C upgrade).
    */
   onImpact?:     (x: number, y: number) => void;
   /**
    * Tower type key — drives trail colour and impact visual style.
-   * Recognised values: 'cannon' | 'frost' | 'mortar' | 'poison' | 'tesla' | 'aura' | 'arrow'
+   * Recognised values: 'rock-hurler' | 'frost' | 'poison' | 'tesla' | 'aura' | 'arrow'
    */
   towerKey?:     string;
 }
@@ -36,18 +36,17 @@ const TRAIL_LIFE_MS     = 180;
 
 /** Trail colours keyed by tower type. */
 const TRAIL_COLORS: Record<string, number> = {
-  cannon: 0xbbaa88,
-  frost:  0x88ccff,
-  mortar: 0xee7700,
-  poison: 0x44ff88,
-  arrow:  0xc4a265,
+  'rock-hurler': 0xcc9944,
+  frost:         0x88ccff,
+  poison:        0x44ff88,
+  arrow:         0xc4a265,
 };
 
 /**
  * A projectile that either tracks a Creep or travels to a fixed world position.
  *
- * - Pass a `Creep` as `target` for homing behaviour (Cannon, Frost, Poison, Tesla).
- * - Pass `{ x, y }` for a position shot (Mortar — fires at where the creep was).
+ * - Pass a `Creep` as `target` for homing behaviour (Arrow, Frost, Poison, Tesla).
+ * - Pass `{ x, y }` for a position shot (Rock Hurler — fires at where the creep was).
  */
 export class Projectile extends Phaser.GameObjects.Arc {
   private readonly targetCreep: Creep | null;
@@ -137,8 +136,8 @@ export class Projectile extends Phaser.GameObjects.Arc {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const step = (this.opts.speed * (this.opts.speedMult ?? 1.0) * delta) / 1000;
 
-    // Mortar arc: scale the shell up at mid-flight to simulate a lobbed trajectory.
-    if (this.opts.towerKey === 'mortar') {
+    // Rock Hurler arc: scale the projectile up at mid-flight to simulate a lobbed trajectory.
+    if (this.opts.towerKey === 'rock-hurler') {
       if (this.mortarInitDist < 0) this.mortarInitDist = dist;
       if (this.mortarInitDist > 0) {
         const t = 1 - dist / this.mortarInitDist;        // 0 at launch → 1 at impact
@@ -258,19 +257,18 @@ export class Projectile extends Phaser.GameObjects.Arc {
 
   private showImpactEffect(cx: number, cy: number): void {
     switch (this.opts.towerKey) {
-      case 'arrow':  this.impactArrowStick(cx, cy);    break;
-      case 'cannon': this.impactDustPuff(cx, cy);      break;
-      case 'frost':  this.impactFrostBurst(cx, cy);    break;
-      case 'mortar': this.impactMortarDebris(cx, cy);  break;
-      case 'poison': this.impactPoisonSplatter(cx, cy);break;
+      case 'arrow':       this.impactArrowStick(cx, cy);       break;
+      case 'rock-hurler': this.impactRockDebris(cx, cy);      break;
+      case 'frost':       this.impactFrostBurst(cx, cy);      break;
+      case 'poison':      this.impactPoisonSplatter(cx, cy);  break;
       // tesla: primary arc drawn via drawLightningArc() in hitCreep()
       // aura:  no impact effect (no projectile)
       default: break;
     }
   }
 
-  /** Cannon impact: 5 dust/smoke particles scatter outward. */
-  private impactDustPuff(cx: number, cy: number): void {
+  /** Rock Hurler impact: dust + debris particles scatter outward. */
+  private impactRockDebris(cx: number, cy: number): void {
     for (let i = 0; i < 5; i++) {
       const angle  = Math.random() * Math.PI * 2;
       const dist   = 8 + Math.random() * 10;
@@ -320,24 +318,6 @@ export class Projectile extends Phaser.GameObjects.Arc {
       duration:   160,
       onComplete: () => spark.destroy(),
     });
-  }
-
-  /** Mortar impact: debris particles (explosion circle comes from splashVisual). */
-  private impactMortarDebris(cx: number, cy: number): void {
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.8;
-      const dist  = 14 + Math.random() * 14;
-      const dot   = this.scene.add.circle(cx, cy, 2, 0xff8800, 0.8);
-      dot.setDepth(22);
-      this.scene.tweens.add({
-        targets:    dot,
-        x:          cx + Math.cos(angle) * dist,
-        y:          cy + Math.sin(angle) * dist,
-        alpha:      0,
-        duration:   200,
-        onComplete: () => dot.destroy(),
-      });
-    }
   }
 
   /** Poison impact: 4 lingering splatter blobs around impact point. */

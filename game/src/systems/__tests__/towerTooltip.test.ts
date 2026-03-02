@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { formatDmgLine, clampTooltipX } from '../../ui/tooltipFormat';
 import {
-  CANNON_DEF,
+  ROCK_HURLER_DEF,
+  ARROW_DEF,
   FROST_DEF,
-  MORTAR_DEF,
   POISON_DEF,
   TESLA_DEF,
   AURA_DEF,
@@ -22,9 +22,9 @@ describe('formatDmgLine', () => {
   });
 
   it('formats damage + interval for standard towers', () => {
-    expect(formatDmgLine(CANNON_DEF)).toBe('40 dmg  ·  1.0s');
+    expect(formatDmgLine(ROCK_HURLER_DEF)).toBe('55 dmg  ·  2.0s');
     expect(formatDmgLine(FROST_DEF)).toBe('15 dmg  ·  1.2s');
-    expect(formatDmgLine(MORTAR_DEF)).toBe('60 dmg  ·  2.5s');
+    expect(formatDmgLine(ARROW_DEF)).toBe('18 dmg  ·  0.6s');
     expect(formatDmgLine(TESLA_DEF)).toBe('42 dmg  ·  1.5s');
   });
 
@@ -83,10 +83,10 @@ describe('TowerDef.description', () => {
   });
 
   it('descriptions match the task specification', () => {
-    expect(CANNON_DEF.description).toBe('Single target. High damage, moderate fire rate.');
+    expect(ROCK_HURLER_DEF.description).toBe('Heavy rock: direct hit + AoE splash. Bonus dmg vs armored.');
+    expect(ARROW_DEF.description).toBe('Fast, long-range. Weak vs armor — use Rock Hurler for armored foes.');
     expect(FROST_DEF.description).toBe('Slows targets. Chills stack for a freeze bonus.');
     expect(TESLA_DEF.description).toBe('Chains lightning to up to 3 air targets. Air-only specialist.');
-    expect(MORTAR_DEF.description).toBe('Area splash damage. Ignores terrain.');
     expect(POISON_DEF.description).toBe('Applies damage-over-time. Spreads on creep death.');
     expect(AURA_DEF.description).toBe('Boosts nearby tower attack speed and damage.');
   });

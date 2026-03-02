@@ -48,12 +48,12 @@ export const WAVE_SCALING: WaveScalingConfig = {
   bossHpMultiplier:        8,      // boss = 8× standard wave HP
   bossWaves:               [5, 10, 15, 20],
   ttkTargetSeconds: {
-    cannon: 3.0,
-    frost:  5.0,
-    mortar: 4.0,
-    poison: 10.0,
-    tesla:  5.0,
-    aura:   Infinity,
+    'rock-hurler': 3.0,
+    arrow:         2.5,
+    frost:         5.0,
+    poison:        10.0,
+    tesla:         5.0,
+    aura:          Infinity,
   },
 };
 
@@ -115,18 +115,19 @@ export const MAP_PATH_LENGTH_PX = 2400;
 
 /**
  * Expected kill-potential ratio bands [min, max] for a single un-upgraded
- * Cannon tower against one standard grunt per key wave.
+ * Rock Hurler tower against one standard grunt per key wave.
  *
  * Kill potential = (towerDPS × pathTraversalTime) / creepHP
  *  > 1: tower can theoretically kill the creep before it exits (continuous fire)
  *  Higher values = easier (excess DPS headroom)
  *
  * These bands encode the difficulty ramp and are checked by automated tests.
+ * Rock Hurler base DPS ≈ 27.5 (55 dmg / 2.0s).
  */
-export const CANNON_KILL_POTENTIAL_BANDS: Readonly<Record<number, readonly [number, number]>> = {
-  1:  [12, 25],
-  5:  [8,  15],
-  10: [4,  10],
-  15: [2,   6],
-  20: [1,   4],
+export const ROCK_HURLER_KILL_POTENTIAL_BANDS: Readonly<Record<number, readonly [number, number]>> = {
+  1:  [7,   16],
+  5:  [4.5, 11],
+  10: [2.5,  6.5],
+  15: [1.3,  3.5],
+  20: [0.6,  2.0],
 };

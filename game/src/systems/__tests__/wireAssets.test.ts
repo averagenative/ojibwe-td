@@ -364,7 +364,7 @@ describe('BootScene expected texture keys', () => {
   // All texture keys that BootScene.loadAssets() should load
   const EXPECTED_KEYS = [
     // Tower icons
-    'icon-cannon', 'icon-frost', 'icon-mortar', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow',
+    'icon-rock-hurler', 'icon-frost', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow',
     // Misc UI
     'icon-dice', 'icon-mystery',
     // Commander portraits

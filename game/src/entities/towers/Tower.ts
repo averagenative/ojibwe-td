@@ -23,8 +23,7 @@ import type { TowerAnimDef } from '../../data/towerAnimDefs';
 export type { TowerDef, TowerUpgradeStats } from '../../data/towerDefs';
 export {
   defaultUpgradeStats,
-  ARROW_DEF, CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
-  ROCK_HURLER_DEF,
+  ARROW_DEF, ROCK_HURLER_DEF, FROST_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
   ALL_TOWER_DEFS,
 } from '../../data/towerDefs';
 // Re-export targeting types so callers need only one import.
@@ -867,7 +866,7 @@ export class Tower extends Phaser.GameObjects.Container {
     const intensity = tierIntensity(this._animTier);
 
     // Barrel-aiming towers always run the tracking step.
-    if (this.def.key === 'cannon' || this.def.key === 'mortar') {
+    if (this.def.key === 'rock-hurler') {
       this._stepBarrelTracking();
     }
 
@@ -888,7 +887,7 @@ export class Tower extends Phaser.GameObjects.Container {
 
   /**
    * Lerp the container's rotation angle toward the last-known visual target.
-   * Used by Cannon and Mortar to smoothly aim their barrels.
+   * Used by Rock Hurler to smoothly aim its barrel.
    */
   private _stepBarrelTracking(): void {
     // Sentinel: (0, 0) means no target has been acquired yet.
@@ -1032,28 +1031,32 @@ export class Tower extends Phaser.GameObjects.Container {
    */
   private _playFireAnim(): void {
     switch (this.def.key) {
-      case 'cannon': this._playCannonRecoil();  break;
-      case 'frost':  this._playFrostFire();     break;
-      case 'tesla':  this._playTeslaFlash();    break;
-      case 'mortar': this._playMortarKick();    break;
-      case 'poison': this._playPoisonGlow();    break;
-      case 'arrow':  this._playArrowRecoil();   break;
+      case 'rock-hurler': this._playRockHurlerKick(); break;
+      case 'frost':       this._playFrostFire();      break;
+      case 'tesla':       this._playTeslaFlash();     break;
+      case 'poison':      this._playPoisonGlow();     break;
+      case 'arrow':       this._playArrowRecoil();    break;
     }
   }
 
-  /** Cannon: body snaps to recoilScale, tweens back over recoilMs. */
-  private _playCannonRecoil(): void {
-    if (!this._bodyRef) return;
+  /** Rock Hurler: barrel kicks +kickDeg on firing, eases back over kickMs. */
+  private _playRockHurlerKick(): void {
     this._fireAnimTween?.stop();
-    const base = tierSizeScale(this._animTier);
-    this._bodyRef.setScale(base * this._animDef.recoilScale);
+    const base      = tierSizeScale(this._animTier);
+    const kickAngle = this._barrelAngle + this._animDef.kickDeg;
+    this.setAngle(kickAngle);
+    if (this._bodyRef) {
+      this._bodyRef.setScale(base * 1.0, base * 0.9);
+    }
     this._fireAnimTween = this.scene.tweens.add({
-      targets:  this._bodyRef,
-      scaleX:   base,
-      scaleY:   base,
-      duration: this._animDef.recoilMs,
+      targets:  this,
+      angle:    this._barrelAngle,
+      duration: this._animDef.kickMs,
       ease:     'Cubic.Out',
-      onComplete: () => { this._fireAnimTween = undefined; },
+      onComplete: () => {
+        if (this._bodyRef) this._bodyRef.setScale(base);
+        this._fireAnimTween = undefined;
+      },
     });
   }
 
@@ -1137,29 +1140,6 @@ export class Tower extends Phaser.GameObjects.Container {
     });
   }
 
-  /**
-   * Mortar: barrel kicks +kickDeg on firing, eases back over kickMs.
-   * Body receives a slight squash (scaleY 0.9) during the kick.
-   */
-  private _playMortarKick(): void {
-    this._fireAnimTween?.stop();
-    const base     = tierSizeScale(this._animTier);
-    const kickAngle = this._barrelAngle + this._animDef.kickDeg;
-    this.setAngle(kickAngle);
-    if (this._bodyRef) {
-      this._bodyRef.setScale(base * 1.0, base * 0.9);
-    }
-    this._fireAnimTween = this.scene.tweens.add({
-      targets:  this,
-      angle:    this._barrelAngle,
-      duration: this._animDef.kickMs,
-      ease:     'Cubic.Out',
-      onComplete: () => {
-        if (this._bodyRef) this._bodyRef.setScale(base);
-        this._fireAnimTween = undefined;
-      },
-    });
-  }
 
   /**
    * Poison: tower briefly glows bright green when firing a blob.

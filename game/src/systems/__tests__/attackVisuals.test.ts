@@ -12,27 +12,22 @@ import { describe, it, expect } from 'vitest';
 
 /** Exact copy of the module-level constant in Projectile.ts. */
 const TRAIL_COLORS: Record<string, number> = {
-  cannon: 0xbbaa88,
-  frost:  0x88ccff,
-  mortar: 0xee7700,
-  poison: 0x44ff88,
-  arrow:  0xc4a265,
+  'rock-hurler': 0xcc9944,
+  frost:         0x88ccff,
+  poison:        0x44ff88,
+  arrow:         0xc4a265,
 };
 
 const TRAIL_INTERVAL_MS = 30;
 const TRAIL_LIFE_MS     = 180;
 
 describe('trail colour lookup', () => {
-  it('returns cannon trail colour', () => {
-    expect(TRAIL_COLORS['cannon']).toBe(0xbbaa88);
+  it('returns rock-hurler trail colour', () => {
+    expect(TRAIL_COLORS['rock-hurler']).toBe(0xcc9944);
   });
 
   it('returns frost trail colour', () => {
     expect(TRAIL_COLORS['frost']).toBe(0x88ccff);
-  });
-
-  it('returns mortar trail colour', () => {
-    expect(TRAIL_COLORS['mortar']).toBe(0xee7700);
   });
 
   it('returns poison trail colour', () => {
@@ -116,16 +111,12 @@ describe('trail exclusion guards', () => {
     return !!key && key !== 'tesla' && key !== 'aura';
   }
 
-  it('cannon emits trail', () => {
-    expect(shouldEmitTrail('cannon')).toBe(true);
+  it('rock-hurler emits trail', () => {
+    expect(shouldEmitTrail('rock-hurler')).toBe(true);
   });
 
   it('frost emits trail', () => {
     expect(shouldEmitTrail('frost')).toBe(true);
-  });
-
-  it('mortar emits trail', () => {
-    expect(shouldEmitTrail('mortar')).toBe(true);
   });
 
   it('poison emits trail', () => {
@@ -149,31 +140,31 @@ describe('trail exclusion guards', () => {
   });
 });
 
-// ── Mortar arc scale formula ─────────────────────────────────────────────────
+// ── Rock Hurler arc scale formula ───────────────────────────────────────────
 
-describe('mortar arc scale formula', () => {
+describe('rock hurler arc scale formula', () => {
   /**
    * Mirrors Projectile.stepToPosition():
    *   const t = 1 - dist / initDist;        // 0 at launch → 1 at impact
    *   this.setScale(1 + Math.sin(Math.max(0, t) * Math.PI) * 0.55);
    */
-  function mortarScale(dist: number, initDist: number): number {
+  function arcScale(dist: number, initDist: number): number {
     if (initDist <= 0) return 1; // guard
     const t = 1 - dist / initDist;
     return 1 + Math.sin(Math.max(0, t) * Math.PI) * 0.55;
   }
 
   it('starts at scale 1 at launch (t=0)', () => {
-    expect(mortarScale(100, 100)).toBeCloseTo(1.0, 5);
+    expect(arcScale(100, 100)).toBeCloseTo(1.0, 5);
   });
 
   it('peaks at mid-flight (t=0.5)', () => {
-    const scale = mortarScale(50, 100);
+    const scale = arcScale(50, 100);
     expect(scale).toBeCloseTo(1.55, 5); // sin(0.5π) = 1 → 1 + 0.55
   });
 
   it('returns to scale 1 at impact (t=1)', () => {
-    const scale = mortarScale(0, 100);
+    const scale = arcScale(0, 100);
     expect(scale).toBeCloseTo(1.0, 3); // sin(π) ≈ 0
   });
 
@@ -181,12 +172,12 @@ describe('mortar arc scale formula', () => {
     // sin peaks at 1 → max scale = 1 + 0.55 = 1.55
     for (let frac = 0; frac <= 1; frac += 0.05) {
       const dist = (1 - frac) * 200;
-      expect(mortarScale(dist, 200)).toBeLessThanOrEqual(1.551);
+      expect(arcScale(dist, 200)).toBeLessThanOrEqual(1.551);
     }
   });
 
   it('handles zero initDist gracefully (guard)', () => {
-    expect(mortarScale(0, 0)).toBe(1);
+    expect(arcScale(0, 0)).toBe(1);
   });
 });
 
@@ -201,7 +192,7 @@ describe('tesla projectile visibility', () => {
   });
 
   it('non-tesla projectiles stay visible', () => {
-    for (const key of ['cannon', 'frost', 'mortar', 'poison', 'arrow', 'aura', undefined]) {
+    for (const key of ['rock-hurler', 'frost', 'poison', 'arrow', 'aura', undefined]) {
       const shouldHide = key === 'tesla';
       expect(shouldHide).toBe(false);
     }
@@ -211,30 +202,25 @@ describe('tesla projectile visibility', () => {
 // ── Impact effect dispatch ───────────────────────────────────────────────────
 
 describe('impact effect dispatch', () => {
-  type EffectType = 'dust' | 'frost' | 'debris' | 'splatter' | 'arrow-stick' | 'none';
+  type EffectType = 'rock-debris' | 'frost' | 'splatter' | 'arrow-stick' | 'none';
 
   /** Mirrors Projectile.showImpactEffect() switch. */
   function impactEffectType(towerKey: string | undefined): EffectType {
     switch (towerKey) {
-      case 'cannon': return 'dust';
-      case 'frost':  return 'frost';
-      case 'mortar': return 'debris';
-      case 'poison': return 'splatter';
-      case 'arrow':  return 'arrow-stick';
-      default:       return 'none';
+      case 'rock-hurler': return 'rock-debris';
+      case 'frost':       return 'frost';
+      case 'poison':      return 'splatter';
+      case 'arrow':       return 'arrow-stick';
+      default:            return 'none';
     }
   }
 
-  it('cannon → dust puff', () => {
-    expect(impactEffectType('cannon')).toBe('dust');
+  it('rock-hurler → rock debris', () => {
+    expect(impactEffectType('rock-hurler')).toBe('rock-debris');
   });
 
   it('frost → frost burst', () => {
     expect(impactEffectType('frost')).toBe('frost');
-  });
-
-  it('mortar → debris particles', () => {
-    expect(impactEffectType('mortar')).toBe('debris');
   });
 
   it('poison → lingering splatter', () => {
@@ -335,10 +321,10 @@ describe('aura dual-ring pulse', () => {
 // ── towerKey wiring coverage ─────────────────────────────────────────────────
 
 describe('towerKey passed through ProjectileOptions', () => {
-  // Verify that all 7 tower defs have their key available for towerKey wiring.
+  // Verify that all 6 tower defs have their key available for towerKey wiring.
   // The actual wiring happens in Tower.ts fire methods — we verify the keys
   // match what the visual code expects.
-  const EXPECTED_TOWER_KEYS = ['cannon', 'frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow'];
+  const EXPECTED_TOWER_KEYS = ['rock-hurler', 'frost', 'poison', 'tesla', 'aura', 'arrow'];
 
   it('all tower keys are known by the trail/impact system', () => {
     const visualKeys = new Set([

@@ -106,8 +106,8 @@ export class TowerEquipScene extends Phaser.Scene {
           if (towerKey) {
             this.selectedTower = towerKey;
           } else {
-            // Universal — default to cannon
-            this.selectedTower = 'cannon';
+            // Universal — default to rock-hurler
+            this.selectedTower = 'rock-hurler';
           }
           this._buildTowerCards();
           this._buildSlots();

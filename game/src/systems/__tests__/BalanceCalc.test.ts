@@ -7,17 +7,15 @@ import {
 } from '../BalanceCalc';
 import type { TowerUpgradeState } from '../UpgradeManager';
 import {
-  CANNON_DEF,
   FROST_DEF,
-  MORTAR_DEF,
   POISON_DEF,
-  ROCK_HURLER_DEF,
   TESLA_DEF,
   AURA_DEF,
+  ROCK_HURLER_DEF,
 } from '../../data/towerDefs';
 import {
   WAVE_SCALING,
-  CANNON_KILL_POTENTIAL_BANDS,
+  ROCK_HURLER_KILL_POTENTIAL_BANDS,
 } from '../../data/scalingConfig';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,16 +67,12 @@ describe('creepEffectiveHP', () => {
 // ── towerEffectiveDPS ─────────────────────────────────────────────────────────
 
 describe('towerEffectiveDPS — base stats (no upgrades)', () => {
-  it('Cannon: 40 dmg / 1.0s = 40 DPS', () => {
-    expect(towerEffectiveDPS(CANNON_DEF, noUpgrades(), 1)).toBeCloseTo(40, 1);
+  it('Rock Hurler: 55 dmg / 2.0s = 27.5 DPS', () => {
+    expect(towerEffectiveDPS(ROCK_HURLER_DEF, noUpgrades(), 1)).toBeCloseTo(27.5, 1);
   });
 
   it('Frost: 15 dmg / 1.2s ≈ 12.5 DPS', () => {
     expect(towerEffectiveDPS(FROST_DEF, noUpgrades(), 1)).toBeCloseTo(12.5, 1);
-  });
-
-  it('Mortar: 60 dmg / 2.5s = 24 DPS', () => {
-    expect(towerEffectiveDPS(MORTAR_DEF, noUpgrades(), 1)).toBeCloseTo(24, 1);
   });
 
   it('Poison: 6 dmg/tick × 2 ticks/s × 4 stacks = 48 DPS (steady-state)', () => {
@@ -95,8 +89,7 @@ describe('towerEffectiveDPS — base stats (no upgrades)', () => {
 });
 
 describe('towerEffectiveDPS — with upgrades', () => {
-  it('Rock Hurler path B tier 5: damage += 215 → 270 dmg / 2.0s = 135 DPS', () => {
-    // B tiers: +18, +30, +42, +55, +70 = +215 total
+  it('Rock Hurler path B tier 5: +18+30+42+55+70=+215 → 270 dmg / 2.0s = 135 DPS', () => {
     const dps = towerEffectiveDPS(ROCK_HURLER_DEF, pathState('B', 5), 1);
     expect(dps).toBeCloseTo(135, 0);
   });
@@ -108,38 +101,32 @@ describe('towerEffectiveDPS — with upgrades', () => {
     const dps = towerEffectiveDPS(POISON_DEF, pathState('A', 5), 1);
     expect(dps).toBeCloseTo(144, 0);
   });
-
-  it('Rock Hurler path C tier 5 (cluster): +5 dmg from Cluster II → 60 dmg / 2.0s = 30 DPS', () => {
-    // Cluster II adds +5 statDelta, all other cluster tiers add only clusterCount effect
-    const dps = towerEffectiveDPS(ROCK_HURLER_DEF, pathState('C', 5), 1);
-    expect(dps).toBeCloseTo(30, 1);
-  });
 });
 
 // ── Balance criterion: Wave 1 kill before midpoint ───────────────────────────
 
-describe('Balance: Wave 1 Cannon kills grunt before path midpoint', () => {
+describe('Balance: Wave 1 Rock Hurler kills grunt before path midpoint', () => {
   it('kill time < 50% of path traversal time', () => {
-    const hp          = creepEffectiveHP(1, 'grunt');          // 80
-    const dps         = towerEffectiveDPS(CANNON_DEF, noUpgrades(), 1); // 40
-    const killTimeSec = hp / dps;                              // 2.0s
-    const halfPath    = creepTraversalSec(1, 'grunt') / 2;     // 16s
+    const hp          = creepEffectiveHP(1, 'grunt');           // 80
+    const dps         = towerEffectiveDPS(ROCK_HURLER_DEF, noUpgrades(), 1); // 27.5
+    const killTimeSec = hp / dps;                               // ≈ 2.9s
+    const halfPath    = creepTraversalSec(1, 'grunt') / 2;      // 16s
     expect(killTimeSec).toBeLessThan(halfPath);
   });
 });
 
-// ── Balance criterion: Wave-10 cannon does not one-shot grunt ─────────────────
+// ── Balance criterion: Wave-10 Rock Hurler does not one-shot grunt ────────────
 
-describe('Balance: Wave 10 un-upgraded Cannon does not one-shot grunt', () => {
-  it('base damage (40) < wave-10 grunt HP (176)', () => {
-    expect(CANNON_DEF.damage).toBeLessThan(creepEffectiveHP(10, 'grunt'));
+describe('Balance: Wave 10 un-upgraded Rock Hurler does not one-shot grunt', () => {
+  it('base damage (55) < wave-10 grunt HP (176)', () => {
+    expect(ROCK_HURLER_DEF.damage).toBeLessThan(creepEffectiveHP(10, 'grunt'));
   });
 });
 
 // ── Balance criterion: Fully upgraded single path ≤ 50% of base TTK ─────────
 
 describe('Balance: Fully upgraded tower kills ≤ 50% of base kill time (wave 1)', () => {
-  function ttk(towerDef: typeof CANNON_DEF, state: TowerUpgradeState): number {
+  function ttk(towerDef: typeof ROCK_HURLER_DEF, state: TowerUpgradeState): number {
     const hp  = creepEffectiveHP(1, 'grunt');
     const dps = towerEffectiveDPS(towerDef, state, 1);
     if (dps <= 0) return Infinity;
@@ -172,17 +159,17 @@ describe('Balance: Fully upgraded tower kills ≤ 50% of base kill time (wave 1)
   });
 });
 
-// ── Balance criterion: Boss survives past 50% of path (single cannon) ────────
+// ── Balance criterion: Boss survives past 50% of path (single Rock Hurler) ───
 
-describe('Balance: Boss HP — un-upgraded single Cannon kill time > 50% of traversal', () => {
+describe('Balance: Boss HP — un-upgraded single Rock Hurler kill time > 50% of traversal', () => {
   it.each(WAVE_SCALING.bossWaves as number[])(
-    'wave %i boss survives > 50%% of path against single un-upgraded Cannon',
+    'wave %i boss survives > 50%% of path against single un-upgraded Rock Hurler',
     (wave) => {
-      const waveGruntHP    = creepEffectiveHP(wave, 'grunt');
-      const bossHP         = waveGruntHP * WAVE_SCALING.bossHpMultiplier;
-      const dps            = towerEffectiveDPS(CANNON_DEF, noUpgrades(), wave);
+      const waveGruntHP     = creepEffectiveHP(wave, 'grunt');
+      const bossHP          = waveGruntHP * WAVE_SCALING.bossHpMultiplier;
+      const dps             = towerEffectiveDPS(ROCK_HURLER_DEF, noUpgrades(), wave);
       const bossKillTimeSec = bossHP / dps;
-      const halfTraversal  = creepTraversalSec(wave, 'grunt') / 2;
+      const halfTraversal   = creepTraversalSec(wave, 'grunt') / 2;
       expect(bossKillTimeSec).toBeGreaterThan(halfTraversal);
     },
   );
@@ -190,16 +177,16 @@ describe('Balance: Boss HP — un-upgraded single Cannon kill time > 50% of trav
 
 // ── Balance criterion: Kill-potential bands for key waves ────────────────────
 
-describe('Balance: Cannon kill-potential ratio lands in defined target bands', () => {
+describe('Balance: Rock Hurler kill-potential ratio lands in defined target bands', () => {
   it.each([1, 5, 10, 15, 20] as const)(
     'wave %i kill potential is within [min, max] band',
     (wave) => {
       const hp            = creepEffectiveHP(wave, 'grunt');
-      const dps           = towerEffectiveDPS(CANNON_DEF, noUpgrades(), wave);
+      const dps           = towerEffectiveDPS(ROCK_HURLER_DEF, noUpgrades(), wave);
       const traversal     = creepTraversalSec(wave, 'grunt');
       const killPotential = (dps * traversal) / hp;
 
-      const band = CANNON_KILL_POTENTIAL_BANDS[wave];
+      const band = ROCK_HURLER_KILL_POTENTIAL_BANDS[wave];
       expect(band).toBeDefined();
       if (band) {
         const [min, max] = band;
@@ -246,14 +233,14 @@ describe('creepTraversalSec', () => {
 
 describe('computeStatsForBalance', () => {
   it('returns base stats when no upgrades purchased', () => {
-    const stats = computeStatsForBalance(CANNON_DEF, noUpgrades());
-    expect(stats.damage).toBe(40);
-    expect(stats.range).toBe(160);
-    expect(stats.attackIntervalMs).toBe(1000);
+    const stats = computeStatsForBalance(ROCK_HURLER_DEF, noUpgrades());
+    expect(stats.damage).toBe(55);
+    expect(stats.range).toBe(185);
+    expect(stats.attackIntervalMs).toBe(2000);
   });
 
   it('accumulates damage delta on Rock Hurler path B tier 3', () => {
-    // Path B tier 1: +18, tier 2: +30, tier 3: +42 = +90 total
+    // Payload I-III: +18, +30, +42 = +90 accumulated
     const stats = computeStatsForBalance(ROCK_HURLER_DEF, pathState('B', 3));
     expect(stats.damage).toBe(55 + 18 + 30 + 42);  // 145
   });
