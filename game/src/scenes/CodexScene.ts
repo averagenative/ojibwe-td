@@ -199,6 +199,8 @@ export class CodexScene extends Phaser.Scene {
     isUnlocked: boolean,
   ): Phaser.GameObjects.GameObject[] {
     const created: Phaser.GameObjects.GameObject[] = [];
+    const save = SaveManager.getInstance();
+    const isRead = save.isCodexRead(entry.id);
 
     const bgColor = isUnlocked ? 0x111a11 : 0x0d0d0d;
     const bg = this.add.rectangle(bx + ENTRY_W / 2, by + ENTRY_H / 2, ENTRY_W, ENTRY_H, bgColor)
@@ -217,13 +219,23 @@ export class CodexScene extends Phaser.Scene {
     ).setStrokeStyle(1, 0x333333).setDepth(DEPTH_UI + 1);
     created.push(tile);
 
-    // Title
-    const titleColor = isUnlocked ? '#ccddcc' : '#555555';
+    // Title — bold for unread unlocked entries, normal for read entries
+    const titleColor = isUnlocked
+      ? (isRead ? '#99aa99' : '#ccddcc')
+      : '#555555';
+    const titleStyle = isUnlocked && !isRead ? 'bold' : 'normal';
     const title = this.add.text(bx + 42, by + ENTRY_H / 2, entry.title, {
       fontSize: '12px', color: titleColor, fontFamily: 'monospace',
-      fontStyle: isUnlocked ? 'bold' : 'normal',
+      fontStyle: titleStyle,
     }).setOrigin(0, 0.5).setDepth(DEPTH_UI + 1);
     created.push(title);
+
+    // Unread dot indicator
+    if (isUnlocked && !isRead) {
+      const dot = this.add.circle(bx + ENTRY_W - 14, by + ENTRY_H / 2, 4, 0x00ff44)
+        .setDepth(DEPTH_UI + 1);
+      created.push(dot);
+    }
 
     // Lock icon
     if (!isUnlocked) {
@@ -246,6 +258,14 @@ export class CodexScene extends Phaser.Scene {
   // ── Detail View ──────────────────────────────────────────────────────────
 
   private showDetail(entry: CodexEntryDef): void {
+    // Mark as read when viewed
+    const save = SaveManager.getInstance();
+    if (!save.isCodexRead(entry.id)) {
+      save.markCodexRead(entry.id);
+      // Refresh entry tiles to update read/unread styling
+      this.refreshEntries();
+    }
+
     this.clearDetail();
 
     const { width, height } = this.scale;
@@ -319,12 +339,34 @@ export class CodexScene extends Phaser.Scene {
 
   private createBackButton(cx: number, height: number): void {
     const btnY = height - 36;
-    const bg = this.add.rectangle(cx, btnY, 160, 40, 0x1a0000)
+
+    // MARK ALL READ button (left of center)
+    const markBg = this.add.rectangle(cx - 120, btnY, 180, 40, 0x0a1a0a)
+      .setStrokeStyle(1, 0x335533)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH_UI);
+    const markLabel = this.add.text(cx - 120, btnY, 'MARK ALL READ', {
+      fontSize: '12px', color: '#668866', fontFamily: 'monospace', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(DEPTH_UI + 1);
+
+    markBg.on('pointerover', () => { markBg.setFillStyle(0x1a2a1a); markLabel.setColor('#00ff44'); });
+    markBg.on('pointerout',  () => { markBg.setFillStyle(0x0a1a0a); markLabel.setColor('#668866'); });
+    markBg.on('pointerup',   () => {
+      const save = SaveManager.getInstance();
+      const allUnlockedIds = ALL_CODEX_ENTRIES
+        .filter(e => e.defaultUnlocked || save.isCodexUnlocked(e.id))
+        .map(e => e.id);
+      save.markAllCodexRead(allUnlockedIds);
+      this.refreshEntries();
+    });
+
+    // BACK button (right of center)
+    const bg = this.add.rectangle(cx + 120, btnY, 160, 40, 0x1a0000)
       .setStrokeStyle(2, 0xff4444)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_UI);
 
-    const label = this.add.text(cx, btnY, 'BACK', {
+    const label = this.add.text(cx + 120, btnY, 'BACK', {
       fontSize: '16px', color: '#ff4444', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_UI + 1);
 

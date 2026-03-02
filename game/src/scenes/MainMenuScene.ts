@@ -533,18 +533,14 @@ export class MainMenuScene extends Phaser.Scene {
     codexP.zone.on('pointerout',  () => codexLabel.setColor(PAL.textSecondary));
     codexP.zone.on('pointerup',   () => this.scene.start('CodexScene', { returnTo: 'MainMenuScene' }));
 
-    // Notification badge
+    // Notification badge — shows count of unlocked-but-unread codex entries
     const save = SaveManager.getInstance();
-    const unlockedCount = ALL_CODEX_ENTRIES.filter(
-      e => e.defaultUnlocked || save.isCodexUnlocked(e.id),
-    ).length;
-    const defaultCount = ALL_CODEX_ENTRIES.filter(e => e.defaultUnlocked).length;
-    const newEntries = unlockedCount - defaultCount;
-    if (newEntries > 0) {
+    const unreadCount = save.getUnreadCodexCount(ALL_CODEX_ENTRIES);
+    if (unreadCount > 0) {
       const badgeX = codexX + bottomBtnW / 2 - 6;
       const badgeY = bottomBtnY - bottomBtnH / 2 + 6;
       this.add.circle(badgeX, badgeY, 10, PAL.dangerN).setDepth(DEPTH_BUTTONS + 2);
-      this.add.text(badgeX, badgeY, `${newEntries}`, {
+      this.add.text(badgeX, badgeY, `${unreadCount}`, {
         fontSize: '10px', color: '#ffffff', fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
     }
