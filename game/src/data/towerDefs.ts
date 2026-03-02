@@ -94,7 +94,10 @@ export interface TowerUpgradeStats {
   maxDotStacks:   number;   // 0 = unlimited; default 4
 
   // ── Poison C: DoT Spread on Death ────────────────────────────────────────
-  dotSpreadOnDeath: boolean;
+  dotSpreadOnDeath:     boolean;
+  dotSpreadRadiusDelta: number;   // accumulated extra spread radius (px)
+  dotSpreadStackCount:  number;   // stacks to apply per spread (1 = base)
+  dotSpreadHitsAir:     boolean;  // whether spread hits air creeps
 
   // ── Tesla C: Overload (drawback — debuffs nearby allied towers) ───────────
   overloadMode:     boolean;
@@ -127,7 +130,10 @@ export function defaultUpgradeStats(def: TowerDef): TowerUpgradeStats {
     dotDamageBase:      6,      // Poison base dmg/tick
     dotDamageBonus:     0,
     maxDotStacks:       4,      // default cap (Poison B upgrades increase this)
-    dotSpreadOnDeath:   false,
+    dotSpreadOnDeath:     false,
+    dotSpreadRadiusDelta: 0,
+    dotSpreadStackCount:  1,
+    dotSpreadHitsAir:     false,
     overloadMode:       false,
     overloadDebuffPct:  0,
     auraSpecType:       '',

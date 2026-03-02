@@ -41,7 +41,6 @@ import { SessionManager } from '../systems/SessionManager';
 import type { AutoSave, AutoSaveTower } from '../systems/SessionManager';
 
 const DEFAULT_TOTAL_WAVES = 20;
-const DOT_SPREAD_RADIUS   = 80; // px — Poison C spread radius
 
 type GameState = 'pregame' | 'wave' | 'between' | 'over';
 
@@ -522,7 +521,6 @@ export class GameScene extends Phaser.Scene {
       this.upgradeManager.spreadDot(
         data.x, data.y,
         data.dotDamage, data.dotTickMs, data.dotTicks,
-        DOT_SPREAD_RADIUS,
       );
     });
 
