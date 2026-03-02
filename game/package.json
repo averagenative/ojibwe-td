@@ -18,6 +18,7 @@
     "check": "npm run typecheck && npm run lint && npm run test"
   },
   "devDependencies": {
+    "@types/node": "^25.3.3",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "@vitest/coverage-v8": "^4.0.18",
