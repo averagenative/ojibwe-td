@@ -40,6 +40,8 @@ import { getChallengeDef } from '../data/challengeDefs';
 import { SessionManager } from '../systems/SessionManager';
 import type { AutoSave, AutoSaveTower } from '../systems/SessionManager';
 import { AudioSettingsPanel } from '../ui/AudioSettingsPanel';
+import { PostWaveUIQueue } from '../systems/PostWaveUIQueue';
+import type { PostWaveEntry } from '../systems/PostWaveUIQueue';
 
 const DEFAULT_TOTAL_WAVES = 20;
 
@@ -104,6 +106,16 @@ export class GameScene extends Phaser.Scene {
   // ── boss offer ────────────────────────────────────────────────────────────
   /** Non-null while a boss offer panel is visible (blocks map pointer events). */
   private bossOfferPanel: BossOfferPanel | null = null;
+
+  // ── post-wave UI queue ────────────────────────────────────────────────────
+  /** Serialises end-of-wave panels: boss loot → elder dialog → upgrade offers. */
+  private readonly _postWaveQueue = new PostWaveUIQueue();
+  /** Boss name from a boss-killed event, shown in the post-wave loot panel. */
+  private _pendingBossName: string | null = null;
+  /** Whether the pending boss should display a loot offer panel post-wave. */
+  private _pendingBossRewardOffer = false;
+  /** Dismiss callback captured by the BetweenWaveScene queue entry. */
+  private _betweenWaveDismiss: (() => void) | null = null;
 
   // ── endless mode ──────────────────────────────────────────────────────────
   /** True when the player chose endless mode for this run. */
@@ -232,6 +244,10 @@ export class GameScene extends Phaser.Scene {
     this._isDragPlacing  = false;
     this.bossOfferPanel  = null;
     this.pendingBossKillKey  = null;
+    this._postWaveQueue.clear();
+    this._pendingBossName        = null;
+    this._pendingBossRewardOffer = false;
+    this._betweenWaveDismiss     = null;
     this.firstAirWaveSeen    = false;
     this.debugOverlay        = null;
     this.debugVisible        = false;
@@ -527,11 +543,11 @@ export class GameScene extends Phaser.Scene {
       this.triggerBossDeathScreenFlash();
       this.triggerBossDeathParticles(data.x, data.y, data.tint);
 
-      // Bonus roguelike offer: show a choice panel where the player
-      // picks one of three rewards.
-      if (data.rewardOffer) {
-        this.openBossOfferPanel(data.bossName);
-      }
+      // Defer boss loot panel until ALL creeps from the wave are dead.
+      // The post-wave queue (built in onWaveComplete) shows it first,
+      // preventing overlap with the elder dialog and upgrade offers.
+      this._pendingBossName        = data.bossName;
+      this._pendingBossRewardOffer = data.rewardOffer;
 
       // Queue boss-killed vignette for the next between-wave window.
       this.pendingBossKillKey = data.bossKey;
@@ -624,7 +640,10 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerup', this.onPointerUp, this);
     // ── BetweenWaveScene offer-picked event ───────────────────────────────
     // Fired by BetweenWaveScene after the player selects a card.
-    // Applies any instant-gold offer effect and reveals the next-wave button.
+    // Applies any instant-gold offer effect, advances the post-wave queue,
+    // and reveals the next-wave button.
+    // NOTE: Elder dialog is shown BEFORE BetweenWaveScene (via the queue),
+    // so there is no vignette check here.
     this.events.on('between-wave-offer-picked', (data: { offerId: string; instantGold: number; rerollsUsed?: number }) => {
       if (data.instantGold > 0) {
         this.gold += data.instantGold;
@@ -637,23 +656,20 @@ export class GameScene extends Phaser.Scene {
         this._rerollTokens = Math.max(0, this._rerollTokens - data.rerollsUsed);
       }
 
-      // Show any between-wave vignette first; reveal the next-wave button only
-      // after it's dismissed (or immediately if there's no vignette to show).
-      // This prevents the boss-wave warning / commander messages from overlapping
-      // with the story panel.
-      const revealNextWave = () => {
-        const nextWave = this.currentWave + 1;
-        this.hud.setNextWaveVisible(true, nextWave, this.isEndlessMode);
-        this.showWaveBanner(nextWave);
-        // Show air wave warning if the upcoming wave contains air creeps.
-        if (this.waveManager.hasAirCreepsInWave(nextWave)) {
-          this.hud.showAirWaveAlert('▲ Air wave incoming! Deploy Tesla/Frost!');
-        } else {
-          this.hud.showAirWaveAlert('');
-        }
-      };
-      const hadVignette = this.tryShowBetweenWaveVignette(revealNextWave);
-      if (!hadVignette) revealNextWave();
+      // Advance the post-wave queue (the BetweenWaveScene entry is done).
+      const dismiss = this._betweenWaveDismiss;
+      this._betweenWaveDismiss = null;
+      dismiss?.();
+
+      // Reveal the next-wave button (elder dialog was shown before BetweenWaveScene).
+      const nextWave = this.currentWave + 1;
+      this.hud.setNextWaveVisible(true, nextWave, this.isEndlessMode);
+      this.showWaveBanner(nextWave);
+      if (this.waveManager.hasAirCreepsInWave(nextWave)) {
+        this.hud.showAirWaveAlert('▲ Air wave incoming! Deploy Tesla/Frost!');
+      } else {
+        this.hud.showAirWaveAlert('');
+      }
     });
 
     // Debug toggles — dev builds only (stripped by Vite's dead-code elimination in prod)
@@ -877,6 +893,10 @@ export class GameScene extends Phaser.Scene {
 
     // Cancel any active wave-spawn timers.
     this.waveManager?.cleanup();
+
+    // Clear the post-wave queue to prevent stale callbacks after scene shutdown.
+    this._postWaveQueue.clear();
+    this._betweenWaveDismiss = null;
 
     // Remove document/window event listeners registered in create().
     if (this._visibilityHandler) {
@@ -1303,51 +1323,65 @@ export class GameScene extends Phaser.Scene {
       // Run complete — clear the auto-save so the player starts fresh next time.
       SessionManager.getInstance().clear();
 
-      // Normal mode: all waves cleared — check for STAGE_COMPLETE vignette.
-      const stageVignette = this.vignetteManager.check(TriggerType.STAGE_COMPLETE);
-      if (stageVignette) {
-        // Show the vignette before transitioning to the victory screen.
+      // Victory transition: vignette (if any) → GameOverScene.
+      const proceedToVictory = () => {
+        const stageVignette = this.vignetteManager.check(TriggerType.STAGE_COMPLETE);
+        if (stageVignette) {
+          AudioManager.getInstance().playVictory();
+          this.hud.getCommanderPortrait()?.reactVictory();
+          this.gameState = 'between';
+          this.vignetteOverlay.show(stageVignette.vignette, stageVignette.seenBefore, () => {
+            this.gameState = 'over';
+            const maxLives = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
+            this.scene.start('GameOverScene', {
+              wavesCompleted: this.totalWaves,
+              totalWaves:     this.totalWaves,
+              won:            true,
+              runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
+              stageId:        this.selectedStageId,
+              mapId:          this.selectedMapId,
+              commanderId:    this.selectedCommanderId,
+              livesLeft:      this.lives,
+              maxLives,
+              isChallenge:    this.isChallengeRun,
+              bossesKilled:   this.bossesKilled,
+            });
+          });
+          return;
+        }
+
+        // No vignette — go straight to victory screen.
+        this.gameState = 'over';
         AudioManager.getInstance().playVictory();
         this.hud.getCommanderPortrait()?.reactVictory();
-        this.gameState = 'between';
-        this.vignetteOverlay.show(stageVignette.vignette, stageVignette.seenBefore, () => {
-          this.gameState = 'over';
-          const maxLives = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
-          this.scene.start('GameOverScene', {
-            wavesCompleted: this.totalWaves,
-            totalWaves:     this.totalWaves,
-            won:            true,
-            runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
-            stageId:        this.selectedStageId,
-            mapId:          this.selectedMapId,
-            commanderId:    this.selectedCommanderId,
-            livesLeft:      this.lives,
-            maxLives,
-            isChallenge:    this.isChallengeRun,
-            bossesKilled:   this.bossesKilled,
-          });
+        const maxLivesNoVig = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
+        this.scene.start('GameOverScene', {
+          wavesCompleted: this.totalWaves,
+          totalWaves:     this.totalWaves,
+          won:            true,
+          runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
+          stageId:        this.selectedStageId,
+          mapId:          this.selectedMapId,
+          commanderId:    this.selectedCommanderId,
+          livesLeft:      this.lives,
+          maxLives:       maxLivesNoVig,
+          isChallenge:    this.isChallengeRun,
+          bossesKilled:   this.bossesKilled,
         });
+      };
+
+      // If the final wave was a boss wave with a pending reward offer,
+      // show the boss loot panel first, then proceed to the victory screen.
+      if (this._pendingBossRewardOffer && this._pendingBossName) {
+        const name = this._pendingBossName;
+        this._pendingBossName        = null;
+        this._pendingBossRewardOffer = false;
+        this.gameState = 'between';
+        this.openBossOfferPanel(name, proceedToVictory);
         return;
       }
 
-      // No vignette — go straight to victory screen.
-      this.gameState = 'over';
-      AudioManager.getInstance().playVictory();
-      this.hud.getCommanderPortrait()?.reactVictory();
-      const maxLivesNoVig = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
-      this.scene.start('GameOverScene', {
-        wavesCompleted: this.totalWaves,
-        totalWaves:     this.totalWaves,
-        won:            true,
-        runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
-        stageId:        this.selectedStageId,
-        mapId:          this.selectedMapId,
-        commanderId:    this.selectedCommanderId,
-        livesLeft:      this.lives,
-        maxLives:       maxLivesNoVig,
-        isChallenge:    this.isChallengeRun,
-        bossesKilled:   this.bossesKilled,
-      });
+      proceedToVictory();
       return;
     }
     // Endless mode: ignore the totalWaves limit and continue generating waves.
@@ -1386,31 +1420,61 @@ export class GameScene extends Phaser.Scene {
     // This is the cleanest save point: no active creeps, tower state is stable.
     this._doAutoSave();
 
-    // Launch the roguelike offer selection scene (runs on top of GameScene).
-    // The next-wave button is hidden until the player picks an offer.
+    // ── Post-wave UI queue — show panels in strict priority order ────────────
+    // 1) Boss loot/gear reward → 2) Elder dialog → 3) Between-wave upgrade offers
+    // Each panel is fully dismissed before the next appears.
+    this._postWaveQueue.clear();
+
+    // 1. Boss loot/gear reward (boss waves only, deferred from boss-killed event).
+    if (this._pendingBossRewardOffer && this._pendingBossName) {
+      const name = this._pendingBossName;
+      this._postWaveQueue.enqueue({
+        show: (onDismiss) => this.openBossOfferPanel(name, onDismiss),
+      });
+    }
+    // Always consume the pending boss state (even if no reward offer).
+    this._pendingBossName        = null;
+    this._pendingBossRewardOffer = false;
+
+    // 2. Elder dialog (vignette — boss-killed, wave-complete, or wave-start).
+    const vignetteEntry = this._buildBetweenWaveVignetteEntry();
+    if (vignetteEntry) {
+      this._postWaveQueue.enqueue(vignetteEntry);
+    }
+
+    // 3. Between-wave upgrade offers (BetweenWaveScene).
     const nextWaveInfo: WaveAnnouncementInfo | null =
       this.waveManager.getWaveAnnouncementInfo(this.currentWave + 1);
-    this.scene.launch('BetweenWaveScene', {
-      offerManager:      this.offerManager,
-      waveJustCompleted: waveNum,
-      nextWave:          this.currentWave + 1,
-      nextWaveInfo:      nextWaveInfo ?? undefined,
-      rerollTokens:      this._rerollTokens,
+    this._postWaveQueue.enqueue({
+      show: (onDismiss) => {
+        this._betweenWaveDismiss = onDismiss;
+        this.scene.launch('BetweenWaveScene', {
+          offerManager:      this.offerManager,
+          waveJustCompleted: waveNum,
+          nextWave:          this.currentWave + 1,
+          nextWaveInfo:      nextWaveInfo ?? undefined,
+          rerollTokens:      this._rerollTokens,
+        });
+      },
     });
+
+    // Start the sequence — panels appear one at a time.
+    this._postWaveQueue.flush();
     // NOTE: this.hud.setNextWaveVisible() is called by the 'between-wave-offer-picked'
     // listener after the player makes their selection.
   }
 
   /**
-   * After the offer is picked, check for any between-wave vignettes to show.
-   * Checks in priority order: BOSS_KILLED (queued), WAVE_COMPLETE, WAVE_START (next).
+   * Check for any between-wave vignettes and return a queue entry that will
+   * show the vignette when its turn arrives in the post-wave queue.
    *
-   * @param onDismiss  Called when the vignette is dismissed (or not called if no
-   *                   vignette fires). The caller is responsible for showing the
-   *                   next-wave button in this callback.
-   * @returns  true if a vignette was shown, false if none matched.
+   * Calling this method IMMEDIATELY marks any found vignette as fired/seen
+   * (via VignetteManager.check), so it must be called only once per wave.
+   * Returns null if no vignette fires for this wave.
+   *
+   * Priority order: BOSS_KILLED (queued) → WAVE_COMPLETE → WAVE_START (next).
    */
-  private tryShowBetweenWaveVignette(onDismiss?: () => void): boolean {
+  private _buildBetweenWaveVignetteEntry(): PostWaveEntry | null {
     let result = null;
 
     // 1. Boss-killed vignette (queued from the boss-killed event).
@@ -1429,13 +1493,14 @@ export class GameScene extends Phaser.Scene {
       result = this.vignetteManager.check(TriggerType.WAVE_START, this.currentWave + 1);
     }
 
-    if (result) {
-      this.vignetteOverlay.show(result.vignette, result.seenBefore, () => {
-        onDismiss?.();
-      });
-      return true;
-    }
-    return false;
+    if (!result) return null;
+
+    const capturedResult = result;
+    return {
+      show: (onDismiss) => {
+        this.vignetteOverlay.show(capturedResult.vignette, capturedResult.seenBefore, onDismiss);
+      },
+    };
   }
 
   /**
@@ -1679,7 +1744,7 @@ export class GameScene extends Phaser.Scene {
    *
    * @param bossName Ojibwe name of the slain boss (used in the panel title)
    */
-  private openBossOfferPanel(bossName: string): void {
+  private openBossOfferPanel(bossName: string, onClosed: () => void): void {
     // Dismiss any lingering panel before opening a new one.
     this.bossOfferPanel?.close();
 
@@ -1716,6 +1781,7 @@ export class GameScene extends Phaser.Scene {
           },
         },
       ],
+      onClosed,
     );
   }
 
@@ -1782,6 +1848,11 @@ export class GameScene extends Phaser.Scene {
     this.gameState = 'over';
     // Clear auto-save — run is finished (defeat or give-up).
     SessionManager.getInstance().clear();
+    // Stop any pending post-wave panels from appearing after game-over.
+    this._postWaveQueue.clear();
+    this._betweenWaveDismiss     = null;
+    this._pendingBossName        = null;
+    this._pendingBossRewardOffer = false;
     AudioManager.getInstance().playGameOver();
     this.hud.getCommanderPortrait()?.reactGameOver();
     this.waveManager.cleanup();
