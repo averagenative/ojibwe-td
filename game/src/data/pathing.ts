@@ -6,6 +6,25 @@
  * advance past multiple waypoints in a single frame.
  */
 
+// ── Directional movement ────────────────────────────────────────────────────
+
+/** Cardinal direction a creep is currently moving. */
+export type CreepDirection = 'left' | 'right' | 'up' | 'down';
+
+/**
+ * Derive a cardinal direction from a movement vector (dx, dy).
+ *
+ * Rule: the axis with the larger absolute magnitude wins.  When magnitudes
+ * are equal (including the zero-vector), horizontal wins and 'right' is
+ * returned as the safe default.
+ */
+export function computeDirection(dx: number, dy: number): CreepDirection {
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? 'right' : 'left';
+  }
+  return dy >= 0 ? 'down' : 'up';
+}
+
 /**
  * Minimum pixel distance at which a creep is considered to have "arrived" at
  * a waypoint.  The actual runtime threshold is:
