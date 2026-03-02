@@ -46,6 +46,27 @@ interface WaveDef {
   };
 }
 
+/**
+ * Structured summary of an upcoming wave — produced by getWaveAnnouncementInfo()
+ * and consumed by WaveBanner and BetweenWaveScene.
+ */
+export interface WaveAnnouncementInfo {
+  waveNumber:  number;
+  /** Inferred from creep pool composition or 'boss' for boss waves. */
+  waveType:    'ground' | 'air' | 'mixed' | 'boss';
+  /** Human-readable trait strings, e.g. ['Armoured', 'Fast', 'Regenerating']. */
+  traits:      string[];
+  /** Number of normal creeps in the wave (escorts not included for boss waves). */
+  creepCount:  number;
+  isBoss:      boolean;
+  /** Ojibwe animal name for the boss (e.g. 'Makwa'). */
+  bossName?:   string;
+  /** Boss mechanic identifier (e.g. 'armored', 'split', 'regen'). */
+  bossAbility?: string;
+  /** Escort count for boss waves (0 if none). */
+  escortCount?: number;
+}
+
 /** Data emitted on scene.events when a creep is killed by a tower. */
 export interface CreepKilledData {
   reward: number;
@@ -196,6 +217,71 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       count:           waveDef.count,
       types,
       totalRewardGold: Math.round(avgReward * waveDef.count),
+    };
+  }
+
+  /**
+   * Returns a WaveAnnouncementInfo for the given wave number, inferring wave
+   * type and traits from the wave definition and creep-type registry.
+   * Returns null if the wave is out of range (and endless mode is not enabled).
+   */
+  getWaveAnnouncementInfo(waveNum: number): WaveAnnouncementInfo | null {
+    const waveDef: WaveDef | undefined = this.waveDefs[waveNum - 1]
+      ?? (this.isEndless ? this.generateEndlessWave(waveNum) : undefined);
+    if (!waveDef) return null;
+
+    // ── Boss wave ────────────────────────────────────────────────────────────
+    if (waveDef.boss) {
+      const bossDef = this.endlessBossOverrides.get(waveDef.boss) ?? BOSS_DEFS[waveDef.boss];
+      const traits: string[] = [];
+      if (bossDef) {
+        if (bossDef.physicalResistPct > 0)       traits.push('Armoured');
+        if (bossDef.isSlowImmune)                traits.push('Immune to Slow');
+        if (bossDef.isPoisonImmune)              traits.push('Poison Immune');
+        if (bossDef.regenPercentPerSec > 0)      traits.push('Regenerating');
+        if (bossDef.bossAbility === 'split')     traits.push('Splits on Death');
+      }
+      return {
+        waveNumber:  waveNum,
+        waveType:    'boss',
+        traits,
+        creepCount:  1,
+        isBoss:      true,
+        bossName:    bossDef?.name,
+        bossAbility: bossDef?.bossAbility,
+        escortCount: waveDef.escorts?.count ?? 0,
+      };
+    }
+
+    // ── Normal wave — infer type from pool ───────────────────────────────────
+    const AIR_KEYS   = new Set(['scout', 'flier']);
+    const poolSet    = new Set(waveDef.pool);
+
+    let hasAir    = false;
+    let hasGround = false;
+    for (const key of waveDef.pool) {
+      const def = this.creepTypeDefs.find(d => d.key === key);
+      const t   = def?.type ?? (AIR_KEYS.has(key) ? 'air' : 'ground');
+      if (t === 'air') hasAir = true; else hasGround = true;
+    }
+
+    let waveType: 'ground' | 'air' | 'mixed';
+    if (hasAir && hasGround) waveType = 'mixed';
+    else if (hasAir)         waveType = 'air';
+    else                     waveType = 'ground';
+
+    // ── Infer traits from creep pool ─────────────────────────────────────────
+    const traits: string[] = [];
+    if (poolSet.has('brute'))  traits.push('Armoured');
+    if (poolSet.has('runner')) traits.push('Fast');
+    if (poolSet.has('swarm'))  traits.push('Swarming');
+
+    return {
+      waveNumber: waveNum,
+      waveType,
+      traits,
+      creepCount: waveDef.count,
+      isBoss:     false,
     };
   }
 

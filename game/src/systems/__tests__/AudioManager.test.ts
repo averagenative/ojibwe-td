@@ -41,7 +41,12 @@ function makeMockContext() {
 
   const makeFilter = () => ({
     type: 'lowpass' as BiquadFilterType,
-    frequency: { value: 350, setValueAtTime: vi.fn() },
+    frequency: {
+      value: 350,
+      setValueAtTime:            vi.fn(),
+      linearRampToValueAtTime:   vi.fn(),
+      exponentialRampToValueAtTime: vi.fn(),
+    },
     Q:         { value: 1 },
     connect:    vi.fn(),
     disconnect: vi.fn(),
@@ -345,6 +350,53 @@ describe('AudioManager', () => {
       // Already running from constructor — second call should be safe
       expect(() => am.startMusic()).not.toThrow();
       expect(() => am.startMusic()).not.toThrow();
+    });
+  });
+
+  describe('playWaveIncoming', () => {
+    it('creates oscillators for ground wave (drum cue)', () => {
+      const am = AudioManager.getInstance();
+      am.playWaveIncoming('ground');
+      // Drum: oscillator (sub-bass) + bufferSource (noise burst)
+      expect(mockCtx.createOscillator).toHaveBeenCalled();
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('creates noise buffer for air wave (wind cue)', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playWaveIncoming('air');
+      // Wind: bufferSource (swept noise) through highpass filter
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createBiquadFilter).toHaveBeenCalled();
+    });
+
+    it('creates both drum and wind nodes for mixed wave', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playWaveIncoming('mixed');
+      // Mixed layers drum + wind, so both oscillator and bufferSource
+      expect(mockCtx.createOscillator).toHaveBeenCalled();
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('creates sawtooth oscillator for boss wave (horn cue)', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createOscillator.mockClear();
+      am.playWaveIncoming('boss');
+      // Boss horn: 2 oscillators (sawtooth horn + sine sub-bass)
+      expect(mockCtx.createOscillator).toHaveBeenCalledTimes(2);
+      expect(mockCtx.createBiquadFilter).toHaveBeenCalled();
+    });
+
+    it('does not throw when AudioContext is unavailable', () => {
+      vi.stubGlobal('AudioContext', undefined);
+      resetSingleton();
+      const am = AudioManager.getInstance();
+      expect(() => am.playWaveIncoming('ground')).not.toThrow();
+      expect(() => am.playWaveIncoming('boss')).not.toThrow();
     });
   });
 });

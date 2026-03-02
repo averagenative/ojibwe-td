@@ -358,6 +358,24 @@ export class AudioManager {
     }
   }
 
+  /**
+   * Wave-incoming cue — played when the wave announcement banner appears.
+   *
+   * Per wave type:
+   *  - ground: low percussive drum hit
+   *  - air:    wind/swoosh sweep
+   *  - mixed:  drum + wind layered
+   *  - boss:   deep horn with sub-bass rumble
+   */
+  playWaveIncoming(waveType: 'ground' | 'air' | 'mixed' | 'boss'): void {
+    switch (waveType) {
+      case 'ground': this._sfxWaveDrum();                       break;
+      case 'air':    this._sfxWaveWind();                       break;
+      case 'mixed':  this._sfxWaveDrum(); this._sfxWaveWind();  break;
+      case 'boss':   this._sfxWaveBossHorn();                   break;
+    }
+  }
+
   /** UI click — crisp high-frequency tick for buttons and tower selection. */
   playUiClick(): void {
     const { ctx, sfxGain } = this;
@@ -378,6 +396,114 @@ export class AudioManager {
   }
 
   // ── Private SFX helpers ───────────────────────────────────────────────────
+
+  /** Low percussive drum hit — ground-wave incoming cue. */
+  private _sfxWaveDrum(): void {
+    const { ctx, sfxGain } = this;
+    if (!ctx || !sfxGain) return;
+    const t = ctx.currentTime;
+
+    // Sub-bass thump
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(90, t);
+    osc.frequency.exponentialRampToValueAtTime(38, t + 0.18);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.38, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+    // Snare noise burst
+    const bufLen = Math.floor(ctx.sampleRate * 0.08);
+    const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data   = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.25));
+    }
+    const src  = ctx.createBufferSource();
+    src.buffer = buf;
+    const gN   = ctx.createGain();
+    gN.gain.setValueAtTime(0.18, t);
+    gN.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+    osc.connect(g);   g.connect(sfxGain);
+    src.connect(gN); gN.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.25);
+    osc.onended = () => { osc.disconnect(); g.disconnect(); };
+    src.start(t);
+    src.onended = () => { src.disconnect(); gN.disconnect(); };
+  }
+
+  /** Swept high-pass noise — air-wave incoming cue. */
+  private _sfxWaveWind(): void {
+    const { ctx, sfxGain } = this;
+    if (!ctx || !sfxGain) return;
+    const t = ctx.currentTime;
+
+    const bufLen = Math.floor(ctx.sampleRate * 0.38);
+    const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data   = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    const flt = ctx.createBiquadFilter();
+    flt.type = 'highpass';
+    flt.frequency.setValueAtTime(600,  t);
+    flt.frequency.linearRampToValueAtTime(4200, t + 0.18);
+    flt.frequency.linearRampToValueAtTime(1200, t + 0.38);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.22, t + 0.09);
+    g.gain.linearRampToValueAtTime(0,    t + 0.38);
+
+    src.connect(flt); flt.connect(g); g.connect(sfxGain);
+    src.start(t);
+    src.onended = () => { src.disconnect(); flt.disconnect(); g.disconnect(); };
+  }
+
+  /** Deep horn + sub-bass rumble — boss-wave incoming cue. */
+  private _sfxWaveBossHorn(): void {
+    const { ctx, sfxGain } = this;
+    if (!ctx || !sfxGain) return;
+    const t = ctx.currentTime;
+
+    // Horn: sawtooth through low-pass
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(55, t);
+    osc.frequency.setValueAtTime(65, t + 0.28);
+
+    const flt = ctx.createBiquadFilter();
+    flt.type = 'lowpass';
+    flt.frequency.value = 320;
+    flt.Q.value = 2.5;
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0,    t);
+    g.gain.linearRampToValueAtTime(0.42, t + 0.14);
+    g.gain.setValueAtTime(0.42, t + 0.52);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+
+    // Sub-bass rumble
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(38, t);
+    osc2.frequency.exponentialRampToValueAtTime(18, t + 0.5);
+
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.28, t);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+
+    osc.connect(flt); flt.connect(g);   g.connect(sfxGain);
+    osc2.connect(g2); g2.connect(sfxGain);
+    osc.start(t);  osc.stop(t + 1.0);
+    osc2.start(t); osc2.stop(t + 0.65);
+    osc.onended  = () => { osc.disconnect();  flt.disconnect();  g.disconnect(); };
+    osc2.onended = () => { osc2.disconnect(); g2.disconnect(); };
+  }
 
   private _sfxCannon(): void {
     const { ctx, sfxGain } = this;
