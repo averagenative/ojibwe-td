@@ -18,6 +18,9 @@ export interface TowerDef {
   attackIntervalMs: number;            // base attack speed; use Infinity for Aura
   projectileSpeed:  number;            // px/s
 
+  /** One-line mechanic/flavour description shown in the tower panel tooltip. */
+  description:      string;
+
   bodyColor:        number;
 
   // Projectile appearance
@@ -128,6 +131,7 @@ export function defaultUpgradeStats(def: TowerDef): TowerUpgradeStats {
 export const CANNON_DEF: TowerDef = {
   key: 'cannon',  name: 'Cannon',  cost: 100,
   range: 160,  damage: 40,  attackIntervalMs: 1000,  projectileSpeed: 300,
+  description: 'Single target. High damage, moderate fire rate.',
   bodyColor: 0x778888,  projectileColor: 0xffdd00,  projectileRadius: 5,
   defaultPriority: TargetingPriority.FIRST,
 };
@@ -135,6 +139,7 @@ export const CANNON_DEF: TowerDef = {
 export const FROST_DEF: TowerDef = {
   key: 'frost',  name: 'Frost',  cost: 125,
   range: 140,  damage: 15,  attackIntervalMs: 1200,  projectileSpeed: 280,
+  description: 'Slows targets. Chills stack for a freeze bonus.',
   bodyColor: 0x3366aa,  projectileColor: 0x88ccff,  projectileRadius: 5,
   defaultPriority: TargetingPriority.STRONGEST,
 };
@@ -142,6 +147,7 @@ export const FROST_DEF: TowerDef = {
 export const MORTAR_DEF: TowerDef = {
   key: 'mortar',  name: 'Mortar',  cost: 175,
   range: 200,  damage: 60,  attackIntervalMs: 2500,  projectileSpeed: 180,
+  description: 'Area splash damage. Ignores terrain.',
   bodyColor: 0x996633,  projectileColor: 0xff8800,  projectileRadius: 7,
   groundOnly: true,  splashRadius: 55,
   defaultPriority: TargetingPriority.FIRST,
@@ -150,6 +156,7 @@ export const MORTAR_DEF: TowerDef = {
 export const POISON_DEF: TowerDef = {
   key: 'poison',  name: 'Poison',  cost: 125,
   range: 130,  damage: 0,  attackIntervalMs: 1500,  projectileSpeed: 250,
+  description: 'Applies damage-over-time. Spreads on creep death.',
   bodyColor: 0x338844,  projectileColor: 0x55ff99,  projectileRadius: 5,
   defaultPriority: TargetingPriority.WEAKEST,
 };
@@ -157,6 +164,7 @@ export const POISON_DEF: TowerDef = {
 export const TESLA_DEF: TowerDef = {
   key: 'tesla',  name: 'Tesla',  cost: 200,
   range: 160,  damage: 35,  attackIntervalMs: 1500,  projectileSpeed: 500,
+  description: 'Chains lightning to up to 3 nearby enemies.',
   bodyColor: 0xbbaa22,  projectileColor: 0xffff44,  projectileRadius: 4,
   chainCount: 3,  chainRange: 110,  chainDamageRatio: 0.6,
   defaultPriority: TargetingPriority.FIRST,
@@ -165,6 +173,7 @@ export const TESLA_DEF: TowerDef = {
 export const AURA_DEF: TowerDef = {
   key: 'aura',  name: 'Aura',  cost: 150,
   range: 180,  damage: 0,  attackIntervalMs: Infinity,  projectileSpeed: 0,
+  description: 'Boosts nearby tower attack speed and damage.',
   bodyColor: 0xbb9922,
   isAura: true,  auraIntervalMult: 0.8, // towers in range attack 25% faster
   defaultPriority: TargetingPriority.FIRST, // passive — value unused
