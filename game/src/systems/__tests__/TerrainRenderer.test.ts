@@ -10,6 +10,9 @@ import {
   hasAdjacentPath,
   isNearSpawnOrExit,
   PALETTES,
+  TERRAIN_BASE_DEPTH,
+  TERRAIN_DECO_DEPTH,
+  TERRAIN_PATH_DEPTH,
 } from '../TerrainRenderer';
 import { TILE } from '../../types/MapData';
 
@@ -244,5 +247,72 @@ describe('PALETTES', () => {
     for (const season of ['summer', 'spring', 'autumn', 'winter'] as const) {
       expect(PALETTES[season].treeColors.length).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+// ── Depth hierarchy contract ──────────────────────────────────────────────────
+//
+// These tests enforce the visual clarity depth spec:
+//   Depth 0: terrain base   (TERRAIN_BASE_DEPTH)
+//   Depth 1: terrain deco   (TERRAIN_DECO_DEPTH)
+//   Depth 2: path tiles     (TERRAIN_PATH_DEPTH)
+//   Depth 5: range circles, placement preview
+//   Depth 10: towers
+//   Depth 15: creeps + health bars
+//   Depth 20: projectiles + effects
+//
+// Decorations MUST sit below all gameplay elements so they never obscure
+// range circles, creep health bars, projectiles, or tower bodies.
+// Paths render ABOVE decorations so adjacent trees never cover the trail.
+
+describe('Depth hierarchy contract', () => {
+  const RANGE_CIRCLE_DEPTH  = 5;
+  const TOWER_DEPTH         = 10;
+  const CREEP_DEPTH         = 15;
+  const PROJECTILE_DEPTH    = 20;
+
+  it('TERRAIN_BASE_DEPTH is 0', () => {
+    expect(TERRAIN_BASE_DEPTH).toBe(0);
+  });
+
+  it('TERRAIN_DECO_DEPTH is 1 (above base, below path)', () => {
+    expect(TERRAIN_DECO_DEPTH).toBe(1);
+  });
+
+  it('TERRAIN_PATH_DEPTH is 2 (above deco, below range circles)', () => {
+    expect(TERRAIN_PATH_DEPTH).toBe(2);
+  });
+
+  it('base < deco < path (terrain ordering)', () => {
+    expect(TERRAIN_BASE_DEPTH).toBeLessThan(TERRAIN_DECO_DEPTH);
+    expect(TERRAIN_DECO_DEPTH).toBeLessThan(TERRAIN_PATH_DEPTH);
+  });
+
+  it('path is below range circles', () => {
+    expect(TERRAIN_PATH_DEPTH).toBeLessThan(RANGE_CIRCLE_DEPTH);
+  });
+
+  it('decorations are below range circles', () => {
+    expect(TERRAIN_DECO_DEPTH).toBeLessThan(RANGE_CIRCLE_DEPTH);
+  });
+
+  it('decorations are below towers', () => {
+    expect(TERRAIN_DECO_DEPTH).toBeLessThan(TOWER_DEPTH);
+  });
+
+  it('decorations are below creeps', () => {
+    expect(TERRAIN_DECO_DEPTH).toBeLessThan(CREEP_DEPTH);
+  });
+
+  it('decorations are below projectiles', () => {
+    expect(TERRAIN_DECO_DEPTH).toBeLessThan(PROJECTILE_DEPTH);
+  });
+
+  it('creeps render above towers (health bars always visible)', () => {
+    expect(CREEP_DEPTH).toBeGreaterThan(TOWER_DEPTH);
+  });
+
+  it('projectiles render above creeps (effects on top)', () => {
+    expect(PROJECTILE_DEPTH).toBeGreaterThan(CREEP_DEPTH);
   });
 });

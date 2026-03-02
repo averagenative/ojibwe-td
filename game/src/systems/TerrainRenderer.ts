@@ -249,108 +249,147 @@ function drawGrassTuft(
   }
 }
 
+// ── Depth constants ───────────────────────────────────────────────────────────
+
+/**
+ * Depth of the terrain base layer (ground fills only — no path tiles).
+ * All other gameplay elements must be at a strictly higher depth.
+ * @public
+ */
+export const TERRAIN_BASE_DEPTH = 0;
+
+/**
+ * Depth of the terrain decoration layer (trees, rocks, grass tufts).
+ * Must be above TERRAIN_BASE_DEPTH but below path tiles and gameplay elements.
+ * @public
+ */
+export const TERRAIN_DECO_DEPTH = 1;
+
+/**
+ * Depth of the path rendering layer (path fills + edge borders).
+ * Above decorations so trees/rocks from adjacent tiles never obscure the trail.
+ * Below range circles (5), towers (10), creeps (15), and projectiles (20).
+ * @public
+ */
+export const TERRAIN_PATH_DEPTH = 2;
+
 // ── Main render function ─────────────────────────────────────────────────────
 
 /**
  * Render procedural terrain for a map.
  *
- * Creates two Graphics objects at depth 0:
- *   1. Base layer — ground fills + path tiles + grid lines
- *   2. Decoration layer — sparse trees, rocks, grass tufts
+ * Creates three Graphics objects:
+ *   1. Base layer  (depth 0) — ground fills + grid lines
+ *   2. Deco layer  (depth 1) — sparse trees, rocks, grass tufts
+ *   3. Path layer  (depth 2) — path fills + edge borders (above decorations)
  *
  * All placement is deterministic (seeded by map ID + tile position).
+ *
+ * @returns `{ decoGfx }` — reference to the decoration graphics object,
+ *   used by GameScene's debug decoration-hide toggle (dev mode only).
  */
 export function renderTerrain(
   scene: Phaser.Scene,
   mapData: MapData,
   season: SeasonalTheme,
-): void {
+): { decoGfx: Phaser.GameObjects.Graphics } {
   const { tileSize: ts, cols, rows, tiles } = mapData;
   const seed = mapIdToSeed(mapData.id);
   const pal = PALETTES[season];
   const spawnWp = mapData.waypoints[0];
   const exitWp  = mapData.waypoints[mapData.waypoints.length - 1];
 
-  // ── Base layer (ground + path tiles) ──────────────────────────────────────
+  // ── Base layer (ground fills only — no paths) ──────────────────────────────
   const baseGfx = scene.add.graphics();
-  baseGfx.setDepth(0);
+  baseGfx.setDepth(TERRAIN_BASE_DEPTH);
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
+      if (tiles[row][col] === TILE.PATH) continue;
+
       const x = col * ts;
       const y = row * ts;
-      const tile = tiles[row][col];
 
-      if (tile === TILE.PATH) {
-        // ── Path tile: worn dirt / gravel trail ──
-        const noise = posHash(seed, row, col, 0);
-        const base = shiftBrightness(pal.pathBase, 0.95 + noise * 0.1);
-        baseGfx.fillStyle(base, 1);
-        baseGfx.fillRect(x, y, ts, ts);
+      // ── Ground tile (BUILDABLE or SCENERY) ──
+      const noise = posHash(seed, row, col, 0);
+      const edgeDist = Math.min(row, rows - 1 - row, col, cols - 1 - col);
 
-        // Lighter center strip, extending toward adjacent path tiles
-        const inset = Math.floor(ts * 0.15);
-        let cx = x + inset;
-        let cy = y + inset;
-        let cw = ts - inset * 2;
-        let ch = ts - inset * 2;
+      let brightnessFactor = 0.9 + noise * 0.2;
+      if (edgeDist === 0)      brightnessFactor *= 0.82;
+      else if (edgeDist === 1) brightnessFactor *= 0.91;
 
-        const above = row > 0 && tiles[row - 1][col] === TILE.PATH;
-        const below = row < rows - 1 && tiles[row + 1][col] === TILE.PATH;
-        const left  = col > 0 && tiles[row][col - 1] === TILE.PATH;
-        const right = col < cols - 1 && tiles[row][col + 1] === TILE.PATH;
+      const color = shiftBrightness(pal.groundBase, brightnessFactor);
+      baseGfx.fillStyle(color, 1);
+      baseGfx.fillRect(x, y, ts, ts);
 
-        if (above) { cy = y; ch += inset; }
-        if (below) { ch += inset; }
-        if (left)  { cx = x; cw += inset; }
-        if (right) { cw += inset; }
+      // Subtle grid lines for visual structure
+      baseGfx.lineStyle(1, pal.gridLine, pal.gridAlpha);
+      baseGfx.strokeRect(x, y, ts, ts);
 
-        baseGfx.fillStyle(pal.pathCenter, 0.5);
-        baseGfx.fillRect(cx, cy, cw, ch);
-
-        // Darker edge lines where NOT connecting to another path tile
-        baseGfx.fillStyle(pal.pathEdge, 0.3);
-        if (!above) baseGfx.fillRect(x,            y,            ts, 2);
-        if (!below) baseGfx.fillRect(x,            y + ts - 2,   ts, 2);
-        if (!left)  baseGfx.fillRect(x,            y,            2,  ts);
-        if (!right) baseGfx.fillRect(x + ts - 2,   y,            2,  ts);
-
-      } else {
-        // ── Ground tile (BUILDABLE or SCENERY) ──
-        const noise = posHash(seed, row, col, 0);
-        const edgeDist = Math.min(row, rows - 1 - row, col, cols - 1 - col);
-
-        // Base brightness with position noise + edge vignette
-        let brightnessFactor = 0.9 + noise * 0.2;
-        if (edgeDist === 0)      brightnessFactor *= 0.82;
-        else if (edgeDist === 1) brightnessFactor *= 0.91;
-
-        const color = shiftBrightness(pal.groundBase, brightnessFactor);
-        baseGfx.fillStyle(color, 1);
-        baseGfx.fillRect(x, y, ts, ts);
-
-        // Subtle grid lines for visual structure
-        baseGfx.lineStyle(1, pal.gridLine, pal.gridAlpha);
-        baseGfx.strokeRect(x, y, ts, ts);
-
-        // Season-specific accent overlay (wet patches / snow patches)
-        if (pal.accentOverlay !== null) {
-          const accentHash = posHash(seed, row, col, 10);
-          if (accentHash < pal.accentChance) {
-            baseGfx.fillStyle(pal.accentOverlay, pal.accentAlpha);
-            const ax = x + posHash(seed, row, col, 11) * (ts * 0.3);
-            const ay = y + posHash(seed, row, col, 12) * (ts * 0.3);
-            const ar = 6 + posHash(seed, row, col, 13) * 8;
-            baseGfx.fillCircle(ax + ts * 0.35, ay + ts * 0.35, ar);
-          }
+      // Season-specific accent overlay (wet patches / snow patches)
+      if (pal.accentOverlay !== null) {
+        const accentHash = posHash(seed, row, col, 10);
+        if (accentHash < pal.accentChance) {
+          baseGfx.fillStyle(pal.accentOverlay, pal.accentAlpha);
+          const ax = x + posHash(seed, row, col, 11) * (ts * 0.3);
+          const ay = y + posHash(seed, row, col, 12) * (ts * 0.3);
+          const ar = 6 + posHash(seed, row, col, 13) * 8;
+          baseGfx.fillCircle(ax + ts * 0.35, ay + ts * 0.35, ar);
         }
       }
     }
   }
 
+  // ── Path layer (depth 2 — above decorations so trails are never obscured) ─
+  const pathGfx = scene.add.graphics();
+  pathGfx.setDepth(TERRAIN_PATH_DEPTH);
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (tiles[row][col] !== TILE.PATH) continue;
+
+      const x = col * ts;
+      const y = row * ts;
+
+      // ── Path tile: worn dirt / gravel trail ──
+      const noise = posHash(seed, row, col, 0);
+      const base = shiftBrightness(pal.pathBase, 0.95 + noise * 0.1);
+      pathGfx.fillStyle(base, 1);
+      pathGfx.fillRect(x, y, ts, ts);
+
+      // Lighter center strip, extending toward adjacent path tiles
+      const inset = Math.floor(ts * 0.15);
+      let cx = x + inset;
+      let cy = y + inset;
+      let cw = ts - inset * 2;
+      let ch = ts - inset * 2;
+
+      const above = row > 0 && tiles[row - 1][col] === TILE.PATH;
+      const below = row < rows - 1 && tiles[row + 1][col] === TILE.PATH;
+      const left  = col > 0 && tiles[row][col - 1] === TILE.PATH;
+      const right = col < cols - 1 && tiles[row][col + 1] === TILE.PATH;
+
+      if (above) { cy = y; ch += inset; }
+      if (below) { ch += inset; }
+      if (left)  { cx = x; cw += inset; }
+      if (right) { cw += inset; }
+
+      pathGfx.fillStyle(pal.pathCenter, 0.5);
+      pathGfx.fillRect(cx, cy, cw, ch);
+
+      // Darker edge lines where NOT connecting to another path tile.
+      // Alpha 0.5 gives a clear but subtle contrast border against ground.
+      pathGfx.fillStyle(pal.pathEdge, 0.5);
+      if (!above) pathGfx.fillRect(x,            y,            ts, 2);
+      if (!below) pathGfx.fillRect(x,            y + ts - 2,   ts, 2);
+      if (!left)  pathGfx.fillRect(x,            y,            2,  ts);
+      if (!right) pathGfx.fillRect(x + ts - 2,   y,            2,  ts);
+    }
+  }
+
   // ── Decorative scatter layer ──────────────────────────────────────────────
   const decoGfx = scene.add.graphics();
-  decoGfx.setDepth(0);
+  decoGfx.setDepth(TERRAIN_DECO_DEPTH);
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -420,4 +459,6 @@ export function renderTerrain(
       }
     }
   }
+
+  return { decoGfx };
 }

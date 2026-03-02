@@ -608,12 +608,14 @@ export class Tower extends Phaser.GameObjects.Container {
   // ── visuals ───────────────────────────────────────────────────────────────
 
   private buildRangeCircle(): Phaser.GameObjects.Graphics {
+    // Stroke width ≥ 2px so the ring is visible on all terrain types (dark
+    // ground, trees, snow). Alpha 0.35 gives clear contrast without overdraw.
     const color       = this.def.isAura ? 0xffdd44 : 0xffffff;
-    const strokeAlpha = this.def.isAura ? 0.4 : 0.25;
+    const strokeAlpha = this.def.isAura ? 0.4 : 0.35;
     const fillAlpha   = this.def.isAura ? 0.06 : 0.04;
 
     const gfx = this.scene.add.graphics();
-    gfx.lineStyle(1, color, strokeAlpha);
+    gfx.lineStyle(2, color, strokeAlpha);
     gfx.fillStyle(color, fillAlpha);
     gfx.strokeCircle(this.x, this.y, this.upgStats.range);
     gfx.fillCircle(this.x, this.y, this.upgStats.range);
@@ -627,10 +629,10 @@ export class Tower extends Phaser.GameObjects.Container {
     this.rangeGfx.clear();
 
     const color       = this.def.isAura ? 0xffdd44 : 0xffffff;
-    const strokeAlpha = this.def.isAura ? 0.4 : 0.25;
+    const strokeAlpha = this.def.isAura ? 0.4 : 0.35;
     const fillAlpha   = this.def.isAura ? 0.06 : 0.04;
 
-    this.rangeGfx.lineStyle(1, color, strokeAlpha);
+    this.rangeGfx.lineStyle(2, color, strokeAlpha);
     this.rangeGfx.fillStyle(color, fillAlpha);
     this.rangeGfx.strokeCircle(this.x, this.y, this.upgStats.range);
     this.rangeGfx.fillCircle(this.x, this.y, this.upgStats.range);

@@ -109,6 +109,11 @@ export class GameScene extends Phaser.Scene {
   private debugOverlay: Phaser.GameObjects.Text | null = null;
   private debugVisible = false;
 
+  // ── decoration visibility (dev debug toggle) ───────────────────────────────
+  /** Reference to terrain decoration Graphics returned by renderTerrain(). */
+  private decoGfx: Phaser.GameObjects.Graphics | null = null;
+  private decoVisible = true;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -153,6 +158,8 @@ export class GameScene extends Phaser.Scene {
     this.pendingBossKillKey = null;
     this.debugOverlay    = null;
     this.debugVisible    = false;
+    this.decoGfx         = null;
+    this.decoVisible     = true;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -414,11 +421,13 @@ export class GameScene extends Phaser.Scene {
       );
     });
 
-    // Placement preview (follows mouse when in placement mode)
-    this.rangePreview  = this.add.graphics().setDepth(9).setVisible(false);
+    // Placement preview (follows mouse when in placement mode).
+    // Depth 5: same level as range circles, above terrain (0-1) and path markers (3),
+    // below towers (10). Alpha 0.5 meets the "semi-transparent ghost" spec.
+    this.rangePreview  = this.add.graphics().setDepth(5).setVisible(false);
     this.placementMarker = this.add.rectangle(
-      0, 0, this.mapData.tileSize, this.mapData.tileSize, PAL.bgPlacementValid, 0.2,
-    ).setStrokeStyle(2, PAL.bgPlacementValid, 0.8).setDepth(10).setVisible(false);
+      0, 0, this.mapData.tileSize, this.mapData.tileSize, PAL.bgPlacementValid, 0.5,
+    ).setStrokeStyle(2, PAL.bgPlacementValid, 0.8).setDepth(5).setVisible(false);
 
     // Tower panel (bottom strip — all 6 towers)
     new TowerPanel(this, ALL_TOWER_DEFS, (def) => this.enterPlacementMode(def), () => this.gold);
@@ -473,9 +482,14 @@ export class GameScene extends Phaser.Scene {
       if (!hadVignette) revealNextWave();
     });
 
-    // Debug overlay — dev builds only (stripped by Vite's dead-code elimination in prod)
+    // Debug toggles — dev builds only (stripped by Vite's dead-code elimination in prod)
     if (import.meta.env.DEV) {
       this.input.keyboard?.on('keydown-B', this.toggleDebugOverlay, this);
+      // D key: hide/show terrain decorations to verify gameplay layers in isolation.
+      this.input.keyboard?.on('keydown-D', () => {
+        this.decoVisible = !this.decoVisible;
+        this.decoGfx?.setVisible(this.decoVisible);
+      }, this);
     }
 
     // Register cleanup for scene stop/restart — Phaser emits 'shutdown' but does
@@ -580,12 +594,14 @@ export class GameScene extends Phaser.Scene {
     const regionDef = getRegionDef(this.activeStageDef?.regionId ?? 'zaagaiganing');
     const season = regionDef?.seasonalTheme ?? 'summer';
 
-    // Procedural terrain — base layer + decorative scatter (all Graphics-based).
-    renderTerrain(this, this.mapData, season);
+    // Procedural terrain — base layer (depth 0) + decorative scatter (depth 1).
+    // Store decoGfx so the dev debug toggle (D key) can hide decorations.
+    const terrainResult = renderTerrain(this, this.mapData, season);
+    this.decoGfx = terrainResult.decoGfx;
 
-    // Spawn & exit markers (drawn on top of terrain).
+    // Spawn & exit markers (depth 3 — above decorations at 1, below towers at 10).
     const markerGfx = this.add.graphics();
-    markerGfx.setDepth(1);
+    markerGfx.setDepth(3);
 
     const spawnY = this.waypoints[0].y;
     markerGfx.fillStyle(PAL.accentGreenN, 0.6);
@@ -668,12 +684,14 @@ export class GameScene extends Phaser.Scene {
     const valid = this.isBuildable(col, row) && !this.isTileOccupied(col, row);
 
     this.placementMarker.setPosition(cx, cy);
-    this.placementMarker.setFillStyle(valid ? PAL.bgPlacementValid : PAL.bgPlacementInvalid, 0.2);
+    // Alpha 0.5: clearly visible ghost tile per placement-preview spec.
+    this.placementMarker.setFillStyle(valid ? PAL.bgPlacementValid : PAL.bgPlacementInvalid, 0.5);
     this.placementMarker.setStrokeStyle(2, valid ? PAL.bgPlacementValid : PAL.bgPlacementInvalid, 0.8);
 
     this.rangePreview.clear();
     const col32 = valid ? PAL.accentGreenN : PAL.dangerN;
-    this.rangePreview.lineStyle(1, col32, 0.4);
+    // Line width 2px so the range preview matches the selected-tower ring style.
+    this.rangePreview.lineStyle(2, col32, 0.4);
     this.rangePreview.fillStyle(col32, 0.05);
     this.rangePreview.strokeCircle(cx, cy, this.placementDef.range);
     this.rangePreview.fillCircle(cx, cy, this.placementDef.range);
