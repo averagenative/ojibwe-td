@@ -19,10 +19,11 @@ import type { MapData } from '../types/MapData';
 import { TILE } from '../types/MapData';
 import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
-import { getStageDef, getStageByPathFile } from '../data/stageDefs';
+import { getStageDef, getStageByPathFile, getRegionDef } from '../data/stageDefs';
 import type { StageDef } from '../data/stageDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
+import { renderTerrain } from '../systems/TerrainRenderer';
 import { VignetteManager } from '../systems/VignetteManager';
 import { VignetteOverlay } from '../ui/VignetteOverlay';
 import { TriggerType } from '../data/vignetteDefs';
@@ -575,47 +576,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderMap(): void {
-    const { tileSize, cols, rows, tiles } = this.mapData;
-    const gfx = this.add.graphics();
+    // Determine seasonal theme from the active stage's region.
+    const regionDef = getRegionDef(this.activeStageDef?.regionId ?? 'zaagaiganing');
+    const season = regionDef?.seasonalTheme ?? 'summer';
 
-    // Tile image keys in rotation order; assigned deterministically per position.
-    const TILE_KEYS = ['tile-tree', 'tile-brush', 'tile-rock', 'tile-water'];
-    const tilesLoaded = TILE_KEYS.every(k => this.textures.exists(k));
+    // Procedural terrain — base layer + decorative scatter (all Graphics-based).
+    renderTerrain(this, this.mapData, season);
 
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const x    = col * tileSize;
-        const y    = row * tileSize;
-        const tile = tiles[row][col];
-
-        if (tile === TILE.PATH) {
-          gfx.fillStyle(0x2a2010, 1);
-          gfx.fillRect(x, y, tileSize, tileSize);
-          gfx.lineStyle(1, 0x3a3020, 0.5);
-          gfx.strokeRect(x, y, tileSize, tileSize);
-        } else if (tilesLoaded) {
-          // Pick a tile variant deterministically from position.
-          const tileKey = TILE_KEYS[(row * cols + col) % TILE_KEYS.length];
-          this.add.image(x + tileSize / 2, y + tileSize / 2, tileKey)
-            .setDisplaySize(tileSize, tileSize)
-            .setDepth(0);
-        } else {
-          // Fallback: solid coloured rectangle.
-          gfx.fillStyle(PAL.bgCard, 1);
-          gfx.fillRect(x, y, tileSize, tileSize);
-          gfx.lineStyle(1, 0x142014, 0.6);
-          gfx.strokeRect(x, y, tileSize, tileSize);
-        }
-      }
-    }
+    // Spawn & exit markers (drawn on top of terrain).
+    const markerGfx = this.add.graphics();
+    markerGfx.setDepth(1);
 
     const spawnY = this.waypoints[0].y;
-    gfx.fillStyle(PAL.accentGreenN, 0.6);
-    gfx.fillTriangle(0, spawnY - 8, 0, spawnY + 8, 12, spawnY);
+    markerGfx.fillStyle(PAL.accentGreenN, 0.6);
+    markerGfx.fillTriangle(0, spawnY - 8, 0, spawnY + 8, 12, spawnY);
 
     const exitWp = this.waypoints[this.waypoints.length - 1];
-    gfx.fillStyle(PAL.dangerN, 0.6);
-    gfx.fillTriangle(
+    markerGfx.fillStyle(PAL.dangerN, 0.6);
+    markerGfx.fillTriangle(
       this.scale.width - 12, exitWp.y - 8,
       this.scale.width - 12, exitWp.y + 8,
       this.scale.width, exitWp.y,
