@@ -380,7 +380,7 @@ export class HUD extends Phaser.GameObjects.Container {
     }
   }
 
-  // ── mute button ───────────────────────────────────────────────────────────
+  // ── mute button + audio settings gear ─────────────────────────────────────
 
   private muteBtnBg?:    Phaser.GameObjects.Rectangle;
   private muteBtnLabel?: Phaser.GameObjects.Text;
@@ -415,6 +415,44 @@ export class HUD extends Phaser.GameObjects.Container {
       const muted = onToggle();
       this.muteBtnLabel?.setText(muted ? '🔇' : '🔊');
     });
+  }
+
+  /**
+   * Sync the mute button icon to the current muted state.
+   * Call this after restoring audio settings (e.g. from resume prompt).
+   */
+  syncMuteButton(muted: boolean): void {
+    this.muteBtnLabel?.setText(muted ? '🔇' : '🔊');
+  }
+
+  /**
+   * Create a gear icon (⚙) button in the HUD strip that opens the audio
+   * settings panel.  Placed immediately to the right of the mute button.
+   * Must be called once during scene create(), after createMuteButton().
+   *
+   * @param onOpen Called when the player taps the gear button.
+   */
+  createAudioSettingsButton(onOpen: () => void): void {
+    const btnW = _IS_MOBILE ? 44 : 36;
+    const btnH = _IS_MOBILE ? 44 : 30;
+    // Mute btn cx:  mobile=317, desktop=305.  Place gear immediately to the right.
+    // Left edge = muteCx + muteWidth/2 + gap
+    const cx   = _IS_MOBILE ? 317 + 22 + 4 : 305 + 18 + 4;
+    const cy   = HUD_HEIGHT / 2;
+
+    const bg = this.scene.add.rectangle(cx + btnW / 2, cy, btnW, btnH, PAL.bgSpeedBtn)
+      .setStrokeStyle(1, PAL.borderNeutral)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 2);
+
+    this.scene.add.text(cx + btnW / 2, cy, '⚙', {
+      fontSize:   '16px',
+      fontFamily: PAL.fontBody,
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
+
+    bg.on('pointerover', () => bg.setFillStyle(PAL.bgBtnHover));
+    bg.on('pointerout',  () => bg.setFillStyle(PAL.bgSpeedBtn));
+    bg.on('pointerup',   onOpen);
   }
 
   // ── boss warning ──────────────────────────────────────────────────────────

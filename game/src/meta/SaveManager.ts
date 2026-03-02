@@ -46,10 +46,12 @@ interface SaveData {
   /** ID of the last stage the player started a run on. Used for retry continuity. */
   lastPlayedStage:  string;
   // Audio settings — added additively; back-filled for old saves via defaultSaveData spread.
-  audioMaster: number;
-  audioSfx:    number;
-  audioMusic:  number;
-  audioMuted:  boolean;
+  audioMaster:     number;
+  audioSfx:        number;
+  audioMusic:      number;
+  audioMuted:      boolean;
+  audioMusicMuted: boolean;
+  audioSfxMuted:   boolean;
   /**
    * Best endless-mode wave reached per map, keyed by mapId (e.g. 'map-01').
    * Value is the highest wave number the player survived before dying.
@@ -94,6 +96,8 @@ function defaultSaveData(): SaveData {
     audioSfx:        1,
     audioMusic:      0.3,
     audioMuted:      false,
+    audioMusicMuted: false,
+    audioSfxMuted:   false,
     endlessRecords:  {},
     seenVignetteIds: [],
     unlockedCodexIds: [],
@@ -199,20 +203,30 @@ export class SaveManager {
 
   // ── Audio settings ─────────────────────────────────────────────────────────
 
-  getAudioSettings(): { master: number; sfx: number; music: number; muted: boolean } {
+  getAudioSettings(): {
+    master: number; sfx: number; music: number; muted: boolean;
+    musicMuted: boolean; sfxMuted: boolean;
+  } {
     return {
-      master: this.data.audioMaster,
-      sfx:    this.data.audioSfx,
-      music:  this.data.audioMusic,
-      muted:  this.data.audioMuted,
+      master:     this.data.audioMaster,
+      sfx:        this.data.audioSfx,
+      music:      this.data.audioMusic,
+      muted:      this.data.audioMuted,
+      musicMuted: this.data.audioMusicMuted,
+      sfxMuted:   this.data.audioSfxMuted,
     };
   }
 
-  setAudioSettings(master: number, sfx: number, music: number, muted: boolean): void {
-    this.data.audioMaster = master;
-    this.data.audioSfx    = sfx;
-    this.data.audioMusic  = music;
-    this.data.audioMuted  = muted;
+  setAudioSettings(
+    master: number, sfx: number, music: number, muted: boolean,
+    musicMuted = false, sfxMuted = false,
+  ): void {
+    this.data.audioMaster     = master;
+    this.data.audioSfx        = sfx;
+    this.data.audioMusic      = music;
+    this.data.audioMuted      = muted;
+    this.data.audioMusicMuted = musicMuted;
+    this.data.audioSfxMuted   = sfxMuted;
     this._save();
   }
 
@@ -472,10 +486,12 @@ export class SaveManager {
     const clampAudio = (v: unknown, def: number): number =>
       typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : def;
 
-    const audioMaster = clampAudio(d.audioMaster, 1);
-    const audioSfx    = clampAudio(d.audioSfx, 1);
-    const audioMusic  = clampAudio(d.audioMusic, 0.3);
-    const audioMuted  = typeof d.audioMuted === 'boolean' ? d.audioMuted : false;
+    const audioMaster     = clampAudio(d.audioMaster, 1);
+    const audioSfx        = clampAudio(d.audioSfx, 1);
+    const audioMusic      = clampAudio(d.audioMusic, 0.3);
+    const audioMuted      = typeof d.audioMuted      === 'boolean' ? d.audioMuted      : false;
+    const audioMusicMuted = typeof d.audioMusicMuted === 'boolean' ? d.audioMusicMuted : false;
+    const audioSfxMuted   = typeof d.audioSfxMuted   === 'boolean' ? d.audioSfxMuted   : false;
 
     // Moon ratings must be integers 1–5.
     const stageMoons: Record<string, number> = {};
@@ -524,6 +540,8 @@ export class SaveManager {
       audioSfx,
       audioMusic,
       audioMuted,
+      audioMusicMuted,
+      audioSfxMuted,
       stageMoons,
       endlessRecords,
       seenVignetteIds,

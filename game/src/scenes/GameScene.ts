@@ -39,6 +39,7 @@ import type { ChallengeModifier } from '../data/challengeDefs';
 import { getChallengeDef } from '../data/challengeDefs';
 import { SessionManager } from '../systems/SessionManager';
 import type { AutoSave, AutoSaveTower } from '../systems/SessionManager';
+import { AudioSettingsPanel } from '../ui/AudioSettingsPanel';
 
 const DEFAULT_TOTAL_WAVES = 20;
 
@@ -113,6 +114,7 @@ export class GameScene extends Phaser.Scene {
 
   // ── audio ─────────────────────────────────────────────────────────────────
   private audioManager?: AudioManager;
+  private audioSettingsPanel?: AudioSettingsPanel;
 
   // ── wave announcement banner ───────────────────────────────────────────────
   private waveBanner!: WaveBanner;
@@ -312,6 +314,18 @@ export class GameScene extends Phaser.Scene {
     this.hud.createMuteButton(amForMute.isMuted(), () => {
       amForMute.toggleMute();
       return amForMute.isMuted();
+    });
+
+    // Audio settings panel (created lazily on first open)
+    this.hud.createAudioSettingsButton(() => {
+      if (!this.audioSettingsPanel) {
+        this.audioSettingsPanel = new AudioSettingsPanel(this);
+      }
+      if (this.audioSettingsPanel.isVisible()) {
+        this.audioSettingsPanel.hide();
+      } else {
+        this.audioSettingsPanel.show();
+      }
     });
 
     // Commander HUD elements (portrait with tooltip, ability button)
@@ -863,6 +877,10 @@ export class GameScene extends Phaser.Scene {
     // Performance systems cleanup.
     this.trailPool?.destroy();
     this.data.remove('trailPool');
+
+    // Audio settings panel cleanup.
+    this.audioSettingsPanel?.destroy();
+    this.audioSettingsPanel = undefined;
 
     // Audio system cleanup — wired in Phase 21.
     this.audioManager?.destroy();

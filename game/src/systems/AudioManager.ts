@@ -62,6 +62,10 @@ export class AudioManager {
   private _musicVolume  = 0.3;
   private _muted        = false;
 
+  // Per-channel mute state (independent of master mute).
+  private _musicMuted = false;
+  private _sfxMuted   = false;
+
   // Background music scheduler state (procedural arpeggio).
   private _musicRunning    = false;
   private _musicNextNoteT  = 0;
@@ -130,10 +134,12 @@ export class AudioManager {
     this._sfxVolume    = saved.sfx;
     this._musicVolume  = saved.music;
     this._muted        = saved.muted;
+    this._musicMuted   = saved.musicMuted;
+    this._sfxMuted     = saved.sfxMuted;
 
     this.masterGain.gain.value = this._muted ? 0 : this._masterVolume;
-    this.sfxGain.gain.value    = this._sfxVolume;
-    this.musicGain.gain.value  = this._musicVolume;
+    this.sfxGain.gain.value    = this._sfxMuted   ? 0 : this._sfxVolume;
+    this.musicGain.gain.value  = this._musicMuted ? 0 : this._musicVolume;
 
     // Mobile: AudioContext must be resumed after a user gesture.
     document.addEventListener(
@@ -157,14 +163,14 @@ export class AudioManager {
   /** Set SFX volume (0–1). Persisted to SaveManager. */
   setSfxVolume(v: number): void {
     this._sfxVolume = clamp01(v);
-    this._applyGain(this.sfxGain, this._sfxVolume);
+    this._applyGain(this.sfxGain, this._sfxMuted ? 0 : this._sfxVolume);
     this._persist();
   }
 
   /** Set music volume (0–1). Persisted to SaveManager. */
   setMusicVolume(v: number): void {
     this._musicVolume = clamp01(v);
-    this._applyGain(this.musicGain, this._musicVolume);
+    this._applyGain(this.musicGain, this._musicMuted ? 0 : this._musicVolume);
     this._persist();
   }
 
@@ -172,7 +178,29 @@ export class AudioManager {
   getSfxVolume():    number { return this._sfxVolume; }
   getMusicVolume():  number { return this._musicVolume; }
 
-  isMuted(): boolean { return this._muted; }
+  isMuted():      boolean { return this._muted; }
+  isMusicMuted(): boolean { return this._musicMuted; }
+  isSfxMuted():   boolean { return this._sfxMuted; }
+
+  /**
+   * Mute or unmute music independently of SFX.
+   * Does not affect the master mute state. Persisted to SaveManager.
+   */
+  setMusicMuted(muted: boolean): void {
+    this._musicMuted = muted;
+    this._applyGain(this.musicGain, muted ? 0 : this._musicVolume);
+    this._persist();
+  }
+
+  /**
+   * Mute or unmute SFX independently of music.
+   * Does not affect the master mute state. Persisted to SaveManager.
+   */
+  setSfxMuted(muted: boolean): void {
+    this._sfxMuted = muted;
+    this._applyGain(this.sfxGain, muted ? 0 : this._sfxVolume);
+    this._persist();
+  }
 
   /**
    * Toggle master mute. Stores the current master volume and sets gain to 0
@@ -915,6 +943,8 @@ export class AudioManager {
       this._sfxVolume,
       this._musicVolume,
       this._muted,
+      this._musicMuted,
+      this._sfxMuted,
     );
   }
 }
