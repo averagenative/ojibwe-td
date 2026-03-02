@@ -1,7 +1,7 @@
 ---
 id: TASK-058
 title: Tower Idle & Attack Animations — Breathing Turrets, Firing Recoil
-status: pending
+status: in-progress
 priority: high
 phase: polish
 ---

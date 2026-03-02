@@ -1,7 +1,7 @@
 ---
 id: TASK-080
 title: Mobile Menu Layout Audit — Fix Squashed Text & Overlapping Elements
-status: pending
+status: done
 priority: high
 phase: bugfix
 ---

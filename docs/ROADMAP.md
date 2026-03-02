@@ -1781,9 +1781,64 @@ _Reviewed 2026-03-02_
    queue cancellation becomes common in other scenarios, the vignette should be
    marked seen only inside its `show()` callback.
 
+## Non-Blocking Findings — Tower Idle & Attack Animations (TASK-058)
+
+*Surfaced during code review on 2026-03-02.*
+
+1. **Frame-rate-dependent barrel tracking / Tesla lean**: `_stepBarrelTracking()`
+   uses a fixed `lerpDegPerFrame` rate (10°/call) and `_stepTeslaLean()` uses a
+   hardcoded 1.5°/call.  Neither is scaled by delta, so tracking speed depends on
+   actual FPS.  At a locked 60 fps this is imperceptible, but if the game ever
+   targets variable frame rates these should be normalised to `(delta / 16.67)`.
+
+2. **`(0, 0)` sentinel for no-target**: `_visualTargetX === 0 && _visualTargetY === 0`
+   is used to detect "no target acquired."  If a creep walks through world position
+   (0, 0) the barrel will not track it.  In the current map layouts (0, 0) is
+   outside the playable grid so this is safe, but if any future map places a path
+   tile in the top-left corner, this sentinel should be replaced with a boolean
+   `_hasVisualTarget` flag.
+
+3. **Bubble / frost-crystal particle allocation**: `_stepBubbleIdle()` creates a
+   new `scene.add.graphics()` every ~400 ms per Poison tower, and
+   `_spawnFrostCrystals()` creates 4 new Graphics per Frost fire.  Each is
+   short-lived (tween → destroy), so memory doesn't leak, but with 20+ towers
+   this adds GC pressure.  A per-tower or global particle pool would be cleaner.
+
+4. **Aura fire-animation not distinct**: The acceptance criteria mention "pulse
+   ring intensifies briefly when buff is reapplied."  The current implementation
+   relies on the existing continuous `stepAuraPulse()`.  There is no distinct
+   "buff tick" visual pulse synced to `updateAuras()`.  Cosmetic only — aura
+   buffs are re-applied every frame, so a distinct tick is hard to define.
+
+5. **Path specialization tint** (stretch goal from task): Not implemented.  Tower
+   idle/fire effects do not change colour based on which upgrade path (A/B/C)
+   is chosen.  Acceptable as a stretch goal — flag for future polish pass.
+
 ---
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
+
+### TASK-080 Review Findings (non-blocking, 2026-03-02)
+
+- **`_fs()` duplication across 5 scenes**: The identical `_fs(size: number): string`
+  method is copy-pasted into BetweenWaveScene, CodexScene, CommanderSelectScene,
+  GameOverScene, and MetaMenuScene. Consider extracting to a shared utility
+  (e.g. `ui/fontScale.ts`) or a mixin to reduce duplication.
+
+- **Desktop font floor raised 9-10px → 11px**: Several tiny font sizes (badges,
+  hints, labels) were bumped from 9-10px to 11px on desktop as a side-effect of
+  the 11px minimum floor. This improves accessibility but slightly changes
+  desktop text sizing. Purely cosmetic — no layout shifts.
+
+- **CodexScene mobile entry list has no scroll**: When `_isMobile` is true,
+  entries render in a single column. If a section has more than ~10 entries,
+  they'll extend below the visible area with no scroll mechanism. Consider
+  adding a scroll container or mask+drag for the entry list on mobile.
+
+- **MetaMenuScene scroll arrows use desktop NODE_H_COMPACT in applyScroll**:
+  Lines 230/237 use `NODE_H_COMPACT` (60) for scroll step even when mobile
+  node height is larger (via `Math.max(NODE_H_COMPACT, 44)`). Since 60 > 44
+  this is harmless today, but would break if the mobile nodeH ever exceeds 60.
 
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
