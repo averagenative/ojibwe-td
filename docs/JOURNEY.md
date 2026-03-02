@@ -707,3 +707,23 @@ Every tower previously fired the same generic coloured dot. TASK-047 gives each 
 **Aura dual-ring pulse.** The previous single-ring aura pulse (`auraPulseRadius` climbing linearly from 0 to `range`) was replaced with a phase-based dual-ring system. `auraPulsePhase` advances at 0.35 cycles/s and wraps at 1. Two rings are drawn half a cycle apart (`phase` and `phase + 0.5`): each ring's radius is `phase × range` and its alpha follows `sin(phase × π) × 0.45` — a bell curve that fades naturally at both ends and peaks near mid-travel. The result is a smooth, continuous outward-pulse feel rather than a hard reset every ~1.8 s.
 
 **Tests.** Forty-one unit tests in `src/systems/__tests__/attackVisuals.test.ts` cover all pure-logic formulas: trail colour lookups (including unknown key fallback), trail emission timing at 30 ms boundary, trail-life alpha decay formula, mortar scale bell curve (0 at launch, peaks at mid, back to 0 at landing, clamped below 0), frost burst and dust puff particle counts, poison splatter linger delay, tesla arc jitter bounds, aura dual-ring phase advancement and wrap, and the "max active trail particles" cap calculation.
+
+---
+
+### TASK-048 — Visual Clarity Audit — Ensure Assets Don't Obscure Gameplay
+
+As procedural terrain, decorations, and richer attack visuals accumulated, there was a latent risk that decorative layers could visually compete with gameplay-critical elements — health bars, range circles, placement previews, and the creep path itself. TASK-048 audited every visual layer and established a strict depth hierarchy that every future feature must respect.
+
+**Depth hierarchy formalised.** Three named constants were exported from `TerrainRenderer.ts`: `TERRAIN_BASE_DEPTH = 0` (ground fills), `TERRAIN_DECO_DEPTH = 1` (trees, rocks, grass tufts), and `TERRAIN_PATH_DEPTH = 2` (path fills + edge borders). The critical insight here is that path rendering was moved *above* decorations — previously a tree tuft on an adjacent tile could partially overlap the path edge, making the trail harder to read. Spawn/exit markers were promoted to depth 3, range circles and placement previews to depth 5, towers remain at 10, creeps at 15, projectiles at 20, and UI panels at 30+.
+
+**Path layer split.** `renderTerrain()` was refactored from two Graphics objects to three. The base layer (depth 0) now only fills ground tiles; path tiles are skipped entirely. A new path layer (depth 2) handles path fills and the edge-contrast border lines. This separation guarantees terrain decorations at depth 1 can never draw over the path regardless of tile ordering.
+
+**Range circles — 2 px stroke, higher alpha.** All tower range rings were widened from 1 px to 2 px and their alpha raised from 0.25 to 0.35. The increase is enough to ensure the ring reads clearly against the darkest winter ground and dense tree cover without feeling heavy.
+
+**Placement preview — alpha 0.5 ghost.** The placement marker fill alpha was raised from 0.2 to 0.5 (both valid and invalid states), matching the spec's "clearly visible semi-transparent ghost" requirement. The range preview ring during drag also moves to depth 5 and adopts the 2 px line width for consistency with the selected-tower ring.
+
+**HP bar colour gradient.** A new pure utility module `src/systems/visualUtils.ts` provides `hpBarColor(pct)`, which maps a health fraction to a smooth green → yellow → red transition using separate linear ramps on each half. Boss creep bars use a fixed deep-ember colour (`0xc0501e`) for instant threat recognition rather than following the gradient. Both normal and boss bars now update on every `takeDamage()` call rather than only tracking width.
+
+**Debug decoration toggle.** `renderTerrain()` was updated to return `{ decoGfx }`, a reference to the decoration graphics layer. In dev builds, pressing `D` in GameScene calls `decoGfx.setVisible(!visible)` — toggling all trees, rocks, and grass tufts off so developers can verify that the gameplay layers (path, range rings, creeps, projectiles) are fully readable in isolation. Vite dead-code elimination strips this branch in production.
+
+**Tests.** Nine unit tests in `src/systems/__tests__/visualClarity.test.ts` cover `hpBarColor`: pure green at full HP, yellow at half, red at zero, orange-ish at 0.25, yellow-green at 0.75, clamping above 1 and below 0, blue channel always 0, and a monotonicity check confirming the green channel only increases as HP rises. The `TerrainRenderer.test.ts` suite was updated to verify the new three-Graphics return shape and that `decoGfx` is a real object. All 748 tests pass; 0 type errors.
