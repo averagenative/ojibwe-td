@@ -591,3 +591,11 @@ The browser tab for Ojibwe TD was displaying a generic Vite favicon, which gave 
 **Favicon wiring.** `game/index.html` received a `<link rel="icon" type="image/svg+xml" href="/assets/ui/medicine-wheel.svg">` tag, replacing the previous Vite boilerplate favicon reference. The Medicine Wheel's four directional colours — white (North), red (South), black (West), yellow (East) — and gold rim (`#c8a96e`) render crisply at 16×16 px and above directly from the SVG, with no PNG conversion or raster fallbacks needed for modern browsers.
 
 **Test coverage.** `src/systems/__tests__/favicon.test.ts` adds 4 Vitest tests: confirms `index.html` contains the exact SVG favicon `<link>` tag, confirms `medicine-wheel.svg` exists in `public/assets/ui/`, validates the SVG contains the expected structure (xmlns, viewBox) and all five culturally specified colours, and guards against accidental duplicate favicon entries. Because the tests read files from disk via Node's `fs` module, `@types/node` was added as a dev dependency and the test file carries a `/// <reference types="node" />` directive so Node built-ins resolve without polluting the browser-oriented main tsconfig with node globals. The full suite passes at 627 tests with 0 type errors.
+
+---
+
+### TASK-043 — Remove "Placeholder Art" from Main Menu Footer
+
+The footer line at the bottom of the main menu read "Solo Desktop · v0.1.0 · Placeholder Art · Inspired by Green TD". The "Placeholder Art" label was added during early development when the converted WC3 icons were standing in for real art. With Ojibwe-themed assets now integrated — the Medicine Wheel favicon, DALL-E generated UI art, and the culturally grounded palette — the label was no longer accurate and read as an embarrassing disclaimer in a live build.
+
+The fix is a single-line change in `MainMenuScene.createFooter()`: the footer string becomes "Solo Desktop · v0.1.0 · Inspired by Green TD". No functional logic changed, no test data changed, and all 623 tests continue to pass with 0 type errors.
