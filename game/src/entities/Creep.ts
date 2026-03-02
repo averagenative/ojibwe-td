@@ -633,21 +633,29 @@ export class Creep extends Phaser.GameObjects.Container {
         0x000000, 0.25,
       );
 
-      // Wing indicators — two small translucent rectangles extending from the body
-      const wingColor = 0x88bbff;
-      const wx = this.isBossCreep ? 24 : 14;
-      const wingY = AIR_BODY_OFFSET_Y;
-      const leftWing  = new Phaser.GameObjects.Rectangle(
-        this.scene, -wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
-      );
-      const rightWing = new Phaser.GameObjects.Rectangle(
-        this.scene,  wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
-      );
-
-      if (this.armorIndicator) {
-        this.add([shadow, leftWing, rightWing, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
+      if (useSprite) {
+        // Sprite already includes wings — add only shadow + body + UI.
+        if (this.armorIndicator) {
+          this.add([shadow, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
+        } else {
+          this.add([shadow, bodyObj, hpBg, this.hpBarFill]);
+        }
       } else {
-        this.add([shadow, leftWing, rightWing, bodyObj, hpBg, this.hpBarFill]);
+        // Rectangle fallback — add wing indicator rectangles on each side.
+        const wingColor = 0x88bbff;
+        const wx = this.isBossCreep ? 24 : 14;
+        const wingY = AIR_BODY_OFFSET_Y;
+        const leftWing  = new Phaser.GameObjects.Rectangle(
+          this.scene, -wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
+        );
+        const rightWing = new Phaser.GameObjects.Rectangle(
+          this.scene,  wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
+        );
+        if (this.armorIndicator) {
+          this.add([shadow, leftWing, rightWing, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
+        } else {
+          this.add([shadow, leftWing, rightWing, bodyObj, hpBg, this.hpBarFill]);
+        }
       }
       return;
     }

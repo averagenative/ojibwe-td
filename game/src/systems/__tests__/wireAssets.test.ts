@@ -11,6 +11,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CREEP_SPRITE_KEYS } from '../WaveManager';
+import { BOSS_DEFS } from '../../data/bossDefs';
+import type { BossDef } from '../../data/bossDefs';
 
 // ── 1. CREEP_SPRITE_KEYS mapping ────────────────────────────────────────────
 
@@ -25,9 +27,10 @@ describe('CREEP_SPRITE_KEYS', () => {
     }
   });
 
-  it('all sprite keys follow the creep-* naming convention', () => {
+  it('all sprite keys follow the creep-* naming convention (with optional sub-type segments)', () => {
     for (const spriteKey of Object.values(CREEP_SPRITE_KEYS)) {
-      expect(spriteKey).toMatch(/^creep-[a-z]+$/);
+      // Allows compound keys like 'creep-air-scout' as well as simple 'creep-normal'.
+      expect(spriteKey).toMatch(/^creep-[a-z]+(-[a-z]+)*$/);
     }
   });
 
@@ -47,12 +50,12 @@ describe('CREEP_SPRITE_KEYS', () => {
     expect(CREEP_SPRITE_KEYS['swarm']).toBe('creep-normal');
   });
 
-  it('maps scout to creep-flying', () => {
-    expect(CREEP_SPRITE_KEYS['scout']).toBe('creep-flying');
+  it('maps scout to creep-air-scout (hawk/falcon silhouette)', () => {
+    expect(CREEP_SPRITE_KEYS['scout']).toBe('creep-air-scout');
   });
 
-  it('maps flier to creep-flying (shared sprite)', () => {
-    expect(CREEP_SPRITE_KEYS['flier']).toBe('creep-flying');
+  it('maps flier to creep-air-basic (generic bird silhouette)', () => {
+    expect(CREEP_SPRITE_KEYS['flier']).toBe('creep-air-basic');
   });
 
   it('returns undefined for unknown type keys (graceful fallback)', () => {
@@ -93,20 +96,79 @@ describe('portrait texture key format', () => {
 // ── 3. Boss / mini-boss sprite key constants ────────────────────────────────
 
 describe('boss sprite keys', () => {
-  // These are hardcoded in WaveManager.spawnBoss() and split config
-  const BOSS_SPRITE_KEY = 'creep-boss';
-  const MINI_SPRITE_KEY = 'creep-boss-mini';
+  // Each boss has a unique animal sprite; mini (Waabooz split copies) has its own.
+  const BOSS_SPRITE_KEYS_LIST = ['boss-makwa', 'boss-migizi', 'boss-waabooz', 'boss-animikiins'];
+  const MINI_SPRITE_KEY = 'boss-waabooz-mini';
 
-  it('boss sprite key follows naming convention', () => {
-    expect(BOSS_SPRITE_KEY).toMatch(/^creep-/);
+  it('all boss sprite keys follow the boss-{animal} naming convention', () => {
+    for (const key of BOSS_SPRITE_KEYS_LIST) {
+      expect(key).toMatch(/^boss-[a-z]+$/);
+    }
   });
 
-  it('mini-boss sprite key follows naming convention', () => {
-    expect(MINI_SPRITE_KEY).toMatch(/^creep-/);
+  it('mini-boss sprite key follows boss-waabooz-mini naming', () => {
+    expect(MINI_SPRITE_KEY).toMatch(/^boss-[a-z]+-mini$/);
   });
 
-  it('boss and mini-boss have distinct sprite keys', () => {
-    expect(BOSS_SPRITE_KEY).not.toBe(MINI_SPRITE_KEY);
+  it('all boss sprite keys are unique', () => {
+    const all = [...BOSS_SPRITE_KEYS_LIST, MINI_SPRITE_KEY];
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('mini-boss sprite is distinct from all full-boss sprites', () => {
+    for (const key of BOSS_SPRITE_KEYS_LIST) {
+      expect(key).not.toBe(MINI_SPRITE_KEY);
+    }
+  });
+});
+
+// ── 3b. BossDef.spriteKey field validation ──────────────────────────────────
+
+describe('BossDef spriteKey field', () => {
+  it('every BossDef in BOSS_DEFS has a spriteKey set', () => {
+    for (const [, def] of Object.entries(BOSS_DEFS)) {
+      expect(def.spriteKey).toBeDefined();
+      expect(typeof def.spriteKey).toBe('string');
+      expect(def.spriteKey!.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('every BossDef spriteKey matches the boss-{key} naming convention', () => {
+    for (const [key, def] of Object.entries(BOSS_DEFS)) {
+      expect(def.spriteKey).toBe(`boss-${key}`);
+    }
+  });
+
+  it('all BossDef spriteKeys are unique across bosses', () => {
+    const keys = Object.values(BOSS_DEFS).map(d => d.spriteKey);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('boss spriteKey fallback expression matches explicit value', () => {
+    // The WaveManager uses: bossDef.spriteKey ?? `boss-${bossDef.key}`
+    // Verify that the explicit spriteKey equals the fallback for all defs.
+    for (const [, def] of Object.entries(BOSS_DEFS)) {
+      const fallback = `boss-${def.key}`;
+      const resolved = def.spriteKey ?? fallback;
+      expect(resolved).toBe(def.spriteKey);
+    }
+  });
+
+  it('spriteKey fallback works when field is absent', () => {
+    // Simulate a BossDef without explicit spriteKey (future-proofing).
+    const defWithout = { key: 'test-boss', spriteKey: undefined } as unknown as BossDef;
+    const resolved = defWithout.spriteKey ?? `boss-${defWithout.key}`;
+    expect(resolved).toBe('boss-test-boss');
+  });
+
+  it('BOSS_DEFS contains exactly 4 bosses', () => {
+    expect(Object.keys(BOSS_DEFS)).toHaveLength(4);
+  });
+
+  it('BOSS_DEFS keys match their definition key fields', () => {
+    for (const [mapKey, def] of Object.entries(BOSS_DEFS)) {
+      expect(def.key).toBe(mapKey);
+    }
   });
 });
 
@@ -308,17 +370,20 @@ describe('BootScene expected texture keys', () => {
     // Commander portraits
     'portrait-nokomis', 'portrait-makoons', 'portrait-waabizii',
     'portrait-bizhiw', 'portrait-animikiikaa',
-    // Creep sprites
-    'creep-normal', 'creep-fast', 'creep-armored', 'creep-immune',
-    'creep-regen', 'creep-flying', 'creep-boss', 'creep-boss-mini',
+    // Ground creep sprites (refreshed animal silhouettes)
+    'creep-normal', 'creep-fast', 'creep-armored', 'creep-immune', 'creep-regen',
+    // Air creep sprites (distinct per subtype)
+    'creep-air-basic', 'creep-air-scout', 'creep-air-armored',
+    // Boss sprites (unique animal portraits)
+    'boss-makwa', 'boss-migizi', 'boss-waabooz', 'boss-animikiins', 'boss-waabooz-mini',
     // Map tiles
     'tile-tree', 'tile-brush', 'tile-rock', 'tile-water',
     // Logo
     'logo',
   ];
 
-  it('expects 26 total texture keys (logo + 8 icons + 5 portraits + 8 creeps + 4 tiles)', () => {
-    expect(EXPECTED_KEYS).toHaveLength(26);
+  it('expects 31 total texture keys (logo + 8 icons + 5 portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
+    expect(EXPECTED_KEYS).toHaveLength(31);
   });
 
   it('all keys are unique', () => {
@@ -326,7 +391,7 @@ describe('BootScene expected texture keys', () => {
   });
 
   it('every key follows a known prefix pattern', () => {
-    const validPrefixes = ['icon-', 'portrait-', 'creep-', 'tile-', 'logo'];
+    const validPrefixes = ['icon-', 'portrait-', 'creep-', 'boss-', 'tile-', 'logo'];
     for (const key of EXPECTED_KEYS) {
       const matchesPrefix = validPrefixes.some(p => key.startsWith(p));
       expect(matchesPrefix).toBe(true);

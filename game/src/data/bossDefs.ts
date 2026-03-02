@@ -28,6 +28,13 @@ export interface BossDef extends CreepDef {
   isBoss: true;
   bossAbility: BossAbility;
 
+  /**
+   * Texture key for the boss's unique sprite (e.g. 'boss-makwa').
+   * When set, WaveManager uses this key instead of the generic 'creep-boss'.
+   * Falls back to `boss-${key}` if absent.
+   */
+  spriteKey?: string;
+
   /** Bonus gold awarded on kill (on top of normal `reward`). */
   rewardGold: number;
   /** Whether killing this boss triggers a bonus roguelike offer draw. */
@@ -151,6 +158,7 @@ export const MAKWA_DEF: BossDef = {
   isPoisonImmune:    false,
   regenPercentPerSec: 0,
   tint:              0xcc6600,   // amber / brown
+  spriteKey:         'boss-makwa',
 };
 
 /**
@@ -174,6 +182,7 @@ export const MIGIZI_DEF: BossDef = {
   isPoisonImmune:    false,
   regenPercentPerSec: 0,
   tint:              0xffd700,   // golden yellow
+  spriteKey:         'boss-migizi',
 };
 
 /**
@@ -198,6 +207,7 @@ export const WAABOOZ_DEF: BossDef = {
   isPoisonImmune:    false,
   regenPercentPerSec: 0,
   tint:              0xaaddff,   // pale blue-white
+  spriteKey:         'boss-waabooz',
   splitCount:        3,
   splitHpPct:        0.2,        // each copy has 20 % of Waabooz's HP
   splitSpeedBonus:   1.2,        // mini-copies run 20 % faster
@@ -224,6 +234,7 @@ export const ANIMIKIINS_DEF: BossDef = {
   isPoisonImmune:    true,        // poison DoT is not applied
   regenPercentPerSec: 1,          // 1 % of maxHp per second; cancelled 3 s after taking damage
   tint:              0x4466ff,    // electric blue
+  spriteKey:         'boss-animikiins',
 };
 
 /** All boss definitions indexed by their key (matches the JSON wave "boss" field). */
