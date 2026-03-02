@@ -37,6 +37,8 @@ import { TrailPool } from '../systems/TrailPool';
 import { resolveGearBonuses, applyGearToStats } from '../systems/GearSystem';
 import type { ChallengeModifier } from '../data/challengeDefs';
 import { getChallengeDef } from '../data/challengeDefs';
+import { SessionManager } from '../systems/SessionManager';
+import type { AutoSave, AutoSaveTower } from '../systems/SessionManager';
 
 const DEFAULT_TOTAL_WAVES = 20;
 const DOT_SPREAD_RADIUS   = 80; // px — Poison C spread radius
@@ -153,6 +155,19 @@ export class GameScene extends Phaser.Scene {
    */
   private trailPool!: TrailPool;
 
+  // ── session persistence ────────────────────────────────────────────────────
+  /** Creep kills this run — serialised to auto-save. */
+  private _totalKills = 0;
+  /** Gold earned from kills/waves/bosses this run — serialised to auto-save. */
+  private _goldEarned = 0;
+  /** Overlay container shown during WebGL context loss. */
+  private _webglOverlay: Phaser.GameObjects.Container | null = null;
+  /** Stored to allow removal in shutdown(). */
+  private _visibilityHandler?: () => void;
+  private _pageHideHandler?: () => void;
+  private _webglLostHandler?: (e: Event) => void;
+  private _webglRestoredHandler?: () => void;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -213,6 +228,9 @@ export class GameScene extends Phaser.Scene {
     this.debugVisible        = false;
     this.decoGfx                = null;
     this.decoVisible            = true;
+    this._totalKills         = 0;
+    this._goldEarned         = 0;
+    this._webglOverlay       = null;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -352,8 +370,11 @@ export class GameScene extends Phaser.Scene {
       // Bounty Hunter: kill rewards worth 20% more.
       const rewardMult = this.offerManager.getKillRewardMult();
       // Oshkaabewis: +1 gold per creep kill (stacks with base reward)
-      const cmdBonus   = this.commanderState?.killGoldBonus ?? 0;
-      this.gold += Math.round(data.reward * rewardMult) + cmdBonus;
+      const cmdBonus    = this.commanderState?.killGoldBonus ?? 0;
+      const killGold    = Math.round(data.reward * rewardMult) + cmdBonus;
+      this.gold += killGold;
+      this._totalKills++;
+      this._goldEarned += killGold;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
 
@@ -440,6 +461,7 @@ export class GameScene extends Phaser.Scene {
       const challengeGoldMult = this.challengeModifier?.goldMult ?? 1;
       const adjustedBonus = Math.round(bonus * this.offerManager.getWaveBonusMult() * challengeGoldMult);
       this.gold += adjustedBonus;
+      this._goldEarned += adjustedBonus;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
     });
@@ -458,7 +480,9 @@ export class GameScene extends Phaser.Scene {
 
       // Bonus gold reward (in addition to normal kill gold from 'creep-killed').
       // War Chest offer: +200 additional gold on boss kills.
-      this.gold += data.rewardGold + this.offerManager.getBossKillBonus();
+      const bossGold = data.rewardGold + this.offerManager.getBossKillBonus();
+      this.gold += bossGold;
+      this._goldEarned += bossGold;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
 
@@ -683,6 +707,64 @@ export class GameScene extends Phaser.Scene {
     // NOT auto-call a shutdown() method, so we must wire it ourselves.
     this.events.once('shutdown', this.shutdown, this);
 
+    // ── Session persistence event listeners ─────────────────────────────────
+    // visibilitychange: fires when the user switches tabs / app goes to background.
+    // This is the primary save checkpoint on mobile — fires before the browser
+    // may evict the page.
+    this._visibilityHandler = () => {
+      if (document.hidden && this.gameState === 'between') {
+        this._doAutoSave();
+      }
+    };
+    document.addEventListener('visibilitychange', this._visibilityHandler);
+
+    // pagehide: secondary checkpoint for iOS Safari which doesn't always fire
+    // visibilitychange reliably before page eviction.
+    this._pageHideHandler = () => {
+      if (this.gameState === 'between') {
+        this._doAutoSave();
+      }
+    };
+    window.addEventListener('pagehide', this._pageHideHandler);
+
+    // ── WebGL context loss handling ──────────────────────────────────────────
+    const canvas = this.game.canvas;
+    this._webglLostHandler = (e: Event) => {
+      e.preventDefault();
+      // Pause the game (timeScale=0) and show overlay.
+      this.time.timeScale = 0.001;
+      this._showWebGlOverlay();
+    };
+    this._webglRestoredHandler = () => {
+      this._hideWebGlOverlay();
+      // Attempt to resume from auto-save; if unavailable just reload the scene.
+      const saved = SessionManager.getInstance().load();
+      if (saved && saved.stageId === this.selectedStageId) {
+        // Scene reload — Phaser will re-run init/preload/create.
+        this.scene.restart({
+          commanderId: saved.commanderId,
+          stageId:     saved.stageId,
+          mapId:       saved.mapId,
+        });
+      } else {
+        this.scene.restart();
+      }
+    };
+    canvas.addEventListener('webglcontextlost',     this._webglLostHandler);
+    canvas.addEventListener('webglcontextrestored', this._webglRestoredHandler);
+
+    // ── Auto-save resume check ──────────────────────────────────────────────
+    // Check for a mid-run auto-save matching the current stage.
+    // If found and recent, prompt the player to resume.
+    const sessionMgr = SessionManager.getInstance();
+    const existingSave = sessionMgr.load();
+    if (existingSave && existingSave.stageId === this.selectedStageId
+        && existingSave.commanderId === this.selectedCommanderId
+        && existingSave.currentWave > 0) {
+      // Defer slightly so all Phaser scene objects are fully initialised.
+      this.time.delayedCall(100, () => this._showResumePrompt(existingSave));
+    }
+
     // Show FIRST_PLAY vignette if one was queued (deferred so all UI is built).
     if (firstPlayResult) {
       this.time.delayedCall(300, () => {
@@ -756,6 +838,27 @@ export class GameScene extends Phaser.Scene {
 
     // Cancel any active wave-spawn timers.
     this.waveManager?.cleanup();
+
+    // Remove document/window event listeners registered in create().
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = undefined;
+    }
+    if (this._pageHideHandler) {
+      window.removeEventListener('pagehide', this._pageHideHandler);
+      this._pageHideHandler = undefined;
+    }
+    const canvas = this.game?.canvas;
+    if (canvas) {
+      if (this._webglLostHandler) {
+        canvas.removeEventListener('webglcontextlost', this._webglLostHandler);
+        this._webglLostHandler = undefined;
+      }
+      if (this._webglRestoredHandler) {
+        canvas.removeEventListener('webglcontextrestored', this._webglRestoredHandler);
+        this._webglRestoredHandler = undefined;
+      }
+    }
 
     // Performance systems cleanup.
     this.trailPool?.destroy();
@@ -1127,6 +1230,9 @@ export class GameScene extends Phaser.Scene {
     if (this.gameState === 'over') return;
 
     if (waveNum >= this.totalWaves && !this.isEndlessMode) {
+      // Run complete — clear the auto-save so the player starts fresh next time.
+      SessionManager.getInstance().clear();
+
       // Normal mode: all waves cleared — check for STAGE_COMPLETE vignette.
       const stageVignette = this.vignetteManager.check(TriggerType.STAGE_COMPLETE);
       if (stageVignette) {
@@ -1203,6 +1309,10 @@ export class GameScene extends Phaser.Scene {
 
     this.gameState = 'between';
     AudioManager.getInstance().playWaveComplete();
+
+    // ── Auto-save checkpoint — wave complete, between-wave state ────────────
+    // This is the cleanest save point: no active creeps, tower state is stable.
+    this._doAutoSave();
 
     // Launch the roguelike offer selection scene (runs on top of GameScene).
     // The next-wave button is hidden until the player picks an offer.
@@ -1597,6 +1707,8 @@ export class GameScene extends Phaser.Scene {
   private triggerGameOver(): void {
     if (this.gameState === 'over') return;
     this.gameState = 'over';
+    // Clear auto-save — run is finished (defeat or give-up).
+    SessionManager.getInstance().clear();
     AudioManager.getInstance().playGameOver();
     this.waveManager.cleanup();
 
@@ -1702,5 +1814,232 @@ export class GameScene extends Phaser.Scene {
 
     nearest.takeDamage(40);
     this.drawLightningArc(x, y, nearest.x, nearest.y, 0xff88ff);
+  }
+
+  // ── Session persistence helpers ───────────────────────────────────────────
+
+  /**
+   * Serialise the current run state to sessionStorage.
+   * Called at wave-end, visibilitychange, and pagehide checkpoints.
+   * Only meaningful between waves (gameState === 'between').
+   */
+  private _doAutoSave(): void {
+    if (this.gameState === 'over') return;
+    SessionManager.getInstance().save({
+      mapId:           this.selectedMapId,
+      stageId:         this.selectedStageId,
+      commanderId:     this.selectedCommanderId,
+      currentWave:     this.currentWave,
+      gold:            this.gold,
+      lives:           this.lives,
+      totalKills:      this._totalKills,
+      goldEarned:      this._goldEarned,
+      towers:          this.towers.map(t => {
+        const state = this.upgradeManager.getState(t);
+        return {
+          key:        t.def.key,
+          col:        t.tileCol,
+          row:        t.tileRow,
+          upgrades:   {
+            A: state?.tiers.A ?? 0,
+            B: state?.tiers.B ?? 0,
+            C: state?.tiers.C ?? 0,
+          },
+          totalSpent: state?.totalSpent ?? 0,
+        };
+      }),
+      offers:          this.offerManager.getActiveIds(),
+      consumedOffers:  this.offerManager.getConsumedOneTimeOfferIds(),
+      metaStatBonuses: {},
+    });
+  }
+
+  /**
+   * Show a resume-prompt overlay asking the player if they want to continue
+   * a previous mid-run session.
+   */
+  private _showResumePrompt(autoSave: AutoSave): void {
+    const { width, height } = this.scale;
+    const cx = width  / 2;
+    const cy = height / 2;
+
+    const container = this.add.container(0, 0).setDepth(500);
+
+    // Dark backdrop.
+    const backdrop = this.add.rectangle(cx, cy, width, height, 0x000000, 0.75);
+    container.add(backdrop);
+
+    // Card background.
+    const card = this.add.rectangle(cx, cy, 380, 180, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderActive);
+    container.add(card);
+
+    // Title.
+    const title = this.add.text(cx, cy - 56, 'Resume run?', {
+      fontSize: '22px',
+      color: '#ffffff',
+      fontFamily: PAL.fontBody,
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    container.add(title);
+
+    // Wave info.
+    const info = this.add.text(cx, cy - 24, `Continue from Wave ${autoSave.currentWave + 1}`, {
+      fontSize: '16px',
+      color: PAL.textNeutral,
+      fontFamily: PAL.fontBody,
+    }).setOrigin(0.5);
+    container.add(info);
+
+    // Stats row.
+    const stats = this.add.text(
+      cx, cy + 4,
+      `Gold: ${autoSave.gold}  |  Lives: ${autoSave.lives}  |  Towers: ${autoSave.towers.length}`,
+      { fontSize: '13px', color: PAL.textMuted, fontFamily: PAL.fontBody },
+    ).setOrigin(0.5);
+    container.add(stats);
+
+    // YES button.
+    const yesBg = this.add.rectangle(cx - 80, cy + 50, 120, 40, PAL.accentGreenN, 1)
+      .setInteractive({ useHandCursor: true });
+    const yesLabel = this.add.text(cx - 80, cy + 50, 'YES', {
+      fontSize: '15px', color: '#000000', fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5);
+    container.add(yesBg);
+    container.add(yesLabel);
+
+    yesBg.on('pointerup', () => {
+      container.destroy();
+      this._restoreFromAutoSave(autoSave);
+    });
+
+    // NO button.
+    const noBg = this.add.rectangle(cx + 80, cy + 50, 120, 40, PAL.bgGiveUp, 1)
+      .setStrokeStyle(1, PAL.dangerN)
+      .setInteractive({ useHandCursor: true });
+    const noLabel = this.add.text(cx + 80, cy + 50, 'NO — Start Fresh', {
+      fontSize: '12px', color: PAL.danger, fontFamily: PAL.fontBody,
+    }).setOrigin(0.5);
+    container.add(noBg);
+    container.add(noLabel);
+
+    noBg.on('pointerup', () => {
+      container.destroy();
+      // Clear save so the normal wave-1 flow proceeds.
+      SessionManager.getInstance().clear();
+    });
+  }
+
+  /**
+   * Restore game state from an auto-save snapshot.
+   * Called when the player taps YES on the resume prompt.
+   */
+  private _restoreFromAutoSave(autoSave: AutoSave): void {
+    // ── Restore scalar state ───────────────────────────────────────────────
+    this.gold        = autoSave.gold;
+    this.lives       = autoSave.lives;
+    this.currentWave = autoSave.currentWave;
+    this._totalKills = autoSave.totalKills;
+    this._goldEarned = autoSave.goldEarned;
+    this.gameState   = 'between';
+
+    this.hud.setGold(this.gold);
+    this.hud.setLives(this.lives);
+    this.hud.setWave(this.currentWave, this.totalWaves, this.isEndlessMode);
+
+    // ── Restore offers ────────────────────────────────────────────────────
+    this.offerManager.restoreFromIds(
+      autoSave.offers,
+      autoSave.consumedOffers ?? [],
+    );
+    this.offerManager.setCurrentLives(this.lives);
+    this.offerManager.setWavesCompleted(autoSave.currentWave);
+
+    // ── Restore towers ────────────────────────────────────────────────────
+    for (const saved of autoSave.towers) {
+      this._placeRestoredTower(saved);
+    }
+
+    // ── Show next-wave button for wave N+1 ────────────────────────────────
+    this.hud.setNextWaveVisible(true, this.currentWave + 1, this.isEndlessMode);
+
+    // Show banner for the upcoming wave (slightly deferred so HUD is ready).
+    this.time.delayedCall(200, () => this.showWaveBanner(this.currentWave + 1));
+  }
+
+  /**
+   * Re-create a single tower from its saved state and replay its upgrades.
+   * Gold is NOT deducted — the saved `gold` field already reflects post-purchase state.
+   */
+  private _placeRestoredTower(saved: AutoSaveTower): void {
+    const def = ALL_TOWER_DEFS.find(d => d.key === saved.key);
+    if (!def) return;
+    if (this.isTileOccupied(saved.col, saved.row)) return;
+
+    const tower = new Tower(
+      this,
+      saved.col,
+      saved.row,
+      this.mapData.tileSize,
+      def,
+      () => this.activeCreeps,
+      (proj) => this.projectiles.add(proj),
+      this.offerManager,
+      (key) => AudioManager.getInstance().playProjectileFired(key),
+      this.commanderState ?? undefined,
+      (x, y, r) => this.spatialGrid.queryRadius(x, y, r),
+    );
+
+    this.upgradeManager.registerTower(tower);
+
+    // Apply gear bonuses (same as tryPlaceTower).
+    const gearBonuses = resolveGearBonuses(def.key);
+    if (gearBonuses.damagePct || gearBonuses.rangePct || gearBonuses.attackSpeedPct ||
+        gearBonuses.chainCountBonus || gearBonuses.slowPctBonus || gearBonuses.auraStrengthPct ||
+        gearBonuses.specialEffects.length > 0) {
+      applyGearToStats(tower.upgStats, gearBonuses);
+    }
+
+    // Re-apply upgrades tier by tier — paths in order A, B, C.
+    // buyUpgrade returns the cost; we discard it (no gold deduction).
+    const tiers = saved.upgrades;
+    for (const path of ['A', 'B', 'C'] as const) {
+      const targetTier = tiers[path] ?? 0;
+      for (let i = 0; i < targetTier; i++) {
+        this.upgradeManager.buyUpgrade(tower, path);
+      }
+    }
+
+    tower.on('pointerup', () => this.selectTower(tower));
+    this.towers.push(tower);
+  }
+
+  /**
+   * Show a full-screen "Game paused — tap to resume" overlay.
+   * Used during WebGL context loss until context is restored.
+   */
+  private _showWebGlOverlay(): void {
+    if (this._webglOverlay) return; // already showing
+
+    const { width, height } = this.scale;
+    const container = this.add.container(0, 0).setDepth(1000);
+
+    container.add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85));
+    container.add(this.add.text(width / 2, height / 2, 'Game paused\u2014tap to resume', {
+      fontSize:   '24px',
+      color:      '#ffffff',
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5));
+
+    this._webglOverlay = container;
+  }
+
+  /**
+   * Remove the WebGL context-loss overlay.
+   */
+  private _hideWebGlOverlay(): void {
+    this._webglOverlay?.destroy();
+    this._webglOverlay = null;
   }
 }

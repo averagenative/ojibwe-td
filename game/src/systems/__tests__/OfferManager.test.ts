@@ -690,4 +690,72 @@ describe('OfferManager', () => {
       expect(calculateSellRefund(100)).toBe(70); // default unchanged
     });
   });
+
+  // ── Session save/restore helpers ──────────────────────────────────────────
+
+  describe('getActiveIds', () => {
+    it('returns empty array when no offers are active', () => {
+      expect(om.getActiveIds()).toEqual([]);
+    });
+
+    it('returns all active offer IDs', () => {
+      om.applyOffer('gold-rush');
+      om.applyOffer('veteran-arms');
+      const ids = om.getActiveIds();
+      expect(ids).toHaveLength(2);
+      expect(ids).toContain('gold-rush');
+      expect(ids).toContain('veteran-arms');
+    });
+
+    it('returns a plain array (not a Set reference)', () => {
+      om.applyOffer('gold-rush');
+      const ids = om.getActiveIds();
+      expect(Array.isArray(ids)).toBe(true);
+    });
+  });
+
+  describe('getConsumedOneTimeOfferIds', () => {
+    it('returns empty array when salvage is not consumed', () => {
+      expect(om.getConsumedOneTimeOfferIds()).toEqual([]);
+    });
+
+    it('returns empty array when salvage is active but not consumed', () => {
+      om.applyOffer('salvage');
+      expect(om.getConsumedOneTimeOfferIds()).toEqual([]);
+    });
+
+    it('returns ["salvage"] after salvage is consumed', () => {
+      om.applyOffer('salvage');
+      om.consumeSalvage();
+      expect(om.getConsumedOneTimeOfferIds()).toEqual(['salvage']);
+    });
+  });
+
+  describe('restoreFromIds', () => {
+    it('activates offers without the draw flow', () => {
+      om.restoreFromIds(['gold-rush', 'veteran-arms']);
+      expect(om.getActiveIds()).toContain('gold-rush');
+      expect(om.getActiveIds()).toContain('veteran-arms');
+    });
+
+    it('marks salvage as consumed when in consumedOfferIds', () => {
+      om.restoreFromIds(['salvage'], ['salvage']);
+      expect(om.isSalvageAvailable()).toBe(false);
+    });
+
+    it('does not mark salvage consumed when not in consumedOfferIds', () => {
+      om.restoreFromIds(['salvage'], []);
+      expect(om.isSalvageAvailable()).toBe(true);
+    });
+
+    it('restores empty arrays without error', () => {
+      expect(() => om.restoreFromIds([], [])).not.toThrow();
+      expect(om.getActiveIds()).toEqual([]);
+    });
+
+    it('restored offers affect game queries', () => {
+      om.restoreFromIds(['bounty-hunter']);
+      expect(om.getKillRewardMult()).toBeGreaterThan(1);
+    });
+  });
 });
