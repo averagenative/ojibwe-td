@@ -643,3 +643,13 @@ Boss waves previously spawned only the boss itself (`totalToSpawn = 1`), leaving
 **Endless mode auto-escorts.** `generateEndlessWave()` now attaches an escort pack to every endless boss (waves 25+): `count = 4 + floor((waveNum − 25) / 5)`, drawing from runner and brute types at a 1000 ms interval. This means the escort pack grows by one creep for every five endless waves, keeping boss encounters progressively more intense without any manual data entry.
 
 **Test coverage.** `WaveManager.boss.e2e.test.ts` was extended with new assertions confirming that a boss wave with escorts fires `wave-complete` only after all escorts are settled (killed or escaped), that `totalToSpawn` reflects the escort count, and that endless boss waves auto-generate escort packs of the correct size. `endlessMode.test.ts` likewise gains assertions on escort scaling at wave 25, 30, and 35. The full suite passes at 672 tests with 0 type errors.
+
+---
+
+### TASK-036 — GitHub README for Ojibwe TD
+
+The repo finally has a front door. `README.md` was added at the repository root to give any visitor a clear picture of what Ojibwe TD is, how to run it, and why it exists.
+
+**Structure.** The README opens with the game name and a single-line tagline, followed by a screenshot placeholder and three shields (Phaser 3, TypeScript, Vite). A "What is this?" paragraph explains the Green TD lineage, the roguelike layer, and the Ojibwe/Anishinaabe roots — giving full credit to the original Green TD creators while making clear this is a clean-room reimplementation. A feature table lists all six tower archetypes and every major system, distinguishing shipped features (✅) from planned ones, so the table is honest rather than aspirational. The getting-started section covers the four-command local setup (clone → `cd game` → `npm install` → `npm run dev`) with a direct link to `localhost:5173`. A short asset-generation blurb points to `docs/asset-generation.md`. The contributing section explains the `tasks/` directory structure and the orchestrator workflow so external contributors know exactly where to start. The credits section honours the original Green TD map and includes a cultural acknowledgment of the Ojibwe/Anishinaabe heritage behind the project name.
+
+**Tone.** The README is warm and direct — this is a personal passion project, and the writing reflects that without being self-indulgent. It stays under 75 lines, favours quality over length, and avoids internal paths or tooling details that would only confuse outside readers.
