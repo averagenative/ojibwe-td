@@ -1,7 +1,7 @@
 ---
 id: TASK-049
 title: Creep Directional Sprites — Face Movement Direction
-status: in-progress
+status: done
 priority: high
 phase: gameplay
 ---

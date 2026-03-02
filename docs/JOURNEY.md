@@ -670,4 +670,20 @@ The map background was an eyesore: four tile icons (`tile-tree.png`, `tile-brush
 
 **GameScene wiring.** `GameScene.renderMap()` no longer stamps tile images — the four old `Image` create calls are removed. Instead it calls `renderTerrain(this, this.mapData, this.selectedMapId, stageTheme)` once after the path Graphics draw. The old `TILE_KEYS` array and `TILE_SIZE_SCALE` constant are deleted.
 
+---
+
+### TASK-049 — Creep Directional Sprites — Face Movement Direction
+
+Creeps previously looked identical no matter which direction they were heading — a blob marching left looked the same as one marching right or charging down the screen. TASK-049 gives every creep a sense of orientation and life.
+
+**Direction detection.** A new `CreepDirection` type (`'left' | 'right' | 'up' | 'down'`) and a pure `computeDirection(dx, dy)` function were added to `src/data/pathing.ts`. The rule is simple: whichever axis has greater absolute magnitude wins; ties go horizontal; the zero-vector defaults to `'right'`. `Creep.ts` imports this and sets the initial direction in the constructor from the first waypoint segment, so creeps face the right way the instant they spawn. Each `step()` call recomputes direction from the current movement vector and calls `updateDirectionalVisual()` only when the direction actually changes — keeping per-frame work to a minimum.
+
+**Shape variation.** Rather than just flipping a texture, `updateDirectionalVisual()` reshapes the procedural body rectangle: horizontal movement produces a wide, low silhouette (`30×18 px`); vertical movement produces a tall, narrow one (`18×30 px`). Boss creeps scale up proportionally (`56×36` / `36×56`). The HP bar and body image are repositioned to stay centred after the resize. This gives the battlefield a genuine readability improvement — a column of creeps marching downward looks visually distinct from one streaming to the right.
+
+**Armour badge.** Armoured creeps gained a small rectangular badge (`8×4 px`, silver-blue `0xaaaacc`) that tracks the creep's leading edge. `computeArmorBasePos()` places it just ahead of the body in the current direction; it is refreshed on every direction change so the badge always sits at the "front" regardless of whether the creep is heading left, right, up, or down.
+
+**Bobbing animation.** A sine-wave bob is applied to the body Y offset every frame: amplitude ±1.5 px, frequency proportional to effective move speed via `BOB_FREQ_FACTOR = 0.157 rad·s/px` (giving roughly 2 Hz at the 80 px/s base speed). The phase accumulates continuously so the animation never resets or jumps. Faster creeps and hasted creeps bob more quickly; slowed/frozen creeps naturally bob slower because effective speed is reduced. The HP bar and armour badge bob in unison with the body.
+
+**Tests.** Twenty-three unit tests in `src/systems/__tests__/creepDirection.test.ts` cover: `computeDirection` for all eight quadrants, the tie-breaking and zero-vector edge cases; initial direction at spawn; direction change on the first `step()`; body dimensions per direction for normal and boss creeps; armour badge position per direction; and bob amplitude staying within the declared bound.
+
 **Test coverage.** `src/systems/__tests__/TerrainRenderer.test.ts` adds 33 Vitest tests: `mapIdToSeed` returns consistent values, `posHash` is deterministic and distributed, `shiftBrightness` clamps at 0 and 255, every `PALETTES` season entry contains all required fields with valid colour values, `hasAdjacentPath` and `isNearSpawnOrExit` guard correctly, and a `buildTestMap()` integration helper validates that `renderTerrain` calls Graphics methods without throwing. The full suite passes at 705 tests with 0 type errors.
