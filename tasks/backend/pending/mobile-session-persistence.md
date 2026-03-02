@@ -1,7 +1,7 @@
 ---
 id: TASK-077
 title: Mobile Session Persistence — Auto-Save & Restore Game State on Tab Switch
-status: pending
+status: in-progress
 priority: high
 phase: bugfix
 ---

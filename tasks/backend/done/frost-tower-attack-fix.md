@@ -1,7 +1,7 @@
 ---
 id: TASK-076
 title: Frost Tower Attack Fix — Inspect & Repair Targeting, Projectile, and Visual
-status: pending
+status: done
 priority: high
 phase: bugfix
 ---

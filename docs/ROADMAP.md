@@ -1419,6 +1419,57 @@ Non-blocking items surfaced during Opus review of the mobile-responsive branch:
    `SIGNATURE_ABILITIES` in `enhancementDefs.ts` define 6 per-commander abilities with descriptions
    and icon IDs, but there's no activation UI or gameplay effect. These are Phase 4 stretch items.
 
+### TASK-076 Frost Tower Attack Fix (non-blocking)
+
+1. **Shatter on-hit ordering regression tests are conceptual, not integration.**
+   The `Frost shatter on-hit ordering` tests in `targeting.test.ts` use mock functions to
+   demonstrate the correct call ordering (`onHit` before `takeDamage`), but don't exercise the
+   actual `Projectile.hitCreep()` method. A future integration test using a Phaser scene stub
+   could directly verify the ordering in the real code path.
+
+2. **`applyAoe` onHit reorder affects mortar synergies too.**
+   The `onHit`-before-`takeDamage` fix in `Projectile.applyAoe()` also changes mortar's Toxic
+   Shrapnel / Explosive Residue / Acid Rain ordering. This is functionally safe (DoT/slow applied
+   to a still-alive creep, then damage kills it), but there's no dedicated test covering this
+   mortar AoE + onHit interaction.
+
+3. **Frost STRONGEST priority can appear visually erratic.**
+   When multiple creeps have similar HP, the frost tower rapidly switches between them each
+   attack cycle (since the "strongest" candidate changes as creeps take damage from other towers).
+   Consider a short target-lock duration (500ms cooldown before re-evaluating) to make frost feel
+   more precise. Makoons sticky targeting already solves this for one commander — could be made
+   the default for frost.
+
+### TASK-077 Mobile Session Persistence (non-blocking)
+
+1. **visibilitychange / pagehide only save in 'between' state.**
+   The acceptance criteria lists `visibilitychange` and `pagehide` as save checkpoints without
+   restricting to between-wave state. The implementation guards both with
+   `this.gameState === 'between'`, which means a mid-wave tab switch on mobile won't save.
+   This is a deliberate design choice (mid-wave state is messy — active creeps, in-flight
+   projectiles), but means the player loses progress if the browser evicts mid-wave. A future
+   improvement could save a "dirty" snapshot mid-wave with a flag to restart the wave from
+   scratch on restore, rather than losing everything.
+
+2. **metaStatBonuses saved as empty `{}`.**
+   The auto-save always writes `metaStatBonuses: {}`. The current GameScene no longer applies
+   meta stat bonuses at create-time (the feature appears to have been refactored or moved
+   elsewhere), so this is a no-op. If meta stat bonuses are reintroduced to GameScene, the
+   save/restore path should serialize them. The `AutoSave` interface keeps the field for
+   forward-compatibility.
+
+3. **OfferManager internal counters not restored.**
+   `restoreFromIds()` activates offer IDs but doesn't restore internal state like `totalKills`,
+   `shockwaveCounter`, or `totalTowersPlaced`. This means kill-count-gated effects (Shockwave
+   every 10 kills) reset on restore. Acceptable for now — these are minor combat effects and
+   serializing all internal counters would significantly increase save complexity.
+
+4. **WebGL overlay text is not interactive.**
+   The "Game paused — tap to resume" overlay text is purely informational — the actual resume
+   happens via the `webglcontextrestored` event (browser-initiated), not via user tap. The
+   wording could mislead players into thinking tapping will fix it. Consider changing to
+   "Game paused — waiting for graphics to recover" or adding an actual tap-to-reload fallback.
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
