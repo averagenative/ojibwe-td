@@ -364,4 +364,36 @@ export class OfferManager {
 
   /** Thunder Quake: Tesla chain hits AoE 15 dmg in 30px. */
   hasThunderQuake(): boolean { return this.activeIds.has('thunder-quake'); }
+
+  // ── Session save/restore ───────────────────────────────────────────────────
+
+  /** Return current active offer IDs as an array (for auto-save serialisation). */
+  getActiveIds(): string[] {
+    return Array.from(this.activeIds);
+  }
+
+  /**
+   * Return IDs of one-time offers that have already been consumed.
+   * Currently only 'salvage' is a one-time offer.
+   */
+  getConsumedOneTimeOfferIds(): string[] {
+    const consumed: string[] = [];
+    if (this._salvageConsumed) consumed.push('salvage');
+    return consumed;
+  }
+
+  /**
+   * Restore offer state from a saved ID list.
+   * Activates all given offer IDs without going through the draw/select flow.
+   * `consumedOfferIds` marks one-time offers that were already used so they
+   * are not re-granted to the player.
+   */
+  restoreFromIds(ids: string[], consumedOfferIds: string[] = []): void {
+    for (const id of ids) {
+      this.activeIds.add(id);
+    }
+    if (consumedOfferIds.includes('salvage')) {
+      this._salvageConsumed = true;
+    }
+  }
 }
