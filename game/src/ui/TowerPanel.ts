@@ -50,7 +50,7 @@ export class TowerPanel {
   constructor(
     scene: Phaser.Scene,
     defs: TowerDef[],
-    onSelect: (def: TowerDef) => void,
+    onSelect: (def: TowerDef, isDrag?: boolean) => void,
     getGold: () => number,
   ) {
     this._scene = scene;
@@ -156,8 +156,56 @@ export class TowerPanel {
           if (getGold() >= def.cost) onSelect(def);
         });
       } else {
+        // Desktop: support both click-to-select AND drag-to-place.
+        // Track a drag candidate on pointerdown; if the pointer moves > 10 px
+        // before lifting, enter placement mode immediately (drag-to-place).
+        // If the pointer lifts without exceeding the threshold it's a normal
+        // click — the existing behaviour.
+
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragFired = false;
+
+        const cleanupSceneListeners = () => {
+          scene.input.off('pointermove', onSceneMove);
+          scene.input.off('pointerup',   onSceneUp);
+        };
+
+        const onSceneMove = (ptr: Phaser.Input.Pointer) => {
+          if (dragFired) return;
+          const dx = ptr.x - dragStartX;
+          const dy = ptr.y - dragStartY;
+          if (Math.hypot(dx, dy) > 10) {
+            dragFired = true;
+            cleanupSceneListeners();
+            if (getGold() >= def.cost) onSelect(def, true);
+          }
+        };
+
+        // Scene-level pointerup: cleans up listeners if the pointer lifted
+        // without exceeding the drag threshold (e.g. moved off-button then up).
+        const onSceneUp = () => {
+          cleanupSceneListeners();
+          dragFired = false;
+        };
+
+        btn.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+          if (ptr.leftButtonDown()) {
+            dragStartX = ptr.x;
+            dragStartY = ptr.y;
+            dragFired  = false;
+            scene.input.on('pointermove', onSceneMove);
+            scene.input.on('pointerup',   onSceneUp);
+          }
+        });
+
+        // Button pointerup: fires when the pointer lifts *over* the button.
+        // If no drag was detected, treat it as a normal click.
         btn.on('pointerup', () => {
-          if (getGold() >= def.cost) onSelect(def);
+          const wasDrag = dragFired;
+          dragFired = false;
+          cleanupSceneListeners();
+          if (!wasDrag && getGold() >= def.cost) onSelect(def, false);
         });
       }
     });

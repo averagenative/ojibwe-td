@@ -92,6 +92,8 @@ export class GameScene extends Phaser.Scene {
 
   // ── placement ─────────────────────────────────────────────────────────────
   private placementDef: TowerDef | null = null;
+  /** True while the player is drag-placing a tower from the panel on desktop. */
+  private _isDragPlacing = false;
   private rangePreview!:    Phaser.GameObjects.Graphics;
   private placementMarker!: Phaser.GameObjects.Rectangle;
   private placementHint: Phaser.GameObjects.Text | null = null;
@@ -227,6 +229,7 @@ export class GameScene extends Phaser.Scene {
     this._prePauseSpeed  = 1;
     this.selectedTower   = null;
     this.placementDef    = null;
+    this._isDragPlacing  = false;
     this.bossOfferPanel  = null;
     this.pendingBossKillKey  = null;
     this.firstAirWaveSeen    = false;
@@ -581,7 +584,7 @@ export class GameScene extends Phaser.Scene {
     const panelDefs = this.challengeModifier
       ? ALL_TOWER_DEFS.filter(d => !(this.challengeModifier!.bannedTowers ?? []).includes(d.key))
       : ALL_TOWER_DEFS;
-    new TowerPanel(this, panelDefs, (def) => this.enterPlacementMode(def), () => this.gold);
+    new TowerPanel(this, panelDefs, (def, isDrag) => this.enterPlacementMode(def, isDrag), () => this.gold);
 
     // Upgrade panel (above tower panel — shown when a tower is selected)
     this.upgradePanel = new UpgradePanel(
@@ -617,10 +620,8 @@ export class GameScene extends Phaser.Scene {
     // Input
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
-    if (MobileManager.getInstance().isMobile()) {
-      // Mobile: place tower on finger-lift (drag-to-place from TowerPanel).
-      this.input.on('pointerup', this.onPointerUp, this);
-    }
+    // Register pointerup for both mobile drag-to-place and desktop drag-to-place.
+    this.input.on('pointerup', this.onPointerUp, this);
     // ── BetweenWaveScene offer-picked event ───────────────────────────────
     // Fired by BetweenWaveScene after the player selects a card.
     // Applies any instant-gold offer effect and reveals the next-wave button.
@@ -1038,9 +1039,21 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Mobile: place tower on finger-lift (drag-to-place). */
+  /**
+   * Place tower on pointer-lift — handles both mobile drag-to-place and
+   * desktop drag-to-place.
+   *
+   * Desktop click-to-place is handled in onPointerDown and does NOT reach
+   * here (placement mode is exited before this fires, or _isDragPlacing is
+   * false and we skip the handler early).
+   */
   private onPointerUp(ptr: Phaser.Input.Pointer): void {
     if (!this.placementDef) return;
+
+    // Desktop click-to-place: placement is handled in onPointerDown.
+    // Skip here to avoid double-processing or accidental cancellation.
+    const isMobile = MobileManager.getInstance().isMobile();
+    if (!isMobile && !this._isDragPlacing) return;
 
     const hudHeight   = getHudHeight();
     const panelsOpen  = this.upgradePanel.isOpen();
@@ -1048,12 +1061,23 @@ export class GameScene extends Phaser.Scene {
       - PANEL_HEIGHT
       - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
 
-    // Finger lifted inside the map area — place the tower.
     if (ptr.y >= hudHeight && ptr.y <= bottomLimit) {
-      this.tryPlaceTower(ptr.x, ptr.y);
-    }
-    // Finger lifted outside the map (back on panel/HUD) — cancel placement.
-    else {
+      if (this._isDragPlacing) {
+        // Desktop drag: dropping on an invalid tile cancels placement so the
+        // player gets clear feedback that the drop did not succeed.
+        const { col, row } = this.worldToTile(ptr.x, ptr.y);
+        if (!this.isBuildable(col, row) || this.isTileOccupied(col, row)) {
+          this.exitPlacementMode();
+        } else {
+          this.tryPlaceTower(ptr.x, ptr.y);
+        }
+      } else {
+        // Mobile: existing behaviour — silently skip if tile is invalid so
+        // the player can lift and retry without losing placement mode.
+        this.tryPlaceTower(ptr.x, ptr.y);
+      }
+    } else {
+      // Pointer lifted over HUD or bottom panel — cancel placement.
       this.exitPlacementMode();
     }
   }
@@ -1069,9 +1093,12 @@ export class GameScene extends Phaser.Scene {
 
   // ── placement ─────────────────────────────────────────────────────────────
 
-  private enterPlacementMode(def: TowerDef): void {
+  private enterPlacementMode(def: TowerDef, isDrag = false): void {
     AudioManager.getInstance().playUiClick();
-    this.placementDef = def;
+    this.placementDef    = def;
+    // Only set drag flag for desktop; mobile placement is always treated as
+    // drag by the existing mobile pointerup handler (no cancel-on-invalid).
+    this._isDragPlacing  = isDrag && !MobileManager.getInstance().isMobile();
     this.rangePreview.setVisible(true);
     this.placementMarker.setVisible(true);
     this.placementHint?.setVisible(true);
@@ -1079,7 +1106,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private exitPlacementMode(): void {
-    this.placementDef = null;
+    this.placementDef    = null;
+    this._isDragPlacing  = false;
     this.rangePreview.setVisible(false);
     this.placementMarker.setVisible(false);
     this.placementHint?.setVisible(false);
