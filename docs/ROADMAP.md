@@ -1564,6 +1564,41 @@ follow-up items.
    This pairs with the story/vignette system and should be tracked as a
    separate story-layer task.
 
+### TASK-087: Codex Notification Badge — Clear on View (non-blocking)
+
+- **`createBackButton` name is misleading**: The method now creates both a MARK ALL
+  READ button and a BACK button. Consider renaming to `createBottomButtons` for
+  clarity in a future polish pass.
+- **Default-unlocked entries show as unread on fresh install**: On a brand-new save,
+  the badge displays the count of default-unlocked codex entries (currently 2–3).
+  This is arguably good UX (nudges new players toward the Codex) but differs from the
+  old behavior where the badge only counted explicitly-unlocked entries. Monitor
+  player feedback; if the initial badge is confusing, add a one-time auto-mark-read
+  for default entries on first launch.
+- **`readCodexIds` linear scan**: `includes()` is O(n) on the read-IDs array but
+  bounded at ~22 entries so negligible. If the codex grows significantly (100+
+  entries), consider converting to a `Set` in-memory for lookup.
+
+---
+
+## Non-blocking: TASK-085 (Challenges List Scrollable) review findings
+
+*Added 2026-03-02 by code review.*
+
+1. **Drag-vs-tap disambiguation on scrollable card list**: When the user starts a
+   pointer drag on an unlocked challenge card and scrolls only slightly before
+   releasing, the card's `pointerup` handler can still fire, potentially launching
+   the game unintentionally.  Recommend adding a drag-distance threshold
+   (e.g. >10 px movement = scroll, ≤10 px = tap) before treating the gesture as
+   a card click.  Affects `ChallengeSelectScene._setupScrollInput()` and the
+   interactive card `pointerup` binding in `_renderCard()`.
+
+2. **Wheel handler parameter names are misleading**: The unused parameters in the
+   `'wheel'` callback are named `_gx` / `_gy` (suggesting coordinates) but
+   actually correspond to Phaser's `currentlyOver: GameObject[]` and `deltaX`.
+   Harmless since they're unused, but renaming to `_over` / `_dx` would improve
+   readability if the file is touched again.
+
 ---
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

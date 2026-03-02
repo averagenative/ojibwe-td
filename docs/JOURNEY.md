@@ -995,3 +995,15 @@ Status effects (poison DoT, frost slow, shatter, armour shred) were mechanically
 **Tesla residual static.** `_teslaShockedMs` counts down 500 ms after a chain-lightning hit, keeping the electric arc particles alive as a brief residual sparkle. Once the countdown reaches zero `refreshStatusVisual()` clears the tesla layer cleanly.
 
 **Test coverage.** `statusEffectVisuals.test.ts` (57 tests, new) validates all EFFECT_CONFIGS entries (colour ranges, alpha bounds, particle counts, icon names), the stack-scaling helpers (monotonicity, caps, boundary cases), `activeEffectKeys` order and composability, ICON_COLORS completeness, icon-bar constants, and a composability suite confirming all five simultaneous effects produce distinct, non-conflicting configs. Total: 1 306 tests passing, 0 type errors.
+
+### TASK-085 — Challenges List Scrollable (2026-03-02)
+
+The challenges list in `ChallengeSelectScene` previously clipped any cards that extended beyond the visible viewport, making challenges inaccessible when the list grew long. The fix replaces the static layout with a camera-scroll pattern: world bounds are set to the full content height (derived from `ALL_CHALLENGES.length × (CARD_H + CARD_GAP)`), and the Phaser main camera scrolls vertically over that content rather than the content being cropped.
+
+**Scroll input.** Mouse-wheel events call `camera.scrollY` directly. Pointer-down captures `_dragStartY` and `_dragStartScrollY`; pointer-move during drag computes the delta and updates the camera, storing the per-frame delta as `_scrollVelocity`. On pointer-up the drag flag is cleared and the velocity is kept so momentum coasts to a stop. Each `update()` tick applies `SCROLL_FRICTION = 0.88` decay until velocity drops below `MIN_VELOCITY = 0.5 px/frame`, giving a natural flick-scroll feel on both desktop and touch.
+
+**Pinned HUD elements.** The BACK button strip, scrollbar track/thumb, and bottom-fade gradient all use `setScrollFactor(0)` so they remain fixed to screen coordinates regardless of camera position. The scrollbar thumb height is calculated as `(viewportH / contentHeight) × trackH` and is redrawn each `update()` call proportional to `camera.scrollY / _maxScrollY`. The fade gradient is a `Graphics` object drawing `FADE_STEPS = 8` horizontal bands from transparent to `PAL.bgDark` across `FADE_HEIGHT = 60 px` at the bottom of the screen.
+
+**Scroll reset.** `create()` now calls `this.cameras.main.setScroll(0, 0)` and zeros all scroll-state fields before rebuilding the card list, so re-entering the scene always starts at the top.
+
+**Test coverage.** `challengesListScroll.test.ts` (42 tests, new) covers the scroll-state machine: initial state, wheel delta clamping, drag start/move/up momentum capture, friction decay convergence, `_maxScrollY` boundary clamping, thumb height proportionality, thumb Y-position tracking, and fade-gradient visibility toggling. Total: 1 389 tests passing, 0 type errors.

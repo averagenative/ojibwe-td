@@ -37,6 +37,8 @@ RETRY_DELAY=90
 QUOTA_WAIT=1800         # seconds to wait after quota/billing exhaustion (30 min)
 QUOTA_MAX_WAIT=48       # max quota-wait cycles before giving up (~24 h)
 PARALLEL_LIMIT=2         # max simultaneous implement+review workers
+API_COOLDOWN=300           # seconds to wait when API appears down (5 min)
+MAX_CONSECUTIVE_FAILS=3    # all-fail batches before entering cooldown
 
 PARALLEL_STATE_FILE="$REPO_DIR/.orch_parallel_state"
 PAUSE_FILE="$REPO_DIR/.orch_pause"
@@ -208,6 +210,18 @@ run_agent() {
       rm -f "$tmp"
       sleep "$RETRY_DELAY"
       prompt="$(printf '[RESUME] Previous attempt hit a limit. Check current state and continue.\n\n%s' "$base_prompt")"
+      continue
+    fi
+
+    # ── Tier 3: API connectivity / server errors — wait and retry ──────────
+    if grep -qiE \
+      "ECONNREFUSED|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENOTFOUND|socket hang up|fetch failed|network error|500 |502 |503 |504 |internal server error|service unavailable|bad gateway|gateway timeout|api.*error|connection.*refused|connection.*reset|unable to connect" \
+      "$tmp" 2>/dev/null
+    then
+      log "[$log_prefix] $label — API connectivity error; waiting ${RETRY_DELAY}s…"
+      rm -f "$tmp"
+      sleep "$RETRY_DELAY"
+      prompt="$(printf '[RESUME] Previous attempt hit an API error. Check current state and continue.\n\n%s' "$base_prompt")"
       continue
     fi
 
@@ -484,6 +498,7 @@ main() {
 
   # ── Continuous loop: keep picking batches until the queue is empty ────────
   local batch_num=0
+  local consecutive_fail_batches=0
 
   while true; do
     batch_num=$(( batch_num + 1 ))
@@ -562,6 +577,12 @@ main() {
 
       if [[ "$result" == FAIL* ]]; then
         log "Skipping ship for task $i — worker reported failure."
+        # Reset the task back to pending so it can be retried
+        local failed_task="${tasks[$i]}"
+        if [ -f "$failed_task" ]; then
+          sed -i 's/^status: in-progress$/status: pending/' "$failed_task"
+          log "Reset $failed_task to pending for retry."
+        fi
         continue
       fi
 
@@ -582,10 +603,51 @@ main() {
     if $all_ok; then
       log "=== Batch $batch_num complete — all tasks shipped ==="
       state_clear
+      consecutive_fail_batches=0
     else
       log "=== Batch $batch_num done with errors — check logs above ==="
       log "Continuing to next batch…"
       state_clear
+
+      # Check if ANY task shipped this batch
+      local any_shipped=false
+      for task_file in "${tasks[@]}"; do
+        local dp
+        dp=$(done_path_for "$task_file")
+        if [ -f "$dp" ]; then
+          any_shipped=true
+          break
+        fi
+      done
+
+      if ! $any_shipped; then
+        consecutive_fail_batches=$(( consecutive_fail_batches + 1 ))
+        log "WARNING: No tasks shipped in batch $batch_num (consecutive failures: $consecutive_fail_batches/$MAX_CONSECUTIVE_FAILS)"
+
+        if [ "$consecutive_fail_batches" -ge "$MAX_CONSECUTIVE_FAILS" ]; then
+          log "=== API appears down — entering cooldown (${API_COOLDOWN}s / $(( API_COOLDOWN / 60 )) min) ==="
+          log "Tasks have been reset to pending. Will auto-retry after cooldown."
+          log "To stop: touch .orch_stop or Ctrl+C"
+
+          local cooldown_end=$(( $(date +%s) + API_COOLDOWN ))
+          while [ "$(date +%s)" -lt "$cooldown_end" ]; do
+            if [ -f "$STOP_FILE" ]; then
+              rm -f "$STOP_FILE"
+              log "Stop file detected during cooldown — exiting."
+              break 2  # break out of both loops
+            fi
+            if $SHUTDOWN_REQUESTED; then
+              log "Shutdown during cooldown — exiting."
+              break 2
+            fi
+            sleep 10
+          done
+          log "Cooldown complete — retrying…"
+          # Don't reset consecutive_fail_batches — it will reset on first successful batch
+        fi
+      else
+        consecutive_fail_batches=0
+      fi
     fi
 
     # ── Check for stop/pause/shutdown between batches ───────────────────────
