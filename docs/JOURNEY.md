@@ -610,4 +610,20 @@ Players had no way to evaluate tower choices before committing gold — the bott
 
 **Tooltip rendering.** `TowerPanel` now creates a shared set of reusable Phaser `Graphics` and `Text` objects (hidden by default) rather than spawning/destroying DOM elements per hover. On `pointerover`, `_showTooltip(def, bx, panelY)` positions the background rect just above the panel edge, stacks five text rows (name, cost, dmg/interval, range, description), and uses `clampTooltipX()` from a new `src/ui/tooltipFormat.ts` helper to prevent right-edge clipping. On `pointerout`, `_hideTooltip()` hides all objects instantly. A `formatDmgLine()` helper in the same module renders Aura towers as "passive — no damage" rather than showing a misleading "0 dmg" line.
 
+---
+
+### TASK-038 — Wire Generated Assets Into Game UI
+
+The DALL-E pipeline had generated 25 assets — commander portraits, creep sprites, and map tiles — but the game was still rendering coloured rectangles everywhere. TASK-038 wires every asset into the scenes that use it so players see Ojibwe art instead of placeholder geometry.
+
+**BootScene.** Five portrait images (`portrait-nokomis`, `portrait-makoons`, `portrait-waabizii`, `portrait-bizhiw`, `portrait-animikiikaa`), eight creep sprites (`creep-normal`, `creep-fast`, `creep-armored`, `creep-immune`, `creep-regen`, `creep-flying`, `creep-boss`, `creep-boss-mini`), and four map tiles (`tile-tree`, `tile-brush`, `tile-rock`, `tile-water`) are now loaded alongside the existing icon textures in `BootScene.preload()`.
+
+**Creep sprites.** `Creep.ts` replaces its tinted `Graphics` rectangle with a `Phaser.GameObjects.Image` sized to 44×44 px. A `CREEP_SPRITE_KEYS` map exported from `WaveManager.ts` translates each creep-type key (grunt, runner, brute, swarm, scout, flier) to the matching texture key; the map is passed into `CreepConfig` at spawn time and forwarded to the `Creep` constructor. The tint-on-hit flash is preserved by calling `setTintFill(0xffffff)` on the image for 80 ms, then `clearTint()`.
+
+**Commander portraits.** `CommanderSelectScene` replaces the coloured rectangle placeholder with a 96×96 `Phaser.GameObjects.Image` keyed by `portrait-${commander.id}`. `VignetteOverlay` similarly swaps its letter-icon rectangle for the portrait image when the texture key exists, with a graceful fallback to the letter icon if it does not.
+
+**Map tiles.** `GameScene.renderMap()` renders each non-path tile as a `Phaser.GameObjects.Image` using `tile-${tileType}` as the key; the image is scaled to match the grid cell size so it replaces the coloured rectangle exactly.
+
+**HUD.** The commander portrait displayed in the HUD was already using a `Graphics` rectangle; it now renders via `Phaser.GameObjects.Image` using `portrait-${commander.id}`, keeping the same 40×40 display size.
+
 **Test coverage.** `src/systems/__tests__/towerTooltip.test.ts` adds 12 Vitest tests covering: `clampTooltipX` keeps the tooltip inside the viewport at both edges, `formatDmgLine` formats normal and Aura towers correctly, all six `TowerDef` exports carry a non-empty `description`, and the `description` field is a valid string. Two pre-existing quality issues were also resolved: the `layoutContract.test.ts` logo max-width assertion was updated to match the actual CSS value (`min(320px, 70vw)`), and `@types/node` was added to the compiler `types` array in `tsconfig.json` so the `favicon.test.ts` Node.js imports resolve cleanly under `tsc --noEmit`. The full suite passes at 639 tests with 0 type errors.

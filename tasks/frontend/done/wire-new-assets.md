@@ -1,7 +1,7 @@
 ---
 id: TASK-038
 title: Wire Generated Assets Into Game UI
-status: pending
+status: done
 priority: high
 phase: polish
 ---

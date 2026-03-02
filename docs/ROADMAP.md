@@ -970,6 +970,58 @@ ever added, these should move into map metadata or PAL.
 `GameScene.ts` line 1388 uses `0xff88ff` (magenta) for a specific ability's
 lightning arc. This is a gameplay visual effect, not a UI element.
 
+### Medicine wheel SVG as in-game asset (TASK-044 stretch goal)
+
+The medicine wheel SVG (`public/assets/ui/medicine-wheel.svg`) is now wired as
+the browser favicon. The task's optional criterion suggests replacing the
+procedural aura-tower base drawing in `Tower.ts` with this SVG texture. This
+would reduce draw calls and give the aura tower a crisper, resolution-independent
+look. Steps: load in `BootScene.preload()` as a texture key, swap the procedural
+`Graphics` circle in Tower's aura rendering path.
+
+### TowerPanel lacks destroy() method (TASK-042 review)
+
+`TowerPanel` creates 7+ Phaser GameObjects (background strip, tooltip graphics,
+5 tooltip text objects, plus per-button rects/text) but has no `destroy()` method.
+While Phaser cleans up scene children on `scene.shutdown()`, an explicit
+`destroy()` would improve clarity and allow safe mid-scene reconstruction (e.g.
+after tower unlocks change the available defs). Pre-existing — not introduced by
+the tooltip feature.
+
+### Pre-existing test failures (TASK-042 review)
+
+- `layoutContract.test.ts`: expects `max-width: min(520px, 90vw)` but CSS has
+  `min(320px, 70vw)` — test is stale after a prior CSS resize.
+- `favicon.test.ts`: `tsc --noEmit` fails on `node:fs`/`node:path` imports —
+  needs `@types/node` or tsconfig path adjustment.
+
+---
+
+### TASK-038 Wire New Assets — Review Findings (2026-03-01)
+
+- **Hit flash not implemented**: Phase 11 memory references a "80ms white tint on
+  `takeDamage()`" hit flash, but no such code exists on any branch. The sprite path
+  added here supports `setTint`/`setTintFill`/`clearTint` so a hit flash can be added
+  cleanly. Consider adding it to both rectangle and sprite paths in a future polish pass.
+- **Tile rotation is cosmetic-only**: Map tiles cycle deterministically
+  (`TILE_KEYS[(row * cols + col) % TILE_KEYS.length]`) regardless of terrain type.
+  The map data has only `PATH` vs non-path — no per-tile terrain type. When terrain
+  type metadata is added to map-*.json, update `renderMap()` to select tile sprites
+  by actual type instead of rotation.
+- **Unused creep sprites**: `creep-immune` and `creep-regen` are loaded in BootScene
+  but never mapped in `CREEP_SPRITE_KEYS` because no matching creep type key exists
+  in `creep-types.json`. They are loaded for future expansion. Wire them when
+  "immune" / "regen" entries are added to the creep type data.
+- **Commander oshkaabewis has no portrait**: The 6th commander's portrait file
+  (`portrait-oshkaabewis.png`) does not exist; the card gracefully omits it. Generate
+  the asset when the character's visual identity is finalized.
+- **Aura description removed from commander cards**: The card now shows a portrait
+  instead of the inline aura description. The description is still accessible in the
+  character sheet overlay. No action required unless user feedback requests it.
+- **Pre-existing test failure**: `layoutContract.test.ts` expects logo
+  `max-width: min(520px, 90vw)` but CSS was changed to `min(320px, 70vw)` in a prior
+  commit. Update the test assertion to match the current CSS.
+
 ---
 
 ## Health Check Findings

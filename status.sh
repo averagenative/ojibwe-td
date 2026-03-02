@@ -120,24 +120,17 @@ if [ -f "$STATE_FILE" ]; then
   done < "$STATE_FILE"
 fi
 
-# ── Active Claude agent output (last 5 lines) ───────────────────────────────
-PORCH_LOGS=$(ls -t /tmp/porch_*.log 2>/dev/null | head -1)
-TASK_OUTPUT=$(ls -t /tmp/claude-*/-home-dmichael-projects-greentd/tasks/*.output 2>/dev/null | head -1)
-
-if [ -n "$PORCH_LOGS" ] && [ -s "$PORCH_LOGS" ]; then
-  sep
-  printf "${BOLD}Active agent output${RESET} ${DIM}(%s)${RESET}\n" "$(basename "$PORCH_LOGS")"
-  sep
-  tail -5 "$PORCH_LOGS" | while IFS= read -r line; do
-    printf "  ${DIM}%s${RESET}\n" "$(echo "$line" | cut -c1-120)"
-  done
-elif [ -n "$TASK_OUTPUT" ] && [ -s "$TASK_OUTPUT" ]; then
-  sep
-  printf "${BOLD}Orchestrator output${RESET} ${DIM}(last 8 lines)${RESET}\n"
-  sep
-  tail -8 "$TASK_OUTPUT" | while IFS= read -r line; do
-    printf "  ${DIM}%s${RESET}\n" "$(echo "$line" | cut -c1-120)"
-  done
+# ── Active agent output (only when orchestrator is running) ───────────────────
+if [ -n "$SINGLE_PIDS" ] || [ -n "$PARALLEL_PIDS" ]; then
+  PORCH_LOGS=$(ls -t /tmp/porch_*.log 2>/dev/null | head -1)
+  if [ -n "$PORCH_LOGS" ] && [ -s "$PORCH_LOGS" ]; then
+    sep
+    printf "${BOLD}Active agent output${RESET} ${DIM}(%s)${RESET}\n" "$(basename "$PORCH_LOGS")"
+    sep
+    tail -8 "$PORCH_LOGS" | while IFS= read -r line; do
+      printf "  ${DIM}%s${RESET}\n" "$(echo "$line" | cut -c1-120)"
+    done
+  fi
 fi
 
 # ── Pending task queue ───────────────────────────────────────────────────────
