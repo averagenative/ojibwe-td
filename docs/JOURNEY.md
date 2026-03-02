@@ -743,3 +743,25 @@ Players had no advance warning of what was coming next — waves just started an
 **AudioManager integration.** Three new synthesis methods were added to `AudioManager`: `playWaveWarning()` (short percussive drum roll for normal waves), `playAirWaveWarning()` (wind-swoosh via a BiquadFilter frequency sweep), and `playBossWarning()` (deep two-tone horn using two oscillators detuned apart). Each is called from `GameScene.startNextWave()` after the banner is shown, branching on `info.isBoss` and `info.waveType`. Three corresponding tests were added to `AudioManager.test.ts` verifying that each method creates oscillators and triggers the gain envelope correctly.
 
 **Tests.** Twenty-five unit tests in `src/systems/__tests__/waveAnnouncement.test.ts` cover the full `getWaveAnnouncementInfo()` surface: null for out-of-range wave numbers, ground/air/mixed/boss type inference, Armoured/Fast/Swarming trait detection, multi-trait combinations, boss metadata (name, ability, escortCount), Makwa/Migizi/Waabooz/Animikiins special traits, graceful degradation for unknown creep keys, and AIR_KEYS fallback. All 819 tests pass; 0 type errors.
+
+---
+
+### TASK-051 — Air & Ground Combat System — Flying Creeps, Tower Targeting Domains
+
+All creeps were previously ground-based and all towers hit everything — there was no reason to diversify tower composition beyond raw DPS optimisation. TASK-051 introduces a **targeting domain** system that makes tower variety strategically necessary.
+
+**Targeting domain on `TowerDef`.** A new `targetDomain: 'ground' | 'air' | 'both'` field was added to `TowerDef` and set on every archetype: Cannon, Mortar, and Poison are `ground` (heavy shells and gas clouds hug the surface); Tesla is `air` (lightning arcs skyward — air-only specialist, damage raised from 35 → 42 to compensate); Frost and Aura are `both` (cold winds and aura fields ignore altitude). `Tower.findTarget()` now filters the candidate creep set against the tower's domain before applying priority logic, so a ground-only Cannon simply cannot see an air creep.
+
+**Air creep domain getter.** `Creep` gains a `get domain(): 'ground' | 'air'` property that mirrors `creepType`. This single-source-of-truth getter is what `Tower.findTarget()` and the new domain-filter tests rely on — no parallel field to keep in sync.
+
+**Air creep visuals.** Air creeps render with a distinct floating treatment: the body sprite is lifted −10 px from the container origin (`AIR_BODY_OFFSET_Y`), a semi-transparent ellipse shadow is drawn at the ground position below it, and two small translucent wing rectangles extend from either side of the body. Boss-sized air creeps use proportionally wider shadow/wing dimensions. The result reads instantly as "airborne" without requiring new sprite assets.
+
+**Frost slow wind-resistance.** Air creeps partially resist slow effects: `applySlowFactor()` now computes `effectiveFactor = 1 - (1 - factor) * 0.5` when `creepType === 'air'`, so a 50% slow (factor 0.5) only reduces an air creep's speed by 25%. This preserves Frost's utility against air while making Tesla + Frost together the correct answer rather than Frost alone.
+
+**HUD air-wave alert.** `HUD.showAirWaveAlert(message)` was added: a small sky-blue text strip that slides in just below the HUD bar when the next wave contains air creeps, and is hidden otherwise. `GameScene` calls this from `onWaveComplete()` by inspecting the upcoming wave's creep pool via a lightweight air-key check — players get a clear warning before spending gold between waves.
+
+**Tower tooltip domain line.** `TowerPanel` shows a new domain line in the hover tooltip using directional symbols: `▼ Ground only`, `▲ Air only`, `◆ Air & Ground`. This is rendered in the secondary-text colour between the range line and the description, so it's visible at a glance without cluttering the panel.
+
+**Map data `airWaypoints`.** `MapData` gained an optional `airWaypoints?: WaypointDef[]` field. When present, air creeps follow the custom air route instead of the default ground waypoints. Both existing maps omit this field, so air creeps use the standard waypoints — ensuring backwards compatibility. The field is ready for map designers to define dedicated air lanes in future maps.
+
+**Tests.** Forty unit tests in `src/systems/__tests__/domain-filter.test.ts` exhaustively cover the domain filtering logic: ground-domain towers only acquire ground targets; air-domain towers only acquire air targets; `both`-domain towers acquire either; `findTarget()` returns null when all in-range creeps are the wrong domain; the Frost slow wind-resistance formula; air-creep `domain` getter; `targetDomain` values on all six tower definitions; and `airWaypoints` presence in `MapData`. All 831 tests pass; 0 type errors.
