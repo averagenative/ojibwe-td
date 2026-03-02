@@ -89,6 +89,13 @@ export class AudioManager {
   /** Key of the currently playing file-based music track. */
   private _fileMusicKey: string | null = null;
 
+  /**
+   * Track queued to start once the AudioContext transitions to 'running'.
+   * Set by startMusicTrack() when the context is suspended, cleared by
+   * _onContextResumed() once playback begins or by destroy().
+   */
+  private _pendingTrack: { key: string; fadeMs: number } | null = null;
+
   private constructor() {
     this._initAudioContext();
   }
@@ -143,15 +150,33 @@ export class AudioManager {
 
     // Resume AudioContext on any user interaction. Keep listening until
     // the context is actually running (not just once).
+    //
+    // iOS WebKit policy: AudioContext.resume() MUST be called synchronously
+    // within a native user-gesture handler (touchstart/click). Calling it from
+    // Phaser's synthetic event loop (requestAnimationFrame) does NOT satisfy
+    // iOS's user-activation requirement. This native document listener
+    // guarantees resume() fires in the right call stack.
     const resumeCtx = (): void => {
-      if (this.ctx?.state === 'suspended') {
-        void this.ctx.resume();
-      }
-      if (this.ctx?.state === 'running') {
-        // Stop listening once running.
+      if (!this.ctx) return;
+
+      if (this.ctx.state === 'running') {
+        // Already running — remove listeners and flush any pending track.
         for (const evt of ['pointerdown', 'click', 'keydown', 'touchstart'] as const) {
           document.removeEventListener(evt, resumeCtx);
         }
+        this._onContextResumed();
+        return;
+      }
+
+      if (this.ctx.state === 'suspended') {
+        // Call resume() synchronously here (satisfies iOS user-activation policy).
+        // Chain _onContextResumed so any pending track starts once running.
+        this.ctx.resume().then(() => {
+          for (const evt of ['pointerdown', 'click', 'keydown', 'touchstart'] as const) {
+            document.removeEventListener(evt, resumeCtx);
+          }
+          this._onContextResumed();
+        }).catch(() => { /* ignore — will retry on next gesture */ });
       }
     };
     for (const evt of ['pointerdown', 'click', 'keydown', 'touchstart'] as const) {
@@ -271,18 +296,28 @@ export class AudioManager {
     const buf = this._buffers.get(key);
     if (!buf || !this.ctx || !this.musicGain) return;
 
-    // Ensure AudioContext is resumed (covers case where no user gesture yet).
-    if (this.ctx.state === 'suspended') {
-      void this.ctx.resume();
-    }
-
     // Same track already playing — no-op.
     if (this._fileMusicKey === key && this._fileMusicSource) return;
 
     // Stop procedural arpeggio if running.
     this._stopMusic();
 
-    // Fade out and stop current file track (if any), then start new track.
+    if (this.ctx.state === 'suspended') {
+      // iOS/WebKit policy: AudioContext.resume() must be called synchronously
+      // within a native user-gesture handler (touchstart/click). We call it
+      // here synchronously — if this method is on the native event stack this
+      // satisfies iOS. If it's called from Phaser's rAF loop (not a native
+      // gesture), iOS will reject it, but the native document listener in
+      // _initAudioContext will also call resume() on the next gesture and
+      // trigger _onContextResumed() to start this queued track.
+      //
+      // We do NOT call _crossfadeToTrack() immediately because src.start()
+      // silently fails on a suspended AudioContext on iOS.
+      this._pendingTrack = { key, fadeMs };
+      this.ctx.resume().then(() => { this._onContextResumed(); }).catch(() => { /* ignored */ });
+      return;
+    }
+
     this._crossfadeToTrack(buf, key, fadeMs);
   }
 
@@ -931,6 +966,35 @@ export class AudioManager {
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   /**
+   * Explicitly resume the AudioContext.
+   *
+   * Call this synchronously inside a native user-gesture handler (touchstart,
+   * click, keydown) to satisfy iOS WebKit's user-activation policy. The
+   * BootScene document-level listeners call this automatically, but callers
+   * may invoke it directly for maximum reliability.
+   */
+  resumeContext(): void {
+    if (this.ctx?.state === 'suspended') {
+      void this.ctx.resume();
+    }
+  }
+
+  /**
+   * Called once the AudioContext transitions to 'running' — either from the
+   * native gesture listener or from the .then() chain in startMusicTrack().
+   * Starts any track that was queued while the context was suspended.
+   */
+  private _onContextResumed(): void {
+    if (!this._pendingTrack) return;
+    const { key, fadeMs } = this._pendingTrack;
+    this._pendingTrack = null;
+    const buf = this._buffers.get(key);
+    if (buf && this.musicGain) {
+      this._crossfadeToTrack(buf, key, fadeMs);
+    }
+  }
+
+  /**
    * Stop background music (both procedural and file-based).
    * Called when leaving a scene. The AudioContext remains open; music restarts
    * on the next `startMusic()` call when the scene is re-entered.
@@ -938,6 +1002,7 @@ export class AudioManager {
   destroy(): void {
     this._stopMusic();
     this._stopFileMusicTrack(0);
+    this._pendingTrack = null;
   }
 
   /**
