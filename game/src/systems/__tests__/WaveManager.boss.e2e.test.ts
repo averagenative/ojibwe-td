@@ -98,6 +98,23 @@ vi.mock('../../data/bossDefs', () => ({
       splitHpPct:         0.2,
       splitSpeedBonus:    1.2,
     },
+    makwa: {
+      key:                'makwa',
+      name:               'Makwa',
+      type:               'ground',
+      isBoss:             true,
+      bossAbility:        'armored',
+      hp:                 800,
+      speed:              80,
+      reward:             80,
+      rewardGold:         150,
+      rewardOffer:        true,
+      physicalResistPct:  0.3,
+      isSlowImmune:       false,
+      isPoisonImmune:     false,
+      regenPercentPerSec: 0,
+      tint:               0xaa6633,
+    },
   },
   computeWaaboozSplitConfig: vi.fn(() => ({
     count:  2,   // two mini-copies per split (simplified from real 3)
@@ -434,5 +451,209 @@ describe('boss wave flow (end-to-end)', () => {
     minis[0].emit('reached-exit');
     minis[1].emit('reached-exit');
     expect(completeCount).toBe(1);
+  });
+});
+
+// ── Boss wave with escorts ──────────────────────────────────────────────────
+//
+// Uses the mocked 'makwa' boss (bossAbility: 'armored', no split mechanic)
+// with a 2-escort pack so the completion logic can be verified cleanly.
+
+describe('boss wave with escorts', () => {
+  /** Wave defs: waves 1–4 normal, wave 5 = Makwa boss with 2 escorts. */
+  function makeEscortWaveDefs() {
+    const normal = { count: 1, intervalMs: 1, hpMult: 1, speedMult: 1, pool: ['basic'] };
+    return [
+      { ...normal },
+      { ...normal },
+      { ...normal },
+      { ...normal },
+      {
+        ...normal,
+        boss:    'makwa',
+        escorts: { count: 2, types: ['basic'], intervalMs: 1400 },
+      },
+    ];
+  }
+
+  let scene:        Phaser.Scene;
+  let activeCreeps: Set<MockCreepLike>;
+  let wm:           WaveManager;
+
+  beforeEach(() => {
+    scene        = makeScene();
+    activeCreeps = new Set<MockCreepLike>();
+    wm = new WaveManager(
+      scene,
+      WAYPOINTS,
+      activeCreeps as unknown as Set<import('../../entities/Creep').Creep>,
+      CREEP_TYPE_DEFS,
+      makeEscortWaveDefs(),
+    );
+  });
+
+  // ── 8. Escort pack spawns alongside the boss ───────────────────────────
+
+  it('startWave(5) with escorts spawns boss + 2 escort creeps', () => {
+    wm.startWave(5);
+
+    // Boss (1) + escorts (2) = 3 total active creeps.
+    expect(activeCreeps.size).toBe(3);
+    const bossCount   = [...activeCreeps].filter(c => c.isBossCreep).length;
+    const escortCount = [...activeCreeps].filter(c => !c.isBossCreep).length;
+    expect(bossCount).toBe(1);
+    expect(escortCount).toBe(2);
+  });
+
+  // ── 9. wave-complete waits for boss AND all escorts ────────────────────
+
+  it('wave-complete fires only after boss AND all escorts are settled', () => {
+    let completeCount = 0;
+    wm.on('wave-complete', () => { completeCount++; });
+
+    wm.startWave(5);
+
+    const boss    = getBoss(activeCreeps);
+    const escorts = [...activeCreeps].filter(c => !c.isBossCreep);
+    expect(escorts).toHaveLength(2);
+
+    // Kill boss — 2 escorts still alive, wave must remain active.
+    boss.takeDamage(boss.maxHp);
+    expect(completeCount).toBe(0);
+    expect(wm.isActive()).toBe(true);
+
+    // Kill first escort — 1 escort still alive.
+    escorts[0].emit('died');
+    expect(completeCount).toBe(0);
+    expect(wm.isActive()).toBe(true);
+
+    // Kill second escort — all creeps settled, wave completes.
+    escorts[1].emit('died');
+    expect(completeCount).toBe(1);
+    expect(wm.isActive()).toBe(false);
+  });
+
+  // ── 10. wave-complete waits even if escorts escape ─────────────────────
+
+  it('wave-complete fires after boss killed and both escorts escape', () => {
+    let completeCount = 0;
+    wm.on('wave-complete', () => { completeCount++; });
+
+    wm.startWave(5);
+
+    const boss    = getBoss(activeCreeps);
+    const escorts = [...activeCreeps].filter(c => !c.isBossCreep);
+
+    boss.takeDamage(boss.maxHp);
+    expect(completeCount).toBe(0);
+
+    escorts[0].emit('reached-exit');
+    expect(completeCount).toBe(0);
+
+    escorts[1].emit('reached-exit');
+    expect(completeCount).toBe(1);
+  });
+});
+
+// ── Boss wave: split boss (Waabooz) + escorts ───────────────────────────────
+//
+// Tests the most complex interaction: Waabooz splits on death AND there are
+// escort creeps.  Wave must not complete until boss, split copies, AND escorts
+// are all settled.
+
+describe('boss wave with split + escorts (Waabooz)', () => {
+  function makeSplitEscortWaveDefs() {
+    const normal = { count: 1, intervalMs: 1, hpMult: 1, speedMult: 1, pool: ['basic'] };
+    return [
+      { ...normal },
+      { ...normal },
+      { ...normal },
+      { ...normal },
+      {
+        ...normal,
+        boss:    'waabooz',
+        escorts: { count: 2, types: ['basic'], intervalMs: 1000 },
+      },
+    ];
+  }
+
+  let scene:        Phaser.Scene;
+  let activeCreeps: Set<MockCreepLike>;
+  let wm:           WaveManager;
+
+  beforeEach(() => {
+    scene        = makeScene();
+    activeCreeps = new Set<MockCreepLike>();
+    wm = new WaveManager(
+      scene,
+      WAYPOINTS,
+      activeCreeps as unknown as Set<import('../../entities/Creep').Creep>,
+      CREEP_TYPE_DEFS,
+      makeSplitEscortWaveDefs(),
+    );
+  });
+
+  // ── 11. Split boss + escorts: wave waits for all ───────────────────────
+
+  it('wave-complete waits for boss, split copies, AND escorts', () => {
+    let completeCount = 0;
+    wm.on('wave-complete', () => { completeCount++; });
+
+    wm.startWave(5);
+
+    // Boss (1) + escorts (2) = 3 initially.
+    expect(activeCreeps.size).toBe(3);
+
+    const boss    = getBoss(activeCreeps);
+    const escorts = [...activeCreeps].filter(c => !c.isBossCreep);
+    expect(escorts).toHaveLength(2);
+
+    // Kill boss → Waabooz splits into 2 mini-copies.
+    boss.takeDamage(boss.maxHp);
+    expect(completeCount).toBe(0);
+    expect(wm.isActive()).toBe(true);
+
+    // activeCreeps: 2 escorts + 2 split copies = 4.
+    expect(activeCreeps.size).toBe(4);
+
+    // Kill both escorts — split copies still alive.
+    escorts[0].emit('died');
+    escorts[1].emit('died');
+    expect(completeCount).toBe(0);
+    expect(wm.isActive()).toBe(true);
+
+    // Kill first split copy.
+    const splitCopies = [...activeCreeps];
+    splitCopies[0].emit('died');
+    expect(completeCount).toBe(0);
+
+    // Kill second split copy — all settled, wave completes.
+    splitCopies[1].emit('died');
+    expect(completeCount).toBe(1);
+    expect(wm.isActive()).toBe(false);
+  });
+
+  // ── 12. Escort HP uses wave scaling ────────────────────────────────────
+
+  it('escort creeps receive HP scaling from waveDef.hpMult', () => {
+    // Override hpMult on the boss wave to 2.0.
+    const defs = makeSplitEscortWaveDefs();
+    defs[4].hpMult = 2.0;
+
+    const s  = makeScene();
+    const ac = new Set<MockCreepLike>();
+    const wm2 = new WaveManager(
+      s, WAYPOINTS,
+      ac as unknown as Set<import('../../entities/Creep').Creep>,
+      CREEP_TYPE_DEFS, defs,
+    );
+
+    wm2.startWave(5);
+
+    // 'basic' creep has hp=100.  With hpMult=2.0 → 200.
+    const escorts = [...ac].filter(c => !c.isBossCreep);
+    for (const e of escorts) {
+      expect(e.maxHp).toBe(200);
+    }
   });
 });
