@@ -131,6 +131,15 @@ export class TowerPanel {
         fontSize: _IS_MOBILE ? '11px' : '9px', color: PAL.textDesc, fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
 
+      // Keyboard shortcut hint — desktop only (top-right corner of button)
+      if (!_IS_MOBILE && i < 6) {
+        scene.add.text(bx + BTN_SIZE / 2 - 2, by - BTN_SIZE / 2 + 2, `${i + 1}`, {
+          fontSize: '9px',
+          color: PAL.textDim,
+          fontFamily: PAL.fontBody,
+        }).setOrigin(1, 0).setDepth(DEPTH + 3);
+      }
+
       btn.on('pointerover', () => {
         const canAfford = getGold() >= def.cost;
         btn.setFillStyle(canAfford ? PAL.bgPanelHover : PAL.bgCantAfford);

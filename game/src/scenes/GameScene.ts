@@ -31,6 +31,8 @@ import { VignetteOverlay } from '../ui/VignetteOverlay';
 import { TriggerType } from '../data/vignetteDefs';
 import { PAL } from '../ui/palette';
 import { SpatialGrid } from '../systems/SpatialGrid';
+import { isShortcutBlocked } from '../systems/KeyboardShortcuts';
+import type { ShortcutContext } from '../systems/KeyboardShortcuts';
 import { TrailPool } from '../systems/TrailPool';
 import { resolveGearBonuses, applyGearToStats } from '../systems/GearSystem';
 import type { ChallengeModifier } from '../data/challengeDefs';
@@ -68,6 +70,8 @@ export class GameScene extends Phaser.Scene {
   // ── speed ─────────────────────────────────────────────────────────────────
   /** 0 = paused, 1 = normal, 2 = double */
   private speedMultiplier = 1;
+  /** Speed multiplier saved when Space-pausing, so unpause restores it. */
+  private _prePauseSpeed = 1;
 
   // ── entities ──────────────────────────────────────────────────────────────
   private activeCreeps: Set<Creep>      = new Set();
@@ -199,6 +203,7 @@ export class GameScene extends Phaser.Scene {
     this.currentWave     = 0;
     this.gameState       = 'pregame';
     this.speedMultiplier = 1;
+    this._prePauseSpeed  = 1;
     this.selectedTower   = null;
     this.placementDef    = null;
     this.bossOfferPanel  = null;
@@ -597,6 +602,82 @@ export class GameScene extends Phaser.Scene {
         this.decoGfx?.setVisible(this.decoVisible);
       }, this);
     }
+
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    // Space and Esc work even while paused; all others are blocked when paused,
+    // game over, or a boss-offer panel is open.
+    const kb = this.input.keyboard;
+    const ctx = (): ShortcutContext => ({
+      gameOver:      this.gameState === 'over',
+      bossOfferOpen: !!this.bossOfferPanel && !this.bossOfferPanel.isClosed(),
+      paused:        this.speedMultiplier === 0,
+    });
+
+    // Space: toggle pause / unpause
+    kb?.on('keydown-SPACE', () => {
+      if (isShortcutBlocked(ctx(), true)) return;
+      if (this.speedMultiplier === 0) {
+        const restore = this._prePauseSpeed > 0 ? this._prePauseSpeed : 1;
+        this.onSpeedChange(restore);
+        this.hud.syncSpeed(restore);
+      } else {
+        this._prePauseSpeed = this.speedMultiplier;
+        this.onSpeedChange(0);
+        this.hud.syncSpeed(0);
+      }
+    });
+
+    // F: cycle speed 1× → 2× → 1× (no-op while paused)
+    kb?.on('keydown-F', () => {
+      if (isShortcutBlocked(ctx())) return;
+      const newMult = this.speedMultiplier === 1 ? 2 : 1;
+      this.onSpeedChange(newMult);
+      this.hud.syncSpeed(newMult);
+    });
+
+    // Escape: exit placement mode or deselect tower (works while paused)
+    kb?.on('keydown-ESC', () => {
+      if (isShortcutBlocked(ctx(), true)) return;
+      if (this.placementDef) {
+        this.exitPlacementMode();
+      } else {
+        this.deselectTower();
+      }
+    });
+
+    // S: sell selected tower
+    kb?.on('keydown-S', () => {
+      if (isShortcutBlocked(ctx())) return;
+      if (this.selectedTower) this.sellTower(this.selectedTower);
+    });
+
+    // U: open/close upgrade panel for selected tower
+    kb?.on('keydown-U', () => {
+      if (isShortcutBlocked(ctx())) return;
+      if (!this.selectedTower) return;
+      if (this.upgradePanel.isOpen()) {
+        this.upgradePanel.hide();
+        this.behaviorPanel.hide();
+      } else {
+        this.upgradePanel.showForTower(this.selectedTower);
+        this.behaviorPanel.showForTower(this.selectedTower);
+      }
+    });
+
+    // 1-6: enter placement mode for towers in panel order
+    const numKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'] as const;
+    ALL_TOWER_DEFS.forEach((def, i) => {
+      if (i >= numKeys.length) return;
+      kb?.on(`keydown-${numKeys[i]}`, () => {
+        if (isShortcutBlocked(ctx())) return;
+        if (this.gold < def.cost) return;
+        if (this.placementDef?.key === def.key) {
+          this.exitPlacementMode();
+        } else {
+          this.enterPlacementMode(def);
+        }
+      });
+    });
 
     // Register cleanup for scene stop/restart — Phaser emits 'shutdown' but does
     // NOT auto-call a shutdown() method, so we must wire it ourselves.
