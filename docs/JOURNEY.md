@@ -971,3 +971,27 @@ Players were selecting a commander before each run but losing all visual connect
 **Guards.** Portrait click events are blocked when `commanderState.abilityUsed` is already true, preventing double-activation. The portrait is seated at depth 105 — above the HUD background (100) and text layers (101–104) but below the tower panel and tooltip overlays. No new blocking geometry is added to the playfield; the portrait sits entirely within the HUD bar.
 
 **Test coverage.** `commanderPortrait.test.ts` (41 tests, new) covers: widget construction with and without a loaded texture, border colour derivation from role, ability-used state transitions, tooltip show/hide lifecycle, all three react methods, cleanup on destroy, and the passive-only commander path. Total: 1 290 tests passing, 0 type errors.
+
+---
+
+### TASK-066 — Creep Status Effect Visuals: Poison, Slow, Burn, Bleed Indicators (2026-03-02)
+
+Status effects (poison DoT, frost slow, shatter, armour shred) were mechanically sound but visually silent — the battlefield gave players no reliable read on which creeps were affected and by how much. This task systematised every effect into a consistent, composable visual layer.
+
+**StatusEffectVisuals module.** A new Phaser-free data file (`src/entities/StatusEffectVisuals.ts`) defines the canonical `StatusEffectVisualConfig` interface and the `EFFECT_CONFIGS` record covering all five effects: poison (green, 0x33ff55), frost (ice-blue, 0xaae4ff), burn (orange-red, 0xff6622), tesla/shock (electric yellow-green, 0xeeffaa), and armour-shred (red, 0xff4400). Separating data from rendering means the configs can be unit-tested without any Phaser mock.
+
+**Stack-aware scaling helpers.** `poisonParticleCount(stacks)` starts at 3 and adds one particle arc per extra stack, capped at 8 — so a triple-poisoned creep visibly bristles more than a single-stack one. `poisonOverlayAlpha(stacks)` scales the green body wash from 0.22 up to a cap of 0.6. `frostOverlayAlpha(shatter)` snaps to the higher `SHATTER_OVERLAY_ALPHA` (0.52) for deep-freeze / shatter, making the near-immobile state unmistakable.
+
+**Particle arcs on `Creep`.** The `EffectParticle` interface pools small `Phaser.GameObjects.Arc` children inside each `Creep` container. Each arc tracks a `phase` value (0→1), a `speed` derived from `particleLifeMs`, and randomised `baseX`, `riseY`, and `drift` values that are re-rolled on each reset. The per-frame `_stepParticles(delta)` method advances phase, repositions the arc on a sine-curve upward arc with lateral drift, and fades alpha from 1.0 → 0.0 as phase approaches 1. When phase reaches 1 the arc snaps back to a new random baseX and restarts — creating a continuous, low-cost stream with no allocations after the initial pool.
+
+**Tint overlays and frost ring.** Each active effect gets a semi-transparent `Phaser.GameObjects.Rectangle` child overlaid on the creep body. Frost also spawns a `_frostRingGfx` Graphics object drawn beneath the body as an elliptical ice patch, making slow visually grounded. The `refreshStatusVisual()` method reconciles all overlays and particle pools against the current effect state: overlays are created on first activation and made invisible (not destroyed) when the effect ends, avoiding GC pressure mid-wave.
+
+**Status icon bar.** A tiny `_iconBarGfx` Graphics object is redrawn above the HP bar whenever effects change. `activeEffectKeys()` returns the currently active effect keys in a stable display order (poison → frost → burn → tesla → armorShred), and each key is rendered as a 3px-radius dot in its canonical colour (`ICON_COLORS`). The bar only appears when at least one effect is active and sits at `ICON_BAR_OFFSET_Y = -29` (above the HP bar at −20) so nothing overlaps.
+
+**Armour-shred flash.** When `applyDamageAmp()` is called, the armour-shred overlay flashes to 70% alpha for 150 ms before settling to the base 18% — giving the hit a punch without permanently obscuring the creep sprite. The expiry callback now calls `refreshStatusVisual()` to clean up the overlay correctly.
+
+**Burn effect.** The new `applyBurn(durationMs)` public method on `Creep` activates the burn visual layer (orange flame arcs + warm tint overlay) for the specified duration. Re-application replaces the existing timer, extending rather than stacking the effect. This wires the existing cannon/mortar splash mechanic to a visible player signal.
+
+**Tesla residual static.** `_teslaShockedMs` counts down 500 ms after a chain-lightning hit, keeping the electric arc particles alive as a brief residual sparkle. Once the countdown reaches zero `refreshStatusVisual()` clears the tesla layer cleanly.
+
+**Test coverage.** `statusEffectVisuals.test.ts` (57 tests, new) validates all EFFECT_CONFIGS entries (colour ranges, alpha bounds, particle counts, icon names), the stack-scaling helpers (monotonicity, caps, boundary cases), `activeEffectKeys` order and composability, ICON_COLORS completeness, icon-bar constants, and a composability suite confirming all five simultaneous effects produce distinct, non-conflicting configs. Total: 1 306 tests passing, 0 type errors.
