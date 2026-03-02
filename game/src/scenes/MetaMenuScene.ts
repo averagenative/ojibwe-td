@@ -3,6 +3,7 @@ import { SaveManager, CONSUMABLE_COSTS, GOLD_BOOST_AMOUNT } from '../meta/SaveMa
 import type { ConsumablePending } from '../meta/SaveManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
 import type { UnlockNode } from '../meta/unlockDefs';
+import { MobileManager } from '../systems/MobileManager';
 
 const BG_COLOR    = 0x0a0a0a;
 const PANEL_W     = 420;
@@ -44,11 +45,24 @@ const SHOP_ITEMS: ShopItem[] = [
 ];
 
 export class MetaMenuScene extends Phaser.Scene {
+  /** True when running on a mobile/touch device. Set once in create(). */
+  private _isMobile = false;
+
+  /**
+   * Returns a CSS font-size string scaled up by 1.35× on mobile.
+   */
+  private _fs(size: number): string {
+    const s = this._isMobile ? Math.round(size * 1.35) : size;
+    return `${s}px`;
+  }
+
   constructor() {
     super({ key: 'MetaMenuScene' });
   }
 
   create(data?: object): void {
+    this._isMobile = MobileManager.getInstance().isMobile();
+
     const { tab = 'unlocks' } = (data ?? {}) as MetaMenuData;
     const { width, height } = this.scale;
     const cx = width / 2;
@@ -60,7 +74,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // Title
     this.add.text(cx, 36, 'META UPGRADES', {
-      fontSize:   '32px',
+      fontSize:   this._fs(32),
       color:      '#00ff44',
       fontFamily: 'monospace',
       fontStyle:  'bold',
@@ -68,13 +82,13 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // Crystal balance
     const balanceText = this.add.text(cx, 76, `Crystals: ${save.getCurrency()}`, {
-      fontSize:   '20px',
+      fontSize:   this._fs(20),
       color:      '#88ccff',
       fontFamily: 'monospace',
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
-    // ── Tab buttons ──────────────────────────────────────────────────────────
+    // ── Tab buttons — 44px minimum height on mobile ──────────────────────────
     const TAB_Y = 112;
     this.makeTabButton(cx - 110, TAB_Y, 'UNLOCKS', tab === 'unlocks', () => {
       this.scene.restart({ tab: 'unlocks' } as MetaMenuData);
@@ -101,7 +115,7 @@ export class MetaMenuScene extends Phaser.Scene {
     }
 
     // Navigation buttons
-    const btnY = height - 50;
+    const btnY = height - (this._isMobile ? 54 : 50);
     this.makeButton(cx - 220, btnY, 'BACK', () => {
       this.scene.start('MainMenuScene');
     });
@@ -128,20 +142,23 @@ export class MetaMenuScene extends Phaser.Scene {
     // All scrollable unlock content lives in this container.
     const container = this.add.container(0, 0);
 
+    // On mobile, use slightly taller nodes to ensure 44px tap target.
+    const nodeH = this._isMobile ? Math.max(NODE_H_COMPACT, 44) : NODE_H_COMPACT;
+
     let y = startY;
 
     // Maps section
     if (mapNodes.length > 0) {
       container.add(this.add.text(cx - PANEL_W / 2, y, 'Maps', {
-        fontSize:   '14px',
+        fontSize:   this._fs(14),
         color:      '#557755',
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }));
       y += 24;
       for (const node of mapNodes) {
-        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT, container);
-        y += NODE_H_COMPACT + NODE_GAP;
+        this.renderNode(cx, y, node, save, balanceText, nodeH, container);
+        y += nodeH + NODE_GAP;
       }
     }
 
@@ -149,15 +166,15 @@ export class MetaMenuScene extends Phaser.Scene {
     if (stageNodes.length > 0) {
       y += 8;
       container.add(this.add.text(cx - PANEL_W / 2, y, 'Stages', {
-        fontSize:   '14px',
+        fontSize:   this._fs(14),
         color:      '#557755',
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }));
       y += 24;
       for (const node of stageNodes) {
-        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT, container);
-        y += NODE_H_COMPACT + NODE_GAP;
+        this.renderNode(cx, y, node, save, balanceText, nodeH, container);
+        y += nodeH + NODE_GAP;
       }
     }
 
@@ -165,15 +182,15 @@ export class MetaMenuScene extends Phaser.Scene {
     if (commanderNodes.length > 0) {
       y += 8;
       container.add(this.add.text(cx - PANEL_W / 2, y, 'Commanders', {
-        fontSize:   '14px',
+        fontSize:   this._fs(14),
         color:      '#557755',
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }));
       y += 24;
       for (const node of commanderNodes) {
-        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT, container);
-        y += NODE_H_COMPACT + NODE_GAP;
+        this.renderNode(cx, y, node, save, balanceText, nodeH, container);
+        y += nodeH + NODE_GAP;
       }
     }
 
@@ -208,14 +225,14 @@ export class MetaMenuScene extends Phaser.Scene {
       const arrowX = cx + PANEL_W / 2 + 24;
 
       const upArrow = this.add.text(arrowX, startY + 8, '▲', {
-        fontSize: '20px', color: '#335533', fontFamily: 'monospace',
+        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       upArrow.on('pointerup', () => applyScroll(-(NODE_H_COMPACT + NODE_GAP)));
       upArrow.on('pointerover', () => upArrow.setColor('#55aa55'));
       upArrow.on('pointerout',  () => upArrow.setColor('#335533'));
 
       const downArrow = this.add.text(arrowX, startY + visibleH - 8, '▼', {
-        fontSize: '20px', color: '#335533', fontFamily: 'monospace',
+        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       downArrow.on('pointerup', () => applyScroll(NODE_H_COMPACT + NODE_GAP));
       downArrow.on('pointerover', () => downArrow.setColor('#55aa55'));
@@ -232,7 +249,7 @@ export class MetaMenuScene extends Phaser.Scene {
     const pending = save.getPendingConsumables();
 
     this.add.text(cx - PANEL_W / 2, startY, 'Repeatable — spend crystals each run', {
-      fontSize:   '13px',
+      fontSize:   this._fs(13),
       color:      '#557799',
       fontFamily: 'monospace',
     });
@@ -253,7 +270,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
       // Label
       this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 10, item.label, {
-        fontSize:   '16px',
+        fontSize:   this._fs(16),
         color:      labelColor,
         fontFamily: 'monospace',
         fontStyle:  'bold',
@@ -261,7 +278,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
       // Description
       this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, item.description, {
-        fontSize:   '11px',
+        fontSize:   this._fs(11),
         color:      '#888888',
         fontFamily: 'monospace',
         wordWrap:   { width: PANEL_W - NODE_PAD_X * 2 - 110 },
@@ -271,15 +288,15 @@ export class MetaMenuScene extends Phaser.Scene {
       const badgeX = cx + PANEL_W / 2 - NODE_PAD_X - 48;
       const badgeY = y + NODE_H / 2;
 
-      // Cost display
+      // Cost display — minimum 11px
       this.add.text(badgeX, badgeY - 20, `${cost}`, {
-        fontSize:   '16px',
+        fontSize:   this._fs(16),
         color:      canAfford ? '#88ccff' : '#666666',
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }).setOrigin(0.5);
       this.add.text(badgeX, badgeY - 4, 'crystals', {
-        fontSize:   '9px',
+        fontSize:   this._fs(11),
         color:      '#557799',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
@@ -287,7 +304,7 @@ export class MetaMenuScene extends Phaser.Scene {
       // Pending stock count
       const stockColor = count > 0 ? '#44dd88' : '#555555';
       this.add.text(badgeX, badgeY + 14, `held: ${count}`, {
-        fontSize:   '11px',
+        fontSize:   this._fs(11),
         color:      stockColor,
         fontFamily: 'monospace',
         fontStyle:  count > 0 ? 'bold' : 'normal',
@@ -314,7 +331,7 @@ export class MetaMenuScene extends Phaser.Scene {
     this.add.text(cx, y + 12,
       'Tokens are consumed at the start of your next run.',
       {
-        fontSize:   '12px',
+        fontSize:   this._fs(12),
         color:      '#445544',
         fontFamily: 'monospace',
         align:      'center',
@@ -368,7 +385,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // Label
     const label = this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 10, node.label, {
-      fontSize:   '16px',
+      fontSize:   this._fs(16),
       color:      labelColor,
       fontFamily: 'monospace',
       fontStyle:  'bold',
@@ -377,7 +394,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // Description
     const desc = this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, node.description, {
-      fontSize:    '11px',
+      fontSize:    this._fs(11),
       color:       '#888888',
       fontFamily:  'monospace',
       wordWrap:    { width: PANEL_W - NODE_PAD_X * 2 - 100 },
@@ -390,7 +407,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
     if (owned) {
       const badge = this.add.text(badgeX, badgeY, 'OWNED', {
-        fontSize:   '14px',
+        fontSize:   this._fs(14),
         color:      '#00ff44',
         fontFamily: 'monospace',
         fontStyle:  'bold',
@@ -398,22 +415,23 @@ export class MetaMenuScene extends Phaser.Scene {
       if (container) container.add(badge);
     } else if (locked) {
       const badge = this.add.text(badgeX, badgeY, 'LOCKED', {
-        fontSize:   '13px',
+        fontSize:   this._fs(13),
         color:      '#555555',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
       if (container) container.add(badge);
     } else {
       const costText = this.add.text(badgeX, badgeY, `${node.cost}`, {
-        fontSize:   '18px',
+        fontSize:   this._fs(18),
         color:      affordable ? '#88ccff' : '#666666',
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }).setOrigin(0.5);
       if (container) container.add(costText);
 
+      // "crystals" label — minimum 11px
       const crystalsLabel = this.add.text(badgeX, badgeY + 16, 'crystals', {
-        fontSize:   '10px',
+        fontSize:   this._fs(11),
         color:      '#557799',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
@@ -446,13 +464,15 @@ export class MetaMenuScene extends Phaser.Scene {
     const fillColor   = active ? 0x003322 : 0x111111;
     const borderColor = active ? 0x00aa44 : 0x335533;
     const textColor   = active ? '#00ff44' : '#44aa44';
+    // Ensure 44px minimum height on mobile for tap target.
+    const tabH = this._isMobile ? 44 : 36;
 
-    const bg = this.add.rectangle(x, y, 180, 36, fillColor)
+    const bg = this.add.rectangle(x, y, 180, tabH, fillColor)
       .setStrokeStyle(2, borderColor)
       .setInteractive({ useHandCursor: !active });
 
     const text = this.add.text(x, y, label, {
-      fontSize:   '16px',
+      fontSize:   this._fs(16),
       color:      textColor,
       fontFamily: 'monospace',
       fontStyle:  active ? 'bold' : 'normal',
@@ -466,12 +486,13 @@ export class MetaMenuScene extends Phaser.Scene {
   }
 
   private makeButton(x: number, y: number, label: string, onClick: () => void): void {
-    const bg = this.add.rectangle(x, y, 200, 48, 0x111111)
+    const btnH = this._isMobile ? 52 : 48;
+    const bg = this.add.rectangle(x, y, 200, btnH, 0x111111)
       .setStrokeStyle(2, 0x335533)
       .setInteractive({ useHandCursor: true });
 
     const text = this.add.text(x, y, label, {
-      fontSize:   '18px',
+      fontSize:   this._fs(18),
       color:      '#44aa44',
       fontFamily: 'monospace',
     }).setOrigin(0.5);

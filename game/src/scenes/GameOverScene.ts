@@ -5,6 +5,7 @@ import { PAL } from '../ui/palette';
 import { rollLoot, getGearDef, RARITY_COLORS } from '../data/gearDefs';
 import { InventoryManager } from '../meta/InventoryManager';
 import { calculateRunXp, levelFromXp } from '../data/enhancementDefs';
+import { MobileManager } from '../systems/MobileManager';
 
 interface GameOverData {
   wavesCompleted: number;
@@ -28,11 +29,24 @@ interface GameOverData {
 }
 
 export class GameOverScene extends Phaser.Scene {
+  /** True when running on a mobile/touch device. Set once in create(). */
+  private _isMobile = false;
+
+  /**
+   * Returns a CSS font-size string scaled up by 1.35× on mobile.
+   */
+  private _fs(size: number): string {
+    const s = this._isMobile ? Math.round(size * 1.35) : size;
+    return `${s}px`;
+  }
+
   constructor() {
     super({ key: 'GameOverScene' });
   }
 
   create(data: GameOverData): void {
+    this._isMobile = MobileManager.getInstance().isMobile();
+
     const { width, height } = this.scale;
     const cx = width / 2;
     const cy = height / 2;
@@ -86,7 +100,7 @@ export class GameOverScene extends Phaser.Scene {
     const titleText  = won ? 'VICTORY!'   : 'GAME OVER';
     const titleColor = won ? PAL.accentGreen : PAL.danger;
     this.add.text(cx, cy - 180, titleText, {
-      fontSize: '52px',
+      fontSize: this._fs(52),
       color: titleColor,
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
@@ -97,21 +111,21 @@ export class GameOverScene extends Phaser.Scene {
       ? `Endless \u2014 Wave Reached: ${waves}`
       : `Waves completed: ${waves} / ${total}`;
     this.add.text(cx, cy - 120, wavesLabel, {
-      fontSize: '20px',
+      fontSize: this._fs(20),
       color: PAL.textNeutral,
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
     // Run currency + XP earned (side by side)
     this.add.text(cx - 100, cy - 88, `Crystals: +${currency}`, {
-      fontSize: '18px',
+      fontSize: this._fs(18),
       color: PAL.accentBlue,
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     this.add.text(cx + 100, cy - 88, `XP: +${runXp}`, {
-      fontSize: '18px',
+      fontSize: this._fs(18),
       color: PAL.gold,
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
@@ -123,7 +137,7 @@ export class GameOverScene extends Phaser.Scene {
       : `${commanderId} Level ${newLevel}`;
     const levelColor = leveledUp ? PAL.accentGreen : PAL.textMuted;
     this.add.text(cx, cy - 62, levelText, {
-      fontSize: '14px',
+      fontSize: this._fs(14),
       color: levelColor,
       fontFamily: PAL.fontBody,
       fontStyle: leveledUp ? 'bold' : 'normal',
@@ -134,13 +148,13 @@ export class GameOverScene extends Phaser.Scene {
     if (won && !isEndless && moonsEarned > 0) {
       const moonRow = Array.from({ length: 5 }, (_, i) => moonSymbol(i, moonsEarned)).join(' ');
       this.add.text(cx, cy - 38, moonRow, {
-        fontSize: '22px',
+        fontSize: this._fs(22),
         fontFamily: PAL.fontBody,
       }).setOrigin(0.5);
 
       const label = moonRatingLabel(moonsEarned);
       this.add.text(cx, cy - 14, label, {
-        fontSize: '13px',
+        fontSize: this._fs(13),
         color: PAL.gold,
         fontFamily: PAL.fontBody,
         fontStyle: 'italic',
@@ -148,7 +162,7 @@ export class GameOverScene extends Phaser.Scene {
 
       if (isNewBest) {
         this.add.text(cx, cy + 2, 'New Best!', {
-          fontSize: '11px',
+          fontSize: this._fs(11),
           color: PAL.accentGreen,
           fontFamily: PAL.fontBody,
           fontStyle: 'bold',
@@ -161,7 +175,7 @@ export class GameOverScene extends Phaser.Scene {
     const lootY = moonSectionBottom + 18;
     if (lootDrops.length > 0) {
       this.add.text(cx, lootY, 'LOOT DROPS', {
-        fontSize: '16px',
+        fontSize: this._fs(16),
         color: PAL.gold,
         fontFamily: PAL.fontBody,
         fontStyle: 'bold',
@@ -191,23 +205,23 @@ export class GameOverScene extends Phaser.Scene {
 
         // Item name
         this.add.text(cardX + 4, cardY - 14, def.name, {
-          fontSize: '13px',
+          fontSize: this._fs(13),
           color: rarityColor.hex,
           fontFamily: PAL.fontBody,
           fontStyle: 'bold',
         }).setOrigin(0.5);
 
-        // Rarity label
+        // Rarity label — minimum 11px
         this.add.text(cardX + 4, cardY + 6, def.rarity.toUpperCase(), {
-          fontSize: '10px',
+          fontSize: this._fs(11),
           color: rarityColor.hex,
           fontFamily: PAL.fontBody,
         }).setOrigin(0.5);
 
-        // NEW badge
+        // NEW badge — minimum 11px on mobile
         if (drop.isNew) {
           this.add.text(cardX + cardW / 2 - 10, cardY - cardH / 2 + 4, 'NEW', {
-            fontSize: '9px',
+            fontSize: this._fs(11),
             color: '#ffffff',
             fontFamily: PAL.fontBody,
             fontStyle: 'bold',
@@ -220,54 +234,79 @@ export class GameOverScene extends Phaser.Scene {
       // Overflow warning
       if (overflow.length > 0) {
         this.add.text(cx, lootY + 24 + cardH + 12, `Inventory full! ${overflow.length} item(s) lost.`, {
-          fontSize: '12px',
+          fontSize: this._fs(12),
           color: PAL.danger,
           fontFamily: PAL.fontBody,
         }).setOrigin(0.5);
       }
     } else {
       this.add.text(cx, lootY, 'No loot dropped', {
-        fontSize: '13px',
+        fontSize: this._fs(13),
         color: PAL.textMuted,
         fontFamily: PAL.fontBody,
         fontStyle: 'italic',
       }).setOrigin(0.5);
     }
 
-    // Buttons: RETRY | UPGRADES | GEAR | CODEX | MENU
-    const btnY = height - 50;
-    const btnSpacing = 135;
-    const btnCount = 5;
-    const btnStartX = cx - btnSpacing * (btnCount - 1) / 2;
-    this.makeButton(btnStartX, btnY, 'RETRY', () => {
-      this.scene.start('GameScene', { stageId, mapId, commanderId, isEndless });
-    });
-    this.makeButton(btnStartX + btnSpacing, btnY, 'UPGRADES', () => {
-      this.scene.start('MetaMenuScene');
-    });
-    this.makeButton(btnStartX + btnSpacing * 2, btnY, 'GEAR', () => {
-      this.scene.start('InventoryScene');
-    }, PAL.bgPanel, PAL.accentBlueN);
-    this.makeButton(btnStartX + btnSpacing * 3, btnY, 'CODEX', () => {
-      this.scene.start('CodexScene', { returnTo: 'GameOverScene', returnData: data });
-    }, PAL.bgPanel, PAL.accentGreenN);
-    this.makeButton(btnStartX + btnSpacing * 4, btnY, 'MENU', () => {
-      this.scene.start('MainMenuScene');
-    });
+    // Buttons — on mobile stack into two rows (3 top + 2 bottom) to ensure
+    // adequate spacing and tap target at any viewport width.
+    const btnH = this._isMobile ? 52 : 48;
+    if (this._isMobile) {
+      const row1Y = height - 76;
+      const row2Y = height - 22;
+      const btnSpacing = 160;
+      const row1StartX = cx - btnSpacing;
+      this.makeButton(row1StartX,                row1Y, btnH, 'RETRY', () => {
+        this.scene.start('GameScene', { stageId, mapId, commanderId, isEndless });
+      });
+      this.makeButton(row1StartX + btnSpacing,   row1Y, btnH, 'UPGRADES', () => {
+        this.scene.start('MetaMenuScene');
+      });
+      this.makeButton(row1StartX + btnSpacing * 2, row1Y, btnH, 'GEAR', () => {
+        this.scene.start('InventoryScene');
+      }, PAL.bgPanel, PAL.accentBlueN);
+      const row2StartX = cx - btnSpacing / 2;
+      this.makeButton(row2StartX,              row2Y, btnH, 'CODEX', () => {
+        this.scene.start('CodexScene', { returnTo: 'GameOverScene', returnData: data });
+      }, PAL.bgPanel, PAL.accentGreenN);
+      this.makeButton(row2StartX + btnSpacing, row2Y, btnH, 'MENU', () => {
+        this.scene.start('MainMenuScene');
+      });
+    } else {
+      const btnY = height - 50;
+      const btnSpacing = 135;
+      const btnCount = 5;
+      const btnStartX = cx - btnSpacing * (btnCount - 1) / 2;
+      this.makeButton(btnStartX,                   btnY, btnH, 'RETRY', () => {
+        this.scene.start('GameScene', { stageId, mapId, commanderId, isEndless });
+      });
+      this.makeButton(btnStartX + btnSpacing,       btnY, btnH, 'UPGRADES', () => {
+        this.scene.start('MetaMenuScene');
+      });
+      this.makeButton(btnStartX + btnSpacing * 2,   btnY, btnH, 'GEAR', () => {
+        this.scene.start('InventoryScene');
+      }, PAL.bgPanel, PAL.accentBlueN);
+      this.makeButton(btnStartX + btnSpacing * 3,   btnY, btnH, 'CODEX', () => {
+        this.scene.start('CodexScene', { returnTo: 'GameOverScene', returnData: data });
+      }, PAL.bgPanel, PAL.accentGreenN);
+      this.makeButton(btnStartX + btnSpacing * 4,   btnY, btnH, 'MENU', () => {
+        this.scene.start('MainMenuScene');
+      });
+    }
   }
 
   private makeButton(
-    x: number, y: number, label: string, onClick: () => void,
+    x: number, y: number, btnH: number, label: string, onClick: () => void,
     bgColor: number = PAL.bgGiveUp, textColor: number = PAL.dangerN,
   ): void {
     const textColorStr = '#' + textColor.toString(16).padStart(6, '0');
     const hoverBg = bgColor + 0x191919; // slightly lighter
-    const bg = this.add.rectangle(x, y, 120, 48, bgColor)
+    const bg = this.add.rectangle(x, y, 120, btnH, bgColor)
       .setStrokeStyle(2, textColor)
       .setInteractive({ useHandCursor: true });
 
     const text = this.add.text(x, y, label, {
-      fontSize: '14px',
+      fontSize: this._fs(14),
       color: textColorStr,
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',

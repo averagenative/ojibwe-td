@@ -3,6 +3,7 @@ import type { OfferManager } from '../systems/OfferManager';
 import type { OfferDef } from '../data/offerDefs';
 import type { WaveAnnouncementInfo } from '../systems/WaveManager';
 import { PAL } from '../ui/palette';
+import { MobileManager } from '../systems/MobileManager';
 
 /** Data passed from GameScene when launching this scene. */
 interface BetweenWaveData {
@@ -55,12 +56,29 @@ export class BetweenWaveScene extends Phaser.Scene {
   /** Reroll button background (greyed out when tokens exhausted). */
   private _rerollBg?: Phaser.GameObjects.Rectangle;
 
+  /** True when running on a mobile/touch device. Set once in create(). */
+  private _isMobile = false;
+  /** Active card height — taller on mobile to accommodate scaled fonts. */
+  private _cardH = CARD_H;
+
+  /**
+   * Returns a CSS font-size string scaled up by 1.35× on mobile.
+   */
+  private _fs(size: number): string {
+    const s = this._isMobile ? Math.round(size * 1.35) : size;
+    return `${s}px`;
+  }
+
   constructor() {
     super({ key: 'BetweenWaveScene' });
   }
 
   // Phaser types the data param as `object | undefined` — we cast internally.
   create(data: object | undefined): void {
+    this._isMobile = MobileManager.getInstance().isMobile();
+    // On mobile, taller cards accommodate the scaled-up fonts.
+    this._cardH = this._isMobile ? 340 : CARD_H;
+
     const { offerManager, waveJustCompleted, nextWave, nextWaveInfo, rerollTokens = 0 } =
       data as BetweenWaveData;
 
@@ -79,10 +97,10 @@ export class BetweenWaveScene extends Phaser.Scene {
 
     // ── Header text ───────────────────────────────────────────────────────────
     this.add.text(
-      cx, cy - CARD_H / 2 - 60,
+      cx, cy - this._cardH / 2 - 60,
       `WAVE  ${waveJustCompleted}  COMPLETE  —  CHOOSE A POWER-UP`,
       {
-        fontSize:   '18px',
+        fontSize:   this._fs(18),
         color:      PAL.accentBlue,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -90,10 +108,10 @@ export class BetweenWaveScene extends Phaser.Scene {
     ).setOrigin(0.5).setDepth(DEPTH);
 
     this.add.text(
-      cx, cy - CARD_H / 2 - 32,
+      cx, cy - this._cardH / 2 - 32,
       `Wave ${nextWave} begins after your choice`,
       {
-        fontSize:   '13px',
+        fontSize:   this._fs(13),
         color:      PAL.textMuted,
         fontFamily: PAL.fontBody,
       },
@@ -101,12 +119,12 @@ export class BetweenWaveScene extends Phaser.Scene {
 
     // ── Upcoming wave preview strip ───────────────────────────────────────────
     if (nextWaveInfo) {
-      this.buildWavePreview(cx, cy - CARD_H / 2 - 12, nextWaveInfo);
+      this.buildWavePreview(cx, cy - this._cardH / 2 - 12, nextWaveInfo);
     }
 
     // ── Reroll button (shown only when tokens > 0 on entry) ──────────────────
     if (rerollTokens > 0) {
-      this.buildRerollButton(cx, cy + CARD_H / 2 + 36);
+      this.buildRerollButton(cx, cy + this._cardH / 2 + 36);
     }
 
     // ── Draw 3 offers and build initial cards ─────────────────────────────────
@@ -127,7 +145,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     const startX  = cx - SPACING;
 
     for (let i = 0; i < offers.length; i++) {
-      this.buildCard(offers[i], startX + i * SPACING, cy, offerManager);
+      this.buildCard(offers[i], startX + i * SPACING, cy, offerManager, this._cardH);
     }
   }
 
@@ -138,14 +156,16 @@ export class BetweenWaveScene extends Phaser.Scene {
   private buildRerollButton(cx: number, y: number): void {
     const { height } = this.scale;
     const cy = height / 2;
+    // Minimum 44px height on mobile for tap target.
+    const btnH = this._isMobile ? 44 : 40;
 
-    this._rerollBg = this.add.rectangle(cx, y, 220, 40, 0x221100)
+    this._rerollBg = this.add.rectangle(cx, y, 240, btnH, 0x221100)
       .setStrokeStyle(2, 0xaa6600)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH);
 
     this._rerollLabel = this.add.text(cx, y, this._rerollLabelText(), {
-      fontSize:   '14px',
+      fontSize:   this._fs(14),
       color:      '#ffaa44',
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
@@ -213,7 +233,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     }
 
     this.add.text(badgeX, y, BADGE_TEXT[info.waveType], {
-      fontSize:   '10px',
+      fontSize:   this._fs(11),
       color:      '#ffffff',
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
@@ -232,7 +252,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     if (info.traits.length > 0) parts.push(info.traits.join(', '));
 
     this.add.text(badgeX + badgeW / 2 + 8, y, parts.join('  ·  '), {
-      fontSize:   '11px',
+      fontSize:   this._fs(11),
       color:      info.isBoss ? PAL.bossWarning : PAL.textMuted,
       fontFamily: PAL.fontBody,
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
@@ -243,12 +263,13 @@ export class BetweenWaveScene extends Phaser.Scene {
     bx:           number,
     by:           number,
     offerManager: OfferManager,
+    cardH:        number = CARD_H,
   ): void {
     const meta   = CAT_META[offer.category] ?? { label: 'OFFER', color: PAL.textNeutral };
     const stroke = this.hexStringToInt(meta.color);
 
     // ── Card background ──────────────────────────────────────────────────────
-    const card = this.add.rectangle(bx, by, CARD_W, CARD_H, PAL.bgCard)
+    const card = this.add.rectangle(bx, by, CARD_W, cardH, PAL.bgCard)
       .setStrokeStyle(2, stroke, 0.5)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH);
@@ -257,8 +278,8 @@ export class BetweenWaveScene extends Phaser.Scene {
     this._cardsContainer?.add(card);
 
     // ── Category badge ───────────────────────────────────────────────────────
-    const catText = this.add.text(bx, by - CARD_H / 2 + 18, meta.label, {
-      fontSize:   '10px',
+    const catText = this.add.text(bx, by - cardH / 2 + 18, meta.label, {
+      fontSize:   this._fs(11),
       color:      meta.color,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
@@ -269,14 +290,14 @@ export class BetweenWaveScene extends Phaser.Scene {
     const sepGfx = this.add.graphics().setDepth(DEPTH + 1);
     sepGfx.lineStyle(1, stroke, 0.3);
     sepGfx.beginPath();
-    sepGfx.moveTo(bx - CARD_W / 2 + 16, by - CARD_H / 2 + 30);
-    sepGfx.lineTo(bx + CARD_W / 2 - 16, by - CARD_H / 2 + 30);
+    sepGfx.moveTo(bx - CARD_W / 2 + 16, by - cardH / 2 + 30);
+    sepGfx.lineTo(bx + CARD_W / 2 - 16, by - cardH / 2 + 30);
     sepGfx.strokePath();
     this._cardsContainer?.add(sepGfx);
 
     // ── Offer name ───────────────────────────────────────────────────────────
-    const nameText = this.add.text(bx, by - CARD_H / 2 + 65, offer.name, {
-      fontSize:   '16px',
+    const nameText = this.add.text(bx, by - cardH / 2 + 65, offer.name, {
+      fontSize:   this._fs(16),
       color:      '#ffffff',
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
@@ -287,7 +308,7 @@ export class BetweenWaveScene extends Phaser.Scene {
 
     // ── Description ──────────────────────────────────────────────────────────
     const descText = this.add.text(bx, by + 10, offer.description, {
-      fontSize:   '13px',
+      fontSize:   this._fs(13),
       color:      PAL.textCardDesc,
       fontFamily: PAL.fontBody,
       wordWrap:   { width: CARD_W - 28 },
@@ -296,8 +317,8 @@ export class BetweenWaveScene extends Phaser.Scene {
     this._cardsContainer?.add(descText);
 
     // ── "Choose" hint ────────────────────────────────────────────────────────
-    const chooseHint = this.add.text(bx, by + CARD_H / 2 - 22, '▶  CHOOSE', {
-      fontSize:   '11px',
+    const chooseHint = this.add.text(bx, by + cardH / 2 - 22, '▶  CHOOSE', {
+      fontSize:   this._fs(11),
       color:      PAL.textDim,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
