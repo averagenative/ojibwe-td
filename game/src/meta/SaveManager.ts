@@ -13,6 +13,29 @@
 const SAVE_KEY     = 'ojibwe-td-save';
 const SCHEMA_VER   = 1;
 
+/** Serialised gear data stored alongside the save. */
+export interface GearSaveData {
+  inventory: GearSaveItem[];
+  equipped: Record<string, (string | null)[]>;
+}
+
+/** Serialised shape of a gear item in the save file. */
+export interface GearSaveItem {
+  uid:          string;
+  defId:        string;
+  enhanceLevel: number;
+  rune?:        unknown;
+  isNew?:       boolean;
+}
+
+/** Serialised commander XP data. */
+export interface CommanderXpData {
+  /** Keyed by commanderId → total XP earned. */
+  xp:                Record<string, number>;
+  /** Keyed by commanderId → equipped enhancement IDs per slot. */
+  enhancementSlots:  Record<string, (string | null)[]>;
+}
+
 interface SaveData {
   version:          number;
   currency:         number;
@@ -38,6 +61,15 @@ interface SaveData {
    * Stages never played are absent (not stored as 0).
    */
   stageMoons: Record<string, number>;
+
+  // ── Deep progression (additive fields — back-filled) ──────────────────────
+
+  /** Gear inventory and equip state. */
+  gearData:       GearSaveData;
+  /** Commander XP and enhancement slots. */
+  commanderXp:    CommanderXpData;
+  /** Challenge map weekly featured ID (rotates weekly). */
+  challengeWeek:  string;
 }
 
 function defaultSaveData(): SaveData {
@@ -54,6 +86,9 @@ function defaultSaveData(): SaveData {
     seenVignetteIds: [],
     unlockedCodexIds: [],
     stageMoons: {},
+    gearData:       { inventory: [], equipped: {} },
+    commanderXp:    { xp: {}, enhancementSlots: {} },
+    challengeWeek:  '',
   };
 }
 
@@ -233,6 +268,63 @@ export class SaveManager {
   getNewCodexCount(lastKnownIds: string[]): number {
     const unlocked = this.data.unlockedCodexIds ?? [];
     return unlocked.filter(id => !lastKnownIds.includes(id)).length;
+  }
+
+  // ── Gear inventory ──────────────────────────────────────────────────────────
+
+  /** Get the raw gear save data (inventory + equip map). */
+  getGearData(): GearSaveData {
+    return this.data.gearData ?? { inventory: [], equipped: {} };
+  }
+
+  /** Persist the gear save data. */
+  setGearData(gearData: GearSaveData): void {
+    this.data.gearData = gearData;
+    this._save();
+  }
+
+  // ── Commander XP & Enhancements ─────────────────────────────────────────────
+
+  /** Get total XP for a commander. */
+  getCommanderXp(commanderId: string): number {
+    return this.data.commanderXp?.xp?.[commanderId] ?? 0;
+  }
+
+  /** Add XP to a commander. */
+  addCommanderXp(commanderId: string, xp: number): void {
+    if (xp <= 0) return;
+    if (!this.data.commanderXp) this.data.commanderXp = { xp: {}, enhancementSlots: {} };
+    if (!this.data.commanderXp.xp) this.data.commanderXp.xp = {};
+    this.data.commanderXp.xp[commanderId] = (this.data.commanderXp.xp[commanderId] ?? 0) + xp;
+    this._save();
+  }
+
+  /** Get equipped enhancement IDs for a commander (up to 3 slots). */
+  getCommanderEnhancements(commanderId: string): (string | null)[] {
+    return this.data.commanderXp?.enhancementSlots?.[commanderId] ?? [null, null, null];
+  }
+
+  /** Set an enhancement in a specific slot for a commander. */
+  setCommanderEnhancement(commanderId: string, slot: number, enhancementId: string | null): void {
+    if (slot < 0 || slot > 2) return;
+    if (!this.data.commanderXp) this.data.commanderXp = { xp: {}, enhancementSlots: {} };
+    if (!this.data.commanderXp.enhancementSlots) this.data.commanderXp.enhancementSlots = {};
+    if (!this.data.commanderXp.enhancementSlots[commanderId]) {
+      this.data.commanderXp.enhancementSlots[commanderId] = [null, null, null];
+    }
+    this.data.commanderXp.enhancementSlots[commanderId][slot] = enhancementId;
+    this._save();
+  }
+
+  /** Get the current week's challenge map rotation ID. */
+  getChallengeWeek(): string {
+    return this.data.challengeWeek ?? '';
+  }
+
+  /** Set the current week's challenge map rotation ID. */
+  setChallengeWeek(mapId: string): void {
+    this.data.challengeWeek = mapId;
+    this._save();
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────

@@ -8,6 +8,9 @@ import { GameOverScene } from './scenes/GameOverScene';
 import { BetweenWaveScene } from './scenes/BetweenWaveScene';
 import { MetaMenuScene } from './scenes/MetaMenuScene';
 import { CodexScene } from './scenes/CodexScene';
+import { InventoryScene } from './scenes/InventoryScene';
+import { ChallengeSelectScene } from './scenes/ChallengeSelectScene';
+import { TowerEquipScene } from './scenes/TowerEquipScene';
 
 // Initialise mobile detection early — sets window.__OJIBWE_MOBILE and
 // toggles the 'mobile' body class used by CSS.
@@ -28,6 +31,9 @@ const config: Phaser.Types.Core.GameConfig = {
     GameOverScene,      // 5. End of run — lives hit 0
     MetaMenuScene,      // 6. Meta-progression unlocks (currency + unlock tree)
     CodexScene,         // 7. Lore codex browser (accessible from menus)
+    InventoryScene,          // 8. Gear inventory browser
+    ChallengeSelectScene,    // 9. Challenge map selection
+    TowerEquipScene,         // 10. Tower gear equip screen
   ],
   scale: {
     mode: Phaser.Scale.FIT,
