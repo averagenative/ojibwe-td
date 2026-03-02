@@ -27,9 +27,11 @@ export class BossOfferPanel {
   private objects: Phaser.GameObjects.GameObject[] = [];
 
   constructor(
-    scene:    Phaser.Scene,
-    bossName: string,
-    offers:   BossOffer[],
+    scene:     Phaser.Scene,
+    bossName:  string,
+    offers:    BossOffer[],
+    /** Called after the player makes a choice and the panel closes. */
+    onClosed?: () => void,
   ) {
     const { width, height } = scene.scale;
 
@@ -107,6 +109,7 @@ export class BossOfferPanel {
       btnBg.on('pointerup', () => {
         offer.onChoose();
         this.close();
+        onClosed?.();
       });
 
       this.objects.push(btnBg, btnLabel, btnDesc);
