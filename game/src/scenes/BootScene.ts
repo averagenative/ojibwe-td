@@ -13,6 +13,7 @@ const AUDIO_LOAD_DEFS: ReadonlyArray<[key: string, path: string]> = [
   ['sfx-mortar',         'assets/audio/sfx/mortar-fire.mp3'],
   ['sfx-poison',         'assets/audio/sfx/poison-fire.mp3'],
   ['sfx-aura',           'assets/audio/sfx/aura-hum.mp3'],
+  ['sfx-arrow',          'assets/audio/sfx/arrow-fire.mp3'],
   ['sfx-creep-death-01', 'assets/audio/sfx/creep-death-01.mp3'],
   ['sfx-creep-death-02', 'assets/audio/sfx/creep-death-02.mp3'],
   ['sfx-creep-death-03', 'assets/audio/sfx/creep-death-03.mp3'],
@@ -91,6 +92,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('icon-poison',  'assets/icons/icon-poison.png');
     this.load.image('icon-tesla',   'assets/icons/icon-tesla.png');
     this.load.image('icon-aura',    'assets/icons/icon-aura.png');
+    this.load.image('icon-arrow',   'assets/icons/icon-arrow.png');
 
     // Misc UI icons
     this.load.image('icon-dice',    'assets/icons/icon-dice.png');

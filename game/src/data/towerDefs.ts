@@ -45,7 +45,7 @@ export interface TowerDef {
    * Which creep domains this tower can target.
    * - 'ground' : only ground creeps (Cannon, Mortar, Poison)
    * - 'air'    : only air creeps   (Tesla)
-   * - 'both'   : all creeps        (Frost, Aura)
+   * - 'both'   : all creeps        (Frost, Aura, Arrow)
    */
   targetDomain:         'ground' | 'air' | 'both';
 }
@@ -199,6 +199,15 @@ export const AURA_DEF: TowerDef = {
   targetDomain: 'both', // aura buffs towers regardless of creep domain
 };
 
+export const ARROW_DEF: TowerDef = {
+  key: 'arrow',  name: 'Arrow',  cost: 75,
+  range: 180,  damage: 18,  attackIntervalMs: 600,  projectileSpeed: 500,
+  description: 'Fast, long-range single target. Targets ground and air.',
+  bodyColor: 0x8b6b3d,  projectileColor: 0xc4a265,  projectileRadius: 3,
+  defaultPriority: TargetingPriority.FIRST,
+  targetDomain: 'both',
+};
+
 export const ALL_TOWER_DEFS: TowerDef[] = [
-  CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
+  CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF, ARROW_DEF,
 ];

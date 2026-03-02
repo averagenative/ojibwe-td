@@ -24,7 +24,7 @@ export interface ProjectileOptions {
   onImpact?:     (x: number, y: number) => void;
   /**
    * Tower type key — drives trail colour and impact visual style.
-   * Recognised values: 'cannon' | 'frost' | 'mortar' | 'poison' | 'tesla' | 'aura'
+   * Recognised values: 'cannon' | 'frost' | 'mortar' | 'poison' | 'tesla' | 'aura' | 'arrow'
    */
   towerKey?:     string;
 }
@@ -40,6 +40,7 @@ const TRAIL_COLORS: Record<string, number> = {
   frost:  0x88ccff,
   mortar: 0xee7700,
   poison: 0x44ff88,
+  arrow:  0xc4a265,
 };
 
 /**
@@ -261,6 +262,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
       case 'frost':  this.impactFrostBurst(cx, cy);    break;
       case 'mortar': this.impactMortarDebris(cx, cy);  break;
       case 'poison': this.impactPoisonSplatter(cx, cy);break;
+      case 'arrow':  this.impactArrowStick(cx, cy);    break;
       // tesla: primary arc drawn via drawLightningArc() in hitCreep()
       // aura:  no impact effect (no projectile)
       default: break;
@@ -353,6 +355,35 @@ export class Projectile extends Phaser.GameObjects.Arc {
         onComplete: () => blob.destroy(),
       });
     }
+  }
+
+  /** Arrow impact: a brief stuck-arrow line that fades out quickly. */
+  private impactArrowStick(cx: number, cy: number): void {
+    const angle = Math.atan2(
+      cy - this.spawnY,
+      cx - this.spawnX,
+    );
+    const len = 8;
+    const gfx = this.scene.add.graphics();
+    gfx.setDepth(22);
+    // Shaft stub
+    gfx.lineStyle(2, 0xa08050, 0.85);
+    gfx.beginPath();
+    gfx.moveTo(
+      cx - Math.cos(angle) * len,
+      cy - Math.sin(angle) * len,
+    );
+    gfx.lineTo(cx, cy);
+    gfx.strokePath();
+    // Flint tip
+    gfx.fillStyle(0x778888, 0.9);
+    gfx.fillCircle(cx, cy, 1.5);
+    this.scene.tweens.add({
+      targets:    gfx,
+      alpha:      0,
+      duration:   200,
+      onComplete: () => gfx.destroy(),
+    });
   }
 
   /**

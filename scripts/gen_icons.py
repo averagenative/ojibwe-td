@@ -250,4 +250,46 @@ icon('icon-mystery', f"""
 """)
 
 
-print('\nDone — 8 icons written to converted_assets/')
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. ARROW — recurve bow with arrow, earth-tone palette (birch/sinew/flint)
+# ─────────────────────────────────────────────────────────────────────────────
+icon('icon-arrow', """
+  <!-- Bow shadow -->
+  <path d="M18,49 Q10,32 18,15"
+        fill="none" stroke="#1a0e05" stroke-width="5" opacity="0.4"
+        stroke-linecap="round" transform="translate(2,2)"/>
+  <!-- Bow limb — birch bark wood -->
+  <path d="M17,48 Q9,32 17,16"
+        fill="none" stroke="#8b6b3d" stroke-width="4.5"
+        stroke-linecap="round"/>
+  <!-- Bow inner grain highlight -->
+  <path d="M17,44 Q11,32 17,20"
+        fill="none" stroke="#c4a265" stroke-width="2"
+        stroke-linecap="round" opacity="0.6"/>
+  <!-- Bowstring — sinew -->
+  <line x1="17" y1="16" x2="17" y2="48"
+        stroke="#d4c8a0" stroke-width="1.5" opacity="0.8"/>
+  <!-- Arrow shaft -->
+  <line x1="17" y1="32" x2="52" y2="32"
+        stroke="#a08050" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Arrow shaft grain -->
+  <line x1="22" y1="32" x2="46" y2="32"
+        stroke="#c4a265" stroke-width="1" opacity="0.5"/>
+  <!-- Flint arrowhead -->
+  <polygon points="52,32 44,27 44,37" fill="#556666"/>
+  <polygon points="50,32 45,28.5 45,35.5" fill="#778888" opacity="0.7"/>
+  <!-- Arrowhead edge highlight -->
+  <line x1="52" y1="32" x2="45" y2="28" stroke="#99aabb" stroke-width="0.8" opacity="0.6"/>
+  <!-- Fletching feathers -->
+  <polygon points="22,32 18,27 20,32" fill="#8b4513" opacity="0.8"/>
+  <polygon points="22,32 18,37 20,32" fill="#6b3410" opacity="0.8"/>
+  <!-- Fletching detail lines -->
+  <line x1="19" y1="28" x2="21" y2="32" stroke="#aa6633" stroke-width="0.7" opacity="0.5"/>
+  <line x1="19" y1="36" x2="21" y2="32" stroke="#aa6633" stroke-width="0.7" opacity="0.5"/>
+  <!-- Bow tip accents (sinew wrapping) -->
+  <circle cx="17" cy="16" r="2" fill="#d4c8a0" opacity="0.6"/>
+  <circle cx="17" cy="48" r="2" fill="#d4c8a0" opacity="0.6"/>
+""")
+
+
+print('\nDone — 9 icons written to converted_assets/')

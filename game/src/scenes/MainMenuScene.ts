@@ -41,6 +41,7 @@ const AFFINITY_COLORS: Record<string, number> = {
   poison: 0x338844,
   tesla:  0xbbaa22,
   aura:   0xbb9922,
+  arrow:  0x8b6b3d,
 };
 
 // ── Rounded-panel helper ────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ export class MainMenuScene extends Phaser.Scene {
   // ── Header (icons + label) ────────────────────────────────────────────────
 
   private createHeader(cx: number, iconY: number, labelY: number): void {
-    const icons = ['icon-cannon', 'icon-frost', 'icon-mortar', 'icon-poison', 'icon-tesla', 'icon-aura'];
+    const icons = ['icon-cannon', 'icon-frost', 'icon-mortar', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow'];
     const iconSpacing = 52;
     const rowW = (icons.length - 1) * iconSpacing;
     icons.forEach((key, i) => {
