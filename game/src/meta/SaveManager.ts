@@ -33,6 +33,11 @@ interface SaveData {
   seenVignetteIds:  string[];
   /** Codex entry IDs that have been unlocked. */
   unlockedCodexIds: string[];
+  /**
+   * Best moon rating (1–5) per stage, keyed by stageId.
+   * Stages never played are absent (not stored as 0).
+   */
+  stageMoons: Record<string, number>;
 }
 
 function defaultSaveData(): SaveData {
@@ -48,6 +53,7 @@ function defaultSaveData(): SaveData {
     endlessRecords:  {},
     seenVignetteIds: [],
     unlockedCodexIds: [],
+    stageMoons: {},
   };
 }
 
@@ -160,6 +166,29 @@ export class SaveManager {
     this.data.audioMusic  = music;
     this.data.audioMuted  = muted;
     this._save();
+  }
+
+  // ── Moon ratings ───────────────────────────────────────────────────────────
+
+  /**
+   * Return the best moon rating (1–5) for a stage, or 0 if never completed.
+   * @param stageId  The stage identifier (e.g. 'zaagaiganing-01').
+   */
+  getStageMoons(stageId: string): number {
+    return this.data.stageMoons?.[stageId] ?? 0;
+  }
+
+  /**
+   * Persist a moon rating for a stage.  Only updates when the new rating
+   * exceeds the existing best (idempotent for equal or lower ratings).
+   */
+  setStageMoons(stageId: string, moons: number): void {
+    if (!this.data.stageMoons) this.data.stageMoons = {};
+    const current = this.data.stageMoons[stageId] ?? 0;
+    if (moons > current) {
+      this.data.stageMoons[stageId] = moons;
+      this._save();
+    }
   }
 
   // ── Vignettes & Codex ──────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import {
 } from '../data/stageDefs';
 import type { RegionDef, StageDef } from '../data/stageDefs';
 import { PAL } from '../ui/palette';
+import { moonSymbol } from '../systems/MoonRating';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -305,6 +306,19 @@ export class MainMenuScene extends Phaser.Scene {
 
     const stars = this.buildDifficultyStars(bx, by - STAGE_H / 2 + 40, stage.difficulty, isLocked);
     created.push(...stars);
+
+    // Best moon rating row — only shown for unlocked stages that have been completed.
+    if (!isLocked) {
+      const bestMoons = SaveManager.getInstance().getStageMoons(stage.id);
+      if (bestMoons > 0) {
+        const moonRow = Array.from({ length: 5 }, (_, i) => moonSymbol(i, bestMoons)).join('');
+        const moonText = this.add.text(bx, by - STAGE_H / 2 + 53, moonRow, {
+          fontSize: '10px',
+          fontFamily: PAL.fontBody,
+        }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
+        created.push(moonText);
+      }
+    }
 
     const descColor = isLocked ? PAL.textLockedDim : PAL.textDesc;
     const desc = this.add.text(bx, by - 4, stage.description, {
