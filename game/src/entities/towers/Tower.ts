@@ -48,7 +48,8 @@ export class Tower extends Phaser.GameObjects.Container {
   private rangeGfx:          Phaser.GameObjects.Graphics;
   private rangeVisible       = false;
   private auraPulseGfx?:     Phaser.GameObjects.Graphics;
-  private auraPulseRadius  = 0;
+  /** Phase [0, 1) drives both pulse rings; advances at 0.35 cycles/s. */
+  private auraPulsePhase   = 0;
 
   private getCreeps:         () => ReadonlySet<Creep>;
   private onProjectileFired: (proj: Projectile) => void;
@@ -302,6 +303,7 @@ export class Tower extends Phaser.GameObjects.Container {
       groundOnly:   this.def.groundOnly,
       getCreeps:    this.getCreeps,
       onHit:        mortarOnHit,
+      towerKey:     this.def.key,
     };
 
     if (clusterCount > 0) {
@@ -325,6 +327,7 @@ export class Tower extends Phaser.GameObjects.Container {
             splashRadius: 25,
             groundOnly:   true,
             getCreeps,
+            towerKey:     'mortar',
           });
           fireProjFn(sub);
         }
@@ -366,11 +369,12 @@ export class Tower extends Phaser.GameObjects.Container {
     const projSpeedMult = this.commanderState?.projectileSpeedMult ?? 1.0;
 
     const opts: ProjectileOptions = {
-      color:  this.def.projectileColor ?? 0xffff44,
-      radius: this.def.projectileRadius ?? 4,
-      speed:  this.def.projectileSpeed,
+      color:    this.def.projectileColor ?? 0xffff44,
+      radius:   this.def.projectileRadius ?? 4,
+      speed:    this.def.projectileSpeed,
       speedMult: projSpeedMult,
-      damage: primaryDmg,
+      damage:   primaryDmg,
+      towerKey: this.def.key,
       onHit: (hitCreep) => {
         // Collect candidates within chainRange
         const inRange = [...getCreeps()]
@@ -464,6 +468,7 @@ export class Tower extends Phaser.GameObjects.Container {
           speed:    this.def.projectileSpeed * 1.5,
           speedMult: this.commanderState?.projectileSpeedMult ?? 1.0,
           damage:   target.maxHp * 2,
+          towerKey: this.def.key,
         };
         const proj = new Projectile(this.scene, this.x, this.y, target, opts);
         this.onProjectileFired(proj);
@@ -549,6 +554,7 @@ export class Tower extends Phaser.GameObjects.Container {
       speedMult: this.commanderState?.projectileSpeedMult ?? 1.0,
       damage:   effectiveDamage,
       onHit,
+      towerKey: this.def.key,
     };
 
     const proj = new Projectile(this.scene, this.x, this.y, target, opts);
@@ -660,13 +666,19 @@ export class Tower extends Phaser.GameObjects.Container {
 
   private stepAuraPulse(delta: number): void {
     if (!this.auraPulseGfx) return;
-    this.auraPulseRadius += (delta / 1000) * 55;
-    if (this.auraPulseRadius > this.upgStats.range) this.auraPulseRadius = 0;
+    // Advance phase: 0.35 cycles/s → ~2.9 s period.
+    this.auraPulsePhase = (this.auraPulsePhase + (delta / 1000) * 0.35) % 1;
 
-    const alpha = (1 - this.auraPulseRadius / this.upgStats.range) * 0.45;
     this.auraPulseGfx.clear();
-    this.auraPulseGfx.lineStyle(2, 0xffdd44, alpha);
-    this.auraPulseGfx.strokeCircle(this.x, this.y, this.auraPulseRadius);
+    // Two rings half a cycle apart — creates a continuous outward-pulse look.
+    for (let i = 0; i < 2; i++) {
+      const phase = (this.auraPulsePhase + i * 0.5) % 1;
+      const r     = phase * this.upgStats.range;
+      // Bell-curve alpha: 0 at edges, peaks near mid-travel.
+      const alpha = Math.sin(phase * Math.PI) * 0.45;
+      this.auraPulseGfx.lineStyle(2, 0xffdd44, alpha);
+      this.auraPulseGfx.strokeCircle(this.x, this.y, r);
+    }
   }
 }
 
