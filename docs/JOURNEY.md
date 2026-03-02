@@ -581,3 +581,13 @@ The UI had an unintentional "90s hacker terminal" aesthetic: electric greens (`#
 **Systematic replacement.** Every hard-coded hex literal across nine UI files is replaced with the corresponding `PAL.*` reference: `MainMenuScene.ts`, `GameScene.ts`, `BetweenWaveScene.ts`, `GameOverScene.ts`, `HUD.ts`, `TowerPanel.ts`, `VignetteOverlay.ts`, `BossOfferPanel.ts`, and `UpgradePanel.ts`. The `fontFamily: 'monospace'` override is removed where it appeared; scene text now inherits the `Georgia` serif set in the Phaser game config, giving headers a warmer, less terminal feel.
 
 **Test coverage.** `src/systems/__tests__/palette.test.ts` adds 26 Vitest tests verifying: all required keys are present in `PAL`, numeric values are valid 24-bit integers, string values are valid CSS hex colours, contrast ratios meet the 4.5:1 WCAG AA threshold for primary text against panel backgrounds, and Medicine Wheel colours are unchanged from their culturally specified values. The full suite passes at 617 tests with 0 type errors.
+
+---
+
+### TASK-044 — Medicine Wheel Favicon & Game Asset Integration
+
+The browser tab for Ojibwe TD was displaying a generic Vite favicon, which gave no visual identity to the game when multiple tabs were open. TASK-044 replaces it with the Medicine Wheel SVG that was already present in the public assets but unused by the HTML shell.
+
+**Favicon wiring.** `game/index.html` received a `<link rel="icon" type="image/svg+xml" href="/assets/ui/medicine-wheel.svg">` tag, replacing the previous Vite boilerplate favicon reference. The Medicine Wheel's four directional colours — white (North), red (South), black (West), yellow (East) — and gold rim (`#c8a96e`) render crisply at 16×16 px and above directly from the SVG, with no PNG conversion or raster fallbacks needed for modern browsers.
+
+**Test coverage.** `src/systems/__tests__/favicon.test.ts` adds 4 Vitest tests: confirms `index.html` contains the exact SVG favicon `<link>` tag, confirms `medicine-wheel.svg` exists in `public/assets/ui/`, validates the SVG contains the expected structure (xmlns, viewBox) and all five culturally specified colours, and guards against accidental duplicate favicon entries. Because the tests read files from disk via Node's `fs` module, `@types/node` was added as a dev dependency and the test file carries a `/// <reference types="node" />` directive so Node built-ins resolve without polluting the browser-oriented main tsconfig with node globals. The full suite passes at 627 tests with 0 type errors.
