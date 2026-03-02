@@ -3,6 +3,8 @@ import { tickRegen } from '../data/bossDefs';
 import {
   computeArrivalThreshold,
   advanceWaypointIndex,
+  computeDirection,
+  type CreepDirection,
 } from '../data/pathing';
 
 // Re-export so existing imports from Creep.ts still work.
@@ -57,6 +59,19 @@ const BODY_COLORS: Record<CreepType, number> = {
   ground: 0x22cc55,
   air:    0x4488ff,
 };
+
+// ── Bobbing animation constants ───────────────────────────────────────────────
+/** Sine-wave amplitude in pixels (±). */
+const BOB_AMPLITUDE   = 1.5;
+/** rad per (px/s) of effective speed — gives ≈ 2 Hz at 80 px/s base speed. */
+const BOB_FREQ_FACTOR = 0.157;
+
+// ── Directional body dimensions ───────────────────────────────────────────────
+// Moving horizontally → wider; moving vertically → taller.
+const BODY_HORIZ_W = 30; const BODY_HORIZ_H = 18;
+const BODY_VERT_W  = 18; const BODY_VERT_H  = 30;
+const BOSS_HORIZ_W = 56; const BOSS_HORIZ_H = 36;
+const BOSS_VERT_W  = 36; const BOSS_VERT_H  = 56;
 
 // Normal creep HP-bar dimensions
 const HP_BAR_WIDTH  = 30;
@@ -153,6 +168,16 @@ export class Creep extends Phaser.GameObjects.Container {
   /** Remaining cooldown in ms before regen ticks resume. */
   private regenCooldownMs = 0;
 
+  // ── Directional movement ──────────────────────────────────────────────────
+  private direction: CreepDirection = 'right';
+  /** Accumulated phase (radians) for the bobbing sine wave. */
+  private bobPhase = 0;
+  /** Small armour badge shown at the leading edge of armoured creeps. */
+  private armorIndicator?: Phaser.GameObjects.Rectangle;
+  /** Cached base position for the armour badge (avoids tuple alloc per frame). */
+  private armorBaseX = 0;
+  private armorBaseY = 0;
+
   constructor(
     scene: Phaser.Scene,
     waypoints: Waypoint[],
@@ -186,7 +211,16 @@ export class Creep extends Phaser.GameObjects.Container {
     // For sprite-path: boss tint or 0xffffff (no tint) for standard creeps.
     this.baseSpriteTint = config.tint ?? 0xffffff;
 
+    // Determine initial facing direction from the first path segment.
+    if (waypoints.length > 1) {
+      const dx0 = waypoints[1].x - waypoints[0].x;
+      const dy0 = waypoints[1].y - waypoints[0].y;
+      this.direction = computeDirection(dx0, dy0);
+    }
+
     this.buildVisuals(config);
+    // Apply the initial directional transform (flip / rotation / size).
+    this.updateDirectionalVisual();
     scene.add.existing(this);
   }
 
@@ -236,6 +270,25 @@ export class Creep extends Phaser.GameObjects.Container {
     const dx = target.x - this.x;
     const dy = target.y - this.y;
     const dist = Math.hypot(dx, dy);
+
+    // ── Direction update ─────────────────────────────────────────────────────
+    if (dist > 0) {
+      const newDir = computeDirection(dx, dy);
+      if (newDir !== this.direction) {
+        this.direction = newDir;
+        this.updateDirectionalVisual();
+      }
+    }
+
+    // ── Bobbing (sine wave on body Y, scales with effective speed) ───────────
+    const bobY = Math.sin(this.bobPhase) * BOB_AMPLITUDE;
+    if (this.bodyImage) this.bodyImage.y = bobY;
+    if (this.bodyRect)  this.bodyRect.y  = bobY;
+    if (this.armorIndicator) {
+      this.armorIndicator.y = this.armorBaseY + bobY;
+    }
+    // Accumulate phase after applying so phase=0 → bobY=0 on the first frame.
+    this.bobPhase += (effectiveSpeed / 1000) * delta * BOB_FREQ_FACTOR;
 
     if (dist > 0) {
       this.x += (dx / dist) * stepDist;
@@ -325,6 +378,11 @@ export class Creep extends Phaser.GameObjects.Container {
   /** Current number of active DoT stacks. */
   getDotStacks(): number {
     return this.dotStacks;
+  }
+
+  /** Current cardinal movement direction (updated each step). */
+  getDirection(): CreepDirection {
+    return this.direction;
   }
 
   /** True while any slow is active (used by Frost shatter logic). */
@@ -513,7 +571,82 @@ export class Creep extends Phaser.GameObjects.Container {
     );
     this.hpBarFill.setOrigin(0, 0.5);
 
-    this.add([bodyObj, hpBg, this.hpBarFill]);
+    // ── Armour badge (armored creeps only) ───────────────────────────────────
+    if (this.isArmored) {
+      this.computeArmorBasePos();
+      this.armorIndicator = new Phaser.GameObjects.Rectangle(
+        this.scene, this.armorBaseX, this.armorBaseY,
+        this.isBossCreep ? 12 : 8,
+        this.isBossCreep ? 6 : 4,
+        0xaaaacc,
+      );
+    }
+
+    if (this.armorIndicator) {
+      this.add([bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
+    } else {
+      this.add([bodyObj, hpBg, this.hpBarFill]);
+    }
+  }
+
+  /**
+   * Apply flip / rotation / size to the body object based on the current
+   * movement direction.  Also repositions the armour badge.
+   *
+   * • Rectangle body: resize to wider (horizontal) or taller (vertical).
+   * • Image body: flipX for left, ±90° rotation for up/down; displaySize
+   *   uses horizontal proportions so rotation produces the taller silhouette.
+   */
+  private updateDirectionalVisual(): void {
+    const isHoriz = this.direction === 'left' || this.direction === 'right';
+
+    if (this.bodyImage) {
+      // Sprite path — rotation + flipX
+      this.bodyImage.flipX = this.direction === 'left';
+      if (isHoriz) {
+        this.bodyImage.setRotation(0);
+      } else {
+        this.bodyImage.setRotation(
+          this.direction === 'down' ? Math.PI / 2 : -Math.PI / 2,
+        );
+      }
+      // Always use horizontal display dimensions; 90° rotation produces the
+      // taller silhouette without needing a separate vertical texture.
+      this.bodyImage.setDisplaySize(
+        this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W,
+        this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H,
+      );
+    } else if (this.bodyRect) {
+      // Rectangle path — resize (no rotation; shape change achieves the effect)
+      const w = isHoriz
+        ? (this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W)
+        : (this.isBossCreep ? BOSS_VERT_W  : BODY_VERT_W);
+      const h = isHoriz
+        ? (this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H)
+        : (this.isBossCreep ? BOSS_VERT_H  : BODY_VERT_H);
+      this.bodyRect.setSize(w, h);
+    }
+
+    // Reposition the armour badge to the new leading edge.
+    if (this.armorIndicator) {
+      this.computeArmorBasePos();
+      this.armorIndicator.x = this.armorBaseX;
+      this.armorIndicator.y = this.armorBaseY;
+    }
+  }
+
+  /**
+   * Compute the armour indicator base position into cached fields, avoiding
+   * a tuple allocation on every frame.
+   */
+  private computeArmorBasePos(): void {
+    const offset = this.isBossCreep ? 28 : 16;
+    switch (this.direction) {
+      case 'right': this.armorBaseX =  offset; this.armorBaseY = 0;      break;
+      case 'left':  this.armorBaseX = -offset; this.armorBaseY = 0;      break;
+      case 'down':  this.armorBaseX = 0;       this.armorBaseY =  offset; break;
+      case 'up':    this.armorBaseX = 0;       this.armorBaseY = -offset; break;
+    }
   }
 
   private refreshStatusVisual(): void {
