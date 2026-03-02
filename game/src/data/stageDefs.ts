@@ -92,6 +92,19 @@ export const ALL_STAGES: StageDef[] = [
     creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
   },
   {
+    id:              'niizh-miikana-01',
+    regionId:        'mashkiig',
+    name:            'Niizh-miikana',
+    description:     'Two paths enter from the north and south, converging at a central chokepoint. Split your defences or be overwhelmed.',
+    waveCount:       20,
+    pathFile:        'map-05',
+    difficulty:      3,
+    towerAffinities: ['tesla', 'mortar', 'cannon'],
+    unlockId:        'unlock-stage-niizh-miikana-01',
+    unlockCost:      250,
+    creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
+  },
+  {
     id:              'mitigomizh-01',
     regionId:        'mitigomizh',
     name:            'Oak Savanna Run',
@@ -135,7 +148,7 @@ export const ALL_REGIONS: RegionDef[] = [
     name:          'Mashkiig',
     displayName:   'Mashkiig (Wetlands)',
     seasonalTheme: 'spring',
-    stages:        ['mashkiig-01'],
+    stages:        ['mashkiig-01', 'niizh-miikana-01'],
     lore:          'Mashkiig — the marsh — is a place of abundant life and hidden danger. The twisting waterways slow invaders and reward patient defenders.',
   },
   {

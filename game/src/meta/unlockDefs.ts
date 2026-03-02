@@ -63,7 +63,15 @@ export const UNLOCK_NODES: UnlockNode[] = [
     effect:      { type: 'commander', commanderId: 'animikiikaa' },
   },
 
-  // ── Stage unlocks (Phase 12) ──────────────────────────────────────────────
+  // ── Stage unlocks ─────────────────────────────────────────────────────────
+  {
+    id:          'unlock-stage-niizh-miikana-01',
+    label:       'Niizh-miikana \u2014 Two Paths',
+    description: 'Unlock the Two Paths stage: dual entrance map where creeps converge at a deadly chokepoint.',
+    cost:        250,
+    prereqs:     ['unlock-map-02'],
+    effect:      { type: 'stage', stageId: 'niizh-miikana-01' },
+  },
   {
     id:          'unlock-stage-mitigomizh-01',
     label:       'Mitigomizh \u2014 Oak Savanna Run',
