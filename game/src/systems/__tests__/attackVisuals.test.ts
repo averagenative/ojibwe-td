@@ -16,6 +16,7 @@ const TRAIL_COLORS: Record<string, number> = {
   frost:  0x88ccff,
   mortar: 0xee7700,
   poison: 0x44ff88,
+  arrow:  0xc4a265,
 };
 
 const TRAIL_INTERVAL_MS = 30;
@@ -36,6 +37,10 @@ describe('trail colour lookup', () => {
 
   it('returns poison trail colour', () => {
     expect(TRAIL_COLORS['poison']).toBe(0x44ff88);
+  });
+
+  it('returns arrow trail colour', () => {
+    expect(TRAIL_COLORS['arrow']).toBe(0xc4a265);
   });
 
   it('falls back to undefined for unknown tower key', () => {
@@ -127,6 +132,10 @@ describe('trail exclusion guards', () => {
     expect(shouldEmitTrail('poison')).toBe(true);
   });
 
+  it('arrow emits trail', () => {
+    expect(shouldEmitTrail('arrow')).toBe(true);
+  });
+
   it('tesla does NOT emit trail', () => {
     expect(shouldEmitTrail('tesla')).toBe(false);
   });
@@ -192,7 +201,7 @@ describe('tesla projectile visibility', () => {
   });
 
   it('non-tesla projectiles stay visible', () => {
-    for (const key of ['cannon', 'frost', 'mortar', 'poison', 'aura', undefined]) {
+    for (const key of ['cannon', 'frost', 'mortar', 'poison', 'arrow', 'aura', undefined]) {
       const shouldHide = key === 'tesla';
       expect(shouldHide).toBe(false);
     }
@@ -202,7 +211,7 @@ describe('tesla projectile visibility', () => {
 // ── Impact effect dispatch ───────────────────────────────────────────────────
 
 describe('impact effect dispatch', () => {
-  type EffectType = 'dust' | 'frost' | 'debris' | 'splatter' | 'none';
+  type EffectType = 'dust' | 'frost' | 'debris' | 'splatter' | 'arrow-stick' | 'none';
 
   /** Mirrors Projectile.showImpactEffect() switch. */
   function impactEffectType(towerKey: string | undefined): EffectType {
@@ -211,6 +220,7 @@ describe('impact effect dispatch', () => {
       case 'frost':  return 'frost';
       case 'mortar': return 'debris';
       case 'poison': return 'splatter';
+      case 'arrow':  return 'arrow-stick';
       default:       return 'none';
     }
   }
@@ -229,6 +239,10 @@ describe('impact effect dispatch', () => {
 
   it('poison → lingering splatter', () => {
     expect(impactEffectType('poison')).toBe('splatter');
+  });
+
+  it('arrow → stuck-arrow line', () => {
+    expect(impactEffectType('arrow')).toBe('arrow-stick');
   });
 
   it('tesla → no impact effect (arc drawn separately)', () => {
@@ -321,10 +335,10 @@ describe('aura dual-ring pulse', () => {
 // ── towerKey wiring coverage ─────────────────────────────────────────────────
 
 describe('towerKey passed through ProjectileOptions', () => {
-  // Verify that all 6 tower defs have their key available for towerKey wiring.
+  // Verify that all 7 tower defs have their key available for towerKey wiring.
   // The actual wiring happens in Tower.ts fire methods — we verify the keys
   // match what the visual code expects.
-  const EXPECTED_TOWER_KEYS = ['cannon', 'frost', 'mortar', 'poison', 'tesla', 'aura'];
+  const EXPECTED_TOWER_KEYS = ['cannon', 'frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow'];
 
   it('all tower keys are known by the trail/impact system', () => {
     const visualKeys = new Set([

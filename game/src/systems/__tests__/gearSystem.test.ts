@@ -79,6 +79,7 @@ describe('gearDefs', () => {
     expect(types.has('shell-casing')).toBe(true);
     expect(types.has('venom-gland')).toBe(true);
     expect(types.has('spirit-totem')).toBe(true);
+    expect(types.has('arrow-fletching')).toBe(true);
     expect(types.has('universal-charm')).toBe(true);
   });
 

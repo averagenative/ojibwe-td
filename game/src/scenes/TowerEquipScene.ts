@@ -39,6 +39,7 @@ const TOWER_COLORS: Record<string, number> = {
   poison: 0x338844,
   tesla:  0xbbaa22,
   aura:   0xbb9922,
+  arrow:  0x8b6b3d,
 };
 
 interface TowerEquipSceneData {

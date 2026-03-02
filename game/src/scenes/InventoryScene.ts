@@ -40,6 +40,7 @@ const FILTER_OPTIONS: { label: string; towerKey: string | null }[] = [
   { label: 'Mortar',    towerKey: 'mortar' },
   { label: 'Poison',    towerKey: 'poison' },
   { label: 'Aura',      towerKey: 'aura' },
+  { label: 'Arrow',     towerKey: 'arrow' },
   { label: 'Universal', towerKey: '__universal' },
 ];
 

@@ -159,16 +159,6 @@ export function defaultUpgradeStats(def: TowerDef): TowerUpgradeStats {
 
 // ── Tower definitions ─────────────────────────────────────────────────────────
 
-export const ARROW_DEF: TowerDef = {
-  key: 'arrow',  name: 'Arrow',  cost: 18,
-  range: 160,  damage: 10,  attackIntervalMs: 700,  projectileSpeed: 550,
-  description: 'Targets air & ground. Fast, cheap. Damage capped — best used early.',
-  bodyColor: 0x557733,  projectileColor: 0xaadd66,  projectileRadius: 3,
-  damageCap: 45,
-  defaultPriority: TargetingPriority.FIRST,
-  targetDomain: 'both',
-};
-
 export const CANNON_DEF: TowerDef = {
   key: 'cannon',  name: 'Cannon',  cost: 100,
   range: 160,  damage: 40,  attackIntervalMs: 1000,  projectileSpeed: 300,
@@ -226,6 +216,15 @@ export const AURA_DEF: TowerDef = {
   targetDomain: 'both', // aura buffs towers regardless of creep domain
 };
 
+export const ARROW_DEF: TowerDef = {
+  key: 'arrow',  name: 'Arrow',  cost: 75,
+  range: 180,  damage: 18,  attackIntervalMs: 600,  projectileSpeed: 500,
+  description: 'Fast, long-range single target. Targets ground and air.',
+  bodyColor: 0x8b6b3d,  projectileColor: 0xc4a265,  projectileRadius: 3,
+  defaultPriority: TargetingPriority.FIRST,
+  targetDomain: 'both',
+};
+
 export const ALL_TOWER_DEFS: TowerDef[] = [
-  ARROW_DEF, CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
+  CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF, ARROW_DEF,
 ];

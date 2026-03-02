@@ -65,6 +65,7 @@ export const GearType = {
   SHELL_CASING:    'shell-casing',    // Mortar
   VENOM_GLAND:     'venom-gland',     // Poison
   SPIRIT_TOTEM:    'spirit-totem',    // Aura
+  ARROW_FLETCHING: 'arrow-fletching', // Arrow
   UNIVERSAL_CHARM: 'universal-charm', // Any tower
 } as const;
 
@@ -78,6 +79,7 @@ export const GEAR_TYPE_TOWER: Record<GearType, string | null> = {
   'shell-casing':    'mortar',
   'venom-gland':     'poison',
   'spirit-totem':    'aura',
+  'arrow-fletching': 'arrow',
   'universal-charm': null,
 };
 
@@ -338,6 +340,40 @@ export const ALL_GEAR_DEFS: GearDef[] = [
     description: 'A masterwork totem radiating overwhelming power.',
     stats: { auraRadiusPct: 0.25, auraStrengthPct: 0.25 },
     specialEffect: { id: 'aura-triple', description: 'Aura grants speed, damage, AND range buffs simultaneously' },
+  },
+
+  // ──────────────── Arrow Fletchings (Arrow) ────────────────────────────────
+  {
+    id: 'arrow-sinew-string', name: 'Sinew Bowstring', gearType: 'arrow-fletching', rarity: 'common',
+    description: 'A sturdy sinew string that speeds up draws.',
+    stats: { attackSpeedPct: 0.08 },
+  },
+  {
+    id: 'arrow-flint-heads', name: 'Sharpened Flint Tips', gearType: 'arrow-fletching', rarity: 'common',
+    description: 'Hand-knapped flint arrowheads that hit harder.',
+    stats: { damagePct: 0.08 },
+  },
+  {
+    id: 'arrow-eagle-feather', name: 'Eagle Feather Fletching', gearType: 'arrow-fletching', rarity: 'uncommon',
+    description: 'Eagle feathers guide arrows further and truer.',
+    stats: { rangePct: 0.12, damagePct: 0.06 },
+  },
+  {
+    id: 'arrow-birch-recurve', name: 'Birch Recurve Limb', gearType: 'arrow-fletching', rarity: 'uncommon',
+    description: 'Flexible birch limb increases draw speed.',
+    stats: { attackSpeedPct: 0.15 },
+  },
+  {
+    id: 'arrow-obsidian-broadhead', name: 'Obsidian Broadhead', gearType: 'arrow-fletching', rarity: 'rare',
+    description: 'Razor-sharp volcanic glass tears through armour.',
+    stats: { damagePct: 0.22, armorPenPct: 0.12 },
+    specialEffect: { id: 'arrow-bleed', description: 'Arrows cause bleeding: 3 damage/s for 2s' },
+  },
+  {
+    id: 'arrow-windwalker-bow', name: "Windwalker's Bow", gearType: 'arrow-fletching', rarity: 'epic',
+    description: 'The wind itself carries these arrows to their mark.',
+    stats: { attackSpeedPct: 0.20, rangePct: 0.18, damagePct: 0.15 },
+    specialEffect: { id: 'arrow-pierce', description: 'Arrows have 20% chance to pierce through targets' },
   },
 
   // ──────────────── Universal Charms ────────────────────────────────────────

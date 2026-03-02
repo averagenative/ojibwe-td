@@ -363,8 +363,8 @@ describe('tile texture keys', () => {
 describe('BootScene expected texture keys', () => {
   // All texture keys that BootScene.loadAssets() should load
   const EXPECTED_KEYS = [
-    // Tower icons (pre-existing)
-    'icon-cannon', 'icon-frost', 'icon-mortar', 'icon-poison', 'icon-tesla', 'icon-aura',
+    // Tower icons
+    'icon-cannon', 'icon-frost', 'icon-mortar', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow',
     // Misc UI
     'icon-dice', 'icon-mystery',
     // Commander portraits
@@ -382,8 +382,8 @@ describe('BootScene expected texture keys', () => {
     'logo',
   ];
 
-  it('expects 31 total texture keys (logo + 8 icons + 5 portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
-    expect(EXPECTED_KEYS).toHaveLength(31);
+  it('expects 32 total texture keys (logo + 9 icons + 5 portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
+    expect(EXPECTED_KEYS).toHaveLength(32);
   });
 
   it('all keys are unique', () => {
