@@ -214,9 +214,8 @@ describe('Arrow gear equip restrictions', () => {
 
   it('arrow-fletching gear does NOT equip on other towers', () => {
     const gear = getGearDef('arrow-sinew-string')!;
-    expect(canEquipOnTower(gear, 'cannon')).toBe(false);
+    expect(canEquipOnTower(gear, 'rock-hurler')).toBe(false);
     expect(canEquipOnTower(gear, 'frost')).toBe(false);
-    expect(canEquipOnTower(gear, 'mortar')).toBe(false);
     expect(canEquipOnTower(gear, 'poison')).toBe(false);
     expect(canEquipOnTower(gear, 'tesla')).toBe(false);
     expect(canEquipOnTower(gear, 'aura')).toBe(false);
@@ -306,8 +305,8 @@ describe('Arrow tower balance', () => {
 // ── ALL_TOWER_DEFS integrity after Arrow addition ────────────────────────────
 
 describe('ALL_TOWER_DEFS with Arrow', () => {
-  it('contains 7 tower definitions', () => {
-    expect(ALL_TOWER_DEFS).toHaveLength(7);
+  it('contains 6 tower definitions', () => {
+    expect(ALL_TOWER_DEFS).toHaveLength(6);
   });
 
   it('all tower keys are unique', () => {

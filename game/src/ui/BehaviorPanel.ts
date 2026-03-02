@@ -24,11 +24,10 @@ const DEPTH = 115;  // above UpgradePanel (110)
 interface ToggleDef { on: string; off: string; }
 
 const TOGGLE_DEFS: Partial<Record<string, ToggleDef>> = {
-  cannon: { on: 'ARMOR FOCUS  ON', off: 'ARMOR FOCUS  OFF' },
-  frost:  { on: 'CHILL ONLY   ON', off: 'CHILL ONLY   OFF' },
-  mortar: { on: 'HOLD FIRE    ON', off: 'HOLD FIRE   OFF'  },
-  poison: { on: '1-STACK CAP  ON', off: '1-STACK CAP  OFF' },
-  tesla:  { on: 'CHAIN→EXIT   ON', off: 'CHAIN→EXIT  OFF'  },
+  'rock-hurler': { on: 'ARMOR FOCUS  ON', off: 'ARMOR FOCUS  OFF' },
+  frost:         { on: 'CHILL ONLY   ON', off: 'CHILL ONLY   OFF' },
+  poison:        { on: '1-STACK CAP  ON', off: '1-STACK CAP  OFF' },
+  tesla:         { on: 'CHAIN→EXIT   ON', off: 'CHAIN→EXIT  OFF'  },
 };
 
 // ── PriorityBtn ───────────────────────────────────────────────────────────────
@@ -231,23 +230,21 @@ export class BehaviorPanel {
     if (!this.currentTower) return;
     const bt = this.currentTower.behaviorToggles;
     switch (this.currentTower.def.key) {
-      case 'cannon': bt.armorFocus      = !bt.armorFocus;      break;
-      case 'frost':  bt.chillOnly       = !bt.chillOnly;       break;
-      case 'mortar': bt.holdFire        = !bt.holdFire;        break;
-      case 'poison': bt.maintainOneStack = !bt.maintainOneStack; break;
-      case 'tesla':  bt.chainToExit     = !bt.chainToExit;     break;
+      case 'rock-hurler': bt.armorFocus       = !bt.armorFocus;       break;
+      case 'frost':       bt.chillOnly        = !bt.chillOnly;        break;
+      case 'poison':      bt.maintainOneStack = !bt.maintainOneStack; break;
+      case 'tesla':       bt.chainToExit      = !bt.chainToExit;      break;
     }
     this.refresh();
   }
 
   private getToggleValue(tower: Tower): boolean {
     switch (tower.def.key) {
-      case 'cannon': return tower.behaviorToggles.armorFocus;
-      case 'frost':  return tower.behaviorToggles.chillOnly;
-      case 'mortar': return tower.behaviorToggles.holdFire;
-      case 'poison': return tower.behaviorToggles.maintainOneStack;
-      case 'tesla':  return tower.behaviorToggles.chainToExit;
-      default:       return false;
+      case 'rock-hurler': return tower.behaviorToggles.armorFocus;
+      case 'frost':       return tower.behaviorToggles.chillOnly;
+      case 'poison':      return tower.behaviorToggles.maintainOneStack;
+      case 'tesla':       return tower.behaviorToggles.chainToExit;
+      default:            return false;
     }
   }
 

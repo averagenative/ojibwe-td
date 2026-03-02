@@ -33,13 +33,12 @@ const SECTION_LEFT   = 80;
 
 // Tower body colours for card accents
 const TOWER_COLORS: Record<string, number> = {
-  cannon: 0x778888,
-  frost:  0x3366aa,
-  mortar: 0x996633,
-  poison: 0x338844,
-  tesla:  0xbbaa22,
-  aura:   0xbb9922,
-  arrow:  0x8b6b3d,
+  'rock-hurler': 0x886644,
+  frost:         0x3366aa,
+  poison:        0x338844,
+  tesla:         0xbbaa22,
+  aura:          0xbb9922,
+  arrow:         0x8b6b3d,
 };
 
 interface TowerEquipSceneData {

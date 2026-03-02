@@ -185,9 +185,9 @@ const BIZHIW: CommanderDef = {
   portraitIcon: 'commander-bizhiw',
   aura: {
     name: 'Bimaadiziwin',
-    description: 'Cannon and Frost tower attack speed +20%; projectile travel speed +25%.',
+    description: 'Rock Hurler and Frost tower attack speed +20%; projectile travel speed +25%.',
     apply(state) {
-      state.attackSpeedMultByKey['cannon'] = 0.80;
+      state.attackSpeedMultByKey['rock-hurler'] = 0.80;
       state.attackSpeedMultByKey['frost'] = 0.80;
       state.projectileSpeedMult = 1.25;
     },

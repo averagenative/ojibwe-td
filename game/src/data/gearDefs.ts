@@ -59,10 +59,10 @@ export const ENHANCE_COSTS: number[] = [20, 40, 80, 150, 300];
 // ── Gear Type ────────────────────────────────────────────────────────────────
 
 export const GearType = {
-  BARREL_MOD:      'barrel-mod',      // Cannon
+  BARREL_MOD:      'barrel-mod',      // Rock Hurler
   CRYSTAL_CORE:    'crystal-core',    // Frost
   COIL_AMPLIFIER:  'coil-amplifier',  // Tesla
-  SHELL_CASING:    'shell-casing',    // Mortar
+  SHELL_CASING:    'shell-casing',    // Rock Hurler (AoE / cluster slot)
   VENOM_GLAND:     'venom-gland',     // Poison
   SPIRIT_TOTEM:    'spirit-totem',    // Aura
   ARROW_FLETCHING: 'arrow-fletching', // Arrow
@@ -73,10 +73,10 @@ export type GearType = (typeof GearType)[keyof typeof GearType];
 
 /** Map from gear type to the tower key it fits (null = universal). */
 export const GEAR_TYPE_TOWER: Record<GearType, string | null> = {
-  'barrel-mod':      'cannon',
+  'barrel-mod':      'rock-hurler',
   'crystal-core':    'frost',
   'coil-amplifier':  'tesla',
-  'shell-casing':    'mortar',
+  'shell-casing':    'rock-hurler',
   'venom-gland':     'poison',
   'spirit-totem':    'aura',
   'arrow-fletching': 'arrow',

@@ -59,14 +59,14 @@ describe('gearDefs', () => {
 
   it('canEquipOnTower allows universal on any tower', () => {
     const charm = getGearDef('charm-flint')!;
-    expect(canEquipOnTower(charm, 'cannon')).toBe(true);
+    expect(canEquipOnTower(charm, 'rock-hurler')).toBe(true);
     expect(canEquipOnTower(charm, 'frost')).toBe(true);
     expect(canEquipOnTower(charm, 'tesla')).toBe(true);
   });
 
   it('canEquipOnTower restricts typed gear', () => {
     const barrel = getGearDef('barrel-iron-sight')!;
-    expect(canEquipOnTower(barrel, 'cannon')).toBe(true);
+    expect(canEquipOnTower(barrel, 'rock-hurler')).toBe(true);
     expect(canEquipOnTower(barrel, 'frost')).toBe(false);
     expect(canEquipOnTower(barrel, 'tesla')).toBe(false);
   });
@@ -399,8 +399,8 @@ describe('challengeDefs', () => {
   });
 
   it('isTowerAllowed respects banned towers', () => {
-    // Makwa's Den bans cannon
-    expect(isTowerAllowed('challenge-makwas-den', 'cannon')).toBe(false);
+    // Makwa's Den bans rock-hurler
+    expect(isTowerAllowed('challenge-makwas-den', 'rock-hurler')).toBe(false);
     expect(isTowerAllowed('challenge-makwas-den', 'frost')).toBe(true);
   });
 

@@ -10,7 +10,7 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 /** Tower type keys used in towerAffinities. */
-export type TowerKey = 'cannon' | 'frost' | 'mortar' | 'poison' | 'tesla' | 'aura';
+export type TowerKey = 'rock-hurler' | 'frost' | 'poison' | 'tesla' | 'aura' | 'arrow';
 
 /** Creep type keys used in creepRoster. */
 export type CreepTypeKey = 'grunt' | 'runner' | 'brute' | 'swarm' | 'scout' | 'flier';
@@ -73,7 +73,7 @@ export const ALL_STAGES: StageDef[] = [
     waveCount:       20,
     pathFile:        'map-01',
     difficulty:      2,
-    towerAffinities: ['cannon', 'frost', 'tesla'],
+    towerAffinities: ['rock-hurler', 'frost', 'tesla'],
     unlockId:        null,
     unlockCost:      0,
     creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
@@ -86,7 +86,7 @@ export const ALL_STAGES: StageDef[] = [
     waveCount:       20,
     pathFile:        'map-02',
     difficulty:      3,
-    towerAffinities: ['mortar', 'poison', 'aura'],
+    towerAffinities: ['rock-hurler', 'poison', 'aura'],
     unlockId:        'unlock-map-02',
     unlockCost:      300,
     creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
@@ -99,7 +99,7 @@ export const ALL_STAGES: StageDef[] = [
     waveCount:       20,
     pathFile:        'map-05',
     difficulty:      3,
-    towerAffinities: ['tesla', 'mortar', 'cannon'],
+    towerAffinities: ['tesla', 'rock-hurler', 'frost'],
     unlockId:        'unlock-stage-niizh-miikana-01',
     unlockCost:      250,
     creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
@@ -112,7 +112,7 @@ export const ALL_STAGES: StageDef[] = [
     waveCount:       20,
     pathFile:        'map-03',
     difficulty:      4,
-    towerAffinities: ['mortar', 'tesla', 'cannon'],
+    towerAffinities: ['rock-hurler', 'tesla', 'poison'],
     unlockId:        'unlock-stage-mitigomizh-01',
     unlockCost:      500,
     creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],

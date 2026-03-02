@@ -56,8 +56,8 @@ export const ALL_CHALLENGES: ChallengeDef[] = [
     unlockThreshold: 200,
     modifier: {
       id: 'makwas-den',
-      description: 'All creeps are armoured. Cannon towers are banned.',
-      bannedTowers: ['cannon'],
+      description: 'All creeps are armoured. Rock Hurler towers are banned.',
+      bannedTowers: ['rock-hurler'],
       creepSpeedMult: 1.0,
       creepHpMult: 1.2,
       allArmored: true,

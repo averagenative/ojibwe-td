@@ -192,14 +192,14 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'toxic-shrapnel',
     name:        'Toxic Shrapnel',
-    description: 'Mortar hits apply a Poison DoT stack to targets.',
+    description: 'Rock Hurler hits apply a Poison DoT stack to targets.',
     category:    'synergy',
     weight:      7,
   },
   {
     id:          'cryo-cannon',
     name:        'Cryo Cannon',
-    description: 'Cannon shots slow targets by 20% for 1.5s.',
+    description: 'Rock Hurler shots slow targets by 20% for 1.5s.',
     category:    'synergy',
     weight:      7,
   },
@@ -213,7 +213,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'brittle-ice',
     name:        'Brittle Ice',
-    description: 'Cannon deals +20% damage to frost-slowed targets.',
+    description: 'Rock Hurler deals +20% damage to frost-slowed targets.',
     category:    'synergy',
     weight:      7,
   },
@@ -227,14 +227,14 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'explosive-residue',
     name:        'Explosive Residue',
-    description: 'Mortar blasts slow targets by 20% for 2s.',
+    description: 'Rock Hurler blasts slow targets by 20% for 2s.',
     category:    'synergy',
     weight:      7,
   },
   {
     id:          'acid-rain',
     name:        'Acid Rain',
-    description: 'Mortar blasts apply a weak Poison stack.',
+    description: 'Rock Hurler blasts apply a weak Poison stack.',
     category:    'synergy',
     weight:      6,
   },
@@ -312,7 +312,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'concussion-shell',
     name:        'Concussion Shell',
-    description: 'Cannon shots slow targets by 15% for 600ms.',
+    description: 'Rock Hurler shots slow targets by 15% for 600ms.',
     category:    'synergy',
     weight:      6,
   },

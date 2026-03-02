@@ -51,11 +51,11 @@ export const PRIORITY_LABEL: Record<TargetingPriority, string> = {
 
 /** Per-tower behavioral toggles — no gold cost, freely flippable at any time. */
 export interface TowerBehaviorToggles {
-  /** Cannon: prioritize armored creep subtypes over default priority. */
+  /** Rock Hurler: prioritize armored creep subtypes over default priority. */
   armorFocus: boolean;
   /** Frost: apply slow but never trigger a full freeze (preserves Poison DoT stacks). */
   chillOnly: boolean;
-  /** Mortar: pause firing (useful to avoid disrupting Frost slow zones). */
+  /** Reserved (unused). */
   holdFire: boolean;
   /** Poison: maintain at most 1 DoT stack per creep (optimises spread efficiency). */
   maintainOneStack: boolean;

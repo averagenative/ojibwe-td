@@ -232,6 +232,25 @@ const TOWER_ANIM_DEFS: Readonly<Record<string, TowerAnimDef>> = {
     kickMs:          0,
   },
 
+  'rock-hurler': {
+    // Heavy rock thrower: barrel bobs while scanning, strong kick on fire
+    idleType:        'bob',
+    sweepDeg:        10,         // sweepDeg reused for barrel sweep during bob idle
+    pulseScale:      0,
+    bobAmpY:         4,          // ±4 px heavy elevation bob
+    sparkIntervalMs: 0,
+    bubbleIntervalMs: 0,
+    idleFreq:        0.35,       // slow heavy rock rhythm
+    lerpDegPerFrame: 8,
+    leanDeg:         0,
+    recoilScale:     0,
+    recoilMs:        0,
+    fireFlashMs:     0,
+    firePulseScale:  0,
+    kickDeg:         20,         // +20° upward kick on fire
+    kickMs:          250,
+  },
+
   arrow: {
     idleType:        'pulse',
     sweepDeg:        0,

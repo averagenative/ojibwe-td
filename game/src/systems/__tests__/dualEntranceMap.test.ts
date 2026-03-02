@@ -231,9 +231,9 @@ describe('niizh-miikana-01 stage registration', () => {
     expect(stage!.waveCount).toBe(20);
   });
 
-  it('tower affinities include tesla and mortar (AoE at convergence)', () => {
+  it('tower affinities include tesla and rock-hurler (AoE at convergence)', () => {
     expect(stage!.towerAffinities).toContain('tesla');
-    expect(stage!.towerAffinities).toContain('mortar');
+    expect(stage!.towerAffinities).toContain('rock-hurler');
   });
 
   it('unlock cost is between 200 and 300 crystals', () => {

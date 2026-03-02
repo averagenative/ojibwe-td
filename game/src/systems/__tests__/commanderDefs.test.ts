@@ -155,9 +155,9 @@ describe('Aura effects', () => {
     expect(state.healEveryNKills).toBe(40);
   });
 
-  it('Bizhiw sets cannon/frost attack speed and projectile speed', () => {
+  it('Bizhiw sets rock-hurler/frost attack speed and projectile speed', () => {
     const state = applyAura('bizhiw');
-    expect(state.attackSpeedMultByKey['cannon']).toBe(0.80);
+    expect(state.attackSpeedMultByKey['rock-hurler']).toBe(0.80);
     expect(state.attackSpeedMultByKey['frost']).toBe(0.80);
     expect(state.projectileSpeedMult).toBe(1.25);
   });

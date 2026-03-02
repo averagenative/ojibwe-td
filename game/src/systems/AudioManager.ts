@@ -315,12 +315,11 @@ export class AudioManager {
    */
   playProjectileFired(towerKey: string): void {
     switch (towerKey) {
-      case 'cannon': if (this._playBufferSfx('sfx-cannon')) return; this._sfxCannon(); break;
-      case 'frost':  if (this._playBufferSfx('sfx-frost'))  return; this._sfxFrost();  break;
-      case 'tesla':  if (this._playBufferSfx('sfx-tesla'))  return; this._sfxTesla();  break;
-      case 'mortar': if (this._playBufferSfx('sfx-mortar')) return; this._sfxMortar(); break;
-      case 'poison': if (this._playBufferSfx('sfx-poison')) return; this._sfxPoison(); break;
-      case 'aura':   if (this._playBufferSfx('sfx-aura'))   return; this._sfxAura();   break;
+      case 'rock-hurler': if (this._playBufferSfx('sfx-cannon')) return; this._sfxCannon(); break;
+      case 'frost':       if (this._playBufferSfx('sfx-frost'))  return; this._sfxFrost();  break;
+      case 'tesla':       if (this._playBufferSfx('sfx-tesla'))  return; this._sfxTesla();  break;
+      case 'poison':      if (this._playBufferSfx('sfx-poison')) return; this._sfxPoison(); break;
+      case 'aura':        if (this._playBufferSfx('sfx-aura'))   return; this._sfxAura();   break;
       default: break;
     }
   }
@@ -751,29 +750,6 @@ export class AudioManager {
 
     osc.connect(flt); flt.connect(g); g.connect(sfxGain);
     osc.start(t); osc.stop(t + 0.12);
-    osc.onended = () => { osc.disconnect(); flt.disconnect(); g.disconnect(); };
-  }
-
-  private _sfxMortar(): void {
-    const { ctx, sfxGain } = this;
-    if (!ctx || !sfxGain) return;
-    const t = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(75, t);
-    osc.frequency.exponentialRampToValueAtTime(40, t + 0.22);
-
-    const flt = ctx.createBiquadFilter();
-    flt.type = 'lowpass';
-    flt.frequency.value = 250;
-
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.35, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-
-    osc.connect(flt); flt.connect(g); g.connect(sfxGain);
-    osc.start(t); osc.stop(t + 0.28);
     osc.onended = () => { osc.disconnect(); flt.disconnect(); g.disconnect(); };
   }
 

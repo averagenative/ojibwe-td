@@ -288,10 +288,10 @@ describe('AudioManager', () => {
       expect(mockCtx.createOscillator.mock.calls.length).toBeGreaterThan(callsBefore);
     });
 
-    it('playProjectileFired("cannon") creates an oscillator', () => {
+    it('playProjectileFired("rock-hurler") creates an oscillator', () => {
       const am = AudioManager.getInstance();
       const callsBefore = mockCtx.createOscillator.mock.calls.length;
-      am.playProjectileFired('cannon');
+      am.playProjectileFired('rock-hurler');
       expect(mockCtx.createOscillator.mock.calls.length).toBeGreaterThan(callsBefore);
     });
 
@@ -438,17 +438,17 @@ describe('AudioManager', () => {
 
       mockCtx.createOscillator.mockClear();
       mockCtx.createBufferSource.mockClear();
-      am.playProjectileFired('cannon');
+      am.playProjectileFired('rock-hurler');
 
       // File path: uses createBufferSource, NOT createOscillator
       expect(mockCtx.createBufferSource).toHaveBeenCalled();
       expect(mockCtx.createOscillator).not.toHaveBeenCalled();
     });
 
-    it('without registered buffer, cannon fire still uses oscillator (procedural fallback)', () => {
+    it('without registered buffer, rock-hurler fire still uses oscillator (procedural fallback)', () => {
       const am = AudioManager.getInstance();
       mockCtx.createOscillator.mockClear();
-      am.playProjectileFired('cannon');
+      am.playProjectileFired('rock-hurler');
       expect(mockCtx.createOscillator).toHaveBeenCalled();
     });
 
@@ -600,7 +600,7 @@ describe('AudioManager', () => {
 
       // Should still work — second registration overwrites the first
       mockCtx.createBufferSource.mockClear();
-      am.playProjectileFired('cannon');
+      am.playProjectileFired('rock-hurler');
       expect(mockCtx.createBufferSource).toHaveBeenCalled();
     });
 

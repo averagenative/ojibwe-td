@@ -182,13 +182,13 @@ export class BootScene extends Phaser.Scene {
     this.load.image('logo', 'assets/ui/logo.png');
 
     // Tower icons
-    this.load.image('icon-cannon',  'assets/icons/icon-cannon.png');
-    this.load.image('icon-frost',   'assets/icons/icon-frost.png');
-    this.load.image('icon-mortar',  'assets/icons/icon-mortar.png');
-    this.load.image('icon-poison',  'assets/icons/icon-poison.png');
-    this.load.image('icon-tesla',   'assets/icons/icon-tesla.png');
-    this.load.image('icon-aura',    'assets/icons/icon-aura.png');
-    this.load.image('icon-arrow',   'assets/icons/icon-arrow.png');
+    // icon-rock-hurler reuses icon-cannon.png as placeholder until a custom asset ships.
+    this.load.image('icon-rock-hurler', 'assets/icons/icon-cannon.png');
+    this.load.image('icon-frost',       'assets/icons/icon-frost.png');
+    this.load.image('icon-poison',      'assets/icons/icon-poison.png');
+    this.load.image('icon-tesla',       'assets/icons/icon-tesla.png');
+    this.load.image('icon-aura',        'assets/icons/icon-aura.png');
+    this.load.image('icon-arrow',       'assets/icons/icon-arrow.png');
 
     // Misc UI icons
     this.load.image('icon-dice',    'assets/icons/icon-dice.png');

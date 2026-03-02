@@ -72,45 +72,6 @@ export interface TowerUpgradeDef {
   paths:         { A: UpgradePathDef; B: UpgradePathDef; C: UpgradePathDef };
 }
 
-// ── Cannon ────────────────────────────────────────────────────────────────────
-// Base: 40 dmg, 160 range, 1000ms interval
-
-const CANNON_UPGRADES: TowerUpgradeDef = {
-  towerKey: 'cannon', lockThreshold: 3, respecCostPct: 0.25,
-  paths: {
-    A: {
-      id: 'A', name: 'Armor Shred',
-      tiers: [
-        { name: 'Expose I',   description: 'Hits apply 8% damage vulnerability for 3s.',  cost: 40,  effects: { armorShredPct: 0.08, armorShredDuration: 3000 } },
-        { name: 'Expose II',  description: 'Vulnerability increased to 14%.',              cost: 60,  effects: { armorShredPct: 0.14, armorShredDuration: 3000 } },
-        { name: 'Expose III', description: 'Vulnerability 20%, lasts 4s. Locks Path C.',   cost: 80,  effects: { armorShredPct: 0.20, armorShredDuration: 4000 } },
-        { name: 'Expose IV',  description: 'Vulnerability 26%, lasts 4s.',                 cost: 120, effects: { armorShredPct: 0.26, armorShredDuration: 4000 } },
-        { name: 'Expose V',   description: 'Vulnerability 32%, lasts 5s.',                 cost: 150, effects: { armorShredPct: 0.32, armorShredDuration: 5000 } },
-      ],
-    },
-    B: {
-      id: 'B', name: 'Execute',
-      tiers: [
-        { name: 'Cull I',   description: 'Instantly kills targets below 10% HP. +5 dmg.', cost: 40,  statDelta: { damageDelta: 5  }, effects: { executeThreshold: 0.10 } },
-        { name: 'Cull II',  description: 'Execute below 13% HP. +8 dmg.',                  cost: 60,  statDelta: { damageDelta: 8  }, effects: { executeThreshold: 0.13 } },
-        { name: 'Cull III', description: 'Execute below 16% HP. +10 dmg.',                 cost: 80,  statDelta: { damageDelta: 10 }, effects: { executeThreshold: 0.16 } },
-        { name: 'Cull IV',  description: 'Execute below 20% HP. +12 dmg.',                 cost: 120, statDelta: { damageDelta: 12 }, effects: { executeThreshold: 0.20 } },
-        { name: 'Cull V',   description: 'Execute below 25% HP. +15 dmg.',                 cost: 150, statDelta: { damageDelta: 15 }, effects: { executeThreshold: 0.25 } },
-      ],
-    },
-    C: {
-      id: 'C', name: 'Range & Speed',
-      tiers: [
-        { name: 'Scope I',   description: '+15 range.',                              cost: 40,  statDelta: { rangeDelta: 15 } },
-        { name: 'Scope II',  description: '+20 range. 5% faster attack.',            cost: 60,  statDelta: { rangeDelta: 20, attackSpeedPct: 5  } },
-        { name: 'Scope III', description: '+25 range. 5% faster. Locks Path A.',    cost: 80,  statDelta: { rangeDelta: 25, attackSpeedPct: 5  } },
-        { name: 'Scope IV',  description: '+30 range. 5% faster.',                  cost: 120, statDelta: { rangeDelta: 30, attackSpeedPct: 5  } },
-        { name: 'Scope V',   description: '+35 range. 5% faster.',                  cost: 150, statDelta: { rangeDelta: 35, attackSpeedPct: 5  } },
-      ],
-    },
-  },
-};
-
 // ── Frost ─────────────────────────────────────────────────────────────────────
 // Base: 15 dmg, 140 range, 1200ms, slow 0.5 factor, 2500ms duration
 
@@ -145,45 +106,6 @@ const FROST_UPGRADES: TowerUpgradeDef = {
         { name: 'Shatter III', description: '+14 dmg. Locks Path A.',                                   cost: 90,  statDelta: { damageDelta: 14 }, effects: { shatterOnDeath: true } },
         { name: 'Shatter IV',  description: '+18 dmg. 8% faster attack.',                               cost: 130, statDelta: { damageDelta: 18, attackSpeedPct: 8  }, effects: { shatterOnDeath: true } },
         { name: 'Shatter V',   description: '+22 dmg. 8% faster attack.',                               cost: 160, statDelta: { damageDelta: 22, attackSpeedPct: 8  }, effects: { shatterOnDeath: true } },
-      ],
-    },
-  },
-};
-
-// ── Mortar ────────────────────────────────────────────────────────────────────
-// Base: 60 dmg, 200 range, 2500ms, splash 55
-
-const MORTAR_UPGRADES: TowerUpgradeDef = {
-  towerKey: 'mortar', lockThreshold: 3, respecCostPct: 0.25,
-  paths: {
-    A: {
-      id: 'A', name: 'Splash Radius',
-      tiers: [
-        { name: 'Blast I',   description: '+8 splash radius.',             cost: 50,  statDelta: { splashRadiusDelta: 8  } },
-        { name: 'Blast II',  description: '+14 splash radius.',            cost: 70,  statDelta: { splashRadiusDelta: 14 } },
-        { name: 'Blast III', description: '+20 splash. Locks Path C.',     cost: 95,  statDelta: { splashRadiusDelta: 20 } },
-        { name: 'Blast IV',  description: '+28 splash radius.',            cost: 140, statDelta: { splashRadiusDelta: 28 } },
-        { name: 'Blast V',   description: '+38 splash radius.',            cost: 175, statDelta: { splashRadiusDelta: 38 } },
-      ],
-    },
-    B: {
-      id: 'B', name: 'Raw Damage',
-      tiers: [
-        { name: 'Payload I',   description: '+15 damage.',  cost: 50,  statDelta: { damageDelta: 15 } },
-        { name: 'Payload II',  description: '+25 damage.',  cost: 70,  statDelta: { damageDelta: 25 } },
-        { name: 'Payload III', description: '+35 damage.',  cost: 95,  statDelta: { damageDelta: 35 } },
-        { name: 'Payload IV',  description: '+50 damage.',  cost: 140, statDelta: { damageDelta: 50 } },
-        { name: 'Payload V',   description: '+65 damage.',  cost: 175, statDelta: { damageDelta: 65 } },
-      ],
-    },
-    C: {
-      id: 'C', name: 'Cluster',
-      tiers: [
-        { name: 'Cluster I',   description: 'Impact fires 2 cluster submunitions.',               cost: 55,  effects: { clusterCount: 2 } },
-        { name: 'Cluster II',  description: '3 clusters, each deals +5 dmg.',                     cost: 80,  statDelta: { damageDelta: 5 }, effects: { clusterCount: 3 } },
-        { name: 'Cluster III', description: '4 clusters. Locks Path A.',                          cost: 100, effects: { clusterCount: 4 } },
-        { name: 'Cluster IV',  description: '5 clusters, wider scatter.',                         cost: 145, effects: { clusterCount: 5 } },
-        { name: 'Cluster V',   description: '6 clusters, each with AoE splash.',                  cost: 180, effects: { clusterCount: 6 } },
       ],
     },
   },
@@ -347,13 +269,54 @@ const ARROW_UPGRADES: TowerUpgradeDef = {
   },
 };
 
+// ── Rock Hurler ───────────────────────────────────────────────────────────────
+// Base: 55 dmg, 185 range, 2000ms, splash 45, groundOnly
+// Path A: Armor Shred — debuff armored targets, synergises with armor bonus
+// Path B: Impact Payload — raw damage + execute threshold
+// Path C: Cluster Submunitions — extra fragment projectiles on impact
+
+const ROCK_HURLER_UPGRADES: TowerUpgradeDef = {
+  towerKey: 'rock-hurler', lockThreshold: 3, respecCostPct: 0.25,
+  paths: {
+    A: {
+      id: 'A', name: 'Armor Shred',
+      tiers: [
+        { name: 'Expose I',   description: 'Hits apply 10% damage vulnerability for 3s.',  cost: 45,  effects: { armorShredPct: 0.10, armorShredDuration: 3000 } },
+        { name: 'Expose II',  description: 'Vulnerability increased to 18%.',              cost: 65,  effects: { armorShredPct: 0.18, armorShredDuration: 3000 } },
+        { name: 'Expose III', description: 'Vulnerability 26%, lasts 4s. Locks Path C.',  cost: 90,  effects: { armorShredPct: 0.26, armorShredDuration: 4000 } },
+        { name: 'Expose IV',  description: 'Vulnerability 34%, lasts 4s.',                cost: 130, effects: { armorShredPct: 0.34, armorShredDuration: 4000 } },
+        { name: 'Expose V',   description: 'Vulnerability 40%, lasts 5s.',                cost: 165, effects: { armorShredPct: 0.40, armorShredDuration: 5000 } },
+      ],
+    },
+    B: {
+      id: 'B', name: 'Impact Payload',
+      tiers: [
+        { name: 'Payload I',   description: '+18 damage.',                              cost: 50,  statDelta: { damageDelta: 18 } },
+        { name: 'Payload II',  description: '+30 damage.',                              cost: 70,  statDelta: { damageDelta: 30 } },
+        { name: 'Payload III', description: '+42 damage. Instantly kills below 10% HP.',cost: 95,  statDelta: { damageDelta: 42 }, effects: { executeThreshold: 0.10 } },
+        { name: 'Payload IV',  description: '+55 damage. Execute below 16% HP.',        cost: 140, statDelta: { damageDelta: 55 }, effects: { executeThreshold: 0.16 } },
+        { name: 'Payload V',   description: '+70 damage. Execute below 22% HP.',        cost: 175, statDelta: { damageDelta: 70 }, effects: { executeThreshold: 0.22 } },
+      ],
+    },
+    C: {
+      id: 'C', name: 'Cluster',
+      tiers: [
+        { name: 'Cluster I',   description: 'Impact fires 2 cluster submunitions.',    cost: 55,  effects: { clusterCount: 2 } },
+        { name: 'Cluster II',  description: '3 clusters, each deals +5 dmg.',          cost: 80,  statDelta: { damageDelta: 5 }, effects: { clusterCount: 3 } },
+        { name: 'Cluster III', description: '4 clusters. Locks Path A.',               cost: 100, effects: { clusterCount: 4 } },
+        { name: 'Cluster IV',  description: '5 clusters, wider scatter.',              cost: 145, effects: { clusterCount: 5 } },
+        { name: 'Cluster V',   description: '6 clusters, each with AoE splash.',       cost: 180, effects: { clusterCount: 6 } },
+      ],
+    },
+  },
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 export const ALL_UPGRADE_DEFS: TowerUpgradeDef[] = [
   ARROW_UPGRADES,
-  CANNON_UPGRADES,
+  ROCK_HURLER_UPGRADES,
   FROST_UPGRADES,
-  MORTAR_UPGRADES,
   POISON_UPGRADES,
   TESLA_UPGRADES,
   AURA_UPGRADES,

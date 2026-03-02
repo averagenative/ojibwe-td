@@ -36,13 +36,12 @@ const DEPTH_BUTTONS = 30;
 
 // Tower affinity dot colours (matches TowerDef body colours)
 const AFFINITY_COLORS: Record<string, number> = {
-  cannon: 0x778888,
-  frost:  0x3366aa,
-  mortar: 0x996633,
-  poison: 0x338844,
-  tesla:  0xbbaa22,
-  aura:   0xbb9922,
-  arrow:  0x8b6b3d,
+  'rock-hurler': 0x886644,
+  frost:         0x3366aa,
+  poison:        0x338844,
+  tesla:         0xbbaa22,
+  aura:          0xbb9922,
+  arrow:         0x8b6b3d,
 };
 
 // ── Rounded-panel helper ────────────────────────────────────────────────────
@@ -179,7 +178,7 @@ export class MainMenuScene extends Phaser.Scene {
   // ── Header (icons + label) ────────────────────────────────────────────────
 
   private createHeader(cx: number, iconY: number, labelY: number): void {
-    const icons = ['icon-cannon', 'icon-frost', 'icon-mortar', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow'];
+    const icons = ['icon-rock-hurler', 'icon-frost', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow'];
     const iconSpacing = 52;
     const rowW = (icons.length - 1) * iconSpacing;
     icons.forEach((key, i) => {

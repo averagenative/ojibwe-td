@@ -442,6 +442,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         speed:     Math.round(base.speed  * waveDef.speedMult),
         type:      base.type,
         reward:    base.reward,
+        isArmored: typeKey === 'brute',
         spriteKey: CREEP_SPRITE_KEYS[base.key],
       });
     }
@@ -470,6 +471,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         speed:     Math.round(base.speed * waveDef.speedMult),
         type:      base.type,
         reward:    base.reward,
+        isArmored: typeKey === 'brute',
         spriteKey: CREEP_SPRITE_KEYS[base.key],
       });
     }

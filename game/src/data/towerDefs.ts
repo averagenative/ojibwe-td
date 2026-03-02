@@ -55,6 +55,14 @@ export interface TowerDef {
    * Upgrade paths improve the Arrow but cannot push damage above this ceiling.
    */
   damageCap?:           number;
+
+  /**
+   * Damage multiplier applied when hitting an armored creep (isArmored = true).
+   * Values < 1.0 penalise the tower (Arrow: 0.3 = 70% damage reduction vs armor).
+   * Values > 1.0 bonus-damage the tower (Rock Hurler: 1.6 = +60% vs armor).
+   * Undefined = no modifier (neutral, default).
+   */
+  armorDamageMult?:     number;
 }
 
 // ── TowerUpgradeStats ─────────────────────────────────────────────────────────
@@ -219,12 +227,29 @@ export const AURA_DEF: TowerDef = {
 export const ARROW_DEF: TowerDef = {
   key: 'arrow',  name: 'Arrow',  cost: 75,
   range: 180,  damage: 18,  attackIntervalMs: 600,  projectileSpeed: 500,
-  description: 'Fast, long-range single target. Targets ground and air.',
+  description: 'Fast, long-range. Weak vs armor — use Rock Hurler for armored foes.',
   bodyColor: 0x8b6b3d,  projectileColor: 0xc4a265,  projectileRadius: 3,
   defaultPriority: TargetingPriority.FIRST,
   targetDomain: 'both',
+  armorDamageMult: 0.3,   // 70% damage reduction vs armored creeps
+};
+
+/**
+ * Rock Hurler — merges Cannon + Mortar.
+ * Fires a heavy rock: direct-hit damage + AoE splash on impact.
+ * Physical impact bypasses armor: bonus damage vs armored creeps.
+ */
+export const ROCK_HURLER_DEF: TowerDef = {
+  key: 'rock-hurler',  name: 'Rock Hurler',  cost: 150,
+  range: 185,  damage: 55,  attackIntervalMs: 2000,  projectileSpeed: 220,
+  description: 'Heavy rock: direct hit + AoE splash. Bonus dmg vs armored.',
+  bodyColor: 0x886644,  projectileColor: 0xcc9944,  projectileRadius: 7,
+  groundOnly: true,  splashRadius: 45,
+  defaultPriority: TargetingPriority.FIRST,
+  targetDomain: 'ground',
+  armorDamageMult: 1.6,   // +60% damage vs armored creeps
 };
 
 export const ALL_TOWER_DEFS: TowerDef[] = [
-  ARROW_DEF, CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
+  ROCK_HURLER_DEF, FROST_DEF, POISON_DEF, TESLA_DEF, AURA_DEF, ARROW_DEF,
 ];

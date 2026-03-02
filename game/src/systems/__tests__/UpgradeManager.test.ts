@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { UpgradeManager } from '../UpgradeManager';
-import { CANNON_DEF, defaultUpgradeStats } from '../../data/towerDefs';
+import { ROCK_HURLER_DEF, defaultUpgradeStats } from '../../data/towerDefs';
 import type { TowerDef, TowerUpgradeStats } from '../../data/towerDefs';
 import type { Tower } from '../../entities/towers/Tower';
 
@@ -10,7 +10,7 @@ import type { Tower } from '../../entities/towers/Tower';
 // upgStats (readable), applyUpgradeStats (writable), onChainFired.
 // We build a minimal plain-object mock and cast it.
 
-function makeMockTower(def: TowerDef = CANNON_DEF): Tower {
+function makeMockTower(def: TowerDef = ROCK_HURLER_DEF): Tower {
   const mock = {
     def,
     upgStats: defaultUpgradeStats(def),
@@ -39,42 +39,46 @@ describe('UpgradeManager', () => {
 
   describe('apply-tier', () => {
     it('applies stat delta and effect after buying one tier', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
-      // Cannon B tier-1 (Cull I): statDelta +5 dmg, effect executeThreshold 0.10
+      // Rock Hurler A tier-1 (Expose I): effect armorShredPct 0.10, no damage delta
+      manager.buyUpgrade(tower, 'A');
+      expect(tower.upgStats.armorShredPct).toBe(0.10);
+
+      // Rock Hurler B tier-1 (Payload I): statDelta +18 dmg, no execute effect yet
       manager.buyUpgrade(tower, 'B');
-      expect(tower.upgStats.damage).toBe(CANNON_DEF.damage + 5);
-      expect(tower.upgStats.executeThreshold).toBe(0.10);
+      expect(tower.upgStats.damage).toBe(ROCK_HURLER_DEF.damage + 18);
     });
 
     it('accumulates deltas across multiple tiers on the same path', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
-      // Tier-1 (+5 dmg) + tier-2 (+8 dmg) → total +13
+      // Tier-1 (+18 dmg) + tier-2 (+30 dmg) → total +48
       manager.buyUpgrade(tower, 'B');
       manager.buyUpgrade(tower, 'B');
-      expect(tower.upgStats.damage).toBe(CANNON_DEF.damage + 5 + 8);
-      expect(tower.upgStats.executeThreshold).toBe(0.13);
+      expect(tower.upgStats.damage).toBe(ROCK_HURLER_DEF.damage + 18 + 30);
+      // armorShredPct updates to last-write value (tier-2: 0.18 on path A, untouched here)
+      expect(tower.upgStats.executeThreshold).toBe(0); // not unlocked until tier-3
     });
 
     it('increments totalSpent by each tier cost', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
-      manager.buyUpgrade(tower, 'A'); // Expose I: cost 40
-      expect(manager.getState(tower)!.totalSpent).toBe(40);
+      manager.buyUpgrade(tower, 'A'); // Expose I: cost 45
+      expect(manager.getState(tower)!.totalSpent).toBe(45);
 
-      manager.buyUpgrade(tower, 'A'); // Expose II: cost 60
-      expect(manager.getState(tower)!.totalSpent).toBe(100);
+      manager.buyUpgrade(tower, 'A'); // Expose II: cost 65
+      expect(manager.getState(tower)!.totalSpent).toBe(110);
     });
 
     it('advancing path A three times reaches tier 3', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -87,7 +91,7 @@ describe('UpgradeManager', () => {
 
   describe('path-lock', () => {
     it('advancing path A to lockThreshold (3) locks path C', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -102,7 +106,7 @@ describe('UpgradeManager', () => {
     });
 
     it('advancing path C to lockThreshold (3) locks path A', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -112,7 +116,7 @@ describe('UpgradeManager', () => {
     });
 
     it('path B is never locked regardless of A or C investment', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -122,7 +126,7 @@ describe('UpgradeManager', () => {
     });
 
     it('lock is cleared after a respec', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -139,38 +143,38 @@ describe('UpgradeManager', () => {
 
   describe('respec gold calculation', () => {
     it('fee equals floor(totalSpent × respecCostPct)', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
-      manager.buyUpgrade(tower, 'A'); // Expose I: cost 40 → totalSpent 40
-      // CANNON respecCostPct = 0.25 → fee = floor(40 × 0.25) = 10
-      expect(manager.getRespecCost(tower)).toBe(10);
+      manager.buyUpgrade(tower, 'B'); // Payload I: cost 50 → totalSpent 50
+      // respecCostPct = 0.25 → fee = floor(50 × 0.25) = 12
+      expect(manager.getRespecCost(tower)).toBe(12);
     });
 
     it('refund equals totalSpent minus fee', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
-      manager.buyUpgrade(tower, 'A'); // cost 40 → totalSpent 40
-      // refund = 40 - 10 = 30
-      expect(manager.getRespecRefund(tower)).toBe(30);
+      manager.buyUpgrade(tower, 'B'); // cost 50 → totalSpent 50
+      // refund = 50 - 12 = 38
+      expect(manager.getRespecRefund(tower)).toBe(38);
     });
 
     it('respec() returns the correct gold refund', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
-      manager.buyUpgrade(tower, 'B'); // cost 40
-      manager.buyUpgrade(tower, 'B'); // cost 60 → totalSpent 100
-      // fee = 25, refund = 75
-      expect(manager.respec(tower)).toBe(75);
+      manager.buyUpgrade(tower, 'B'); // cost 50
+      manager.buyUpgrade(tower, 'B'); // cost 70 → totalSpent 120
+      // fee = floor(120 × 0.25) = 30, refund = 90
+      expect(manager.respec(tower)).toBe(90);
     });
 
     it('respec() resets tiers, unlocks all paths, and zeroes totalSpent', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -184,7 +188,7 @@ describe('UpgradeManager', () => {
     });
 
     it('returns 0 if nothing was spent', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -196,7 +200,7 @@ describe('UpgradeManager', () => {
 
   describe('invalid-upgrade guard', () => {
     it('buyUpgrade returns 0 when the path is locked', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -205,7 +209,7 @@ describe('UpgradeManager', () => {
     });
 
     it('buyUpgrade returns 0 when the path is at max tier (5)', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -215,13 +219,13 @@ describe('UpgradeManager', () => {
     });
 
     it('buyUpgrade returns 0 for an unregistered tower', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       // intentionally not registered
       expect(manager.buyUpgrade(tower, 'A')).toBe(0);
     });
 
     it('canUpgrade returns false for a locked path', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 
@@ -230,7 +234,7 @@ describe('UpgradeManager', () => {
     });
 
     it('canUpgrade returns false for a maxed path', () => {
-      const tower = makeMockTower(CANNON_DEF);
+      const tower = makeMockTower(ROCK_HURLER_DEF);
       towers.push(tower);
       manager.registerTower(tower);
 

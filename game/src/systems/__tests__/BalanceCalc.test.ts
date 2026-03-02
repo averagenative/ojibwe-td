@@ -11,6 +11,7 @@ import {
   FROST_DEF,
   MORTAR_DEF,
   POISON_DEF,
+  ROCK_HURLER_DEF,
   TESLA_DEF,
   AURA_DEF,
 } from '../../data/towerDefs';
@@ -94,10 +95,10 @@ describe('towerEffectiveDPS — base stats (no upgrades)', () => {
 });
 
 describe('towerEffectiveDPS — with upgrades', () => {
-  it('Cannon path B tier 5: damage += 50 → 90 dmg / 1.0s = 90 DPS', () => {
-    // B tiers: +5, +8, +10, +12, +15 = +50 total
-    const dps = towerEffectiveDPS(CANNON_DEF, pathState('B', 5), 1);
-    expect(dps).toBeCloseTo(90, 0);
+  it('Rock Hurler path B tier 5: damage += 215 → 270 dmg / 2.0s = 135 DPS', () => {
+    // B tiers: +18, +30, +42, +55, +70 = +215 total
+    const dps = towerEffectiveDPS(ROCK_HURLER_DEF, pathState('B', 5), 1);
+    expect(dps).toBeCloseTo(135, 0);
   });
 
   it('Poison path A tier 5: dotDamageBonus = 12 (last-write) → (6+12)×2×4 = 144 DPS', () => {
@@ -108,10 +109,10 @@ describe('towerEffectiveDPS — with upgrades', () => {
     expect(dps).toBeCloseTo(144, 0);
   });
 
-  it('Mortar path B tier 5: damageDelta total = +190 → 250 dmg / 2.5s = 100 DPS', () => {
-    // Payload I-V: +15, +25, +35, +50, +65 = 190 accumulated (statDelta is additive)
-    const dps = towerEffectiveDPS(MORTAR_DEF, pathState('B', 5), 1);
-    expect(dps).toBeCloseTo(100, 0);
+  it('Rock Hurler path C tier 5 (cluster): +5 dmg from Cluster II → 60 dmg / 2.0s = 30 DPS', () => {
+    // Cluster II adds +5 statDelta, all other cluster tiers add only clusterCount effect
+    const dps = towerEffectiveDPS(ROCK_HURLER_DEF, pathState('C', 5), 1);
+    expect(dps).toBeCloseTo(30, 1);
   });
 });
 
@@ -145,15 +146,9 @@ describe('Balance: Fully upgraded tower kills ≤ 50% of base kill time (wave 1)
     return hp / dps;
   }
 
-  it('Cannon path B tier 5: upgraded TTK ≤ 50% of base TTK', () => {
-    const baseTTK = ttk(CANNON_DEF, noUpgrades());
-    const upgTTK  = ttk(CANNON_DEF, pathState('B', 5));
-    expect(upgTTK).toBeLessThanOrEqual(baseTTK * 0.5);
-  });
-
-  it('Mortar path B tier 5: upgraded TTK ≤ 50% of base TTK', () => {
-    const baseTTK = ttk(MORTAR_DEF, noUpgrades());
-    const upgTTK  = ttk(MORTAR_DEF, pathState('B', 5));
+  it('Rock Hurler path B tier 5: upgraded TTK ≤ 50% of base TTK', () => {
+    const baseTTK = ttk(ROCK_HURLER_DEF, noUpgrades());
+    const upgTTK  = ttk(ROCK_HURLER_DEF, pathState('B', 5));
     expect(upgTTK).toBeLessThanOrEqual(baseTTK * 0.5);
   });
 
@@ -257,15 +252,15 @@ describe('computeStatsForBalance', () => {
     expect(stats.attackIntervalMs).toBe(1000);
   });
 
-  it('accumulates damage delta on Cannon path B tier 3', () => {
-    // Path B tier 0: +5, tier 1: +8, tier 2: +10 = +23
-    const stats = computeStatsForBalance(CANNON_DEF, pathState('B', 3));
-    expect(stats.damage).toBe(40 + 5 + 8 + 10);  // 63
+  it('accumulates damage delta on Rock Hurler path B tier 3', () => {
+    // Path B tier 1: +18, tier 2: +30, tier 3: +42 = +90 total
+    const stats = computeStatsForBalance(ROCK_HURLER_DEF, pathState('B', 3));
+    expect(stats.damage).toBe(55 + 18 + 30 + 42);  // 145
   });
 
   it('does not lock path on lock-threshold tier for computeStatsForBalance', () => {
     // Lock logic lives in UpgradeManager.buyUpgrade — not reproduced here
-    const stats = computeStatsForBalance(CANNON_DEF, pathState('A', 5));
+    const stats = computeStatsForBalance(ROCK_HURLER_DEF, pathState('A', 5));
     expect(stats.armorShredPct).toBeGreaterThan(0);
   });
 });

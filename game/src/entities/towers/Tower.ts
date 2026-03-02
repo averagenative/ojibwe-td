@@ -24,6 +24,7 @@ export type { TowerDef, TowerUpgradeStats } from '../../data/towerDefs';
 export {
   defaultUpgradeStats,
   ARROW_DEF, CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
+  ROCK_HURLER_DEF,
   ALL_TOWER_DEFS,
 } from '../../data/towerDefs';
 // Re-export targeting types so callers need only one import.
@@ -381,9 +382,13 @@ export class Tower extends Phaser.GameObjects.Container {
     const om = this.offerManager;
 
     // Apply global damage multiplier (Last Stand, Veteran Arms).
-    const globalMult      = om?.getGlobalDamageMult() ?? 1.0;
+    const globalMult = om?.getGlobalDamageMult() ?? 1.0;
+    // Armor damage modifier: apply based on primary target's armor status.
+    const armorMod = (this.def.armorDamageMult !== undefined && target.isArmored)
+      ? this.def.armorDamageMult
+      : 1.0;
     const effectiveDamage = Math.round(
-      Math.round(this.upgStats.damage * this.auraDamageMult) * globalMult,
+      Math.round(this.upgStats.damage * this.auraDamageMult) * globalMult * armorMod,
     );
     const clusterCount    = this.upgStats.clusterCount;
     const splashR         = this.upgStats.splashRadius;
@@ -435,7 +440,7 @@ export class Tower extends Phaser.GameObjects.Container {
             splashRadius: 25,
             groundOnly:   true,
             getCreeps,
-            towerKey:     'mortar',
+            towerKey:     this.def.key,
           });
           fireProjFn(sub);
         }
@@ -563,7 +568,7 @@ export class Tower extends Phaser.GameObjects.Container {
     this.onProjectileFired(proj);
   }
 
-  /** Standard single-target projectile (Cannon, Frost, Poison) */
+  /** Standard single-target projectile (Arrow, Rock Hurler, Frost, Poison) */
   private fireAt(target: Creep): void {
     const om = this.offerManager;
 
@@ -574,11 +579,15 @@ export class Tower extends Phaser.GameObjects.Container {
     const globalMult      = om?.getGlobalDamageMult()              ?? 1.0;
     const heartseekerMult = om?.getHeartseekerMult(target.getHpRatio()) ?? 1.0;
     const critMult        = (om?.critRoll() ?? false) ? 3.0 : 1.0;
+    // ── Armor damage modifier ─────────────────────────────────────────────────
+    const armorMod        = (this.def.armorDamageMult !== undefined && target.isArmored)
+      ? this.def.armorDamageMult
+      : 1.0;
 
-    let effectiveDamage = Math.round(baseDamage * globalMult * heartseekerMult * critMult);
+    let effectiveDamage = Math.round(baseDamage * globalMult * heartseekerMult * critMult * armorMod);
 
-    // ── Cannon: execute check ────────────────────────────────────────────────
-    if (this.def.key === 'cannon' && this.upgStats.executeThreshold > 0) {
+    // ── Execute check (any tower with executeThreshold upgrade) ───────────────
+    if (this.upgStats.executeThreshold > 0) {
       if (target.getHpRatio() <= this.upgStats.executeThreshold) {
         // Deal lethal damage via normal projectile for visual feedback.
         const opts: ProjectileOptions = {
@@ -614,7 +623,7 @@ export class Tower extends Phaser.GameObjects.Container {
         break;
       }
 
-      case 'cannon': {
+      case 'rock-hurler': {
         // Brittle Ice: +20% damage to frost-slowed targets.
         const brittleIceMult = om?.getBrittleIceMult(target.isSlowed()) ?? 1.0;
         if (brittleIceMult > 1.0) {
@@ -700,7 +709,7 @@ export class Tower extends Phaser.GameObjects.Container {
   /**
    * Find the best target according to the tower's current priority and targetDomain.
    * Called fresh on every attack cycle so priority changes take effect immediately.
-   * Also handles the Cannon Armor Focus overlay (narrow pool to armored creeps
+   * Also handles the Rock Hurler Armor Focus overlay (narrow pool to armored creeps
    * when any are in range and the toggle is active).
    *
    * Domain filtering:
@@ -753,9 +762,9 @@ export class Tower extends Phaser.GameObjects.Container {
 
     if (candidates.length === 0) return null;
 
-    // Cannon Armor Focus: narrow pool to armored creeps when any are in range.
+    // Rock Hurler Armor Focus: narrow pool to armored creeps when any are in range.
     let pool: Creep[] = candidates;
-    if (this.def.key === 'cannon' && this.behaviorToggles.armorFocus) {
+    if (this.def.key === 'rock-hurler' && this.behaviorToggles.armorFocus) {
       const armored = candidates.filter(c => c.isArmored);
       if (armored.length > 0) pool = armored;
     }

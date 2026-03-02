@@ -106,6 +106,14 @@ export class SessionManager {
         this.clear();
         return null;
       }
+      // Migrate legacy tower keys: cannon/mortar → rock-hurler (TASK-098).
+      if (parsed.towers) {
+        for (const t of parsed.towers) {
+          if (t.key === 'cannon' || t.key === 'mortar') {
+            t.key = 'rock-hurler';
+          }
+        }
+      }
       return parsed;
     } catch {
       return null;

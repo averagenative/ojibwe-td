@@ -272,7 +272,7 @@ export class OfferManager {
   }
 
   /**
-   * Brittle Ice: Cannon deals +20% damage to frost-slowed targets.
+   * Brittle Ice: Rock Hurler deals +20% damage to frost-slowed targets.
    */
   getBrittleIceMult(isSlowed: boolean): number {
     return (this.activeIds.has('brittle-ice') && isSlowed) ? 1.20 : 1.0;
@@ -351,7 +351,7 @@ export class OfferManager {
     return (this.activeIds.has('voltaic-slime') && hasDotStacks) ? 1.25 : 1.0;
   }
 
-  /** Concussion Shell: Cannon shots apply a 15% slow for 600ms. */
+  /** Concussion Shell: Rock Hurler shots apply a 15% slow for 600ms. */
   hasConcussionShell(): boolean { return this.activeIds.has('concussion-shell'); }
 
   /**

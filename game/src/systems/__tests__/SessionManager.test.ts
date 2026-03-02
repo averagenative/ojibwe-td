@@ -42,7 +42,7 @@ function makeSave(overrides: Partial<AutoSave> = {}): Omit<AutoSave, 'version' |
     totalKills:      42,
     goldEarned:      900,
     towers:          [
-      { key: 'cannon', col: 3, row: 4, upgrades: { A: 2, B: 1, C: 0 }, totalSpent: 150 },
+      { key: 'rock-hurler', col: 3, row: 4, upgrades: { A: 2, B: 1, C: 0 }, totalSpent: 150 },
     ],
     offers:          ['gold-rush', 'veteran-arms'],
     consumedOffers:  [],
@@ -290,5 +290,66 @@ describe('SessionManager', () => {
     mgr.save(makeSave());
     expect(mgr.load()).toBeNull();
     expect(() => mgr.clear()).not.toThrow();
+  });
+
+  // ── TASK-098 migration: cannon/mortar → rock-hurler ───────────────────────
+
+  it('migrates legacy cannon tower key to rock-hurler on load', () => {
+    const mgr = SessionManager.getInstance();
+    // Inject raw JSON with legacy 'cannon' key directly into storage,
+    // bypassing save() so the old key is preserved.
+    const raw: AutoSave = {
+      version:         1,
+      timestamp:       Date.now(),
+      mapId:           'map-01',
+      stageId:         'zaagaiganing-01',
+      commanderId:     'nokomis',
+      currentWave:     3,
+      gold:            200,
+      lives:           20,
+      totalKills:      10,
+      goldEarned:      300,
+      towers:          [{ key: 'cannon', col: 2, row: 3, upgrades: { A: 1, B: 0, C: 0 }, totalSpent: 100 }],
+      offers:          [],
+      consumedOffers:  [],
+      metaStatBonuses: {},
+    };
+    storageMock.setItem('ojibwe-td-autosave', JSON.stringify(raw));
+
+    const loaded = mgr.load()!;
+    expect(loaded).not.toBeNull();
+    expect(loaded.towers[0].key).toBe('rock-hurler');
+  });
+
+  it('migrates legacy mortar tower key to rock-hurler on load', () => {
+    const mgr = SessionManager.getInstance();
+    const raw: AutoSave = {
+      version:         1,
+      timestamp:       Date.now(),
+      mapId:           'map-01',
+      stageId:         'zaagaiganing-01',
+      commanderId:     'nokomis',
+      currentWave:     7,
+      gold:            500,
+      lives:           15,
+      totalKills:      60,
+      goldEarned:      1200,
+      towers:          [
+        { key: 'mortar',  col: 1, row: 1, upgrades: { A: 2, B: 0, C: 0 }, totalSpent: 120 },
+        { key: 'cannon',  col: 4, row: 4, upgrades: { A: 0, B: 3, C: 0 }, totalSpent: 200 },
+        { key: 'frost',   col: 6, row: 2, upgrades: { A: 1, B: 1, C: 0 }, totalSpent: 150 },
+      ],
+      offers:          [],
+      consumedOffers:  [],
+      metaStatBonuses: {},
+    };
+    storageMock.setItem('ojibwe-td-autosave', JSON.stringify(raw));
+
+    const loaded = mgr.load()!;
+    expect(loaded).not.toBeNull();
+    expect(loaded.towers[0].key).toBe('rock-hurler');
+    expect(loaded.towers[1].key).toBe('rock-hurler');
+    // Non-legacy towers are untouched.
+    expect(loaded.towers[2].key).toBe('frost');
   });
 });

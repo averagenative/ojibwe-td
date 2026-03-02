@@ -127,8 +127,8 @@ describe('InventoryManager', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
 
-      expect(inv.equip('cannon', 0, item.uid)).toBe(true);
-      expect(inv.getEquipped('cannon')[0]).toBe(item.uid);
+      expect(inv.equip('rock-hurler', 0, item.uid)).toBe(true);
+      expect(inv.getEquipped('rock-hurler')[0]).toBe(item.uid);
       expect(inv.isEquipped(item.uid)).toBe(true);
     });
 
@@ -149,59 +149,59 @@ describe('InventoryManager', () => {
     it('rejects invalid slot numbers', () => {
       const item = createGearInstance('charm-flint');
       inv.addItem(item);
-      expect(inv.equip('cannon', -1, item.uid)).toBe(false);
-      expect(inv.equip('cannon', 2, item.uid)).toBe(false);
+      expect(inv.equip('rock-hurler', -1, item.uid)).toBe(false);
+      expect(inv.equip('rock-hurler', 2, item.uid)).toBe(false);
     });
 
     it('rejects equipping nonexistent item', () => {
-      expect(inv.equip('cannon', 0, 'nonexistent')).toBe(false);
+      expect(inv.equip('rock-hurler', 0, 'nonexistent')).toBe(false);
     });
 
     it('unequip clears the slot', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
-      inv.equip('cannon', 0, item.uid);
+      inv.equip('rock-hurler', 0, item.uid);
 
-      expect(inv.unequip('cannon', 0)).toBe(true);
-      expect(inv.getEquipped('cannon')[0]).toBeNull();
+      expect(inv.unequip('rock-hurler', 0)).toBe(true);
+      expect(inv.getEquipped('rock-hurler')[0]).toBeNull();
       expect(inv.isEquipped(item.uid)).toBe(false);
     });
 
     it('unequip returns false for empty slot', () => {
-      expect(inv.unequip('cannon', 0)).toBe(false);
+      expect(inv.unequip('rock-hurler', 0)).toBe(false);
     });
 
     it('unequip returns false for invalid slot', () => {
-      expect(inv.unequip('cannon', -1)).toBe(false);
-      expect(inv.unequip('cannon', 2)).toBe(false);
+      expect(inv.unequip('rock-hurler', -1)).toBe(false);
+      expect(inv.unequip('rock-hurler', 2)).toBe(false);
     });
 
     it('re-equipping moves item from previous slot', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
-      inv.equip('cannon', 0, item.uid);
-      inv.equip('cannon', 1, item.uid);
+      inv.equip('rock-hurler', 0, item.uid);
+      inv.equip('rock-hurler', 1, item.uid);
 
-      expect(inv.getEquipped('cannon')[0]).toBeNull();
-      expect(inv.getEquipped('cannon')[1]).toBe(item.uid);
+      expect(inv.getEquipped('rock-hurler')[0]).toBeNull();
+      expect(inv.getEquipped('rock-hurler')[1]).toBe(item.uid);
     });
 
     it('removeItem also unequips', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
-      inv.equip('cannon', 0, item.uid);
+      inv.equip('rock-hurler', 0, item.uid);
 
       inv.removeItem(item.uid);
-      expect(inv.getEquipped('cannon')[0]).toBeNull();
+      expect(inv.getEquipped('rock-hurler')[0]).toBeNull();
       expect(inv.isEquipped(item.uid)).toBe(false);
     });
 
     it('getEquippedInstances returns gear data', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
-      inv.equip('cannon', 0, item.uid);
+      inv.equip('rock-hurler', 0, item.uid);
 
-      const instances = inv.getEquippedInstances('cannon');
+      const instances = inv.getEquippedInstances('rock-hurler');
       expect(instances[0]?.defId).toBe('barrel-iron-sight');
       expect(instances[1]).toBeUndefined();
     });
@@ -209,10 +209,10 @@ describe('InventoryManager', () => {
     it('getEquipMap returns full map', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
-      inv.equip('cannon', 0, item.uid);
+      inv.equip('rock-hurler', 0, item.uid);
 
       const map = inv.getEquipMap();
-      expect(map.cannon[0]).toBe(item.uid);
+      expect(map['rock-hurler'][0]).toBe(item.uid);
     });
   });
 
@@ -234,10 +234,10 @@ describe('InventoryManager', () => {
     it('salvaging an equipped item also unequips it', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
-      inv.equip('cannon', 0, item.uid);
+      inv.equip('rock-hurler', 0, item.uid);
 
       inv.salvage(item.uid);
-      expect(inv.getEquipped('cannon')[0]).toBeNull();
+      expect(inv.getEquipped('rock-hurler')[0]).toBeNull();
     });
 
     it('returns 0 for nonexistent item', () => {
@@ -468,7 +468,7 @@ describe('InventoryManager', () => {
     it('inventory survives singleton reset', () => {
       const item = createGearInstance('barrel-iron-sight');
       inv.addItem(item);
-      inv.equip('cannon', 0, item.uid);
+      inv.equip('rock-hurler', 0, item.uid);
 
       // Reset singleton — reload from storage
       (InventoryManager as unknown as { _instance: null })._instance = null;
@@ -476,7 +476,7 @@ describe('InventoryManager', () => {
 
       expect(inv2.getInventoryCount()).toBe(1);
       expect(inv2.getItem(item.uid)).toBeDefined();
-      expect(inv2.getEquipped('cannon')[0]).toBe(item.uid);
+      expect(inv2.getEquipped('rock-hurler')[0]).toBe(item.uid);
     });
   });
 });
