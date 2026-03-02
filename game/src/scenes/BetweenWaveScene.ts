@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { OfferManager } from '../systems/OfferManager';
 import type { OfferDef } from '../data/offerDefs';
+import type { WaveAnnouncementInfo } from '../systems/WaveManager';
 import { PAL } from '../ui/palette';
 
 /** Data passed from GameScene when launching this scene. */
@@ -8,6 +9,8 @@ interface BetweenWaveData {
   offerManager:      OfferManager;
   waveJustCompleted: number;
   nextWave:          number;
+  /** Upcoming wave metadata for the preview strip. Optional — omitted on the last wave. */
+  nextWaveInfo?:     WaveAnnouncementInfo;
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -40,7 +43,8 @@ export class BetweenWaveScene extends Phaser.Scene {
 
   // Phaser types the data param as `object | undefined` — we cast internally.
   create(data: object | undefined): void {
-    const { offerManager, waveJustCompleted, nextWave } = data as BetweenWaveData;
+    const { offerManager, waveJustCompleted, nextWave, nextWaveInfo } =
+      data as BetweenWaveData;
     const { width, height } = this.scale;
     const cx = width  / 2;
     const cy = height / 2;
@@ -72,6 +76,11 @@ export class BetweenWaveScene extends Phaser.Scene {
       },
     ).setOrigin(0.5).setDepth(DEPTH);
 
+    // ── Upcoming wave preview strip ───────────────────────────────────────────
+    if (nextWaveInfo) {
+      this.buildWavePreview(cx, cy - CARD_H / 2 - 12, nextWaveInfo);
+    }
+
     // ── Draw 3 offers and build cards ─────────────────────────────────────────
     const offers = offerManager.drawOffers(3);
     const startX = cx - SPACING;   // left edge of first card centre
@@ -82,6 +91,67 @@ export class BetweenWaveScene extends Phaser.Scene {
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
+
+  /**
+   * Render a compact upcoming-wave info strip.
+   * Shows the wave type badge, creep count, and notable traits as a single
+   * row below the "Wave N begins after your choice" sub-header.
+   */
+  private buildWavePreview(cx: number, y: number, info: WaveAnnouncementInfo): void {
+    // Wave type badge colours
+    const BADGE_FILL: Record<WaveAnnouncementInfo['waveType'], number> = {
+      ground: PAL.accentGreenN,
+      air:    PAL.accentBlueN,
+      mixed:  PAL.accentGreenN,  // drawn as split below
+      boss:   PAL.bossWarningN,
+    };
+    const BADGE_TEXT: Record<WaveAnnouncementInfo['waveType'], string> = {
+      ground: 'GROUND',
+      air:    '✈ AIR',
+      mixed:  'MIXED',
+      boss:   'BOSS',
+    };
+
+    const badgeW   = info.waveType === 'mixed' ? 64 : 54;
+    const badgeH   = 18;
+    const badgeX   = cx - badgeW / 2 - 60;
+
+    if (info.waveType === 'mixed') {
+      const gfx = this.add.graphics().setDepth(DEPTH);
+      gfx.fillStyle(PAL.accentGreenN, 1);
+      gfx.fillRect(badgeX - badgeW / 2, y - badgeH / 2, badgeW / 2, badgeH);
+      gfx.fillStyle(PAL.accentBlueN, 1);
+      gfx.fillRect(badgeX, y - badgeH / 2, badgeW / 2, badgeH);
+    } else {
+      this.add.rectangle(badgeX, y, badgeW, badgeH, BADGE_FILL[info.waveType])
+        .setDepth(DEPTH);
+    }
+
+    this.add.text(badgeX, y, BADGE_TEXT[info.waveType], {
+      fontSize:   '10px',
+      color:      '#ffffff',
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
+
+    // Count + traits summary to the right of the badge
+    const parts: string[] = [];
+    if (info.isBoss) {
+      parts.push(info.bossName ? `${info.bossName}` : 'Boss');
+      if (info.escortCount && info.escortCount > 0) {
+        parts.push(`×${info.escortCount} escorts`);
+      }
+    } else {
+      parts.push(`×${info.creepCount} creeps`);
+    }
+    if (info.traits.length > 0) parts.push(info.traits.join(', '));
+
+    this.add.text(badgeX + badgeW / 2 + 8, y, parts.join('  ·  '), {
+      fontSize:   '11px',
+      color:      info.isBoss ? PAL.bossWarning : PAL.textMuted,
+      fontFamily: PAL.fontBody,
+    }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
+  }
 
   private buildCard(
     offer:        OfferDef,

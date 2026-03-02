@@ -5,7 +5,7 @@ import { Tower, ALL_TOWER_DEFS } from '../entities/towers/Tower';
 import type { TowerDef } from '../entities/towers/Tower';
 import { Projectile } from '../entities/Projectile';
 import { WaveManager } from '../systems/WaveManager';
-import type { CreepKilledData } from '../systems/WaveManager';
+import type { CreepKilledData, WaveAnnouncementInfo } from '../systems/WaveManager';
 import { UpgradeManager } from '../systems/UpgradeManager';
 import { OfferManager } from '../systems/OfferManager';
 import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyManager';
@@ -23,6 +23,7 @@ import { getStageDef, getStageByPathFile, getRegionDef } from '../data/stageDefs
 import type { StageDef } from '../data/stageDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
+import { WaveBanner } from '../ui/WaveBanner';
 import { renderTerrain } from '../systems/TerrainRenderer';
 import { VignetteManager } from '../systems/VignetteManager';
 import { VignetteOverlay } from '../ui/VignetteOverlay';
@@ -99,6 +100,11 @@ export class GameScene extends Phaser.Scene {
   // ── audio ─────────────────────────────────────────────────────────────────
   private audioManager?: AudioManager;
 
+  // ── wave announcement banner ───────────────────────────────────────────────
+  private waveBanner!: WaveBanner;
+  /** True once an air or mixed wave banner has been shown this run. */
+  private firstAirWaveSeen = false;
+
   // ── narrative ───────────────────────────────────────────────────────────
   private vignetteManager!: VignetteManager;
   private vignetteOverlay!: VignetteOverlay;
@@ -155,11 +161,12 @@ export class GameScene extends Phaser.Scene {
     this.selectedTower   = null;
     this.placementDef    = null;
     this.bossOfferPanel  = null;
-    this.pendingBossKillKey = null;
-    this.debugOverlay    = null;
-    this.debugVisible    = false;
-    this.decoGfx         = null;
-    this.decoVisible     = true;
+    this.pendingBossKillKey  = null;
+    this.firstAirWaveSeen    = false;
+    this.debugOverlay        = null;
+    this.debugVisible        = false;
+    this.decoGfx             = null;
+    this.decoVisible         = true;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -208,6 +215,9 @@ export class GameScene extends Phaser.Scene {
     // Audio system — initialise (or resume) the singleton for this run.
     this.audioManager = AudioManager.getInstance(this);
     this.audioManager.startMusic();
+
+    // Wave announcement banner (shown before each wave start).
+    this.waveBanner = new WaveBanner(this);
 
     // Narrative system — vignettes + codex unlocks.
     const regionId = this.activeStageDef?.regionId ?? 'zaagaiganing';
@@ -451,6 +461,8 @@ export class GameScene extends Phaser.Scene {
     // Next-wave button (right portion of HUD strip)
     this.hud.createNextWaveButton(() => this.startNextWave());
     this.hud.setNextWaveVisible(true, 1);
+    // Show wave 1 announcement banner after a brief delay so all UI is built.
+    this.time.delayedCall(200, () => this.showWaveBanner(1));
 
     // Endless-mode: Give Up button so players can end the session gracefully.
     if (this.isEndlessMode) {
@@ -477,6 +489,7 @@ export class GameScene extends Phaser.Scene {
       // with the story panel.
       const revealNextWave = () => {
         this.hud.setNextWaveVisible(true, this.currentWave + 1, this.isEndlessMode);
+        this.showWaveBanner(this.currentWave + 1);
       };
       const hadVignette = this.tryShowBetweenWaveVignette(revealNextWave);
       if (!hadVignette) revealNextWave();
@@ -562,6 +575,9 @@ export class GameScene extends Phaser.Scene {
 
     // Audio system cleanup — wired in Phase 21.
     this.audioManager?.destroy();
+
+    // Wave banner cleanup.
+    this.waveBanner?.destroy();
 
     // Vignette overlay cleanup.
     this.vignetteOverlay?.cleanup();
@@ -831,6 +847,23 @@ export class GameScene extends Phaser.Scene {
     this.waveManager.startWave(this.currentWave);
   }
 
+  /**
+   * Show the wave announcement banner for the given upcoming wave number.
+   * Plays the wave-type audio cue, updates firstAirWaveSeen, and for boss
+   * waves triggers a camera shake + screen-edge pulse.
+   */
+  private showWaveBanner(waveNum: number): void {
+    const info = this.waveManager.getWaveAnnouncementInfo(waveNum);
+    if (!info) return;
+
+    const isFirstAir = !this.firstAirWaveSeen &&
+      (info.waveType === 'air' || info.waveType === 'mixed');
+    if (isFirstAir) this.firstAirWaveSeen = true;
+
+    this.waveBanner.show(info, this.speedMultiplier, isFirstAir);
+    AudioManager.getInstance().playWaveIncoming(info.waveType);
+  }
+
   private onWaveComplete(waveNum: number): void {
     if (this.gameState === 'over') return;
 
@@ -904,10 +937,13 @@ export class GameScene extends Phaser.Scene {
 
     // Launch the roguelike offer selection scene (runs on top of GameScene).
     // The next-wave button is hidden until the player picks an offer.
+    const nextWaveInfo: WaveAnnouncementInfo | null =
+      this.waveManager.getWaveAnnouncementInfo(this.currentWave + 1);
     this.scene.launch('BetweenWaveScene', {
       offerManager:      this.offerManager,
       waveJustCompleted: waveNum,
       nextWave:          this.currentWave + 1,
+      nextWaveInfo:      nextWaveInfo ?? undefined,
     });
     // NOTE: this.hud.setNextWaveVisible() is called by the 'between-wave-offer-picked'
     // listener after the player makes their selection.
