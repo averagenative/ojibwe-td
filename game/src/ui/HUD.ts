@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { MobileManager } from '../systems/MobileManager';
 import { PAL } from './palette';
+import { CommanderPortrait } from './CommanderPortrait';
+import type { CommanderDef, CommanderRunState } from '../data/commanderDefs';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
 const HUD_HEIGHT = _IS_MOBILE ? 64 : 48;
@@ -293,32 +295,38 @@ export class HUD extends Phaser.GameObjects.Container {
     bg.on('pointerup',   onClick);
   }
 
-  // ── commander display ───────────────────────────────────────────────────
+  // ── commander portrait ──────────────────────────────────────────────────
+
+  /** Full commander portrait widget (replaces the old text-only display). */
+  private commanderPortrait?: CommanderPortrait;
+
+  /** Return the portrait so GameScene can trigger visual reactions. */
+  getCommanderPortrait(): CommanderPortrait | undefined {
+    return this.commanderPortrait;
+  }
 
   /**
-   * Show the active commander's name and aura name beside the lives text.
-   * If `portraitKey` is supplied and the texture is loaded, a small portrait
-   * thumbnail is shown at the left edge of the display area.
-   * Called once during GameScene create() if a commander is active.
+   * Create the commander portrait in the top-left area of the HUD.
+   * Shows the portrait image with a coloured border, tooltip on hover,
+   * and click-to-activate ability support.
    */
-  createCommanderDisplay(commanderName: string, auraName: string, portraitKey?: string): void {
-    const cy = HUD_HEIGHT / 2;
-    let textX = 100;
+  createCommanderPortrait(
+    commanderDef: CommanderDef,
+    commanderState: CommanderRunState,
+    onActivateAbility: () => void,
+  ): void {
+    const portraitSize = _IS_MOBILE ? 56 : 48;
+    const px = PADDING + portraitSize / 2 + 3; // 3px inset from left edge
+    const py = HUD_HEIGHT + portraitSize / 2 + 6; // just below the HUD strip
 
-    if (portraitKey && this.scene.textures.exists(portraitKey)) {
-      // 32×32 portrait thumbnail fits comfortably in the 48px HUD strip.
-      const portraitSize = 32;
-      this.scene.add.image(textX + portraitSize / 2, cy, portraitKey)
-        .setDisplaySize(portraitSize, portraitSize)
-        .setDepth(DEPTH + 1);
-      textX += portraitSize + 6;
-    }
-
-    this.scene.add.text(textX, cy, `${commanderName} · ${auraName}`, {
-      fontSize: '11px',
-      color: PAL.textSecondary,
-      fontFamily: PAL.fontBody,
-    }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
+    this.commanderPortrait = new CommanderPortrait({
+      scene: this.scene,
+      commanderDef,
+      commanderState,
+      onActivateAbility,
+      x: px,
+      y: py,
+    });
   }
 
   // ── ability button ─────────────────────────────────────────────────────
