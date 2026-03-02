@@ -1055,6 +1055,54 @@ the prior wave completes), but a defensive `cleanup()` call at the top of
 
 ---
 
+## Non-blocking Findings — TASK-049 (Creep Directional Sprites)
+
+*Surfaced during code review 2026-03-01.*
+
+1. **`bobPhase` unbounded growth** — `bobPhase` accumulates indefinitely via
+   `bobPhase += (effectiveSpeed / 1000) * delta * BOB_FREQ_FACTOR`. After a
+   long run (e.g. endless mode) the float will lose precision. Consider wrapping
+   with `bobPhase %= (2 * Math.PI)` to keep the value in [0, 2π). Not urgent —
+   `Math.sin` handles large values correctly; precision loss only becomes
+   noticeable after ~10⁷ seconds of gameplay.
+
+2. **Sprite rotation for up/down uses ±90° only** — the task acceptance criteria
+   mention "or use a distinct front/back-facing shape" as an alternative. The
+   current implementation rotates the sprite. If future creep sprites look
+   awkward when rotated 90° (e.g. asymmetric art with limbs), consider adding
+   separate up/down texture frames instead.
+
+3. **`getDirection()` is exported but currently unused** — the public getter
+   exposes direction for external systems (e.g. a future creep inspector UI or
+   targeting overlay). If no consumer arrives soon, it can be removed to reduce
+   the API surface.
+
+---
+
+## Non-blocking Findings — TASK-046 (Natural Map Terrain)
+
+*Surfaced during code review 2026-03-01.*
+
+1. **Waypoint array access unguarded** — `renderTerrain` accesses
+   `mapData.waypoints[0]` and `mapData.waypoints[length-1]` without checking
+   for an empty array. In practice every MapData has at least 2 waypoints, and
+   GameScene's spawn/exit marker code has the same assumption, so this is
+   consistent. If dynamic map loading is ever added, a guard should be
+   introduced.
+
+2. **SCENERY tile type (TILE=2) not distinctly rendered** — The terrain renderer
+   treats `SCENERY` tiles identically to `BUILDABLE` tiles (same ground fill +
+   decoration eligibility). If future maps use `SCENERY` for pre-placed features
+   (cliffs, water, etc.), the renderer should be extended with distinct
+   SCENERY-specific visuals.
+
+3. **Old tile assets still loaded in BootScene** — `tile-tree.png`,
+   `tile-brush.png`, `tile-rock.png`, `tile-water.png` are still loaded via
+   `BootScene.loadAssets()` but are no longer rendered anywhere. They can be
+   removed from the preload step and deleted from assets to reduce bundle size.
+
+---
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

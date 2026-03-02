@@ -1,7 +1,7 @@
 ---
 id: TASK-046
 title: Natural Map Terrain — Replace Tiled Icons with Procedural Landscape
-status: pending
+status: done
 priority: critical
 phase: polish
 creative: true
