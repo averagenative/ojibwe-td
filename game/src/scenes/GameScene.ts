@@ -906,6 +906,7 @@ export class GameScene extends Phaser.Scene {
         this.gameState = 'between';
         this.vignetteOverlay.show(stageVignette.vignette, stageVignette.seenBefore, () => {
           this.gameState = 'over';
+          const maxLives = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
           this.scene.start('GameOverScene', {
             wavesCompleted: this.totalWaves,
             totalWaves:     this.totalWaves,
@@ -914,6 +915,8 @@ export class GameScene extends Phaser.Scene {
             stageId:        this.selectedStageId,
             mapId:          this.selectedMapId,
             commanderId:    this.selectedCommanderId,
+            livesLeft:      this.lives,
+            maxLives,
           });
         });
         return;
@@ -922,6 +925,7 @@ export class GameScene extends Phaser.Scene {
       // No vignette — go straight to victory screen.
       this.gameState = 'over';
       AudioManager.getInstance().playVictory();
+      const maxLivesNoVig = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
       this.scene.start('GameOverScene', {
         wavesCompleted: this.totalWaves,
         totalWaves:     this.totalWaves,
@@ -930,6 +934,8 @@ export class GameScene extends Phaser.Scene {
         stageId:        this.selectedStageId,
         mapId:          this.selectedMapId,
         commanderId:    this.selectedCommanderId,
+        livesLeft:      this.lives,
+        maxLives:       maxLivesNoVig,
       });
       return;
     }

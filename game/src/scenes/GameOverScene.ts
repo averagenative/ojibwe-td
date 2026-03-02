@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
+import { calculateMoons, moonRatingLabel, moonSymbol } from '../systems/MoonRating';
 import { PAL } from '../ui/palette';
 
 interface GameOverData {
@@ -13,6 +14,10 @@ interface GameOverData {
   commanderId?:   string;
   /** True when the run was played in endless mode. */
   isEndless?:     boolean;
+  /** Lives remaining at end of run (used for moon rating). */
+  livesLeft?:     number;
+  /** Maximum lives the run started with (used for moon rating). */
+  maxLives?:      number;
 }
 
 export class GameOverScene extends Phaser.Scene {
@@ -33,10 +38,24 @@ export class GameOverScene extends Phaser.Scene {
     const mapId       = data?.mapId         ?? 'map-01';
     const commanderId = data?.commanderId   ?? 'nokomis';
     const isEndless   = data?.isEndless     ?? false;
+    const livesLeft   = data?.livesLeft     ?? 0;
+    const maxLives    = data?.maxLives      ?? 20;
 
     // Persist run currency to meta-progression save.
     if (currency > 0) {
       SaveManager.getInstance().addCurrency(currency);
+    }
+
+    // ── Moon rating (non-endless won runs only) ───────────────────────────────
+    let moonsEarned = 0;
+    let isNewBest   = false;
+
+    if (won && !isEndless && stageId) {
+      moonsEarned = calculateMoons(livesLeft, maxLives, waves, total);
+      const save  = SaveManager.getInstance();
+      const prev  = save.getStageMoons(stageId);
+      isNewBest   = moonsEarned > prev;
+      save.setStageMoons(stageId, moonsEarned);
     }
 
     this.add.rectangle(cx, cy, width, height, PAL.bgDark);
@@ -77,8 +96,37 @@ export class GameOverScene extends Phaser.Scene {
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
-    // Buttons: RETRY | UPGRADES | CODEX | MENU
-    const btnY = cy + 90;
+    // ── Moon rating display (won non-endless runs only) ───────────────────────
+    if (won && !isEndless && moonsEarned > 0) {
+      // Moon row: 5 symbols, filled for earned, empty for unearned
+      const moonRow = Array.from({ length: 5 }, (_, i) => moonSymbol(i, moonsEarned)).join(' ');
+      this.add.text(cx, cy + 55, moonRow, {
+        fontSize: '28px',
+        fontFamily: PAL.fontBody,
+      }).setOrigin(0.5);
+
+      // Moon label (e.g. "Full Moon!", "Waxing Gibbous")
+      const label = moonRatingLabel(moonsEarned);
+      this.add.text(cx, cy + 83, label, {
+        fontSize: '15px',
+        color: PAL.gold,
+        fontFamily: PAL.fontBody,
+        fontStyle: 'italic',
+      }).setOrigin(0.5);
+
+      // "New Best!" indicator
+      if (isNewBest) {
+        this.add.text(cx, cy + 101, 'New Best!', {
+          fontSize: '12px',
+          color: PAL.accentGreen,
+          fontFamily: PAL.fontBody,
+          fontStyle: 'bold',
+        }).setOrigin(0.5);
+      }
+    }
+
+    // Buttons: RETRY | UPGRADES | CODEX | MENU (shifted down to make room for moons)
+    const btnY = cy + 128;
     const btnSpacing = 145;
     const btnStartX = cx - btnSpacing * 1.5;
     this.makeButton(btnStartX, btnY, 'RETRY', () => {
