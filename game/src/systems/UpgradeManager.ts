@@ -198,6 +198,9 @@ export class UpgradeManager {
     let overloadMode          = false;
     let overloadDebuffPct  = 0;
     let auraSpecType: '' | 'speed' | 'damage' | 'range' = '';
+    let multiShotCountDelta = 0;
+    let arrowSlowFactor     = 0;
+    let arrowSlowDurationMs = 0;
 
     for (const path of ['A', 'B', 'C'] as const) {
       const purchasedTiers = state.tiers[path];
@@ -217,6 +220,7 @@ export class UpgradeManager {
           auraDamageMultDelta   += sd.auraDamageMultDelta   ?? 0;
           auraRangePctDelta     += sd.auraRangePctDelta     ?? 0;
           dotSpreadRadiusDelta  += sd.spreadRadiusDelta     ?? 0;
+          multiShotCountDelta   += sd.multiShotCountDelta   ?? 0;
         }
 
         const fx = tierDef.effects;
@@ -235,6 +239,8 @@ export class UpgradeManager {
           if (fx.overloadMode)                     overloadMode       = true;
           if (fx.overloadDebuffPct  !== undefined) overloadDebuffPct  = fx.overloadDebuffPct;
           if (fx.auraSpecialization !== undefined) auraSpecType       = fx.auraSpecialization;
+          if (fx.arrowSlowFactor     !== undefined) arrowSlowFactor     = fx.arrowSlowFactor;
+          if (fx.arrowSlowDurationMs !== undefined) arrowSlowDurationMs = fx.arrowSlowDurationMs;
         }
       }
     }
@@ -271,6 +277,9 @@ export class UpgradeManager {
       overloadMode,
       overloadDebuffPct,
       auraSpecType,
+      multiShotCount:       base.multiShotCount + multiShotCountDelta,
+      arrowSlowFactor,
+      arrowSlowDurationMs,
     };
 
     return stats;

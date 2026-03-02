@@ -26,6 +26,7 @@ export interface UpgradeTierDef {
     auraDamageMultDelta?:    number;   // added to damage multiplier
     auraRangePctDelta?:      number;   // fraction added to range bonus (e.g. 0.12 = +12%)
     spreadRadiusDelta?:      number;   // flat spread radius bonus (Poison C)
+    multiShotCountDelta?:    number;   // extra simultaneous targets (Arrow B)
   };
 
   /** Behavioural flags / overrides; later tiers override earlier within the same path */
@@ -45,6 +46,8 @@ export interface UpgradeTierDef {
     overloadMode?:       true;    // Tesla C: chains also debuff nearby allied towers
     overloadDebuffPct?:  number;  // Tesla C: % attack-speed penalty applied to debuffed towers
     auraSpecialization?: 'speed' | 'damage' | 'range'; // Aura deep-path type
+    arrowSlowFactor?:     number; // Arrow C: slow factor on hit (e.g. 0.85 = 15% slow)
+    arrowSlowDurationMs?: number; // Arrow C: slow duration in ms
   };
 }
 
@@ -305,9 +308,49 @@ const AURA_UPGRADES: TowerUpgradeDef = {
   },
 };
 
+// ── Arrow ─────────────────────────────────────────────────────────────────────
+// Base: 10 dmg, 160 range, 700ms, damageCap 45, targetDomain 'both'
+
+const ARROW_UPGRADES: TowerUpgradeDef = {
+  towerKey: 'arrow', lockThreshold: 3, respecCostPct: 0.25,
+  paths: {
+    A: {
+      id: 'A', name: 'Rapid Fire',
+      tiers: [
+        { name: 'Swift I',   description: '8% faster attack.',                        cost: 25,  statDelta: { attackSpeedPct: 8  } },
+        { name: 'Swift II',  description: '8% faster attack.',                        cost: 40,  statDelta: { attackSpeedPct: 8  } },
+        { name: 'Swift III', description: '10% faster attack. Locks Path C.',         cost: 55,  statDelta: { attackSpeedPct: 10 } },
+        { name: 'Swift IV',  description: '10% faster attack.',                       cost: 80,  statDelta: { attackSpeedPct: 10 } },
+        { name: 'Swift V',   description: '12% faster attack. +5 damage.',            cost: 110, statDelta: { attackSpeedPct: 12, damageDelta: 5 } },
+      ],
+    },
+    B: {
+      id: 'B', name: 'Multi-Shot',
+      tiers: [
+        { name: 'Volley I',   description: 'Fires at 1 extra target per attack.',                 cost: 30,  statDelta: { multiShotCountDelta: 1 } },
+        { name: 'Volley II',  description: 'Fires at 2 extra targets per attack.',                cost: 50,  statDelta: { multiShotCountDelta: 1 } },
+        { name: 'Volley III', description: 'Fires at 3 extra targets. +5 damage.',               cost: 70,  statDelta: { multiShotCountDelta: 1, damageDelta: 5 } },
+        { name: 'Volley IV',  description: 'Fires at 4 extra targets.',                          cost: 100, statDelta: { multiShotCountDelta: 1 } },
+        { name: 'Volley V',   description: 'Fires at 5 extra targets. +8 damage.',               cost: 140, statDelta: { multiShotCountDelta: 1, damageDelta: 8 } },
+      ],
+    },
+    C: {
+      id: 'C', name: "Hunter's Edge",
+      tiers: [
+        { name: 'Track I',   description: '+20 range.',                                           cost: 30,  statDelta: { rangeDelta: 20 } },
+        { name: 'Track II',  description: 'Arrows slow targets 15% for 1.5s.',                   cost: 50,  effects: { arrowSlowFactor: 0.85, arrowSlowDurationMs: 1500 } },
+        { name: 'Track III', description: 'Slow 20% for 2s. Locks Path A.',                      cost: 70,  effects: { arrowSlowFactor: 0.80, arrowSlowDurationMs: 2000 } },
+        { name: 'Track IV',  description: 'Slow 25% for 2.5s. +10 range.',                       cost: 100, statDelta: { rangeDelta: 10 }, effects: { arrowSlowFactor: 0.75, arrowSlowDurationMs: 2500 } },
+        { name: 'Track V',   description: 'Slow 30% for 3s. +15 range.',                         cost: 140, statDelta: { rangeDelta: 15 }, effects: { arrowSlowFactor: 0.70, arrowSlowDurationMs: 3000 } },
+      ],
+    },
+  },
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 export const ALL_UPGRADE_DEFS: TowerUpgradeDef[] = [
+  ARROW_UPGRADES,
   CANNON_UPGRADES,
   FROST_UPGRADES,
   MORTAR_UPGRADES,
