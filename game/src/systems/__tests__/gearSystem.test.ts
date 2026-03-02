@@ -17,7 +17,7 @@ import {
   emptyGearBonuses,
   hasGearEffect,
 } from '../GearSystem';
-import { defaultUpgradeStats, CANNON_DEF, FROST_DEF, TESLA_DEF, AURA_DEF } from '../../data/towerDefs';
+import { defaultUpgradeStats, ROCK_HURLER_DEF, FROST_DEF, TESLA_DEF, AURA_DEF } from '../../data/towerDefs';
 import {
   calculateRunXp,
   levelFromXp,
@@ -196,7 +196,7 @@ describe('GearSystem', () => {
   });
 
   it('applyGearToStats modifies stats correctly', () => {
-    const stats = defaultUpgradeStats(CANNON_DEF);
+    const stats = defaultUpgradeStats(ROCK_HURLER_DEF);
     const origDamage = stats.damage;
     const origRange = stats.range;
 
@@ -211,7 +211,7 @@ describe('GearSystem', () => {
   });
 
   it('stat caps at +50%', () => {
-    const stats = defaultUpgradeStats(CANNON_DEF);
+    const stats = defaultUpgradeStats(ROCK_HURLER_DEF);
     const origDamage = stats.damage;
 
     const bonuses = emptyGearBonuses();
@@ -224,7 +224,7 @@ describe('GearSystem', () => {
   });
 
   it('attack speed bonus reduces interval', () => {
-    const stats = defaultUpgradeStats(CANNON_DEF);
+    const stats = defaultUpgradeStats(ROCK_HURLER_DEF);
     const origInterval = stats.attackIntervalMs;
 
     const bonuses = emptyGearBonuses();

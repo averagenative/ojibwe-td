@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
+  ROCK_HURLER_DEF, ARROW_DEF, FROST_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
   ALL_TOWER_DEFS,
 } from '../../data/towerDefs';
 
@@ -284,12 +284,12 @@ describe('Wave air creep detection', () => {
 });
 
 describe('TowerDef targetDomain assignment (real imports)', () => {
-  it('Cannon is ground-only', () => {
-    expect(CANNON_DEF.targetDomain).toBe('ground');
+  it('Rock Hurler is ground-only', () => {
+    expect(ROCK_HURLER_DEF.targetDomain).toBe('ground');
   });
 
-  it('Mortar is ground-only', () => {
-    expect(MORTAR_DEF.targetDomain).toBe('ground');
+  it('Arrow targets both air and ground', () => {
+    expect(ARROW_DEF.targetDomain).toBe('both');
   });
 
   it('Poison is ground-only', () => {

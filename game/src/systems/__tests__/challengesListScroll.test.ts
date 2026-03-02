@@ -263,7 +263,7 @@ describe('challengeDefs — pure logic', () => {
 
   describe('isTowerAllowed', () => {
     it('returns true for an unknown challenge id', () => {
-      expect(isTowerAllowed('does-not-exist', 'cannon')).toBe(true);
+      expect(isTowerAllowed('does-not-exist', 'rock-hurler')).toBe(true);
     });
 
     it('returns false for a banned tower key', () => {

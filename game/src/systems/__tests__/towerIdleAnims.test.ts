@@ -49,8 +49,8 @@ import {
 // ── 1. Idle types for all tower keys ──────────────────────────────────────────
 
 describe('getTowerAnimDef — idle types', () => {
-  it('cannon → sweep', () => {
-    expect(getTowerAnimDef('cannon').idleType).toBe('sweep');
+  it('rock-hurler → bob', () => {
+    expect(getTowerAnimDef('rock-hurler').idleType).toBe('bob');
   });
   it('frost → pulse', () => {
     expect(getTowerAnimDef('frost').idleType).toBe('pulse');
@@ -58,8 +58,8 @@ describe('getTowerAnimDef — idle types', () => {
   it('tesla → spark', () => {
     expect(getTowerAnimDef('tesla').idleType).toBe('spark');
   });
-  it('mortar → bob', () => {
-    expect(getTowerAnimDef('mortar').idleType).toBe('bob');
+  it('cannon → sweep (legacy def still present)', () => {
+    expect(getTowerAnimDef('cannon').idleType).toBe('sweep');
   });
   it('poison → bubble', () => {
     expect(getTowerAnimDef('poison').idleType).toBe('bubble');
@@ -72,19 +72,18 @@ describe('getTowerAnimDef — idle types', () => {
   });
 });
 
-// ── 2. Cannon sweep parameters ────────────────────────────────────────────────
+// ── 2. Rock Hurler bob parameters ────────────────────────────────────────────
 
-describe('getTowerAnimDef — cannon sweep', () => {
-  const d = getTowerAnimDef('cannon');
-  it('sweepDeg ≥ 5°', () => {
-    expect(d.sweepDeg).toBeGreaterThanOrEqual(5);
+describe('getTowerAnimDef — rock-hurler bob', () => {
+  const d = getTowerAnimDef('rock-hurler');
+  it('bobAmpY > 0', () => {
+    expect(d.bobAmpY).toBeGreaterThan(0);
   });
-  it('recoilScale < 1 (body compresses on fire)', () => {
-    expect(d.recoilScale).toBeLessThan(1);
-    expect(d.recoilScale).toBeGreaterThan(0);
+  it('kickDeg > 0 (barrel kicks upward on fire)', () => {
+    expect(d.kickDeg).toBeGreaterThan(0);
   });
-  it('recoilMs > 0', () => {
-    expect(d.recoilMs).toBeGreaterThan(0);
+  it('kickMs > 0', () => {
+    expect(d.kickMs).toBeGreaterThan(0);
   });
   it('lerpDegPerFrame > 0 (barrel tracks targets)', () => {
     expect(d.lerpDegPerFrame).toBeGreaterThan(0);
@@ -124,21 +123,13 @@ describe('getTowerAnimDef — tesla spark', () => {
   });
 });
 
-// ── 5. Mortar bob parameters ──────────────────────────────────────────────────
+// ── 5. Rock Hurler idleFreq is slow and heavy ──────────────────────────────
 
-describe('getTowerAnimDef — mortar bob', () => {
-  const d = getTowerAnimDef('mortar');
-  it('bobAmpY > 0', () => {
-    expect(d.bobAmpY).toBeGreaterThan(0);
-  });
-  it('kickDeg > 0 (barrel kicks upward on fire)', () => {
-    expect(d.kickDeg).toBeGreaterThan(0);
-  });
-  it('kickMs > 0', () => {
-    expect(d.kickMs).toBeGreaterThan(0);
-  });
-  it('lerpDegPerFrame > 0 (barrel tracks targets)', () => {
-    expect(d.lerpDegPerFrame).toBeGreaterThan(0);
+describe('getTowerAnimDef — rock-hurler idleFreq', () => {
+  const d = getTowerAnimDef('rock-hurler');
+  it('idleFreq < 0.5 (slow, heavy rhythm)', () => {
+    expect(d.idleFreq).toBeLessThan(0.5);
+    expect(d.idleFreq).toBeGreaterThan(0);
   });
 });
 
@@ -177,22 +168,21 @@ describe('getTowerAnimDef — arrow', () => {
   it('recoilMs > 0', () => {
     expect(d.recoilMs).toBeGreaterThan(0);
   });
-  it('arrow recoilMs ≤ cannon recoilMs (snappier)', () => {
-    expect(d.recoilMs).toBeLessThanOrEqual(getTowerAnimDef('cannon').recoilMs);
+  it('arrow recoilMs is short (snappy)', () => {
+    expect(d.recoilMs).toBeGreaterThan(0);
+    expect(d.recoilMs).toBeLessThanOrEqual(200);
   });
-  it('arrow recoilScale > cannon recoilScale (less recoil mass)', () => {
-    expect(d.recoilScale).toBeGreaterThan(getTowerAnimDef('cannon').recoilScale);
+  it('arrow recoilScale is close to 1 (light recoil)', () => {
+    expect(d.recoilScale).toBeGreaterThan(0.8);
+    expect(d.recoilScale).toBeLessThan(1);
   });
 });
 
 // ── 9. Barrel tracking towers ─────────────────────────────────────────────────
 
 describe('getTowerAnimDef — barrel tracking', () => {
-  it('cannon lerpDegPerFrame > 0', () => {
-    expect(getTowerAnimDef('cannon').lerpDegPerFrame).toBeGreaterThan(0);
-  });
-  it('mortar lerpDegPerFrame > 0', () => {
-    expect(getTowerAnimDef('mortar').lerpDegPerFrame).toBeGreaterThan(0);
+  it('rock-hurler lerpDegPerFrame > 0', () => {
+    expect(getTowerAnimDef('rock-hurler').lerpDegPerFrame).toBeGreaterThan(0);
   });
   it('frost lerpDegPerFrame = 0 (no barrel tracking)', () => {
     expect(getTowerAnimDef('frost').lerpDegPerFrame).toBe(0);
@@ -361,8 +351,8 @@ describe('sweep oscillation formula', () => {
     expect(sweepAngle).toBeCloseTo(-sweepDeg, 8);
   });
 
-  it('cannon sweep stays within ±sweepDeg at any phase', () => {
-    const { sweepDeg } = getTowerAnimDef('cannon');
+  it('rock-hurler sweep stays within ±sweepDeg at any phase', () => {
+    const { sweepDeg } = getTowerAnimDef('rock-hurler');
     for (let phase = 0; phase < Math.PI * 2; phase += 0.1) {
       const angle = Math.sin(phase) * sweepDeg;
       expect(Math.abs(angle)).toBeLessThanOrEqual(sweepDeg + 0.001);
@@ -373,7 +363,7 @@ describe('sweep oscillation formula', () => {
 // ── 20. All known tower keys return non-null defs ─────────────────────────────
 
 describe('getTowerAnimDef — all known keys', () => {
-  const KNOWN_KEYS = ['cannon', 'frost', 'tesla', 'mortar', 'poison', 'aura', 'arrow'];
+  const KNOWN_KEYS = ['rock-hurler', 'frost', 'tesla', 'poison', 'aura', 'arrow'];
 
   it.each(KNOWN_KEYS)('%s returns a def with a valid idleType', (key) => {
     const d = getTowerAnimDef(key);
@@ -481,11 +471,10 @@ describe('Tower.ts structural checks', () => {
     expect(TOWER_SRC).toContain('_sparkGfx?.destroy()');
   });
 
-  it('has per-tower fire animations: _playCannonRecoil, _playFrostFire, _playTeslaFlash, _playMortarKick, _playPoisonGlow, _playArrowRecoil', () => {
-    expect(TOWER_SRC).toContain('_playCannonRecoil');
+  it('has per-tower fire animations: _playRockHurlerKick, _playFrostFire, _playTeslaFlash, _playPoisonGlow, _playArrowRecoil', () => {
+    expect(TOWER_SRC).toContain('_playRockHurlerKick');
     expect(TOWER_SRC).toContain('_playFrostFire');
     expect(TOWER_SRC).toContain('_playTeslaFlash');
-    expect(TOWER_SRC).toContain('_playMortarKick');
     expect(TOWER_SRC).toContain('_playPoisonGlow');
     expect(TOWER_SRC).toContain('_playArrowRecoil');
   });

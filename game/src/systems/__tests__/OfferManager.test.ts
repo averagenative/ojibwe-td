@@ -603,7 +603,7 @@ describe('OfferManager', () => {
 
     it('returns 0 for non-poison towers with offer', () => {
       om.applyOffer('overgrowth');
-      expect(om.getOvergrowthRangeBonus('cannon')).toBe(0);
+      expect(om.getOvergrowthRangeBonus('rock-hurler')).toBe(0);
       expect(om.getOvergrowthRangeBonus('frost')).toBe(0);
       expect(om.getOvergrowthRangeBonus('tesla')).toBe(0);
     });

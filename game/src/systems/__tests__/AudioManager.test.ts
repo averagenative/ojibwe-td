@@ -206,7 +206,7 @@ describe('AudioManager', () => {
 
     it('playProjectileFired handles all tower keys without throwing', () => {
       const am = AudioManager.getInstance();
-      const keys = ['cannon', 'frost', 'tesla', 'mortar', 'poison', 'aura', 'unknown'];
+      const keys = ['rock-hurler', 'frost', 'tesla', 'poison', 'aura', 'arrow', 'unknown'];
       for (const key of keys) {
         expect(() => am.playProjectileFired(key)).not.toThrow();
       }
