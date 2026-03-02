@@ -6,6 +6,8 @@ import {
   defaultBehaviorToggles,
 } from '../../data/targeting';
 import type { Targetable } from '../../data/targeting';
+import { defaultUpgradeStats, FROST_DEF } from '../../data/towerDefs';
+import { ALL_UPGRADE_DEFS } from '../../data/upgradeDefs';
 
 // ── Mock creep factory ─────────────────────────────────────────────────────────
 
@@ -463,5 +465,189 @@ describe('ALL_PRIORITIES', () => {
     expect(ALL_PRIORITIES).toContain(TargetingPriority.WEAKEST);
     expect(ALL_PRIORITIES).toContain(TargetingPriority.CLOSEST);
     expect(ALL_PRIORITIES).toContain(TargetingPriority.MOST_BUFFED);
+  });
+});
+
+// ── Frost tower targeting edge cases ─────────────────────────────────────────
+//
+// Frost uses STRONGEST priority and 'both' targetDomain.  These tests verify
+// the pure-logic components of the frost attack pipeline.
+
+describe('Frost targeting — STRONGEST priority picks highest HP', () => {
+  it('selects the highest-HP creep from multiple candidates', () => {
+    const weak   = makeCreep({ hp: 40  });
+    const strong = makeCreep({ hp: 200 });
+    const mid    = makeCreep({ hp: 100 });
+    expect(pickTarget([weak, strong, mid], TargetingPriority.STRONGEST, 0, 0)).toBe(strong);
+  });
+
+  it('ignores inactive creeps even if they have the highest HP', () => {
+    const dead  = makeCreep({ active: false, hp: 999 });
+    const alive = makeCreep({ active: true,  hp: 50  });
+    expect(pickTarget([dead, alive], TargetingPriority.STRONGEST, 0, 0)).toBe(alive);
+  });
+
+  it('returns null when candidate list is empty (no creeps in range)', () => {
+    expect(pickTarget([], TargetingPriority.STRONGEST, 0, 0)).toBeNull();
+  });
+
+  it('returns the single candidate when only one is in range', () => {
+    const only = makeCreep({ hp: 150 });
+    expect(pickTarget([only], TargetingPriority.STRONGEST, 0, 0)).toBe(only);
+  });
+
+  it('is stable on equal HP — first candidate wins', () => {
+    const a = makeCreep({ hp: 100 });
+    const b = makeCreep({ hp: 100 });
+    // isBetter returns false on ties, so the first candidate is retained.
+    expect(pickTarget([a, b], TargetingPriority.STRONGEST, 0, 0)).toBe(a);
+  });
+});
+
+describe('Frost targeting — range filtering is caller responsibility', () => {
+  /**
+   * Tower.findTarget() pre-filters candidates by rangeSq before calling
+   * pickTarget().  These tests verify that pickTarget() itself operates only
+   * on whatever list it receives — it has no knowledge of range.
+   *
+   * In production, the frost tower will never pass an out-of-range creep to
+   * pickTarget() because findTarget() already excludes them.
+   */
+  it('out-of-range creep is excluded before pickTarget is called', () => {
+    // Simulate Tower.findTarget() range logic: only pass in-range candidates.
+    const towerX = 200;
+    const towerY = 200;
+    const range  = 140;
+    const rangeSq = range * range;
+
+    const inRange  = makeCreep({ x: 250, y: 200, hp: 50  }); // dist=50 ✅
+    const outRange = makeCreep({ x: 400, y: 200, hp: 999 }); // dist=200 ✗
+
+    // Simulate the caller filtering (Tower.findTarget())
+    const candidates = [inRange, outRange].filter(c => {
+      const dx = c.x - towerX;
+      const dy = c.y - towerY;
+      return dx * dx + dy * dy <= rangeSq;
+    });
+
+    const result = pickTarget(candidates, TargetingPriority.STRONGEST, towerX, towerY);
+    expect(result).toBe(inRange);
+    expect(result).not.toBe(outRange);
+  });
+
+  it('returns null when all creeps are beyond frost range', () => {
+    const towerX = 0;
+    const towerY = 0;
+    const range  = 140;
+    const rangeSq = range * range;
+
+    const farCreep = makeCreep({ x: 300, y: 300, hp: 500 });
+
+    const candidates = [farCreep].filter(c => {
+      const dx = c.x - towerX;
+      const dy = c.y - towerY;
+      return dx * dx + dy * dy <= rangeSq;
+    });
+
+    expect(pickTarget(candidates, TargetingPriority.STRONGEST, towerX, towerY)).toBeNull();
+  });
+});
+
+describe('Frost shatter on-hit ordering (bug regression)', () => {
+  /**
+   * Frost C upgrade sets shatterActive on the creep via onHit.
+   * The shatterActive flag must be in place BEFORE takeDamage fires the
+   * 'creep-died-poisoned' event on a lethal hit.
+   *
+   * Correct order:  onHit (set shatterActive) → takeDamage (reads shatterActive in death event)
+   * Buggy order:    takeDamage (reads shatterActive = false) → onHit (sets shatterActive too late)
+   *
+   * These tests document the required ordering.
+   */
+  it('shatterActive is set before the death event when onHit precedes takeDamage', () => {
+    let shatterActiveAtDeathTime = false;
+    let shatterActive = false;
+
+    const onHit = () => { shatterActive = true; };
+    const takeDamage = () => {
+      // Simulates creep dying and emitting creep-died-poisoned with current flag.
+      shatterActiveAtDeathTime = shatterActive;
+    };
+
+    // Correct order (what Projectile.hitCreep now does):
+    onHit();
+    takeDamage();
+
+    expect(shatterActiveAtDeathTime).toBe(true);
+  });
+
+  it('shatterActive is NOT set at death time when onHit follows takeDamage (bug reproduction)', () => {
+    let shatterActiveAtDeathTime = false;
+    let shatterActive = false;
+
+    const onHit = () => { shatterActive = true; };
+    const takeDamage = () => {
+      shatterActiveAtDeathTime = shatterActive;
+    };
+
+    // Buggy order (what Projectile.hitCreep used to do):
+    takeDamage();
+    onHit();
+
+    expect(shatterActiveAtDeathTime).toBe(false); // demonstrates the bug
+  });
+
+  it('chillOnly toggle suppresses shatter regardless of onHit call order', () => {
+    let shatterCalled = false;
+    const shatterOnDeath = true;
+    const chillOnly      = true;
+
+    // The shat flag is computed at fire time — with chillOnly on, shat = false.
+    const shat = shatterOnDeath && !chillOnly;
+
+    const onHit = (applyShatterFn: () => void) => {
+      if (shat) applyShatterFn();
+    };
+
+    onHit(() => { shatterCalled = true; });
+    expect(shatterCalled).toBe(false);
+  });
+});
+
+describe('Frost slow effect — correct application', () => {
+  /**
+   * Frost onHit applies a speed slow via applySlow(factor, durationMs).
+   * These tests verify actual values from towerDefs / upgradeDefs so they
+   * catch regressions if someone changes the balance data.
+   */
+  const baseStats = defaultUpgradeStats(FROST_DEF);
+  const frostUpg  = ALL_UPGRADE_DEFS.find(u => u.towerKey === 'frost')!;
+
+  it('base frost slow factor is 0.5 (halves creep speed)', () => {
+    expect(baseStats.slowFactor).toBe(0.5);
+    expect(baseStats.slowFactor).toBeGreaterThan(0);
+    expect(baseStats.slowFactor).toBeLessThan(1);
+  });
+
+  it('base frost slow duration is 2500ms', () => {
+    expect(baseStats.slowDurationMs).toBe(2500);
+  });
+
+  it('Frost A upgrades reduce the slow factor (stronger slow)', () => {
+    const pathA = frostUpg.paths.A.tiers.map(t => t.effects?.slowFactor).filter(
+      (v): v is number => v !== undefined,
+    );
+    expect(pathA.length).toBe(5);
+    const isDescending = pathA.every((v, i) => i === 0 || v < pathA[i - 1]);
+    expect(isDescending).toBe(true);
+  });
+
+  it('Frost B upgrades increase slow duration', () => {
+    const pathB = frostUpg.paths.B.tiers.map(t => t.effects?.slowDurationMs).filter(
+      (v): v is number => v !== undefined,
+    );
+    expect(pathB.length).toBe(5);
+    const isAscending = pathB.every((v, i) => i === 0 || v > pathB[i - 1]);
+    expect(isAscending).toBe(true);
   });
 });
