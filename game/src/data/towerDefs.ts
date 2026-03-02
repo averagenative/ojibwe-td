@@ -45,9 +45,16 @@ export interface TowerDef {
    * Which creep domains this tower can target.
    * - 'ground' : only ground creeps (Cannon, Mortar, Poison)
    * - 'air'    : only air creeps   (Tesla)
-   * - 'both'   : all creeps        (Frost, Aura)
+   * - 'both'   : all creeps        (Frost, Aura, Arrow)
    */
   targetDomain:         'ground' | 'air' | 'both';
+
+  /**
+   * Hard cap on maximum damage per hit (Arrow tower).
+   * After all multipliers are applied, damage is clamped to this value.
+   * Upgrade paths improve the Arrow but cannot push damage above this ceiling.
+   */
+  damageCap?:           number;
 }
 
 // ── TowerUpgradeStats ─────────────────────────────────────────────────────────
@@ -105,6 +112,13 @@ export interface TowerUpgradeStats {
 
   // ── Aura deep-path specialisation ────────────────────────────────────────
   auraSpecType: '' | 'speed' | 'damage' | 'range';
+
+  // ── Arrow B: Multi-shot ───────────────────────────────────────────────────
+  multiShotCount: number;   // extra simultaneous targets per attack (0 = single shot)
+
+  // ── Arrow C: Slow on Hit ─────────────────────────────────────────────────
+  arrowSlowFactor:     number;   // 0 = no slow; e.g. 0.85 = 15% slow applied on hit
+  arrowSlowDurationMs: number;   // 0 = no slow; ms the slow lasts on each hit
 }
 
 /** Build default TowerUpgradeStats from a TowerDef (no upgrades applied). */
@@ -137,10 +151,23 @@ export function defaultUpgradeStats(def: TowerDef): TowerUpgradeStats {
     overloadMode:       false,
     overloadDebuffPct:  0,
     auraSpecType:       '',
+    multiShotCount:       0,
+    arrowSlowFactor:      0,
+    arrowSlowDurationMs:  0,
   };
 }
 
 // ── Tower definitions ─────────────────────────────────────────────────────────
+
+export const ARROW_DEF: TowerDef = {
+  key: 'arrow',  name: 'Arrow',  cost: 18,
+  range: 160,  damage: 10,  attackIntervalMs: 700,  projectileSpeed: 550,
+  description: 'Targets air & ground. Fast, cheap. Damage capped — best used early.',
+  bodyColor: 0x557733,  projectileColor: 0xaadd66,  projectileRadius: 3,
+  damageCap: 45,
+  defaultPriority: TargetingPriority.FIRST,
+  targetDomain: 'both',
+};
 
 export const CANNON_DEF: TowerDef = {
   key: 'cannon',  name: 'Cannon',  cost: 100,
@@ -200,5 +227,5 @@ export const AURA_DEF: TowerDef = {
 };
 
 export const ALL_TOWER_DEFS: TowerDef[] = [
-  CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
+  ARROW_DEF, CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
 ];

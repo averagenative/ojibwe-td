@@ -16,7 +16,7 @@ import type { CommanderRunState } from '../../data/commanderDefs';
 export type { TowerDef, TowerUpgradeStats } from '../../data/towerDefs';
 export {
   defaultUpgradeStats,
-  CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
+  ARROW_DEF, CANNON_DEF, FROST_DEF, MORTAR_DEF, POISON_DEF, TESLA_DEF, AURA_DEF,
   ALL_TOWER_DEFS,
 } from '../../data/towerDefs';
 // Re-export targeting types so callers need only one import.
@@ -265,6 +265,28 @@ export class Tower extends Phaser.GameObjects.Container {
       return;
     }
 
+    // Arrow multi-shot (Path B): fire at additional targets within range.
+    if (this.def.key === 'arrow' && this.upgStats.multiShotCount > 0) {
+      this.fireAt(target);
+      let remaining = this.upgStats.multiShotCount;
+      const domain       = this.def.targetDomain;
+      const overgrowthBonus = this.offerManager?.getOvergrowthRangeBonus(this.def.key) ?? 0;
+      const effectiveRange = this.upgStats.range * (1 + this.auraRangePct + overgrowthBonus);
+      const rangeSq      = effectiveRange * effectiveRange;
+      for (const c of this.getCreeps()) {
+        if (remaining <= 0) break;
+        if (!c.active || c === target) continue;
+        if (domain === 'air'    && c.domain !== 'air') continue;
+        if (domain === 'ground' && c.domain === 'air') continue;
+        const dx = c.x - this.x;
+        const dy = c.y - this.y;
+        if (dx * dx + dy * dy > rangeSq) continue;
+        this.fireAt(c);
+        remaining--;
+      }
+      return;
+    }
+
     this.fireAt(target);
   }
 
@@ -495,10 +517,25 @@ export class Tower extends Phaser.GameObjects.Container {
       }
     }
 
+    // ── Damage cap (Arrow tower): clamp after all multipliers ────────────────
+    if (this.def.damageCap !== undefined) {
+      effectiveDamage = Math.min(effectiveDamage, this.def.damageCap);
+    }
+
     // ── Build per-tower onHit effect ─────────────────────────────────────────
     let onHit: ((c: Creep) => void) | undefined;
 
     switch (this.def.key) {
+      case 'arrow': {
+        // Path C (Hunter's Edge): apply slow on hit when upgrade is active.
+        const sf = this.upgStats.arrowSlowFactor;
+        const sd = this.upgStats.arrowSlowDurationMs;
+        if (sf > 0 && sd > 0) {
+          onHit = (c: Creep) => c.applySlow(sf, sd);
+        }
+        break;
+      }
+
       case 'cannon': {
         // Brittle Ice: +20% damage to frost-slowed targets.
         const brittleIceMult = om?.getBrittleIceMult(target.isSlowed()) ?? 1.0;

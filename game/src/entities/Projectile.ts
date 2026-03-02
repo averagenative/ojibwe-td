@@ -24,7 +24,7 @@ export interface ProjectileOptions {
   onImpact?:     (x: number, y: number) => void;
   /**
    * Tower type key — drives trail colour and impact visual style.
-   * Recognised values: 'cannon' | 'frost' | 'mortar' | 'poison' | 'tesla' | 'aura'
+   * Recognised values: 'arrow' | 'cannon' | 'frost' | 'mortar' | 'poison' | 'tesla' | 'aura'
    */
   towerKey?:     string;
 }
@@ -36,6 +36,7 @@ const TRAIL_LIFE_MS     = 180;
 
 /** Trail colours keyed by tower type. */
 const TRAIL_COLORS: Record<string, number> = {
+  arrow:  0xaadd66,
   cannon: 0xbbaa88,
   frost:  0x88ccff,
   mortar: 0xee7700,
@@ -257,6 +258,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
 
   private showImpactEffect(cx: number, cy: number): void {
     switch (this.opts.towerKey) {
+      case 'arrow':  this.impactArrowStrike(cx, cy);   break;
       case 'cannon': this.impactDustPuff(cx, cy);      break;
       case 'frost':  this.impactFrostBurst(cx, cy);    break;
       case 'mortar': this.impactMortarDebris(cx, cy);  break;
@@ -265,6 +267,26 @@ export class Projectile extends Phaser.GameObjects.Arc {
       // aura:  no impact effect (no projectile)
       default: break;
     }
+  }
+
+  /** Arrow impact: small green cross-spark burst at hit point. */
+  private impactArrowStrike(cx: number, cy: number): void {
+    const spark = this.scene.add.graphics();
+    spark.lineStyle(2, 0xaadd66, 0.9);
+    spark.beginPath();
+    spark.moveTo(cx - 5, cy); spark.lineTo(cx + 5, cy);
+    spark.moveTo(cx, cy - 5); spark.lineTo(cx, cy + 5);
+    spark.strokePath();
+    spark.setDepth(22);
+    this.scene.tweens.add({
+      targets:    spark,
+      alpha:      0,
+      scaleX:     1.6,
+      scaleY:     1.6,
+      duration:   100,
+      ease:       'Power2',
+      onComplete: () => spark.destroy(),
+    });
   }
 
   /** Cannon impact: 5 dust/smoke particles scatter outward. */
