@@ -159,8 +159,12 @@ export class Projectile extends Phaser.GameObjects.Arc {
   // ── impact ────────────────────────────────────────────────────────────────
 
   private hitCreep(creep: Creep): void {
-    creep.takeDamage(this.opts.damage);
+    // Apply on-hit effects BEFORE damage so that flags set by onHit (e.g. frost
+    // shatterActive) are in place when takeDamage fires the 'creep-died-poisoned'
+    // event on a lethal hit.  If the hit is non-lethal the order has no observable
+    // difference.
     this.opts.onHit?.(creep);
+    creep.takeDamage(this.opts.damage);
 
     if (this.opts.splashRadius) {
       this.applyAoe(creep.x, creep.y);
@@ -194,8 +198,11 @@ export class Projectile extends Phaser.GameObjects.Arc {
       const dx = creep.x - cx;
       const dy = creep.y - cy;
       if (Math.sqrt(dx * dx + dy * dy) <= r) {
-        creep.takeDamage(this.opts.damage);
+        // Apply on-hit effects before damage for the same reason as hitCreep():
+        // status flags set by onHit must be in place before takeDamage fires any
+        // death events.
         this.opts.onHit?.(creep);
+        creep.takeDamage(this.opts.damage);
       }
     }
   }
