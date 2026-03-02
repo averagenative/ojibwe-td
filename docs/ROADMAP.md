@@ -1217,7 +1217,49 @@ Discovered during the Opus review pass. None block merge; all are polish candida
   capability ("Flak Cannon") so players invested in Cannon aren't helpless against air waves.
   Not implemented yet — good candidate for a future upgrade tree expansion.
 
+## Non-Blocking Findings — Stage Completion Moons (TASK-045)
+
+*Surfaced during Opus code review, 2026-03-01.*
+
+- **`maxLives` calculation duplicated across GameScene**: The expression
+  `this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0)` appears
+  5 times (lines ~297, 324, 419, 909, 928). Consider extracting a `getMaxLives()` helper
+  method on GameScene to reduce drift risk when a new lives-modifying mechanic is added.
+- **1-moon rating path unreachable in current integration**: `calculateMoons` supports
+  returning 1 for partial clears (≥75% waves), but `GameOverScene` only calculates moons
+  when `won === true` (all waves cleared), so the result is always 2–5. If a "give up with
+  partial credit" flow is added in the future, the function is ready — but the integration
+  would need updating to call `calculateMoons` for non-won runs too.
+- **Moon glow/shimmer tween**: The task notes suggest "a subtle glow/shimmer tween on the
+  moon icons when they appear." Not implemented. Low-priority polish — could be added as
+  a Phaser tween on the moon text object in GameOverScene.
+- **"dibiki-giizis" flavour text**: The task notes suggest showing the Ojibwe word for moon
+  as flavour text on the rating screen. Not implemented — would be a nice cultural touch.
+
 ---
+
+### Dual Entrance Map (TASK-050) — Non-blocking Findings
+
+Discovered during the Opus review pass. None block merge; all are polish candidates.
+
+- **MainMenuScene path thumbnails**: The AC requests "Stage tile on main menu shows a
+  forked path thumbnail" but no stage selection card draws path thumbnails at all (for
+  any map). This is a pre-existing gap affecting all stages. Consider adding a minimap
+  preview to `buildStageTile()` that renders waypoints, using `getWaypointPaths()` to
+  draw all paths (single or multi-path).
+- **`getWaypointPaths()` empty-waypoints edge case**: When `data.waypoints` is empty,
+  the function returns `[[]]` (one path with zero waypoints). Downstream consumers like
+  `TerrainRenderer.renderTerrain()` will then access `primaryPath[0]` → `undefined` and
+  pass it to `isNearSpawnOrExit()`, which crashes on `undefined.row`. This is theoretical
+  (no real map has zero waypoints) but a defensive guard would be cleaner.
+- **Boss Waabooz split on multi-path**: `spawnBoss()` always uses `this.waypoints`
+  (path A). When Waabooz dies and splits, the mini-copies inherit path A's remaining
+  waypoints. This is correct because the boss itself was on path A, but if a future
+  boss mechanic spawns on alternating paths, this would need revisiting.
+- **Air waypoints default assumes path A**: The air route fallback (`spawn → exit` from
+  path A) works for the current dual-entrance layout since both paths share the same
+  exit. If a future map has paths with different exits, the air route would need its own
+  multi-path logic or a custom `airWaypoints` entry in the map JSON.
 
 ## Health Check Findings
 

@@ -1,7 +1,7 @@
 ---
 id: TASK-045
 title: Stage Completion Moons — Performance Rating
-status: pending
+status: in-progress
 priority: medium
 phase: gameplay
 ---

@@ -1,7 +1,7 @@
 ---
 id: TASK-050
 title: Dual Entrance Map — Multi-Spawn Path Convergence
-status: pending
+status: done
 priority: medium
 phase: gameplay
 ---
