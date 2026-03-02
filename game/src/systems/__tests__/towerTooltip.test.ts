@@ -25,7 +25,7 @@ describe('formatDmgLine', () => {
     expect(formatDmgLine(CANNON_DEF)).toBe('40 dmg  ·  1.0s');
     expect(formatDmgLine(FROST_DEF)).toBe('15 dmg  ·  1.2s');
     expect(formatDmgLine(MORTAR_DEF)).toBe('60 dmg  ·  2.5s');
-    expect(formatDmgLine(TESLA_DEF)).toBe('35 dmg  ·  1.5s');
+    expect(formatDmgLine(TESLA_DEF)).toBe('42 dmg  ·  1.5s');
   });
 
   it('handles fractional interval correctly', () => {
@@ -85,7 +85,7 @@ describe('TowerDef.description', () => {
   it('descriptions match the task specification', () => {
     expect(CANNON_DEF.description).toBe('Single target. High damage, moderate fire rate.');
     expect(FROST_DEF.description).toBe('Slows targets. Chills stack for a freeze bonus.');
-    expect(TESLA_DEF.description).toBe('Chains lightning to up to 3 nearby enemies.');
+    expect(TESLA_DEF.description).toBe('Chains lightning to up to 3 air targets. Air-only specialist.');
     expect(MORTAR_DEF.description).toBe('Area splash damage. Ignores terrain.');
     expect(POISON_DEF.description).toBe('Applies damage-over-time. Spreads on creep death.');
     expect(AURA_DEF.description).toBe('Boosts nearby tower attack speed and damage.');

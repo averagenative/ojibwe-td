@@ -266,8 +266,9 @@ export class GameScene extends Phaser.Scene {
     // Wave system
     const creepTypeDefs = this.cache.json.get('creep-types');
     const waveDefs      = this.cache.json.get('wave-defs');
+    const airWaypoints  = this.buildAirWaypoints();
     this.waveManager = new WaveManager(
-      this, this.waypoints, this.activeCreeps, creepTypeDefs, waveDefs,
+      this, this.waypoints, this.activeCreeps, creepTypeDefs, waveDefs, airWaypoints,
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
 
@@ -488,8 +489,15 @@ export class GameScene extends Phaser.Scene {
       // This prevents the boss-wave warning / commander messages from overlapping
       // with the story panel.
       const revealNextWave = () => {
-        this.hud.setNextWaveVisible(true, this.currentWave + 1, this.isEndlessMode);
-        this.showWaveBanner(this.currentWave + 1);
+        const nextWave = this.currentWave + 1;
+        this.hud.setNextWaveVisible(true, nextWave, this.isEndlessMode);
+        this.showWaveBanner(nextWave);
+        // Show air wave warning if the upcoming wave contains air creeps.
+        if (this.waveManager.hasAirCreepsInWave(nextWave)) {
+          this.hud.showAirWaveAlert('▲ Air wave incoming! Deploy Tesla/Frost!');
+        } else {
+          this.hud.showAirWaveAlert('');
+        }
       };
       const hadVignette = this.tryShowBetweenWaveVignette(revealNextWave);
       if (!hadVignette) revealNextWave();
@@ -603,6 +611,27 @@ export class GameScene extends Phaser.Scene {
       x: wp.col * ts + ts / 2,
       y: wp.row * ts + ts / 2,
     }));
+  }
+
+  /**
+   * Build the pixel-space air waypoint array for the current map.
+   * If the map defines custom `airWaypoints`, convert them; otherwise
+   * default to a direct spawn→exit path (first and last ground waypoints).
+   * Air creeps fly this simplified route, ignoring ground terrain.
+   */
+  private buildAirWaypoints(): PixelWaypoint[] {
+    const ts = this.mapData.tileSize;
+    const custom = this.mapData.airWaypoints;
+    if (custom && custom.length >= 2) {
+      return custom.map(wp => ({
+        x: wp.col * ts + ts / 2,
+        y: wp.row * ts + ts / 2,
+      }));
+    }
+    // Default: direct line from spawn (first) to exit (last) ground waypoint.
+    const first = this.waypoints[0];
+    const last  = this.waypoints[this.waypoints.length - 1];
+    return [first, last];
   }
 
   private renderMap(): void {
@@ -830,6 +859,7 @@ export class GameScene extends Phaser.Scene {
     this.gameState = 'wave';
     this.hud.setWave(this.currentWave, this.totalWaves, this.isEndlessMode);
     this.hud.setNextWaveVisible(false, 0);
+    this.hud.showAirWaveAlert(''); // clear the air wave alert when the wave begins
 
     // Snapshot lives at wave start (for Nokomis ability restore).
     if (this.commanderState) {

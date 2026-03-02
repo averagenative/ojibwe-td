@@ -247,7 +247,7 @@ export class Tower extends Phaser.GameObjects.Container {
       return;
     }
 
-    const target = this.findTarget(this.def.groundOnly);
+    const target = this.findTarget();
     if (!target) return;
 
     this.onFired?.(this.def.key);
@@ -265,7 +265,7 @@ export class Tower extends Phaser.GameObjects.Container {
     // Hold Fire toggle: suppress firing without disturbing the attack timer.
     if (this.behaviorToggles.holdFire) return;
 
-    const target = this.findTarget(/* groundOnly */ true);
+    const target = this.findTarget();
     if (!target) return;
 
     this.onFired?.(this.def.key);
@@ -362,6 +362,8 @@ export class Tower extends Phaser.GameObjects.Container {
     const onChainFired = this.onChainFired;
     // Capture toggle at fire time so mid-flight changes don't affect this shot.
     const chainToExit  = this.behaviorToggles.chainToExit;
+    // Capture targetDomain so chain hits respect the tower's domain restriction.
+    const towerDomain  = this.def.targetDomain;
     // Animikiikaa aura: capture AoE flag + radius at fire time.
     const cmdChainAoE  = this.commanderState?.teslaChainAoE ?? false;
     const aoeTileSize  = cmdChainAoE ? (this.scene.data?.get('tileSize') as number ?? 40) : 0;
@@ -376,9 +378,14 @@ export class Tower extends Phaser.GameObjects.Container {
       damage:   primaryDmg,
       towerKey: this.def.key,
       onHit: (hitCreep) => {
-        // Collect candidates within chainRange
+        // Collect candidates within chainRange, respecting the tower's targetDomain.
         const inRange = [...getCreeps()]
-          .filter(c => c.active && c !== hitCreep)
+          .filter(c => {
+            if (!c.active || c === hitCreep) return false;
+            if (towerDomain === 'air' && c.domain !== 'air') return false;
+            if (towerDomain === 'ground' && c.domain === 'air') return false;
+            return true;
+          })
           .map(c => ({ creep: c, dist: Math.hypot(c.x - hitCreep.x, c.y - hitCreep.y) }))
           .filter(({ dist }) => dist <= chainRange);
 
@@ -411,6 +418,8 @@ export class Tower extends Phaser.GameObjects.Container {
           if (cmdChainAoE) {
             for (const nearby of getCreeps()) {
               if (!nearby.active || nearby === creep) continue;
+              if (towerDomain === 'air' && nearby.domain !== 'air') continue;
+              if (towerDomain === 'ground' && nearby.domain === 'air') continue;
               if (Math.hypot(nearby.x - creep.x, nearby.y - creep.y) <= aoeTileSize) {
                 nearby.takeDamage(chainDmg);
               }
@@ -423,6 +432,8 @@ export class Tower extends Phaser.GameObjects.Container {
             const TQ_DAMAGE = 15;
             for (const nearby of getCreeps()) {
               if (!nearby.active || nearby === creep) continue;
+              if (towerDomain === 'air' && nearby.domain !== 'air') continue;
+              if (towerDomain === 'ground' && nearby.domain === 'air') continue;
               if (Math.hypot(nearby.x - creep.x, nearby.y - creep.y) <= TQ_RADIUS) {
                 nearby.takeDamage(TQ_DAMAGE);
               }
@@ -564,21 +575,35 @@ export class Tower extends Phaser.GameObjects.Container {
   // ── targeting ─────────────────────────────────────────────────────────────
 
   /**
-   * Find the best target according to the tower's current priority.
+   * Find the best target according to the tower's current priority and targetDomain.
    * Called fresh on every attack cycle so priority changes take effect immediately.
    * Also handles the Cannon Armor Focus overlay (narrow pool to armored creeps
    * when any are in range and the toggle is active).
+   *
+   * Domain filtering:
+   *   'ground' — only ground creeps
+   *   'air'    — only air creeps
+   *   'both'   — all creeps
    */
-  private findTarget(groundOnly = false): Creep | null {
+  private findTarget(): Creep | null {
+    const domain = this.def.targetDomain;
+
     // Overgrowth: Poison towers gain +15% range.
     const overgrowthBonus = this.offerManager?.getOvergrowthRangeBonus(this.def.key) ?? 0;
     const effectiveRange = this.upgStats.range * (1 + this.auraRangePct + overgrowthBonus);
     const rangeSq = effectiveRange * effectiveRange;
 
+    // Helper: true when a creep's domain matches this tower's targetDomain.
+    const domainMatch = (creep: Creep): boolean => {
+      if (domain === 'both')   return true;
+      if (domain === 'air')    return creep.domain === 'air';
+      /* 'ground' */           return creep.domain !== 'air';
+    };
+
     // Makoons aura — sticky target retention: keep current target if still alive and in range.
     if (this.commanderState?.stickyTargeting && this.currentTarget) {
       const ct = this.currentTarget;
-      if (ct.active && !(groundOnly && ct.creepType === 'air')) {
+      if (ct.active && domainMatch(ct)) {
         const dx = ct.x - this.x;
         const dy = ct.y - this.y;
         if (dx * dx + dy * dy <= rangeSq) return ct;
@@ -586,11 +611,11 @@ export class Tower extends Phaser.GameObjects.Container {
       this.currentTarget = null;
     }
 
-    // Build in-range candidate list
+    // Build in-range candidate list, filtered by targeting domain.
     const candidates: Creep[] = [];
     for (const c of this.getCreeps()) {
       if (!c.active) continue;
-      if (groundOnly && c.creepType === 'air') continue;
+      if (!domainMatch(c)) continue;
       const dx = c.x - this.x;
       const dy = c.y - this.y;
       if (dx * dx + dy * dy > rangeSq) continue;

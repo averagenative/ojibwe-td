@@ -40,6 +40,14 @@ export interface TowerDef {
 
   /** Default targeting priority for newly placed towers of this type. */
   defaultPriority:      TargetingPriority;
+
+  /**
+   * Which creep domains this tower can target.
+   * - 'ground' : only ground creeps (Cannon, Mortar, Poison)
+   * - 'air'    : only air creeps   (Tesla)
+   * - 'both'   : all creeps        (Frost, Aura)
+   */
+  targetDomain:         'ground' | 'air' | 'both';
 }
 
 // ── TowerUpgradeStats ─────────────────────────────────────────────────────────
@@ -134,6 +142,7 @@ export const CANNON_DEF: TowerDef = {
   description: 'Single target. High damage, moderate fire rate.',
   bodyColor: 0x778888,  projectileColor: 0xffdd00,  projectileRadius: 5,
   defaultPriority: TargetingPriority.FIRST,
+  targetDomain: 'ground',
 };
 
 export const FROST_DEF: TowerDef = {
@@ -142,6 +151,7 @@ export const FROST_DEF: TowerDef = {
   description: 'Slows targets. Chills stack for a freeze bonus.',
   bodyColor: 0x3366aa,  projectileColor: 0x88ccff,  projectileRadius: 5,
   defaultPriority: TargetingPriority.STRONGEST,
+  targetDomain: 'both',
 };
 
 export const MORTAR_DEF: TowerDef = {
@@ -151,6 +161,7 @@ export const MORTAR_DEF: TowerDef = {
   bodyColor: 0x996633,  projectileColor: 0xff8800,  projectileRadius: 7,
   groundOnly: true,  splashRadius: 55,
   defaultPriority: TargetingPriority.FIRST,
+  targetDomain: 'ground',
 };
 
 export const POISON_DEF: TowerDef = {
@@ -159,15 +170,17 @@ export const POISON_DEF: TowerDef = {
   description: 'Applies damage-over-time. Spreads on creep death.',
   bodyColor: 0x338844,  projectileColor: 0x55ff99,  projectileRadius: 5,
   defaultPriority: TargetingPriority.WEAKEST,
+  targetDomain: 'ground',
 };
 
 export const TESLA_DEF: TowerDef = {
   key: 'tesla',  name: 'Tesla',  cost: 200,
-  range: 160,  damage: 35,  attackIntervalMs: 1500,  projectileSpeed: 500,
-  description: 'Chains lightning to up to 3 nearby enemies.',
+  range: 160,  damage: 42,  attackIntervalMs: 1500,  projectileSpeed: 500,
+  description: 'Chains lightning to up to 3 air targets. Air-only specialist.',
   bodyColor: 0xbbaa22,  projectileColor: 0xffff44,  projectileRadius: 4,
   chainCount: 3,  chainRange: 110,  chainDamageRatio: 0.6,
   defaultPriority: TargetingPriority.FIRST,
+  targetDomain: 'air',
 };
 
 export const AURA_DEF: TowerDef = {
@@ -177,6 +190,7 @@ export const AURA_DEF: TowerDef = {
   bodyColor: 0xbb9922,
   isAura: true,  auraIntervalMult: 0.8, // towers in range attack 25% faster
   defaultPriority: TargetingPriority.FIRST, // passive — value unused
+  targetDomain: 'both', // aura buffs towers regardless of creep domain
 };
 
 export const ALL_TOWER_DEFS: TowerDef[] = [

@@ -43,12 +43,14 @@ function stickyTargetResult(
   towerX: number,
   towerY: number,
   rangeSq: number,
-  groundOnly: boolean,
+  targetDomain: 'ground' | 'air' | 'both',
 ): { retain: boolean } {
   if (!stickyTargeting || !currentTarget) return { retain: false };
   const ct = currentTarget;
   if (!ct.active) return { retain: false };
-  if (groundOnly && ct.creepType === 'air') return { retain: false };
+  // Domain check mirrors Tower.findTarget()'s domainMatch() helper.
+  if (targetDomain === 'air' && ct.creepType !== 'air') return { retain: false };
+  if (targetDomain === 'ground' && ct.creepType === 'air') return { retain: false };
   const dx = ct.x - towerX;
   const dy = ct.y - towerY;
   if (dx * dx + dy * dy > rangeSq) return { retain: false };
@@ -119,55 +121,67 @@ describe('Makoons aura — sticky target retention', () => {
 
   it('retains current target when active, in range, and stickyTargeting on', () => {
     const target = { active: true, x: 120, y: 120, creepType: 'ground' };
-    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'both');
     expect(result.retain).toBe(true);
   });
 
   it('does not retain when stickyTargeting is off', () => {
     const target = { active: true, x: 120, y: 120, creepType: 'ground' };
-    const result = stickyTargetResult(false, target, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(false, target, towerX, towerY, rangeSq, 'both');
     expect(result.retain).toBe(false);
   });
 
   it('does not retain when currentTarget is null', () => {
-    const result = stickyTargetResult(true, null, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(true, null, towerX, towerY, rangeSq, 'both');
     expect(result.retain).toBe(false);
   });
 
   it('does not retain when target is dead (active=false)', () => {
     const target = { active: false, x: 120, y: 120, creepType: 'ground' };
-    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'both');
     expect(result.retain).toBe(false);
   });
 
   it('does not retain when target moved out of range', () => {
     const target = { active: true, x: 500, y: 500, creepType: 'ground' };
-    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'both');
     expect(result.retain).toBe(false);
   });
 
-  it('does not retain air target when groundOnly is true', () => {
+  it('does not retain air target when targetDomain is ground', () => {
     const target = { active: true, x: 110, y: 110, creepType: 'air' };
-    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, true);
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'ground');
     expect(result.retain).toBe(false);
   });
 
-  it('retains air target when groundOnly is false', () => {
+  it('retains air target when targetDomain is both', () => {
     const target = { active: true, x: 110, y: 110, creepType: 'air' };
-    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'both');
+    expect(result.retain).toBe(true);
+  });
+
+  it('does not retain ground target when targetDomain is air', () => {
+    const target = { active: true, x: 110, y: 110, creepType: 'ground' };
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'air');
+    expect(result.retain).toBe(false);
+  });
+
+  it('retains air target when targetDomain is air', () => {
+    const target = { active: true, x: 110, y: 110, creepType: 'air' };
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'air');
     expect(result.retain).toBe(true);
   });
 
   it('retains target exactly at range boundary', () => {
     // Target at exactly range distance from tower
     const target = { active: true, x: towerX + range, y: towerY, creepType: 'ground' };
-    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'both');
     expect(result.retain).toBe(true);
   });
 
   it('does not retain target just beyond range boundary', () => {
     const target = { active: true, x: towerX + range + 1, y: towerY, creepType: 'ground' };
-    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, false);
+    const result = stickyTargetResult(true, target, towerX, towerY, rangeSq, 'both');
     expect(result.retain).toBe(false);
   });
 
