@@ -1,7 +1,7 @@
 ---
 id: TASK-097
 title: Frost Tower Sound — Less Annoying
-status: pending
+status: done
 category: backend
 priority: high
 depends_on: []
