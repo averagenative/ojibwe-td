@@ -1,7 +1,7 @@
 ---
 id: TASK-061
 title: Fix Poison Upgrade Descriptions — Match Implementation or Wire Features
-status: pending
+status: done
 priority: high
 phase: gameplay
 ---

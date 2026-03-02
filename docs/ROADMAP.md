@@ -1470,12 +1470,53 @@ Non-blocking items surfaced during Opus review of the mobile-responsive branch:
    wording could mislead players into thinking tapping will fix it. Consider changing to
    "Game paused — waiting for graphics to recover" or adding an actual tap-to-reload fallback.
 
+### Poison Spread Upgrade Fix (TASK-061) — review notes
+
+1. **`BalanceCalc.computeStatsForBalance` was out of sync with `UpgradeManager`.**
+   The balance calculator is a "standalone replica" of `computeEffectiveStats`, but when the
+   three new Poison C fields (`dotSpreadRadiusDelta`, `dotSpreadStackCount`, `dotSpreadHitsAir`)
+   were added, the balance calculator hardcoded them to defaults instead of accumulating from
+   tier defs. Fixed during review. Consider extracting the shared stat-accumulation loop into
+   a reusable function to prevent future drift between these two replicas.
+
+2. **`spreadDot()` has no upstream guard — relies on GameScene calling `hasPoisonSpread()` first.**
+   If `spreadDot()` is ever called without the guard, it will spread 1 stack at 80px radius to
+   all ground creeps regardless of whether any Poison C upgrade is purchased. This is documented
+   behavior but could be made safer by adding an early return in `spreadDot()` when no tower
+   has `dotSpreadOnDeath`.
+
 ## Health Check Findings
+
+### Security Audit (TASK-064) — Non-Blocking Findings
+
+*Identified during Opus security review, 2026-03-02.*
+
+- **`gearData` / `commanderXp` deep validation**: `_sanitize()` validates top-level
+  primitives but does not deep-validate the structure of `gearData.inventory` items
+  or `commanderXp.xp` values. A tampered save could inject malformed gear items or
+  negative XP values. Low priority — these values only affect the cheater's own
+  single-player experience. Consider adding per-field validation if gear trading or
+  leaderboards are introduced.
+- **`addCurrency()` uncapped**: Currency is clamped on load via `_sanitize()`, but
+  `addCurrency()` does not enforce `MAX_CURRENCY` at write time. A player calling
+  `addCurrency(Infinity)` from the console can write arbitrarily large values
+  (though on next load they'll be clamped). This is accepted per the console access
+  decision documented in `game/docs/SECURITY.md` §2c.
+- **CSP header not enforced at build level**: `game/docs/SECURITY.md` recommends a
+  CSP but the game has no `<meta>` CSP tag in `index.html`. When deploying to a CDN
+  or web store, either configure CSP via server headers or add a `<meta>` fallback.
+- **`server.allowedHosts: true`** in `vite.config.ts`: Accepts requests from any
+  host during dev. Safe for local/WSL development but should be restricted in any
+  CI preview deployment.
+- **Google Fonts `<link>` lacks SRI**: Documented as an accepted industry trade-off
+  in SECURITY.md §5c. No action needed unless self-hosting fonts.
+
+---
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
 
 <!-- HEALTH_CHECK_START -->
-Last run: 2026-02-28 22:08:13
-Findings: 27 total (27 new task files created, 0 already tracked)
+Last run: 2026-03-02 02:00:04
+Findings: 90 total (79 new task files created, 11 already tracked)
 Task files: /home/dmichael/projects/greentd/tasks/health/pending/
 <!-- HEALTH_CHECK_END -->

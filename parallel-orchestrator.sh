@@ -6,10 +6,16 @@
 # avoid merge conflicts on main.
 #
 # Usage:
-#   ./parallel-orchestrator.sh                        # auto-pick next N pending tasks
+#   ./parallel-orchestrator.sh                        # auto-pick next N pending tasks, loop until queue empty
 #   ./parallel-orchestrator.sh -n 3                   # run 3 tasks in parallel (default: 2)
-#   ./parallel-orchestrator.sh -t task1.md -t task2.md  # run specific tasks
+#   ./parallel-orchestrator.sh -t task1.md -t task2.md  # run specific tasks (first batch only, then auto-pick)
 #   ./parallel-orchestrator.sh --resume               # clean up stale worktrees and re-run stuck tasks
+#
+# Control (while running):
+#   touch .orch_pause                                 # pause after current batch finishes
+#   rm .orch_pause                                    # resume from pause
+#   touch .orch_stop                                  # stop after current batch (clean exit)
+#   Ctrl+C / SIGTERM                                  # graceful shutdown after current batch
 #
 # Requirements:
 #   • git worktree support (git ≥ 2.5)
@@ -33,6 +39,13 @@ QUOTA_MAX_WAIT=48       # max quota-wait cycles before giving up (~24 h)
 PARALLEL_LIMIT=2         # max simultaneous implement+review workers
 
 PARALLEL_STATE_FILE="$REPO_DIR/.orch_parallel_state"
+PAUSE_FILE="$REPO_DIR/.orch_pause"
+STOP_FILE="$REPO_DIR/.orch_stop"
+
+# ── Graceful shutdown ─────────────────────────────────────────────────────────
+# SIGINT/SIGTERM: finish the current batch, then stop after shipping.
+SHUTDOWN_REQUESTED=false
+trap 'SHUTDOWN_REQUESTED=true; log "Shutdown requested — finishing current batch…"' INT TERM
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
@@ -469,99 +482,158 @@ main() {
 
   mkdir -p "$WORKTREES_DIR"
 
-  # Pull collaborator commits before branching worktrees
-  sync_with_remote
+  # ── Continuous loop: keep picking batches until the queue is empty ────────
+  local batch_num=0
 
-  # Resolve task list
-  local tasks=()
-  if [ ${#explicit_tasks[@]} -gt 0 ]; then
-    tasks=("${explicit_tasks[@]}")
-  else
-    while IFS= read -r t; do
-      tasks+=("$t")
-    done < <(find_pending_tasks "$parallel")
-  fi
+  while true; do
+    batch_num=$(( batch_num + 1 ))
 
-  [ ${#tasks[@]} -gt 0 ] || { log "No pending tasks — nothing to do."; exit 0; }
+    # Pull collaborator commits before branching worktrees
+    sync_with_remote
 
-  log "Tasks to run (${#tasks[@]}):"
-  for t in "${tasks[@]}"; do
-    log "  • $(get_title "$t")  [$t]"
-    claim_task "$t"
-  done
-
-  # ── Launch workers in parallel ─────────────────────────────────────────────
-
-  local status_files=()
-  local pids=()
-
-  for task_file in "${tasks[@]}"; do
-    local sf
-    sf=$(mktemp /tmp/porch_status_XXXXXX)
-    echo "PENDING" > "$sf"
-    status_files+=("$sf")
-
-    worker "$task_file" "$sf" &
-    pids+=("$!")
-    log "Worker PID $! launched for: $(get_title "$task_file")"
-  done
-
-  hr
-  log "All workers launched — waiting for implement+review to complete…"
-  hr
-
-  # Wait for all workers
-  local all_ok=true
-  for i in "${!pids[@]}"; do
-    local pid="${pids[$i]}"
-    local sf="${status_files[$i]}"
-    if wait "$pid"; then
-      log "Worker $pid finished."
+    # Resolve task list
+    local tasks=()
+    if [ ${#explicit_tasks[@]} -gt 0 ] && [ "$batch_num" -eq 1 ]; then
+      # Explicit tasks only run in the first batch
+      tasks=("${explicit_tasks[@]}")
     else
-      log "Worker $pid exited with error."
-      all_ok=false
-    fi
-    cat "$sf" 2>/dev/null || true
-  done
-
-  # ── Serialised ship phase ──────────────────────────────────────────────────
-
-  hr
-  log "=== All workers done — beginning serialised ship phase ==="
-  hr
-
-  for i in "${!status_files[@]}"; do
-    local sf="${status_files[$i]}"
-    local result
-    result=$(cat "$sf" 2>/dev/null || echo "FAIL")
-    rm -f "$sf"
-
-    if [[ "$result" == FAIL* ]]; then
-      log "Skipping ship for task $i — worker reported failure."
-      continue
+      while IFS= read -r t; do
+        tasks+=("$t")
+      done < <(find_pending_tasks "$parallel")
     fi
 
-    # Parse "OK:wt_path:branch:task_file"
-    local wt_path branch task_file
-    wt_path=$(echo "$result"  | cut -d: -f2)
-    branch=$(echo "$result"   | cut -d: -f3)
-    task_file=$(echo "$result" | cut -d: -f4)
+    [ ${#tasks[@]} -gt 0 ] || { log "No pending tasks — queue empty. Done!"; break; }
 
-    ship_task "$wt_path" "$branch" "$task_file" || {
-      log "Ship failed for $task_file — manual intervention needed."
-      log "Worktree preserved at: $wt_path (branch: $branch)"
-      all_ok=false
-    }
+    hr
+    log "=== Batch $batch_num — ${#tasks[@]} task(s) ==="
+    hr
+
+    log "Tasks to run (${#tasks[@]}):"
+    for t in "${tasks[@]}"; do
+      log "  • $(get_title "$t")  [$t]"
+      claim_task "$t"
+    done
+
+    # ── Launch workers in parallel ───────────────────────────────────────────
+
+    local status_files=()
+    local pids=()
+
+    for task_file in "${tasks[@]}"; do
+      local sf
+      sf=$(mktemp /tmp/porch_status_XXXXXX)
+      echo "PENDING" > "$sf"
+      status_files+=("$sf")
+
+      worker "$task_file" "$sf" &
+      pids+=("$!")
+      log "Worker PID $! launched for: $(get_title "$task_file")"
+    done
+
+    hr
+    log "All workers launched — waiting for implement+review to complete…"
+    hr
+
+    # Wait for all workers
+    local all_ok=true
+    for i in "${!pids[@]}"; do
+      local pid="${pids[$i]}"
+      local sf="${status_files[$i]}"
+      if wait "$pid"; then
+        log "Worker $pid finished."
+      else
+        log "Worker $pid exited with error."
+        all_ok=false
+      fi
+      cat "$sf" 2>/dev/null || true
+    done
+
+    # ── Serialised ship phase ────────────────────────────────────────────────
+
+    hr
+    log "=== Batch $batch_num — beginning serialised ship phase ==="
+    hr
+
+    for i in "${!status_files[@]}"; do
+      local sf="${status_files[$i]}"
+      local result
+      result=$(cat "$sf" 2>/dev/null || echo "FAIL")
+      rm -f "$sf"
+
+      if [[ "$result" == FAIL* ]]; then
+        log "Skipping ship for task $i — worker reported failure."
+        continue
+      fi
+
+      # Parse "OK:wt_path:branch:task_file"
+      local wt_path branch task_file
+      wt_path=$(echo "$result"  | cut -d: -f2)
+      branch=$(echo "$result"   | cut -d: -f3)
+      task_file=$(echo "$result" | cut -d: -f4)
+
+      ship_task "$wt_path" "$branch" "$task_file" || {
+        log "Ship failed for $task_file — manual intervention needed."
+        log "Worktree preserved at: $wt_path (branch: $branch)"
+        all_ok=false
+      }
+    done
+
+    hr
+    if $all_ok; then
+      log "=== Batch $batch_num complete — all tasks shipped ==="
+      state_clear
+    else
+      log "=== Batch $batch_num done with errors — check logs above ==="
+      log "Continuing to next batch…"
+      state_clear
+    fi
+
+    # ── Check for stop/pause/shutdown between batches ───────────────────────
+
+    if $SHUTDOWN_REQUESTED; then
+      hr
+      log "=== Shutdown requested — stopping after batch $batch_num ==="
+      hr
+      break
+    fi
+
+    if [ -f "$STOP_FILE" ]; then
+      rm -f "$STOP_FILE"
+      hr
+      log "=== Stop file detected — stopping after batch $batch_num ==="
+      hr
+      break
+    fi
+
+    if [ -f "$PAUSE_FILE" ]; then
+      hr
+      log "=== Paused (touch .orch_pause detected) ==="
+      log "Remove .orch_pause to resume, or touch .orch_stop to quit."
+      while [ -f "$PAUSE_FILE" ]; do
+        # Also check for stop while paused
+        if [ -f "$STOP_FILE" ]; then
+          rm -f "$STOP_FILE" "$PAUSE_FILE"
+          log "Stop file detected while paused — exiting."
+          break 2
+        fi
+        if $SHUTDOWN_REQUESTED; then
+          rm -f "$PAUSE_FILE"
+          log "Shutdown signal while paused — exiting."
+          break 2
+        fi
+        sleep 10
+      done
+      log "=== Resumed ==="
+      hr
+    fi
+
+    # Brief pause between batches to avoid hammering
+    sleep 5
   done
 
   hr
-  if $all_ok; then
-    log "=== Parallel pipeline complete — all tasks shipped ==="
-    state_clear
-  else
-    log "=== Parallel pipeline done with errors — check logs above ==="
-    log "State file preserved at $PARALLEL_STATE_FILE for watchdog/resume."
-  fi
+  log "=== Parallel Orchestrator finished ==="
+  state_clear
   hr
 }
 

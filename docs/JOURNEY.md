@@ -923,3 +923,15 @@ Mobile browsers — particularly iOS Safari and Chrome Android — routinely evi
 **OfferManager additions.** `getActiveIds()` returns the array of currently active offer IDs; `getConsumedOneTimeOfferIds()` returns consumed one-time offer IDs (e.g. `['salvage']`); `restoreFromIds(ids, consumedOfferIds?)` re-activates a saved offer list silently, bypassing the selection UI and setting the salvage-consumed flag if needed.
 
 **Test coverage.** `SessionManager.test.ts` has 19 tests covering the full lifecycle: save/load round-trip, 30-minute expiry, version mismatch rejection, missing/corrupt data, and the singleton reset pattern (`(SessionManager as unknown as { _instance: null })._instance = null`). `GameSceneShutdown.test.ts` (7 tests) verifies that event listeners registered in `create()` are removed in `shutdown()`. Total: 1 177 tests passing, 0 type errors.
+
+---
+
+### TASK-061 — Fix Poison Upgrade Descriptions: Implement the Tier Progression (2026-03-02)
+
+Plague Path C upgrades (Plague I–V) described effects that were never implemented: spread range increasing at tier II, multiple DoT stacks at tiers III and IV, and air-creep targeting at tier V. Players were spending gold and seeing none of the stated behaviour. This was a player-trust issue — upgrade text is a contract.
+
+**What was implemented.** Three new fields were added to the upgrade schema (`spreadRadiusDelta` in `statDelta`, `spreadStackCount` and `spreadHitsAir` in `effects`) and threaded through `UpgradeManager` and `BalanceCalc` as new `TowerUpgradeStats` properties: `dotSpreadRadiusDelta`, `dotSpreadStackCount`, `dotSpreadHitsAir`. The `spreadDot()` method in `UpgradeManager` was refactored to drop the caller-supplied `radius` argument; instead it now walks the live tower list to derive the best parameters from all Poison towers that have `dotSpreadOnDeath` active — taking the maximum radius and stack count and ORing the air flag. The result: each spread event automatically reflects the highest-tier Plague upgrade present on the map.
+
+**Tier behaviour after the fix.** Plague I spreads 1 stack within 80px to ground creeps. Plague II extends reach to 90px via `spreadRadiusDelta: 10`. Plague III applies 2 stacks per spread via `spreadStackCount: 2`. Plague IV applies 3 stacks. Plague V adds `spreadHitsAir: true`, making the spread domain-agnostic. Every description now precisely describes what the tier delivers.
+
+**Test coverage.** `poisonSpreadUpgrades.test.ts` (19 tests, new) exercises each tier in isolation and stacked, confirms ground-only filtering pre-Plague V, verifies that the `radius` parameter was removed from `spreadDot()`, and checks that radius additions accumulate correctly. Total: 1 210 tests passing, 0 type errors.
