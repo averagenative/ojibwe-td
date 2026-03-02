@@ -16,6 +16,28 @@ const SCHEMA_VER   = 1;
 /** Maximum plausible currency a legitimate playthrough can accumulate. */
 export const MAX_CURRENCY = 999_999;
 
+// ── Crystal sink consumables ────────────────────────────────────────────────
+
+/** Counts of pending consumable items waiting to be applied at run start. */
+export interface ConsumablePending {
+  rerollTokens:    number;  // each grants one offer reroll during a between-wave screen
+  goldBoostTokens: number;  // each grants +50 starting gold for the run
+  extraLifeTokens: number;  // each grants +1 starting life for the run
+}
+
+/** Crystal costs for each repeatable consumable purchase. */
+export const CONSUMABLE_COSTS: Readonly<Record<keyof ConsumablePending, number>> = {
+  rerollTokens:    50,
+  goldBoostTokens: 100,
+  extraLifeTokens: 150,
+} as const;
+
+/** Gold bonus per goldBoostToken. */
+export const GOLD_BOOST_AMOUNT = 50;
+
+/** Maximum tokens of any single consumable type that can be held at once. */
+const MAX_CONSUMABLE_TOKENS = 99;
+
 /** Serialised gear data stored alongside the save. */
 export interface GearSaveData {
   inventory: GearSaveItem[];
@@ -77,6 +99,12 @@ interface SaveData {
   challengeWeek:  string;
 
   /**
+   * Pending consumable items purchased with crystals that will be applied
+   * at the start of the next run and cleared once consumed.
+   */
+  pendingConsumables: ConsumablePending;
+
+  /**
    * djb2 checksum of the serialised save data (excluding this field).
    * Used to detect casual manual tampering via browser DevTools.
    * Optional so old saves without the field still load gracefully.
@@ -99,9 +127,10 @@ function defaultSaveData(): SaveData {
     unlockedCodexIds: [],
     readCodexIds: [],
     stageMoons: {},
-    gearData:       { inventory: [], equipped: {} },
-    commanderXp:    { xp: {}, enhancementSlots: {} },
-    challengeWeek:  '',
+    gearData:           { inventory: [], equipped: {} },
+    commanderXp:        { xp: {}, enhancementSlots: {} },
+    challengeWeek:      '',
+    pendingConsumables: { rerollTokens: 0, goldBoostTokens: 0, extraLifeTokens: 0 },
   };
 }
 
@@ -391,6 +420,41 @@ export class SaveManager {
     this._save();
   }
 
+  // ── Crystal-sink consumables ────────────────────────────────────────────────
+
+  /** Return the current pending consumable counts. */
+  getPendingConsumables(): ConsumablePending {
+    return { ...this.data.pendingConsumables };
+  }
+
+  /**
+   * Purchase one unit of a consumable type, deducting its crystal cost.
+   * Returns true on success, false if the player can't afford it or the
+   * token cap (99) has already been reached for that type.
+   */
+  purchaseConsumable(type: keyof ConsumablePending): boolean {
+    const cost = CONSUMABLE_COSTS[type];
+    if (this.data.currency < cost) return false;
+    if ((this.data.pendingConsumables[type] ?? 0) >= MAX_CONSUMABLE_TOKENS) return false;
+    this.data.currency -= cost;
+    this.data.pendingConsumables[type] = (this.data.pendingConsumables[type] ?? 0) + 1;
+    this._save();
+    return true;
+  }
+
+  /**
+   * Consume (and clear) all pending run consumables.
+   * Returns a snapshot of the counts before they were cleared.
+   * Call at the start of a new run — GameScene applies the bonuses then
+   * discards the snapshot.
+   */
+  consumeAndClearRunConsumables(): ConsumablePending {
+    const snapshot = this.getPendingConsumables();
+    this.data.pendingConsumables = { rerollTokens: 0, goldBoostTokens: 0, extraLifeTokens: 0 };
+    this._save();
+    return snapshot;
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private _load(): void {
@@ -516,6 +580,18 @@ export class SaveManager {
       ? d.challengeWeek
       : '';
 
+    // Pending consumable counts: non-negative integers capped at MAX_CONSUMABLE_TOKENS.
+    const clampCount = (v: unknown): number =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? Math.max(0, Math.min(MAX_CONSUMABLE_TOKENS, Math.floor(v)))
+        : 0;
+    const rawPc = (d.pendingConsumables as unknown) as Record<string, unknown> | undefined;
+    const pendingConsumables: ConsumablePending = {
+      rerollTokens:    clampCount(rawPc?.rerollTokens),
+      goldBoostTokens: clampCount(rawPc?.goldBoostTokens),
+      extraLifeTokens: clampCount(rawPc?.extraLifeTokens),
+    };
+
     return {
       ...d,
       currency,
@@ -531,6 +607,7 @@ export class SaveManager {
       readCodexIds,
       lastPlayedStage,
       challengeWeek,
+      pendingConsumables,
     };
   }
 

@@ -22,7 +22,7 @@ import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
 import { getStageDef, getStageByPathFile, getRegionDef } from '../data/stageDefs';
 import type { StageDef } from '../data/stageDefs';
-import { SaveManager } from '../meta/SaveManager';
+import { SaveManager, GOLD_BOOST_AMOUNT } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
 import { WaveBanner } from '../ui/WaveBanner';
 import { renderTerrain } from '../systems/TerrainRenderer';
@@ -159,6 +159,11 @@ export class GameScene extends Phaser.Scene {
   private _totalKills = 0;
   /** Gold earned from kills/waves/bosses this run — serialised to auto-save. */
   private _goldEarned = 0;
+  /**
+   * Reroll tokens remaining this run (consumed from pending consumables at run
+   * start). Each token lets the player reroll their between-wave offer cards once.
+   */
+  private _rerollTokens = 0;
   /** Overlay container shown during WebGL context loss. */
   private _webglOverlay: Phaser.GameObjects.Container | null = null;
   /** Stored to allow removal in shutdown(). */
@@ -229,6 +234,7 @@ export class GameScene extends Phaser.Scene {
     this.decoVisible            = true;
     this._totalKills         = 0;
     this._goldEarned         = 0;
+    this._rerollTokens       = 0;
     this._webglOverlay       = null;
   }
 
@@ -267,6 +273,19 @@ export class GameScene extends Phaser.Scene {
     // Store wave-start lives for Nokomis ability
     if (this.commanderState) {
       this.commanderState.waveStartLives = this.lives;
+    }
+
+    // ── Apply pending crystal-sink consumables ────────────────────────────────
+    // Consume once per run; clears the save-side stock.
+    {
+      const c = SaveManager.getInstance().consumeAndClearRunConsumables();
+      if (c.goldBoostTokens > 0) {
+        this.gold += c.goldBoostTokens * GOLD_BOOST_AMOUNT;
+      }
+      if (c.extraLifeTokens > 0) {
+        this.lives += c.extraLifeTokens;
+      }
+      this._rerollTokens = c.rerollTokens;
     }
 
     // Expose commander state and tile size on scene.data for entity-level reads
@@ -591,11 +610,16 @@ export class GameScene extends Phaser.Scene {
     // ── BetweenWaveScene offer-picked event ───────────────────────────────
     // Fired by BetweenWaveScene after the player selects a card.
     // Applies any instant-gold offer effect and reveals the next-wave button.
-    this.events.on('between-wave-offer-picked', (data: { offerId: string; instantGold: number }) => {
+    this.events.on('between-wave-offer-picked', (data: { offerId: string; instantGold: number; rerollsUsed?: number }) => {
       if (data.instantGold > 0) {
         this.gold += data.instantGold;
         this.hud.setGold(this.gold);
         this.upgradePanel?.refresh();
+      }
+      // Track how many reroll tokens were consumed so subsequent between-wave
+      // screens launch with the correct remaining count.
+      if (data.rerollsUsed && data.rerollsUsed > 0) {
+        this._rerollTokens = Math.max(0, this._rerollTokens - data.rerollsUsed);
       }
 
       // Show any between-wave vignette first; reveal the next-wave button only
@@ -1325,6 +1349,7 @@ export class GameScene extends Phaser.Scene {
       waveJustCompleted: waveNum,
       nextWave:          this.currentWave + 1,
       nextWaveInfo:      nextWaveInfo ?? undefined,
+      rerollTokens:      this._rerollTokens,
     });
     // NOTE: this.hud.setNextWaveVisible() is called by the 'between-wave-offer-picked'
     // listener after the player makes their selection.
