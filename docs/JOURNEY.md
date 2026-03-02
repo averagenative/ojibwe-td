@@ -935,3 +935,19 @@ Plague Path C upgrades (Plague I–V) described effects that were never implemen
 **Tier behaviour after the fix.** Plague I spreads 1 stack within 80px to ground creeps. Plague II extends reach to 90px via `spreadRadiusDelta: 10`. Plague III applies 2 stacks per spread via `spreadStackCount: 2`. Plague IV applies 3 stacks. Plague V adds `spreadHitsAir: true`, making the spread domain-agnostic. Every description now precisely describes what the tier delivers.
 
 **Test coverage.** `poisonSpreadUpgrades.test.ts` (19 tests, new) exercises each tier in isolation and stacked, confirms ground-only filtering pre-Plague V, verifies that the `radius` parameter was removed from `spreadDot()`, and checks that radius additions accumulate correctly. Total: 1 210 tests passing, 0 type errors.
+
+---
+
+### TASK-064 — Security & Code Vulnerability Audit (2026-03-02)
+
+As the codebase grew rapidly through orchestrator pipelines, no security review had been performed. Even for a fully client-side game with no backend, there are meaningful attack surfaces: localStorage tampering (players editing saved currency or unlock flags), dependency supply chain risk, and production build configuration hygiene. This task established a security baseline and fixed the most actionable gap.
+
+**Findings.** `npm audit` returned 0 vulnerabilities across all 236 transitive dependencies. All production and dev packages were at their latest versions. No `eval()`, `Function()`, or `innerHTML` usage was found in game code. Source maps were already disabled in the Vite production config. No secrets, API keys, or credentials were found in source or git history. All external resource loads (Google Fonts) use HTTPS.
+
+**localStorage hardening.** The main concrete gap was `SaveManager`: loaded data was used directly with no validation. A `_sanitize()` method was added that clamps `currency` to `[0, 999999]`, filters `unlocks` to string elements only, clamps `audioMaster / audioSfx / audioMusic` to `[0, 1]`, validates `stageMoons` values to integers in `[1, 5]`, and validates `endlessRecords` to non-negative integers. In parallel, a djb2 checksum (`_computeChecksum()`) is now written alongside every save and verified on load — if the checksum is missing or mismatched, `SaveManager` logs a warning (via `lastWarning`) and continues with the sanitized values, providing casual tamper detection without blocking legitimate play.
+
+**Build & supply chain hardening.** `vite.config.ts` was updated to set `sourcemap: false` explicitly for production builds (was previously implicit) and `build.minify: true`. A `.env*` gitignore rule was confirmed present. The ESLint `no-unused-vars` rule was extended with `varsIgnorePattern: '^_'` to match the existing `argsIgnorePattern`, preventing false positives from intentional `_` prefixed destructuring (e.g., the `_checksum: _old` pattern used in `_save()`).
+
+**Security documentation.** `docs/SECURITY.md` was created with the full audit report: dependency inventory, CVE status, client-side risk analysis, build configuration review, code quality scan, recommended CSP headers for future web deployment, and a future-proofing section documenting requirements for leaderboards, multiplayer, and IAP if those features are ever added.
+
+**Test coverage.** `SaveManagerSecurity.test.ts` (39 tests, new) covers the full sanitization and checksum lifecycle: clean save round-trips, tamper detection on currency / unlocks / stat fields, checksum mismatch warning, missing checksum acceptance, and invalid-type coercion. Total: 1 230 tests passing, 0 type errors.
