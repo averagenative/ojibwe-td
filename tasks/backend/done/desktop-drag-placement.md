@@ -1,7 +1,7 @@
 ---
 id: TASK-083
 title: Desktop Drag-to-Place Tower Placement
-status: pending
+status: done
 priority: high
 phase: bugfix
 category: backend
