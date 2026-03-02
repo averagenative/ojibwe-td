@@ -241,7 +241,7 @@ export class BootScene extends Phaser.Scene {
         am.registerDecodedBuffer(key, data);
       } else if (data instanceof ArrayBuffer) {
         void am.registerBuffer(key, data);
-      } else if (data != null) {
+      } else if (data !== null && data !== undefined) {
         const duck = data as Record<string, unknown>;
         if (typeof duck['duration'] === 'number' && typeof duck['getChannelData'] === 'function') {
           am.registerDecodedBuffer(key, data as AudioBuffer);
