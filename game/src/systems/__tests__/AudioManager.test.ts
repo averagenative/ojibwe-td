@@ -675,6 +675,110 @@ describe('AudioManager', () => {
     });
   });
 
+  describe('suspended AudioContext — iOS unlock flow', () => {
+    it('startMusicTrack with suspended context does not start playback immediately', async () => {
+      mockCtx.state = 'suspended' as AudioContextState;
+      mockCtx.resume = vi.fn().mockResolvedValue(undefined);
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-menu', new ArrayBuffer(8));
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrack('music-menu');
+
+      // Playback must NOT start while context is still suspended.
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+      // resume() must have been called synchronously.
+      expect(mockCtx.resume).toHaveBeenCalled();
+    });
+
+    it('startMusicTrack with suspended context starts track after resume resolves', async () => {
+      mockCtx.state = 'suspended' as AudioContextState;
+      // Simulate context becoming running when resume() resolves.
+      mockCtx.resume = vi.fn().mockImplementation(() => {
+        mockCtx.state = 'running' as AudioContextState;
+        return Promise.resolve();
+      });
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-menu', new ArrayBuffer(8));
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrack('music-menu');
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+
+      // Flush the .then() microtask — track should start now.
+      await Promise.resolve();
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      const srcMock = mockCtx.createBufferSource.mock.results[0].value as { loop: boolean };
+      expect(srcMock.loop).toBe(true);
+    });
+
+    it('startMusicTrack same-key guard still fires even after resume', async () => {
+      mockCtx.state = 'suspended' as AudioContextState;
+      mockCtx.resume = vi.fn().mockImplementation(() => {
+        mockCtx.state = 'running' as AudioContextState;
+        return Promise.resolve();
+      });
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-menu', new ArrayBuffer(8));
+
+      am.startMusicTrack('music-menu');
+      await Promise.resolve(); // flush first track start
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrack('music-menu'); // same key — already playing
+      await Promise.resolve();
+
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+    });
+
+    it('destroy() clears the pending track so it does not start after resume', async () => {
+      mockCtx.state = 'suspended' as AudioContextState;
+      // resume resolves asynchronously (after destroy is called)
+      let resolveResume!: () => void;
+      mockCtx.resume = vi.fn().mockReturnValue(new Promise<void>(res => { resolveResume = res; }));
+
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-menu', new ArrayBuffer(8));
+
+      am.startMusicTrack('music-menu'); // queues pending track
+      am.destroy();                     // should clear the pending track
+
+      mockCtx.createBufferSource.mockClear();
+      mockCtx.state = 'running' as AudioContextState;
+      resolveResume();                  // resume resolves after destroy
+      await Promise.resolve();
+
+      // Track should NOT have started because destroy() cleared it.
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+    });
+
+    it('resumeContext() calls ctx.resume() when suspended', () => {
+      mockCtx.state = 'suspended' as AudioContextState;
+      mockCtx.resume = vi.fn().mockResolvedValue(undefined);
+      const am = AudioManager.getInstance();
+
+      am.resumeContext();
+      expect(mockCtx.resume).toHaveBeenCalled();
+    });
+
+    it('resumeContext() is a no-op when context is already running', () => {
+      mockCtx.state = 'running' as AudioContextState;
+      mockCtx.resume = vi.fn().mockResolvedValue(undefined);
+      const am = AudioManager.getInstance();
+
+      am.resumeContext();
+      expect(mockCtx.resume).not.toHaveBeenCalled();
+    });
+
+    it('resumeContext() does not throw when no AudioContext', () => {
+      vi.stubGlobal('AudioContext', class { constructor() { throw new Error('no ctx'); } });
+      resetSingleton();
+      const am = AudioManager.getInstance();
+      expect(() => am.resumeContext()).not.toThrow();
+    });
+  });
+
   describe('volume controls with file-based audio', () => {
     it('mute/unmute does not crash when file music is playing', async () => {
       const am = AudioManager.getInstance();
