@@ -599,3 +599,15 @@ The browser tab for Ojibwe TD was displaying a generic Vite favicon, which gave 
 The footer line at the bottom of the main menu read "Solo Desktop · v0.1.0 · Placeholder Art · Inspired by Green TD". The "Placeholder Art" label was added during early development when the converted WC3 icons were standing in for real art. With Ojibwe-themed assets now integrated — the Medicine Wheel favicon, DALL-E generated UI art, and the culturally grounded palette — the label was no longer accurate and read as an embarrassing disclaimer in a live build.
 
 The fix is a single-line change in `MainMenuScene.createFooter()`: the footer string becomes "Solo Desktop · v0.1.0 · Inspired by Green TD". No functional logic changed, no test data changed, and all 623 tests continue to pass with 0 type errors.
+
+---
+
+### TASK-042 — Tower Panel — Hover Tooltip
+
+Players had no way to evaluate tower choices before committing gold — the bottom panel showed only icon, cost, and a truncated name. TASK-042 adds an information-rich hover tooltip that appears above each tower button when the pointer enters it, and disappears cleanly on pointer-out.
+
+**TowerDef description field.** A new `description: string` field was added to the `TowerDef` interface in `src/data/towerDefs.ts` and populated for all six towers with a short mechanic summary: Cannon ("Single target. High damage, moderate fire rate."), Frost ("Slows targets. Chills stack for a freeze bonus."), Mortar ("Area splash damage. Ignores terrain."), Poison ("Applies damage-over-time. Spreads on creep death."), Tesla ("Chains lightning to up to 3 nearby enemies."), and Aura ("Boosts nearby tower attack speed and damage.").
+
+**Tooltip rendering.** `TowerPanel` now creates a shared set of reusable Phaser `Graphics` and `Text` objects (hidden by default) rather than spawning/destroying DOM elements per hover. On `pointerover`, `_showTooltip(def, bx, panelY)` positions the background rect just above the panel edge, stacks five text rows (name, cost, dmg/interval, range, description), and uses `clampTooltipX()` from a new `src/ui/tooltipFormat.ts` helper to prevent right-edge clipping. On `pointerout`, `_hideTooltip()` hides all objects instantly. A `formatDmgLine()` helper in the same module renders Aura towers as "passive — no damage" rather than showing a misleading "0 dmg" line.
+
+**Test coverage.** `src/systems/__tests__/towerTooltip.test.ts` adds 12 Vitest tests covering: `clampTooltipX` keeps the tooltip inside the viewport at both edges, `formatDmgLine` formats normal and Aura towers correctly, all six `TowerDef` exports carry a non-empty `description`, and the `description` field is a valid string. Two pre-existing quality issues were also resolved: the `layoutContract.test.ts` logo max-width assertion was updated to match the actual CSS value (`min(320px, 70vw)`), and `@types/node` was added to the compiler `types` array in `tsconfig.json` so the `favicon.test.ts` Node.js imports resolve cleanly under `tsc --noEmit`. The full suite passes at 639 tests with 0 type errors.
