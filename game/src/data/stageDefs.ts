@@ -183,8 +183,8 @@ export const SEASON_PALETTE: Readonly<Record<SeasonalTheme, {
   text:   string;
   dim:    number;
 }>> = {
-  summer: { bg: 0x0a1f0a, border: 0x00aa44, text: '#44dd88', dim: 0x051005 },
+  summer: { bg: 0x0a1810, border: 0x2a9a7a, text: '#5ac8a0', dim: 0x061008 },
   spring: { bg: 0x071520, border: 0x1188bb, text: '#44bbdd', dim: 0x030a10 },
   autumn: { bg: 0x1f1005, border: 0xbb6600, text: '#ee9922', dim: 0x100800 },
-  winter: { bg: 0x080e20, border: 0x3377bb, text: '#77bbee', dim: 0x040811 },
+  winter: { bg: 0x101824, border: 0x8899aa, text: '#c8d8e8', dim: 0x0a1018 },
 };

@@ -21,6 +21,9 @@ const STAGE_W     = 280;
 const STAGE_H     = 130;
 const STAGE_GAP   = 20;
 
+const R           = 8;    // corner radius for all panels
+const TOP_PAD     = 30;   // breathing room at top of canvas
+
 // Depth layers
 const DEPTH_BG      = 0;
 const DEPTH_REGION  = 10;
@@ -37,31 +40,52 @@ const AFFINITY_COLORS: Record<string, number> = {
   aura:   0xbb9922,
 };
 
+// ── Rounded-panel helper ────────────────────────────────────────────────────
+
+interface Panel {
+  gfx: Phaser.GameObjects.Graphics;
+  zone: Phaser.GameObjects.Zone;
+  x: number; y: number; w: number; h: number;
+}
+
+function makePanel(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, h: number,
+  depth: number, cursor = true,
+): Panel {
+  const gfx  = scene.add.graphics().setDepth(depth);
+  const zone = scene.add.zone(x, y, w, h)
+    .setInteractive({ useHandCursor: cursor })
+    .setDepth(depth + 0.5);
+  return { gfx, zone, x, y, w, h };
+}
+
+function fillPanel(
+  p: Panel, r: number,
+  fill: number, stroke: number, strokeW: number, strokeA = 1,
+): void {
+  p.gfx.clear();
+  p.gfx.fillStyle(fill, 1);
+  p.gfx.fillRoundedRect(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h, r);
+  if (strokeW > 0) {
+    p.gfx.lineStyle(strokeW, stroke, strokeA);
+    p.gfx.strokeRoundedRect(p.x - p.w / 2, p.y - p.h / 2, p.w, p.h, r);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 /**
  * MainMenuScene — title screen and region / stage selection.
- *
- * Two-level UI:
- *   Level 1 — region tiles (seasonal-themed) displayed in a horizontal row.
- *   Level 2 — when a region is selected its stages appear below the region row.
- *
- * Each stage tile shows: name, difficulty stars, tower affinity dots,
- * locked/unlocked state.
  */
 export class MainMenuScene extends Phaser.Scene {
   private selectedRegionId = ALL_REGIONS[0].id;
   private selectedStageId  = ALL_STAGES[0].id;
 
-  // Rendered region rectangles (keyed by regionId)
-  private regionBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+  private regionPanels: Map<string, Panel> = new Map();
+  private stagePanels:  Map<string, Panel> = new Map();
+  private stageTiles:   Phaser.GameObjects.GameObject[] = [];
 
-  // Stage tile container (destroyed & recreated on region change)
-  private stageTiles: Phaser.GameObjects.GameObject[] = [];
-
-  // Start-game button (needs to know the selected stage)
-  private startBtn!:   Phaser.GameObjects.Rectangle;
-  private startLabel!: Phaser.GameObjects.Text;
-
-  // Y-positions (set in create based on screen height)
   private regionRowY = 0;
   private stageRowY  = 0;
 
@@ -73,7 +97,7 @@ export class MainMenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const cx = width / 2;
 
-    // Restore last-played stage from save (region + stage), then default if missing
+    // Restore last-played stage
     const save        = SaveManager.getInstance();
     const lastStage   = save.getLastPlayedStage();
     const lastStageDef = getStageDef(lastStage);
@@ -85,18 +109,20 @@ export class MainMenuScene extends Phaser.Scene {
       this.selectedStageId  = ALL_STAGES[0].id;
     }
 
-    this.regionBgs.clear();
+    this.regionPanels.clear();
+    this.stagePanels.clear();
     this.stageTiles = [];
 
-    // Vertical layout: title at top, regions in middle, stages just below regions,
-    // then buttons at bottom.
-    this.regionRowY = height / 2 - 60;
-    this.stageRowY  = this.regionRowY + REGION_H / 2 + STAGE_H / 2 + 24;
+    // Vertical flow: icons → label → regions → label → stage → buttons → footer
+    const iconY  = TOP_PAD;
+    const labelY = iconY + 28;
+    this.regionRowY = labelY + 16 + REGION_H / 2;
+    this.stageRowY  = this.regionRowY + REGION_H / 2 + 28 + STAGE_H / 2;
 
     this.createBackground();
-    this.createTitle(cx, height / 2);
+    this.createHeader(cx, iconY, labelY);
     this.createRegionRow(cx);
-    this.createStageRow(cx);   // initial render for selected region
+    this.createStageRow(cx);
     this.createButtons(cx, height);
     this.createFooter(cx, height);
   }
@@ -116,27 +142,19 @@ export class MainMenuScene extends Phaser.Scene {
     gfx.strokePath();
   }
 
-  // ── Title ──────────────────────────────────────────────────────────────────
+  // ── Header (icons + label) ────────────────────────────────────────────────
 
-  private createTitle(cx: number, cy: number): void {
-    // "OJIBWE TD" title is now in the HTML header — no in-scene duplicate.
-
-    this.add.text(cx, cy - 260, 'Tower Defense', {
-      fontSize: '22px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
-    }).setOrigin(0.5).setDepth(DEPTH_BG + 2);
-
-    // Tower icons
+  private createHeader(cx: number, iconY: number, labelY: number): void {
     const icons = ['icon-cannon', 'icon-frost', 'icon-mortar', 'icon-poison', 'icon-tesla', 'icon-aura'];
-    const iconSpacing = 60;
+    const iconSpacing = 52;
     const rowW = (icons.length - 1) * iconSpacing;
     icons.forEach((key, i) => {
-      this.add.image(cx - rowW / 2 + i * iconSpacing, cy - 228, key)
-        .setDisplaySize(36, 36).setAlpha(0.6).setDepth(DEPTH_BG + 2);
+      this.add.image(cx - rowW / 2 + i * iconSpacing, iconY, key)
+        .setDisplaySize(28, 28).setAlpha(0.5).setDepth(DEPTH_BG + 2);
     });
 
-    // Section header
-    this.add.text(cx, this.regionRowY - REGION_H / 2 - 18, 'SELECT REGION', {
-      fontSize: '13px', color: PAL.textDim, fontFamily: PAL.fontBody,
+    this.add.text(cx, labelY, 'SELECT REGION', {
+      fontSize: '11px', color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION);
   }
 
@@ -159,18 +177,14 @@ export class MainMenuScene extends Phaser.Scene {
   private buildRegionTile(region: RegionDef, bx: number, by: number): void {
     const pal = SEASON_PALETTE[region.seasonalTheme];
 
-    const bg = this.add.rectangle(bx, by, REGION_W, REGION_H, pal.dim)
-      .setStrokeStyle(1, pal.border, 0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(DEPTH_REGION);
-    this.regionBgs.set(region.id, bg);
+    const panel = makePanel(this, bx, by, REGION_W, REGION_H, DEPTH_REGION);
+    fillPanel(panel, R, pal.dim, pal.border, 1, 0.5);
+    this.regionPanels.set(region.id, panel);
 
-    // Ojibwe name (primary)
     this.add.text(bx, by - 22, region.name, {
       fontSize: '14px', color: pal.text, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
-    // English translation (secondary, smaller)
     const parts = region.displayName.split('(');
     const english = parts[1] ? '(' + parts[1] : '';
     if (english) {
@@ -179,36 +193,36 @@ export class MainMenuScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
     }
 
-    // Stage count
     const stageCount = region.stages.length;
     this.add.text(bx, by + 16, `${stageCount} stage${stageCount !== 1 ? 's' : ''}`, {
       fontSize: '10px', color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
-    // Season label
     this.add.text(bx, by + 30, region.seasonalTheme.toUpperCase(), {
       fontSize: '9px', color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
-    bg.on('pointerover', () => {
-      bg.setFillStyle(pal.bg);
+    panel.zone.on('pointerover', () => {
+      const sel = this.selectedRegionId === region.id;
+      fillPanel(panel, R, pal.bg, pal.border, sel ? 2 : 1, sel ? 1.0 : 0.6);
     });
-    bg.on('pointerout', () => {
-      if (this.selectedRegionId !== region.id) bg.setFillStyle(pal.dim);
+    panel.zone.on('pointerout', () => {
+      const sel = this.selectedRegionId === region.id;
+      fillPanel(panel, R, sel ? pal.bg : pal.dim, pal.border, sel ? 2 : 1, sel ? 1.0 : 0.4);
     });
-    bg.on('pointerup', () => {
+    panel.zone.on('pointerup', () => {
       this.selectRegion(region.id);
     });
   }
 
   private highlightRegion(regionId: string): void {
-    for (const [id, bg] of this.regionBgs) {
+    for (const [id, panel] of this.regionPanels) {
       const region = ALL_REGIONS.find(r => r.id === id)!;
       const pal    = SEASON_PALETTE[region.seasonalTheme];
       if (id === regionId) {
-        bg.setFillStyle(pal.bg).setStrokeStyle(2, pal.border, 1.0);
+        fillPanel(panel, R, pal.bg, pal.border, 2, 1.0);
       } else {
-        bg.setFillStyle(pal.dim).setStrokeStyle(1, pal.border, 0.4);
+        fillPanel(panel, R, pal.dim, pal.border, 1, 0.4);
       }
     }
   }
@@ -218,7 +232,6 @@ export class MainMenuScene extends Phaser.Scene {
     this.selectedRegionId = regionId;
     this.highlightRegion(regionId);
 
-    // Default to first stage in the newly selected region
     const region = ALL_REGIONS.find(r => r.id === regionId);
     if (region && region.stages.length > 0) {
       this.selectedStageId = region.stages[0];
@@ -238,30 +251,32 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private refreshStageTiles(): void {
-    // Destroy previous stage tile objects
     for (const obj of this.stageTiles) {
       if (obj?.active) obj.destroy();
     }
     this.stageTiles = [];
+
+    for (const panel of this.stagePanels.values()) {
+      panel.gfx.destroy();
+      panel.zone.destroy();
+    }
+    this.stagePanels.clear();
 
     const { width } = this.scale;
     const cx = width / 2;
     const region = ALL_REGIONS.find(r => r.id === this.selectedRegionId);
     if (!region) return;
 
-    const stages    = region.stages.map(id => ALL_STAGES.find(s => s.id === id)).filter(Boolean) as StageDef[];
-    const n         = stages.length;
-    const totalW    = n * STAGE_W + (n - 1) * STAGE_GAP;
-    const startX    = cx - totalW / 2 + STAGE_W / 2;
-    const save      = SaveManager.getInstance();
+    const stages = region.stages.map(id => ALL_STAGES.find(s => s.id === id)).filter(Boolean) as StageDef[];
+    const n      = stages.length;
+    const totalW = n * STAGE_W + (n - 1) * STAGE_GAP;
+    const startX = cx - totalW / 2 + STAGE_W / 2;
+    const save   = SaveManager.getInstance();
 
     for (let i = 0; i < stages.length; i++) {
       const stage = stages[i];
       const bx = startX + i * (STAGE_W + STAGE_GAP);
-
-      // Determine lock state
       const isLocked = stage.unlockId !== null && !save.isUnlocked(stage.unlockId);
-
       const objs = this.buildStageTile(stage, bx, this.stageRowY, isLocked);
       this.stageTiles.push(...objs);
     }
@@ -270,34 +285,27 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private buildStageTile(
-    stage:    StageDef,
-    bx:       number,
-    by:       number,
-    isLocked: boolean,
+    stage: StageDef, bx: number, by: number, isLocked: boolean,
   ): Phaser.GameObjects.GameObject[] {
     const created: Phaser.GameObjects.GameObject[] = [];
 
     const bgColor = isLocked ? PAL.bgPanelLocked : PAL.bgPanel;
+    const border  = isLocked ? PAL.borderLocked   : PAL.borderInactive;
 
-    const bg = this.add.rectangle(bx, by, STAGE_W, STAGE_H, bgColor)
-      .setStrokeStyle(2, isLocked ? PAL.borderLocked : PAL.borderInactive)
-      .setInteractive({ useHandCursor: !isLocked })
-      .setDepth(DEPTH_STAGE)
-      .setName('stage-bg');
-    created.push(bg);
+    const panel = makePanel(this, bx, by, STAGE_W, STAGE_H, DEPTH_STAGE, !isLocked);
+    fillPanel(panel, R, bgColor, border, 2);
+    this.stagePanels.set(stage.id, panel);
+    // don't push gfx/zone to created — handled by stagePanels cleanup
 
-    // Stage name
     const nameColor = isLocked ? PAL.textLocked : '#ffffff';
     const nameText = this.add.text(bx, by - STAGE_H / 2 + 18, stage.name, {
       fontSize: '16px', color: nameColor, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
     created.push(nameText);
 
-    // Difficulty stars
     const stars = this.buildDifficultyStars(bx, by - STAGE_H / 2 + 40, stage.difficulty, isLocked);
     created.push(...stars);
 
-    // Description (short)
     const descColor = isLocked ? PAL.textLockedDim : PAL.textDesc;
     const desc = this.add.text(bx, by - 4, stage.description, {
       fontSize: '10px', color: descColor, fontFamily: PAL.fontBody,
@@ -306,7 +314,6 @@ export class MainMenuScene extends Phaser.Scene {
     created.push(desc);
 
     if (isLocked) {
-      // Unlock cost
       const unlockNode = stage.unlockId
         ? UNLOCK_NODES.find(n => n.id === stage.unlockId)
         : null;
@@ -318,13 +325,11 @@ export class MainMenuScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
       created.push(lockLabel);
 
-      bg.on('pointerup', () => this.scene.start('MetaMenuScene'));
+      panel.zone.on('pointerup', () => this.scene.start('MetaMenuScene'));
     } else {
-      // Tower affinity dots (moved up to make room for best-wave record at bottom)
       const dots = this.buildAffinityDots(bx, by + STAGE_H / 2 - 36, stage.towerAffinities);
       created.push(...dots);
 
-      // Best endless-wave record
       const bestWave = SaveManager.getInstance().getEndlessRecord(stage.pathFile);
       if (bestWave > 0) {
         const bestText = this.add.text(bx, by + STAGE_H / 2 - 14, `∞ Best: Wave ${bestWave}`, {
@@ -333,30 +338,28 @@ export class MainMenuScene extends Phaser.Scene {
         created.push(bestText);
       }
 
-      // ENDLESS button (below the tile)
-      const endlessBtnY = by + STAGE_H / 2 + 18;
-      const endlessBg = this.add.rectangle(bx, endlessBtnY, 160, 26, PAL.bgEndlessBtn)
-        .setStrokeStyle(1, PAL.borderEndless)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(DEPTH_STAGE + 1);
-      const endlessLabel = this.add.text(bx, endlessBtnY, '∞ ENDLESS', {
+      // ENDLESS button
+      const eBtnY = by + STAGE_H / 2 + 18;
+      const ePanel = makePanel(this, bx, eBtnY, 160, 26, DEPTH_STAGE + 1);
+      fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1);
+      const eLabel = this.add.text(bx, eBtnY, '∞ ENDLESS', {
         fontSize: '12px', color: PAL.accentBlue, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_STAGE + 2);
-      created.push(endlessBg, endlessLabel);
+      created.push(ePanel.gfx, ePanel.zone, eLabel);
 
-      endlessBg.on('pointerover', () => { endlessBg.setFillStyle(PAL.bgEndlessBtnHover); endlessLabel.setColor(PAL.accentBlueLight); });
-      endlessBg.on('pointerout',  () => { endlessBg.setFillStyle(PAL.bgEndlessBtn); endlessLabel.setColor(PAL.accentBlue); });
-      endlessBg.on('pointerup',   () => {
+      ePanel.zone.on('pointerover', () => { fillPanel(ePanel, R, PAL.bgEndlessBtnHover, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlueLight); });
+      ePanel.zone.on('pointerout',  () => { fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlue); });
+      ePanel.zone.on('pointerup',   () => {
         this.selectedStageId = stage.id;
         this.highlightStage(stage.id);
         this.scene.start('CommanderSelectScene', { stageId: stage.id, isEndless: true });
       });
 
-      bg.on('pointerover', () => bg.setFillStyle(PAL.bgPanelHover));
-      bg.on('pointerout', () => {
-        if (this.selectedStageId !== stage.id) bg.setFillStyle(PAL.bgPanel);
+      panel.zone.on('pointerover', () => fillPanel(panel, R, PAL.bgPanelHover, PAL.borderInactive, 2));
+      panel.zone.on('pointerout', () => {
+        if (this.selectedStageId !== stage.id) fillPanel(panel, R, PAL.bgPanel, PAL.borderInactive, 2);
       });
-      bg.on('pointerup', () => {
+      panel.zone.on('pointerup', () => {
         this.selectedStageId = stage.id;
         this.highlightStage(stage.id);
       });
@@ -365,7 +368,6 @@ export class MainMenuScene extends Phaser.Scene {
     return created;
   }
 
-  /** Render 1–5 star difficulty rating. */
   private buildDifficultyStars(
     cx: number, cy: number, difficulty: number, isLocked: boolean,
   ): Phaser.GameObjects.Text[] {
@@ -383,7 +385,6 @@ export class MainMenuScene extends Phaser.Scene {
     return stars;
   }
 
-  /** Render small coloured dots for each tower affinity. */
   private buildAffinityDots(
     cx: number, cy: number, affinities: string[],
   ): Phaser.GameObjects.GameObject[] {
@@ -408,22 +409,13 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private highlightStage(stageId: string): void {
-    const region = ALL_REGIONS.find(r => r.id === this.selectedRegionId);
-    if (!region) return;
-    const stages = region.stages.map(id => ALL_STAGES.find(s => s.id === id)).filter(Boolean) as StageDef[];
-
-    // Only match Rectangles tagged 'stage-bg' (skips endless-button rects etc.)
-    let stageIdx = 0;
-    for (const obj of this.stageTiles) {
-      if (obj instanceof Phaser.GameObjects.Rectangle && obj.name === 'stage-bg' && stageIdx < stages.length) {
-        const stage = stages[stageIdx];
-        const isSelected = stage.id === stageId;
-        const isLocked = stage.unlockId !== null && !SaveManager.getInstance().isUnlocked(stage.unlockId);
-        if (!isLocked) {
-          obj.setFillStyle(isSelected ? PAL.bgPanelHover : PAL.bgPanel);
-          obj.setStrokeStyle(2, isSelected ? PAL.borderActive : PAL.borderInactive);
-        }
-        stageIdx++;
+    for (const [id, panel] of this.stagePanels) {
+      const stage = ALL_STAGES.find(s => s.id === id);
+      if (!stage) continue;
+      const isLocked = stage.unlockId !== null && !SaveManager.getInstance().isUnlocked(stage.unlockId);
+      if (!isLocked) {
+        const sel = id === stageId;
+        fillPanel(panel, R, sel ? PAL.bgPanelHover : PAL.bgPanel, sel ? PAL.borderActive : PAL.borderInactive, 2);
       }
     }
   }
@@ -431,61 +423,56 @@ export class MainMenuScene extends Phaser.Scene {
   // ── Buttons ────────────────────────────────────────────────────────────────
 
   private createButtons(cx: number, height: number): void {
-    const btnY = height - 110;
+    const stageBottom = this.stageRowY + STAGE_H / 2 + 36;
+    const btnY = Math.min(stageBottom + 44, height - 110);
     const btnW = 240;
-    const btnH = 52;
+    const btnH = 48;
 
-    this.startBtn = this.add.rectangle(cx, btnY, btnW, btnH, PAL.bgStartBtn)
-      .setStrokeStyle(2, PAL.borderActive)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(DEPTH_BUTTONS);
-
-    this.startLabel = this.add.text(cx, btnY, 'START GAME', {
+    // START GAME
+    const startP = makePanel(this, cx, btnY, btnW, btnH, DEPTH_BUTTONS);
+    fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
+    const startLabel = this.add.text(cx, btnY, 'START GAME', {
       fontSize: '22px', color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    this.startBtn.on('pointerover',  () => { this.startBtn.setFillStyle(PAL.bgStartBtnHover); this.startLabel.setColor('#ffffff'); });
-    this.startBtn.on('pointerout',   () => { this.startBtn.setFillStyle(PAL.bgStartBtn); this.startLabel.setColor(PAL.accentGreen); });
-    this.startBtn.on('pointerdown',  () => this.startBtn.setFillStyle(PAL.bgStartBtnPress));
-    this.startBtn.on('pointerup',    () => {
+    startP.zone.on('pointerover',  () => { fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2); startLabel.setColor('#ffffff'); });
+    startP.zone.on('pointerout',   () => { fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2); startLabel.setColor(PAL.accentGreen); });
+    startP.zone.on('pointerdown',  () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
+    startP.zone.on('pointerup',    () => {
       this.scene.start('CommanderSelectScene', { stageId: this.selectedStageId });
     });
 
-    // Bottom row: UPGRADES | CODEX (side by side)
+    // Bottom row: UPGRADES | CODEX
     const bottomBtnW = 115;
-    const bottomBtnH = 42;
-    const bottomBtnY = height - 52;
+    const bottomBtnH = 38;
+    const bottomBtnY = btnY + btnH / 2 + 26;
     const bottomGap  = 8;
 
-    // Upgrades / meta button
+    // UPGRADES
     const metaX = cx - bottomBtnW / 2 - bottomGap / 2;
-    const metaBg = this.add.rectangle(metaX, bottomBtnY, bottomBtnW, bottomBtnH, PAL.bgMetaBtn)
-      .setStrokeStyle(2, PAL.borderMeta)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(DEPTH_BUTTONS);
+    const metaP = makePanel(this, metaX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
+    fillPanel(metaP, R, PAL.bgMetaBtn, PAL.borderMeta, 2);
     const metaLabel = this.add.text(metaX, bottomBtnY, 'UPGRADES', {
       fontSize: '15px', color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    metaBg.on('pointerover', () => metaLabel.setColor(PAL.accentBlueLight));
-    metaBg.on('pointerout',  () => metaLabel.setColor(PAL.accentBlue));
-    metaBg.on('pointerup',   () => this.scene.start('MetaMenuScene'));
+    metaP.zone.on('pointerover', () => metaLabel.setColor(PAL.accentBlueLight));
+    metaP.zone.on('pointerout',  () => metaLabel.setColor(PAL.accentBlue));
+    metaP.zone.on('pointerup',   () => this.scene.start('MetaMenuScene'));
 
-    // Codex button
+    // CODEX
     const codexX = cx + bottomBtnW / 2 + bottomGap / 2;
-    const codexBg = this.add.rectangle(codexX, bottomBtnY, bottomBtnW, bottomBtnH, PAL.bgPanel)
-      .setStrokeStyle(2, PAL.borderCodex)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(DEPTH_BUTTONS);
+    const codexP = makePanel(this, codexX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
+    fillPanel(codexP, R, PAL.bgPanel, PAL.borderCodex, 2);
     const codexLabel = this.add.text(codexX, bottomBtnY, 'CODEX', {
       fontSize: '15px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    codexBg.on('pointerover', () => codexLabel.setColor(PAL.textPrimary));
-    codexBg.on('pointerout',  () => codexLabel.setColor(PAL.textSecondary));
-    codexBg.on('pointerup',   () => this.scene.start('CodexScene', { returnTo: 'MainMenuScene' }));
+    codexP.zone.on('pointerover', () => codexLabel.setColor(PAL.textPrimary));
+    codexP.zone.on('pointerout',  () => codexLabel.setColor(PAL.textSecondary));
+    codexP.zone.on('pointerup',   () => this.scene.start('CodexScene', { returnTo: 'MainMenuScene' }));
 
-    // Notification badge — show if there are unlocked codex entries
+    // Notification badge
     const save = SaveManager.getInstance();
     const unlockedCount = ALL_CODEX_ENTRIES.filter(
       e => e.defaultUnlocked || save.isCodexUnlocked(e.id),

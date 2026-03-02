@@ -21,11 +21,11 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 12px 0 8px;
+  padding: 6px 0 2px;
 }
 
 #logo {
-  max-width: min(520px, 90vw);
+  max-width: min(320px, 70vw);
   height: auto;
   display: block;
 }
