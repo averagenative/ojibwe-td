@@ -142,8 +142,9 @@ import { WaveManager } from '../WaveManager';
 const WAYPOINTS = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }];
 
 const CREEP_TYPE_DEFS = [
-  { key: 'grunt',  type: 'ground' as const, hp: 100, speed: 80, reward: 5 },
+  { key: 'grunt',  type: 'ground' as const, hp: 100, speed: 80,  reward: 5 },
   { key: 'runner', type: 'ground' as const, hp: 60,  speed: 120, reward: 8 },
+  { key: 'brute',  type: 'ground' as const, hp: 220, speed: 52,  reward: 16 },
 ];
 
 /**
@@ -276,6 +277,55 @@ describe('WaveManager.generateEndlessWave()', () => {
   });
 });
 
+// ── Tests: endless escort generation ────────────────────────────────────────
+
+describe('WaveManager endless escort generation', () => {
+  it('wave 25 (first endless boss) has escort count = 4', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    const wave = wm.generateEndlessWave(25);
+    // count = 4 + floor((25-25)/5) = 4
+    expect(wave.escorts?.count).toBe(4);
+  });
+
+  it('wave 30 has escort count = 5', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    const wave = wm.generateEndlessWave(30);
+    // count = 4 + floor((30-25)/5) = 5
+    expect(wave.escorts?.count).toBe(5);
+  });
+
+  it('wave 50 has escort count = 9', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    const wave = wm.generateEndlessWave(50);
+    // count = 4 + floor((50-25)/5) = 9
+    expect(wave.escorts?.count).toBe(9);
+  });
+
+  it('non-boss endless waves have no escorts', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    const wave = wm.generateEndlessWave(21);
+    expect(wave.escorts).toBeUndefined();
+  });
+
+  it('endless escort types are runner and brute', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    const wave = wm.generateEndlessWave(25);
+    expect(wave.escorts?.types).toEqual(['runner', 'brute']);
+  });
+
+  it('endless escort intervalMs is 1000', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    const wave = wm.generateEndlessWave(25);
+    expect(wave.escorts?.intervalMs).toBe(1000);
+  });
+});
+
 // ── Tests: enableEndless + startWave integration ───────────────────────────
 
 describe('WaveManager endless mode integration', () => {
@@ -296,12 +346,13 @@ describe('WaveManager endless mode integration', () => {
     expect(wm.isActive()).toBe(true);
   });
 
-  it('with endless enabled, startWave(25) spawns a boss (1 creep)', () => {
+  it('with endless enabled, startWave(25) spawns a boss + escorts', () => {
     const { wm, activeCreeps } = createManager();
     wm.enableEndless();
     wm.startWave(25);
-    // Boss waves spawn exactly 1 boss creep
-    expect(activeCreeps.size).toBe(1);
+    // Wave 25 endless boss: 1 boss + 4 escorts (count = 4 + floor((25-25)/5) = 4)
+    // Escort pool ['runner', 'brute'] — both exist in CREEP_TYPE_DEFS.
+    expect(activeCreeps.size).toBe(5);
     expect(wm.isActive()).toBe(true);
   });
 

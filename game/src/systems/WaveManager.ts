@@ -33,6 +33,17 @@ interface WaveDef {
   pool:       string[];
   /** Present on boss waves (waves 5, 10, 15, 20). Value is the boss key. */
   boss?:      string;
+  /** Optional escort pack — spawned alongside the boss. */
+  escorts?: {
+    /** How many escort creeps to spawn. */
+    count:      number;
+    /** Creep-type pool keys to draw from uniformly (e.g. 'grunt', 'runner', 'brute'). */
+    types:      string[];
+    /** Spawn interval between escorts in ms. */
+    intervalMs: number;
+    /** Delay before the first escort spawns in ms (default 1200). */
+    delayMs?:   number;
+  };
 }
 
 /** Data emitted on scene.events when a creep is killed by a tower. */
@@ -75,6 +86,10 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   private waveActive   = false;
   private spawnQueue:  CreepConfig[] = [];
   private spawnTimer?: Phaser.Time.TimerEvent;
+  /** Timer for the initial delay before escort spawning begins. */
+  private escortDelayTimer?: Phaser.Time.TimerEvent;
+  /** Timer for the repeat-interval escort spawning after the first escort. */
+  private escortTimer?: Phaser.Time.TimerEvent;
 
   /** When true, waves beyond waveDefs.length are generated procedurally. */
   private isEndless = false;
@@ -146,6 +161,11 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         speedMult,
         pool:       base.pool,
         boss:       endlessKey,
+        escorts: {
+          count:      4 + Math.floor((n - 25) / 5),
+          types:      ['runner', 'brute'],
+          intervalMs: 1000,
+        },
       };
     }
 
@@ -198,7 +218,13 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         this.waveActive = false;
         return;
       }
-      this.totalToSpawn = 1;
+
+      // Build escort queue using this wave's scaling (may be empty).
+      const escortQueue = waveDef.escorts
+        ? this.buildEscortQueue(waveDef, waveDef.escorts)
+        : [];
+
+      this.totalToSpawn = 1 + escortQueue.length;
 
       // Announce the boss wave immediately.
       this.scene.events.emit('boss-wave-start', {
@@ -214,6 +240,33 @@ export class WaveManager extends Phaser.Events.EventEmitter {
           this.spawnBoss(bossDef);
         },
       });
+
+      // Spawn escorts (if any): first after delayMs, then every intervalMs.
+      if (escortQueue.length > 0) {
+        const delayMs    = waveDef.escorts!.delayMs ?? 1200;
+        const intervalMs = waveDef.escorts!.intervalMs;
+        let   escortIdx  = 0;
+
+        const spawnNextEscort = (): void => {
+          if (!this.waveActive || escortIdx >= escortQueue.length) return;
+          this.spawnOne(escortQueue[escortIdx++]);
+        };
+
+        this.escortDelayTimer = this.scene.time.addEvent({
+          delay:    delayMs,
+          callback: () => {
+            spawnNextEscort(); // First escort
+            const remaining = escortQueue.length - 1;
+            if (remaining > 0) {
+              this.escortTimer = this.scene.time.addEvent({
+                delay:    intervalMs,
+                callback: spawnNextEscort,
+                repeat:   remaining - 1, // fires `remaining` times total
+              });
+            }
+          },
+        });
+      }
 
     } else {
       // ── Normal wave ──────────────────────────────────────────────────────
@@ -231,6 +284,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   cleanup(): void {
     this.spawnTimer?.destroy();
+    this.escortTimer?.destroy();
+    this.escortDelayTimer?.destroy();
   }
 
   // ── private ───────────────────────────────────────────────────────────────
@@ -246,6 +301,34 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       queue.push({
         hp:        Math.round(base.hp     * waveDef.hpMult),
         speed:     Math.round(base.speed  * waveDef.speedMult),
+        type:      base.type,
+        reward:    base.reward,
+        spriteKey: CREEP_SPRITE_KEYS[base.key],
+      });
+    }
+
+    return queue;
+  }
+
+  /**
+   * Build a CreepConfig array for the escort pack on a boss wave.
+   * Applies the same HP/speed scaling as the boss wave's normal creeps.
+   * Silently skips any type keys not found in creepTypeDefs.
+   */
+  private buildEscortQueue(
+    waveDef: WaveDef,
+    escorts: NonNullable<WaveDef['escorts']>,
+  ): CreepConfig[] {
+    const queue: CreepConfig[] = [];
+
+    for (let i = 0; i < escorts.count; i++) {
+      const typeKey = escorts.types[Math.floor(Math.random() * escorts.types.length)];
+      const base    = this.creepTypeDefs.find(t => t.key === typeKey);
+      if (!base) continue;
+
+      queue.push({
+        hp:        Math.round(base.hp    * waveDef.hpMult),
+        speed:     Math.round(base.speed * waveDef.speedMult),
         type:      base.type,
         reward:    base.reward,
         spriteKey: CREEP_SPRITE_KEYS[base.key],
