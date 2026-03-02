@@ -14,14 +14,17 @@
 8. Listen, pick the best one
 9. Download as **.wav**: click the track → download icon → select WAV format
 
-### Sound Effects (Sounds tab → One Shot)
-1. Open **Create** (left sidebar)
-2. Click the **Sounds** tab (next to "Song" at the top of the create panel)
-3. Paste the **Prompt** into the description field
-4. Set **Type** to **One Shot** (not Loop) — all our SFX are single hits
-5. Leave **BPM** and **Key** blank for pure sound effects
-6. Click **Create** — generates two options
-7. Download as **.wav**
+### Sound Effects
+Suno doesn't have a separate Sounds tab in all accounts. For SFX, try:
+1. Use **Song** tab → **Custom** → **Instrumental** ON
+2. Paste the SFX prompt into **Style of Music**
+3. Set duration as short as possible
+4. Download and trim with ffmpeg/Audacity
+
+**Better alternatives for short SFX (<1s):**
+- [jsfxr.app](https://sfxr.me) — browser-based retro SFX generator, export as wav
+- [Freesound.org](https://freesound.org) — CC-licensed sound library
+- Keep using the existing procedural WebAudio synthesis (it already works)
 
 ### Tips
 - Use specific vocabulary: "whoosh", "thunk", "crack", "sizzle", "rumble"

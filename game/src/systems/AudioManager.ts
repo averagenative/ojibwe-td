@@ -237,6 +237,15 @@ export class AudioManager {
   }
 
   /**
+   * Register an already-decoded AudioBuffer directly.
+   * Phaser's WebAudio cache may store decoded AudioBuffers rather than raw
+   * ArrayBuffers, so this method accepts them without re-decoding.
+   */
+  registerDecodedBuffer(key: string, audioBuffer: AudioBuffer): void {
+    this._buffers.set(key, audioBuffer);
+  }
+
+  /**
    * Start a named file-based music track with an optional crossfade.
    *
    * If no buffer is registered for `key`, this is a no-op (silent — does NOT
@@ -250,15 +259,21 @@ export class AudioManager {
    */
   startMusicTrack(key: string, fadeMs = CROSSFADE_MS): void {
     const buf = this._buffers.get(key);
+    console.log(`[AudioManager] startMusicTrack("${key}") buf=${!!buf} ctx=${!!this.ctx} musicGain=${!!this.musicGain} ctxState=${this.ctx?.state} muted=${this._muted} musicMuted=${this._musicMuted} masterVol=${this._masterVolume} musicVol=${this._musicVolume}`);
+    console.log(`[AudioManager]   _buffers has keys:`, [...this._buffers.keys()]);
     if (!buf || !this.ctx || !this.musicGain) return;
 
     // Same track already playing — no-op.
-    if (this._fileMusicKey === key && this._fileMusicSource) return;
+    if (this._fileMusicKey === key && this._fileMusicSource) {
+      console.log(`[AudioManager]   → same track already playing, no-op`);
+      return;
+    }
 
     // Stop procedural arpeggio if running.
     this._stopMusic();
 
     // Fade out and stop current file track (if any), then start new track.
+    console.log(`[AudioManager]   → crossfading to "${key}" (${buf.duration.toFixed(1)}s, fadeMs=${fadeMs})`);
     this._crossfadeToTrack(buf, key, fadeMs);
   }
 

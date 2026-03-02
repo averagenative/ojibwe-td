@@ -1691,6 +1691,52 @@ Surfaced during Opus code review of Audio Settings UI (2026-03-02).
    unnecessary GC pressure. Consider keeping objects alive (just toggling visibility)
    if this becomes a UX concern.
 
+### TASK-083 Review Findings (non-blocking)
+
+Surfaced during Opus code review of Desktop Drag-to-Place (2026-03-02).
+
+1. **No visual cursor change during drag-to-place**: During desktop drag placement,
+   the cursor remains the default pointer. Consider switching to a `crosshair` or
+   `grabbing` cursor while `_isDragPlacing` is true to give stronger visual feedback
+   that a drag operation is in progress.
+
+2. **Touch-screen laptop dual-event potential**: The task notes mention touch-screen
+   laptops that fire both touch and mouse events. The current implementation guards
+   mobile drag via `isMobile()` (width <= 768 || ontouchstart), so a large-screen
+   touch laptop would take the desktop path. If such a device fires both touch and
+   mouse pointerdown on the button, the desktop drag-detection closure could get
+   re-entered. This is low-risk (Phaser normalises to a single pointer by default)
+   but worth monitoring in QA.
+
+3. **Desktop placement hint text**: Mobile shows "Drag to map & release to place"
+   hint during placement mode. Desktop has no equivalent hint for drag placement.
+   Consider showing a brief tooltip like "Drag to place or click map" when entering
+   placement mode via click on desktop, especially for first-time players.
+
+---
+
+### TASK-088 — Stage/Map Unlock Fix (non-blocking observations)
+
+_Reviewed 2026-03-02_
+
+1. **Scroll container cleanup on scene shutdown**: The `renderUnlocksTab()` method
+   registers a `this.input.on('wheel', ...)` listener and creates scroll-arrow
+   game objects. Phaser cleans these up automatically when the scene restarts/stops,
+   but the mask graphics (`maskGfx`) created via `this.make.graphics({})` is not
+   added to the container or the display list — verify it is garbage-collected
+   properly on scene transition and doesn't leak.
+
+2. **Touch drag scrolling**: The scroll implementation supports mouse wheel and
+   tap-to-scroll arrows but does not support touch-drag scrolling (swipe up/down
+   on the unlock list). On mobile devices with many unlock nodes, users may expect
+   drag-to-scroll behaviour. Consider adding `pointerdown` / `pointermove` /
+   `pointerup` drag tracking on the container for a more natural mobile UX.
+
+3. **NODE_H → NODE_H_COMPACT change for map nodes**: Map nodes were previously
+   rendered at `NODE_H` (90px) but are now `NODE_H_COMPACT` (60px). This is
+   intentional to fit more content on screen, but the reduced height may clip
+   long descriptions. Worth visual QA with the current map node text lengths.
+
 ---
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

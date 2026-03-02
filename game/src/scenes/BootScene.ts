@@ -23,13 +23,23 @@ const AUDIO_LOAD_DEFS: ReadonlyArray<[key: string, path: string]> = [
   ['sfx-victory',        'assets/audio/sfx/victory-fanfare.mp3'],
   ['sfx-game-over',      'assets/audio/sfx/game-over.mp3'],
   ['sfx-ui-click',       'assets/audio/sfx/ui-click.mp3'],
-  // Music tracks
-  ['music-menu',         'assets/audio/music/menu-theme.mp3'],
-  ['music-gameplay',     'assets/audio/music/gameplay-calm.mp3'],
-  ['music-intense',      'assets/audio/music/gameplay-intense.mp3'],
-  ['music-victory',      'assets/audio/music/victory.mp3'],
-  ['music-gameover',     'assets/audio/music/gameover.mp3'],
+  // Music tracks — each has two Suno variants (_001/_002); one is picked at
+  // random per session to add variety. Resolved at load time by pickVariant().
 ] as const;
+
+/** Music tracks with two variants each. Randomly picks one per session. */
+const MUSIC_VARIANT_DEFS: ReadonlyArray<[key: string, basePath: string]> = [
+  ['music-menu',     'assets/audio/music/menu-theme'],
+  ['music-gameplay', 'assets/audio/music/gameplay-calm'],
+  ['music-intense',  'assets/audio/music/gameplay-intense'],
+  ['music-victory',  'assets/audio/music/victory'],
+  ['music-gameover', 'assets/audio/music/gameover'],
+];
+
+function pickVariant(basePath: string): string {
+  const variant = Math.random() < 0.5 ? '_001' : '_002';
+  return `${basePath}${variant}.mp3`;
+}
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -80,6 +90,10 @@ export class BootScene extends Phaser.Scene {
     // AudioManager falls back to procedural synthesis for any unregistered key.
     for (const [key, path] of AUDIO_LOAD_DEFS) {
       this.load.audio(key, path);
+    }
+    // Music — randomly pick one of two Suno variants per track
+    for (const [key, basePath] of MUSIC_VARIANT_DEFS) {
+      this.load.audio(key, pickVariant(basePath));
     }
 
     // Logo (preloaded for optional in-scene use, e.g. loading watermark)
@@ -142,10 +156,23 @@ export class BootScene extends Phaser.Scene {
    */
   private _bridgeAudioToManager(): void {
     const am = AudioManager.getInstance();
-    for (const [key] of AUDIO_LOAD_DEFS) {
+    const allKeys = [
+      ...AUDIO_LOAD_DEFS.map(([key]) => key),
+      ...MUSIC_VARIANT_DEFS.map(([key]) => key),
+    ];
+    console.log('[AudioBridge] Bridging', allKeys.length, 'keys. Cache exists:', !!this.cache.audio);
+    for (const key of allKeys) {
       const data: unknown = this.cache.audio.get(key);
-      if (data instanceof ArrayBuffer) {
+      const type = data === null ? 'null' : data === undefined ? 'undefined' : (data as object).constructor?.name ?? typeof data;
+      console.log(`[AudioBridge] key="${key}" type=${type}`, data);
+      if (data instanceof AudioBuffer) {
+        am.registerDecodedBuffer(key, data);
+        console.log(`[AudioBridge]   → registered as AudioBuffer (${data.duration.toFixed(1)}s)`);
+      } else if (data instanceof ArrayBuffer) {
         void am.registerBuffer(key, data);
+        console.log(`[AudioBridge]   → registered as ArrayBuffer (${data.byteLength} bytes)`);
+      } else {
+        console.warn(`[AudioBridge]   → SKIPPED (not ArrayBuffer or AudioBuffer)`);
       }
     }
   }
