@@ -25,6 +25,7 @@ export interface UpgradeTierDef {
     auraIntervalMultDelta?:  number;   // added to auraIntervalMult (negative = better)
     auraDamageMultDelta?:    number;   // added to damage multiplier
     auraRangePctDelta?:      number;   // fraction added to range bonus (e.g. 0.12 = +12%)
+    spreadRadiusDelta?:      number;   // flat spread radius bonus (Poison C)
   };
 
   /** Behavioural flags / overrides; later tiers override earlier within the same path */
@@ -38,7 +39,9 @@ export interface UpgradeTierDef {
     clusterCount?:       number;  // Mortar C: extra submunitions fired on impact
     dotDamageBonus?:     number;  // Poison A: extra damage per DoT tick
     maxDotStacks?:       number;  // Poison B: max stack cap (replaces previous cap)
-    dotSpreadOnDeath?:   true;    // Poison C: spread 1 DoT stack to nearby creeps on death
+    dotSpreadOnDeath?:   true;    // Poison C: spread DoT stacks to nearby creeps on death
+    spreadStackCount?:   number;  // Poison C: stacks applied per spread (default 1)
+    spreadHitsAir?:      true;    // Poison C: spread also hits air creeps
     overloadMode?:       true;    // Tesla C: chains also debuff nearby allied towers
     overloadDebuffPct?:  number;  // Tesla C: % attack-speed penalty applied to debuffed towers
     auraSpecialization?: 'speed' | 'damage' | 'range'; // Aura deep-path type
@@ -212,11 +215,11 @@ const POISON_UPGRADES: TowerUpgradeDef = {
     C: {
       id: 'C', name: 'Spread',
       tiers: [
-        { name: 'Plague I',   description: 'Poisoned creep deaths spread 1 DoT to nearby creeps. +3 dmg.',  cost: 55,  statDelta: { damageDelta: 3 }, effects: { dotSpreadOnDeath: true } },
-        { name: 'Plague II',  description: 'Spread range +10px.',                                            cost: 75,  effects: { dotSpreadOnDeath: true } },
-        { name: 'Plague III', description: 'Spread 2 DoT stacks. Locks Path A.',                             cost: 100, effects: { dotSpreadOnDeath: true } },
-        { name: 'Plague IV',  description: 'Spread 3 DoT stacks.',                                           cost: 145, effects: { dotSpreadOnDeath: true } },
-        { name: 'Plague V',   description: 'Spread also affects air creeps. +5 dmg.',                        cost: 180, statDelta: { damageDelta: 5 }, effects: { dotSpreadOnDeath: true } },
+        { name: 'Plague I',   description: 'Poisoned creep deaths spread 1 DoT to nearby ground creeps (80px). +3 dmg.',  cost: 55,  statDelta: { damageDelta: 3 }, effects: { dotSpreadOnDeath: true } },
+        { name: 'Plague II',  description: 'Spread range +10px (now 90px).',                                              cost: 75,  statDelta: { spreadRadiusDelta: 10 }, effects: { dotSpreadOnDeath: true } },
+        { name: 'Plague III', description: 'Spread 2 DoT stacks instead of 1. Locks Path A.',                            cost: 100, effects: { dotSpreadOnDeath: true, spreadStackCount: 2 } },
+        { name: 'Plague IV',  description: 'Spread 3 DoT stacks.',                                                        cost: 145, effects: { dotSpreadOnDeath: true, spreadStackCount: 3 } },
+        { name: 'Plague V',   description: 'Spread also affects air creeps. +5 dmg.',                                     cost: 180, statDelta: { damageDelta: 5 }, effects: { dotSpreadOnDeath: true, spreadHitsAir: true } },
       ],
     },
   },

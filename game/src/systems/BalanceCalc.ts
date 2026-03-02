@@ -56,10 +56,13 @@ export function computeStatsForBalance(
   let slowDurationMs     = base.slowDurationMs;
   let shatterOnDeath     = false;
   let clusterCount       = 0;
-  let dotDamageBonus     = 0;
-  let maxDotStacks       = base.maxDotStacks;
-  let dotSpreadOnDeath   = false;
-  let overloadMode       = false;
+  let dotDamageBonus        = 0;
+  let maxDotStacks          = base.maxDotStacks;
+  let dotSpreadOnDeath      = false;
+  let dotSpreadRadiusDelta  = 0;
+  let dotSpreadStackCount   = 1;
+  let dotSpreadHitsAir      = false;
+  let overloadMode          = false;
   let overloadDebuffPct  = 0;
   let auraSpecType: '' | 'speed' | 'damage' | 'range' = '';
 
@@ -80,6 +83,7 @@ export function computeStatsForBalance(
         auraIntervalMultDelta += sd.auraIntervalMultDelta ?? 0;
         auraDamageMultDelta  += sd.auraDamageMultDelta   ?? 0;
         auraRangePctDelta    += sd.auraRangePctDelta     ?? 0;
+        dotSpreadRadiusDelta += sd.spreadRadiusDelta     ?? 0;
       }
 
       const fx = tierDef.effects;
@@ -92,7 +96,9 @@ export function computeStatsForBalance(
         if (fx.clusterCount       !== undefined) clusterCount       = fx.clusterCount;
         if (fx.dotDamageBonus     !== undefined) dotDamageBonus     = fx.dotDamageBonus;
         if (fx.maxDotStacks       !== undefined) maxDotStacks       = fx.maxDotStacks;
-        if (fx.dotSpreadOnDeath)                 dotSpreadOnDeath   = true;
+        if (fx.dotSpreadOnDeath)                   dotSpreadOnDeath      = true;
+        if (fx.spreadStackCount !== undefined)    dotSpreadStackCount   = fx.spreadStackCount;
+        if (fx.spreadHitsAir)                     dotSpreadHitsAir      = true;
         if (fx.overloadMode)                     overloadMode       = true;
         if (fx.overloadDebuffPct  !== undefined) overloadDebuffPct  = fx.overloadDebuffPct;
         if (fx.auraSpecialization !== undefined) auraSpecType       = fx.auraSpecialization;
@@ -121,10 +127,13 @@ export function computeStatsForBalance(
     slowDurationMs,
     shatterOnDeath,
     clusterCount,
-    dotDamageBase:    base.dotDamageBase,
+    dotDamageBase:        base.dotDamageBase,
     dotDamageBonus,
     maxDotStacks,
     dotSpreadOnDeath,
+    dotSpreadRadiusDelta,
+    dotSpreadStackCount,
+    dotSpreadHitsAir,
     overloadMode,
     overloadDebuffPct,
     auraSpecType,
