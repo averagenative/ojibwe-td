@@ -18,6 +18,8 @@ import {
   frostOverlayAlpha,
 } from './StatusEffectVisuals';
 import type { StatusEffectKey, StatusEffectVisualConfig } from './StatusEffectVisuals';
+import { getCreepAnimDef } from '../data/creepAnimDefs';
+import type { CreepAnimDef } from '../data/creepAnimDefs';
 
 // Re-export so existing imports from Creep.ts still work.
 export { tickRegen };
@@ -224,6 +226,22 @@ export class Creep extends Phaser.GameObjects.Container {
   private armorBaseX = 0;
   private armorBaseY = 0;
 
+  // ── Procedural walk/flight animation ─────────────────────────────────────
+  /** Animation definition for this creep type. */
+  private _animDef: CreepAnimDef;
+  /**
+   * Base scaleX/Y derived from bodyImage.setDisplaySize() in
+   * updateDirectionalVisual().  The walk animation multiplies these by the
+   * squash-stretch factor each frame.
+   */
+  private _baseScaleX = 1;
+  private _baseScaleY = 1;
+  /** Wing stub rectangles (rect-path air creeps only) — rotated for flap anim. */
+  private _leftWing?: Phaser.GameObjects.Rectangle;
+  private _rightWing?: Phaser.GameObjects.Rectangle;
+  /** Shadow ellipse beneath air creeps — pulsed with wing-flap cycle. */
+  private _airShadow?: Phaser.GameObjects.Ellipse;
+
   // ── Status effect visuals ─────────────────────────────────────────────────
   /** Reference to hpBg child — used to find the insert index for overlays. */
   private _hpBarBg!: Phaser.GameObjects.Rectangle;
@@ -282,6 +300,14 @@ export class Creep extends Phaser.GameObjects.Container {
       const dy0 = waypoints[1].y - waypoints[0].y;
       this.direction = computeDirection(dx0, dy0);
     }
+
+    // Resolve procedural animation definition for this creep type.
+    this._animDef = getCreepAnimDef(
+      config.spriteKey,
+      config.type,
+      this.isBossCreep,
+      config.bossKey ?? '',
+    );
 
     this.buildVisuals(config);
     // Apply the initial directional transform (flip / rotation / size).
@@ -360,6 +386,9 @@ export class Creep extends Phaser.GameObjects.Container {
     }
     // Accumulate phase after applying so phase=0 → bobY=0 on the first frame.
     this.bobPhase += (effectiveSpeed / 1000) * delta * BOB_FREQ_FACTOR;
+
+    // ── Procedural walk / flight animation ───────────────────────────────────
+    this._stepWalkAnim(effectiveSpeed);
 
     if (dist > 0) {
       this.x += (dx / dist) * stepDist;
@@ -762,6 +791,8 @@ export class Creep extends Phaser.GameObjects.Container {
         this.isBossCreep ? 12 : 6,
         0x000000, 0.25,
       );
+      // Store ref so the wing-flap animation can pulse the shadow width.
+      this._airShadow = shadow;
 
       if (useSprite) {
         // Sprite already includes wings — add only shadow + body + UI.
@@ -781,6 +812,9 @@ export class Creep extends Phaser.GameObjects.Container {
         const rightWing = new Phaser.GameObjects.Rectangle(
           this.scene,  wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
         );
+        // Store refs so the wing-flap animation can rotate them each frame.
+        this._leftWing  = leftWing;
+        this._rightWing = rightWing;
         if (this.armorIndicator) {
           this.add([shadow, leftWing, rightWing, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
         } else {
@@ -824,6 +858,10 @@ export class Creep extends Phaser.GameObjects.Container {
         this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W,
         this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H,
       );
+      // Cache the base scale so _stepWalkAnim() can apply squash-stretch as a
+      // multiplier on top of the direction-based display size.
+      this._baseScaleX = this.bodyImage.scaleX;
+      this._baseScaleY = this.bodyImage.scaleY;
     } else if (this.bodyRect) {
       // Rectangle path — resize (no rotation; shape change achieves the effect)
       const w = isHoriz
@@ -1121,6 +1159,69 @@ export class Creep extends Phaser.GameObjects.Container {
       gfx.fillCircle(cx, y, ICON_RADIUS + 1);
       gfx.fillStyle(color, 1);
       gfx.fillCircle(cx, y, ICON_RADIUS);
+    }
+  }
+
+  /**
+   * Apply squash-and-stretch, body sway, wing-flap, and shadow-pulse
+   * animations driven by the current `bobPhase`.
+   *
+   * The phase already scales with `effectiveSpeed` (it stops advancing when
+   * the creep is frozen or the game is paused), so all animations naturally
+   * pause whenever movement stops.
+   *
+   * Called from step() after bobPhase has been advanced for the current frame.
+   */
+  private _stepWalkAnim(effectiveSpeed: number): void {
+    // When completely stopped (frozen or game-paused delta passed through as
+    // zero effectiveSpeed), skip to avoid stuttering on first frame after resume.
+    if (effectiveSpeed <= 0) return;
+
+    const def = this._animDef;
+    const phase = this.bobPhase * def.freqMult;
+
+    // Compute the squash-and-stretch sine value.
+    // "useBounce" (hop style) uses Math.abs for a one-sided bounce pattern.
+    const rawSine = Math.sin(phase);
+    const sine = def.useBounce ? Math.abs(rawSine) : rawSine;
+
+    // For hop-style: sx shrinks while sy grows (compressed on ground contact,
+    // elongated mid-air).  For all other styles: sx grows while sy shrinks
+    // (standard squash-stretch for horizontal stretch on stride).
+    const sx = def.useBounce
+      ? 1 - def.squashAmpX * sine   // narrow when airborne
+      : 1 + def.squashAmpX * sine;  // wide on stride
+    const sy = def.useBounce
+      ? 1 + def.squashAmpY * sine   // tall when airborne
+      : 1 - def.squashAmpY * sine;  // short on stride
+
+    if (this.bodyImage) {
+      // Sprite path: apply as a multiplier on the direction-based display scale.
+      this.bodyImage.setScale(this._baseScaleX * sx, this._baseScaleY * sy);
+    } else if (this.bodyRect) {
+      // Rect path: setScale() is a visual multiplier on top of setSize().
+      this.bodyRect.setScale(sx, sy);
+    }
+
+    // Body sway — an independent X-offset oscillation (slither / lumber).
+    if (def.swayAmpX > 0) {
+      const swayX = def.swayAmpX * Math.sin(this.bobPhase * def.freqMult * 0.5);
+      if (this.bodyImage) this.bodyImage.x = swayX;
+      else if (this.bodyRect) this.bodyRect.x = swayX;
+    }
+
+    // Wing-flap animation (rect-path air creeps only).
+    // Left and right wing rectangles rotate in mirrored directions.
+    if (def.wingRotAmp > 0 && this._leftWing && this._rightWing) {
+      const wingRot = def.wingRotAmp * rawSine; // use raw sine (not useBounce)
+      this._leftWing.setRotation(-wingRot);
+      this._rightWing.setRotation(wingRot);
+    }
+
+    // Shadow-width pulse for air creeps — shadow widens when wings are down.
+    if (def.shadowAmp > 0 && this._airShadow) {
+      const shadowScaleX = 1 + def.shadowAmp * Math.abs(rawSine);
+      this._airShadow.setScale(shadowScaleX, 1);
     }
   }
 
