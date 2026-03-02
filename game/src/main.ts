@@ -28,6 +28,27 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
+  // Explicit FPS target — prefer requestAnimationFrame over setTimeout.
+  // forceSetTimeOut: false is already the Phaser default; stated explicitly
+  // so the intent is clear and auditable.
+  fps: {
+    target: 60,
+    forceSetTimeOut: false,
+  },
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// ── Background-tab throttle (global) ──────────────────────────────────────────
+// When the browser tab is hidden the game loop sleeps (stops RAF) to avoid
+// wasting CPU/battery.  Phaser's TimeStep clamps the delta on the first frame
+// after wake, so gameplay does not jump forward.
+// Registered once at the global level so it covers all scenes (menus,
+// between-wave, game-over, gameplay) without duplicating the logic.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    game.loop.sleep();
+  } else {
+    game.loop.wake();
+  }
+});

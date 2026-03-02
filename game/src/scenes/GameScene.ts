@@ -29,6 +29,8 @@ import { VignetteManager } from '../systems/VignetteManager';
 import { VignetteOverlay } from '../ui/VignetteOverlay';
 import { TriggerType } from '../data/vignetteDefs';
 import { PAL } from '../ui/palette';
+import { SpatialGrid } from '../systems/SpatialGrid';
+import { TrailPool } from '../systems/TrailPool';
 
 const DEFAULT_TOTAL_WAVES = 20;
 const HUD_HEIGHT          = 48; // must match HUD.ts
@@ -123,6 +125,18 @@ export class GameScene extends Phaser.Scene {
   private decoGfx: Phaser.GameObjects.Graphics | null = null;
   private decoVisible = true;
 
+  // ── performance systems ───────────────────────────────────────────────────
+  /**
+   * Spatial hash grid rebuilt every frame before tower steps.
+   * Reduces Tower.findTarget() from O(all_creeps) to O(creeps_in_range_cells).
+   */
+  private spatialGrid!: SpatialGrid<Creep>;
+  /**
+   * Zero-GC object pool for projectile trail particles.
+   * Eliminates the create/tween/destroy cycle (~40 allocs/frame at 2× speed).
+   */
+  private trailPool!: TrailPool;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -215,6 +229,16 @@ export class GameScene extends Phaser.Scene {
     this.data.set('tileSize', this.mapData.tileSize);
 
     this.renderMap();
+
+    // ── Performance systems ───────────────────────────────────────────────
+    // Spatial grid: cell size 80px over the full map canvas.
+    const mapW = this.mapData.cols * this.mapData.tileSize;
+    const mapH = this.mapData.rows * this.mapData.tileSize;
+    this.spatialGrid = new SpatialGrid<Creep>(80, mapW, mapH);
+
+    // Trail pool: shared by all Projectile instances via scene.data.
+    this.trailPool = new TrailPool(this, 80);
+    this.data.set('trailPool', this.trailPool);
 
     // Audio system — initialise (or resume) the singleton for this run.
     this.audioManager = AudioManager.getInstance(this);
@@ -536,6 +560,13 @@ export class GameScene extends Phaser.Scene {
 
     const scaledDelta = delta * this.speedMultiplier;
 
+    // ── Spatial grid rebuild ───────────────────────────────────────────────
+    // Must happen before tower steps so findTarget() sees current positions.
+    this.spatialGrid.clear();
+    for (const creep of this.activeCreeps) {
+      if (creep.active) this.spatialGrid.insert(creep);
+    }
+
     for (const creep of this.activeCreeps) {
       if (creep.active) creep.step(scaledDelta);
     }
@@ -543,6 +574,9 @@ export class GameScene extends Phaser.Scene {
     for (const tower of this.towers) {
       tower.step(scaledDelta);
     }
+
+    // ── Trail pool update ──────────────────────────────────────────────────
+    this.trailPool.update(scaledDelta);
 
     for (const proj of this.projectiles) {
       if (proj.active) {
@@ -584,6 +618,10 @@ export class GameScene extends Phaser.Scene {
 
     // Cancel any active wave-spawn timers.
     this.waveManager?.cleanup();
+
+    // Performance systems cleanup.
+    this.trailPool?.destroy();
+    this.data.remove('trailPool');
 
     // Audio system cleanup — wired in Phase 21.
     this.audioManager?.destroy();
@@ -786,6 +824,7 @@ export class GameScene extends Phaser.Scene {
       this.offerManager,
       (key) => AudioManager.getInstance().playProjectileFired(key),
       this.commanderState ?? undefined,
+      (x, y, r) => this.spatialGrid.queryRadius(x, y, r),
     );
 
     // Register with upgrade manager
