@@ -18,7 +18,7 @@ export default [
       // TypeScript
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
 
       // Game-specific anti-patterns (will grow as we catch bad habits)
       'no-console': ['warn', { allow: ['warn', 'error'] }],
