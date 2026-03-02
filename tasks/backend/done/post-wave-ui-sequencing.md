@@ -1,7 +1,7 @@
 ---
 id: TASK-081
 title: Boss Loot Timing & Post-Wave UI Sequencing
-status: pending
+status: done
 priority: high
 phase: bugfix
 category: backend

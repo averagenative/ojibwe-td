@@ -141,12 +141,22 @@ export class AudioManager {
     this.sfxGain.gain.value    = this._sfxMuted   ? 0 : this._sfxVolume;
     this.musicGain.gain.value  = this._musicMuted ? 0 : this._musicVolume;
 
-    // Mobile: AudioContext must be resumed after a user gesture.
-    document.addEventListener(
-      'pointerdown',
-      () => { if (this.ctx?.state === 'suspended') void this.ctx.resume(); },
-      { once: true },
-    );
+    // Resume AudioContext on any user interaction. Keep listening until
+    // the context is actually running (not just once).
+    const resumeCtx = (): void => {
+      if (this.ctx?.state === 'suspended') {
+        void this.ctx.resume();
+      }
+      if (this.ctx?.state === 'running') {
+        // Stop listening once running.
+        for (const evt of ['pointerdown', 'click', 'keydown', 'touchstart'] as const) {
+          document.removeEventListener(evt, resumeCtx);
+        }
+      }
+    };
+    for (const evt of ['pointerdown', 'click', 'keydown', 'touchstart'] as const) {
+      document.addEventListener(evt, resumeCtx);
+    }
 
     this._startMusic();
   }
@@ -259,21 +269,20 @@ export class AudioManager {
    */
   startMusicTrack(key: string, fadeMs = CROSSFADE_MS): void {
     const buf = this._buffers.get(key);
-    console.log(`[AudioManager] startMusicTrack("${key}") buf=${!!buf} ctx=${!!this.ctx} musicGain=${!!this.musicGain} ctxState=${this.ctx?.state} muted=${this._muted} musicMuted=${this._musicMuted} masterVol=${this._masterVolume} musicVol=${this._musicVolume}`);
-    console.log(`[AudioManager]   _buffers has keys:`, [...this._buffers.keys()]);
     if (!buf || !this.ctx || !this.musicGain) return;
 
-    // Same track already playing — no-op.
-    if (this._fileMusicKey === key && this._fileMusicSource) {
-      console.log(`[AudioManager]   → same track already playing, no-op`);
-      return;
+    // Ensure AudioContext is resumed (covers case where no user gesture yet).
+    if (this.ctx.state === 'suspended') {
+      void this.ctx.resume();
     }
+
+    // Same track already playing — no-op.
+    if (this._fileMusicKey === key && this._fileMusicSource) return;
 
     // Stop procedural arpeggio if running.
     this._stopMusic();
 
     // Fade out and stop current file track (if any), then start new track.
-    console.log(`[AudioManager]   → crossfading to "${key}" (${buf.duration.toFixed(1)}s, fadeMs=${fadeMs})`);
     this._crossfadeToTrack(buf, key, fadeMs);
   }
 

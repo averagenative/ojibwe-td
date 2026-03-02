@@ -1,30 +1,31 @@
 import Phaser from 'phaser';
 import { AudioManager } from '../systems/AudioManager';
+import { PAL } from '../ui/palette';
 
-// All audio keys loaded via Phaser loader. Missing files are silently skipped
-// (Phaser logs a warning but does not crash). AudioManager falls back to
-// procedural synthesis for any key whose buffer was not registered.
+// SFX audio keys — loaded only when the mp3 files actually exist.
+// AudioManager falls back to procedural synthesis for any unregistered key,
+// so missing SFX are silent (not broken). When SFX mp3s are added to
+// public/assets/audio/sfx/, uncomment the corresponding entry here.
 const AUDIO_LOAD_DEFS: ReadonlyArray<[key: string, path: string]> = [
-  // SFX
-  ['sfx-tower-place',    'assets/audio/sfx/tower-place.mp3'],
-  ['sfx-cannon',         'assets/audio/sfx/cannon-fire.mp3'],
-  ['sfx-frost',          'assets/audio/sfx/frost-fire.mp3'],
-  ['sfx-tesla',          'assets/audio/sfx/tesla-fire.mp3'],
-  ['sfx-mortar',         'assets/audio/sfx/mortar-fire.mp3'],
-  ['sfx-poison',         'assets/audio/sfx/poison-fire.mp3'],
-  ['sfx-aura',           'assets/audio/sfx/aura-hum.mp3'],
-  ['sfx-arrow',          'assets/audio/sfx/arrow-fire.mp3'],
-  ['sfx-creep-death-01', 'assets/audio/sfx/creep-death-01.mp3'],
-  ['sfx-creep-death-02', 'assets/audio/sfx/creep-death-02.mp3'],
-  ['sfx-creep-death-03', 'assets/audio/sfx/creep-death-03.mp3'],
-  ['sfx-creep-escape',   'assets/audio/sfx/creep-escape.mp3'],
-  ['sfx-wave-complete',  'assets/audio/sfx/wave-complete.mp3'],
-  ['sfx-boss-death',     'assets/audio/sfx/boss-death.mp3'],
-  ['sfx-victory',        'assets/audio/sfx/victory-fanfare.mp3'],
-  ['sfx-game-over',      'assets/audio/sfx/game-over.mp3'],
-  ['sfx-ui-click',       'assets/audio/sfx/ui-click.mp3'],
-  // Music tracks — each has two Suno variants (_001/_002); one is picked at
-  // random per session to add variety. Resolved at load time by pickVariant().
+  // SFX — no mp3 files yet; procedural synthesis handles all SFX.
+  // Uncomment each line as the corresponding .mp3 is added:
+  // ['sfx-tower-place',    'assets/audio/sfx/tower-place.mp3'],
+  // ['sfx-cannon',         'assets/audio/sfx/cannon-fire.mp3'],
+  // ['sfx-frost',          'assets/audio/sfx/frost-fire.mp3'],
+  // ['sfx-tesla',          'assets/audio/sfx/tesla-fire.mp3'],
+  // ['sfx-mortar',         'assets/audio/sfx/mortar-fire.mp3'],
+  // ['sfx-poison',         'assets/audio/sfx/poison-fire.mp3'],
+  // ['sfx-aura',           'assets/audio/sfx/aura-hum.mp3'],
+  // ['sfx-arrow',          'assets/audio/sfx/arrow-fire.mp3'],
+  // ['sfx-creep-death-01', 'assets/audio/sfx/creep-death-01.mp3'],
+  // ['sfx-creep-death-02', 'assets/audio/sfx/creep-death-02.mp3'],
+  // ['sfx-creep-death-03', 'assets/audio/sfx/creep-death-03.mp3'],
+  // ['sfx-creep-escape',   'assets/audio/sfx/creep-escape.mp3'],
+  // ['sfx-wave-complete',  'assets/audio/sfx/wave-complete.mp3'],
+  // ['sfx-boss-death',     'assets/audio/sfx/boss-death.mp3'],
+  // ['sfx-victory',        'assets/audio/sfx/victory-fanfare.mp3'],
+  // ['sfx-game-over',      'assets/audio/sfx/game-over.mp3'],
+  // ['sfx-ui-click',       'assets/audio/sfx/ui-click.mp3'],
 ] as const;
 
 /** Music tracks with two variants each. Randomly picks one per session. */
@@ -42,64 +43,144 @@ function pickVariant(basePath: string): string {
 }
 
 export class BootScene extends Phaser.Scene {
+  /** Objects created during loading phase — destroyed when splash shows. */
+  private _loadingObjects: Phaser.GameObjects.GameObject[] = [];
+
   constructor() {
     super({ key: 'BootScene' });
   }
 
   preload(): void {
-    this.createLoadingBar();
-    this.loadAssets();
+    this._createLoadingBar();
+    this._loadAssets();
   }
 
   create(): void {
     this._bridgeAudioToManager();
-    this.scene.start('MainMenuScene');
+
+    // Destroy all loading-phase visuals before building the splash.
+    for (const obj of this._loadingObjects) obj.destroy();
+    this._loadingObjects = [];
+
+    this._showSplash();
   }
 
-  private createLoadingBar(): void {
+  // ── Loading phase ──────────────────────────────────────────────────────────
+
+  private _createLoadingBar(): void {
     const { width, height } = this.scale;
     const cx = width / 2;
     const cy = height / 2;
 
-    this.add.text(cx, cy - 60, 'Ojibwe TD', {
-      fontSize: '48px',
-      color: '#00ff44',
-      fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    // Dark background (matches game palette)
+    this._loadingObjects.push(
+      this.add.rectangle(cx, cy, width, height, PAL.bgDark),
+    );
 
-    this.add.text(cx, cy - 20, 'Loading...', {
-      fontSize: '18px',
-      color: '#aaaaaa',
-      fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    this._loadingObjects.push(
+      this.add.text(cx, cy - 30, 'Loading...', {
+        fontSize: '18px',
+        color: PAL.textDim,
+        fontFamily: PAL.fontBody,
+      }).setOrigin(0.5),
+    );
 
-    // Background bar
-    const barBg = this.add.rectangle(cx, cy + 20, 400, 20, 0x333333).setOrigin(0.5);
+    // Progress bar
+    const barBg = this.add.rectangle(cx, cy + 10, 300, 12, 0x1a2a10).setOrigin(0.5);
+    this._loadingObjects.push(barBg);
 
-    // Progress bar (grows right from left edge of barBg)
-    const barX = barBg.x - 200;
-    const bar = this.add.rectangle(barX, cy + 20, 0, 16, 0x00ff44).setOrigin(0, 0.5);
+    const barX = barBg.x - 150;
+    const bar = this.add.rectangle(barX, cy + 10, 0, 8, PAL.accentGreenN).setOrigin(0, 0.5);
+    this._loadingObjects.push(bar);
 
     this.load.on('progress', (value: number) => {
-      bar.width = 400 * value;
+      bar.width = 300 * value;
     });
   }
 
-  private loadAssets(): void {
-    // Audio files — loaded optimistically. Missing files are skipped gracefully;
-    // AudioManager falls back to procedural synthesis for any unregistered key.
+  // ── Splash screen ──────────────────────────────────────────────────────────
+
+  private _showSplash(): void {
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    // Full-screen dark background
+    this.add.rectangle(cx, cy, width, height, PAL.bgDark);
+
+    // Logo — upper-center, scaled to fit nicely (logo is 661x467)
+    const logoScale = 0.45;
+    const logoY = cy - 80;
+    if (this.textures.exists('logo')) {
+      this.add.image(cx, logoY, 'logo').setScale(logoScale);
+    }
+
+    // Subtitle below logo
+    this.add.text(cx, logoY + 125, 'A Tower Defense Game', {
+      fontSize: '14px',
+      color: PAL.textDim,
+      fontFamily: PAL.fontBody,
+    }).setOrigin(0.5);
+
+    // PLAY button — below the subtitle
+    const btnW = 180;
+    const btnH = 50;
+    const btnY = logoY + 175;
+
+    const btnBg = this.add.rectangle(cx, btnY, btnW, btnH, PAL.bgStartBtn)
+      .setStrokeStyle(2, PAL.borderActive)
+      .setInteractive({ useHandCursor: true });
+
+    const btnText = this.add.text(cx, btnY, 'PLAY', {
+      fontSize: '26px',
+      color: PAL.textPrimary,
+      fontFamily: PAL.fontTitle,
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    btnBg.on('pointerover', () => {
+      btnBg.setFillStyle(PAL.bgStartBtnHover);
+      btnText.setColor(PAL.accentGreen);
+    });
+    btnBg.on('pointerout', () => {
+      btnBg.setFillStyle(PAL.bgStartBtn);
+      btnText.setColor(PAL.textPrimary);
+    });
+    btnBg.on('pointerdown', () => {
+      btnBg.setFillStyle(PAL.bgStartBtnPress);
+    });
+
+    // Click → enable audio + enter main menu
+    btnBg.on('pointerup', () => {
+      AudioManager.getInstance().startMusicTrack('music-menu');
+      this.scene.start('MainMenuScene');
+    });
+
+    // Gentle pulse on the button
+    this.tweens.add({
+      targets: btnBg,
+      scaleX: 1.04,
+      scaleY: 1.04,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  // ── Asset loading ──────────────────────────────────────────────────────────
+
+  private _loadAssets(): void {
     for (const [key, path] of AUDIO_LOAD_DEFS) {
       this.load.audio(key, path);
     }
-    // Music — randomly pick one of two Suno variants per track
     for (const [key, basePath] of MUSIC_VARIANT_DEFS) {
       this.load.audio(key, pickVariant(basePath));
     }
 
-    // Logo (preloaded for optional in-scene use, e.g. loading watermark)
     this.load.image('logo', 'assets/ui/logo.png');
 
-    // Tower icons (original art generated for Ojibwe TD)
+    // Tower icons
     this.load.image('icon-cannon',  'assets/icons/icon-cannon.png');
     this.load.image('icon-frost',   'assets/icons/icon-frost.png');
     this.load.image('icon-mortar',  'assets/icons/icon-mortar.png');
@@ -112,67 +193,58 @@ export class BootScene extends Phaser.Scene {
     this.load.image('icon-dice',    'assets/icons/icon-dice.png');
     this.load.image('icon-mystery', 'assets/icons/icon-mystery.png');
 
-    // Commander portraits (96×96)
+    // Commander portraits (96x96)
     this.load.image('portrait-nokomis',     'assets/portraits/portrait-nokomis.png');
     this.load.image('portrait-makoons',     'assets/portraits/portrait-makoons.png');
     this.load.image('portrait-waabizii',    'assets/portraits/portrait-waabizii.png');
     this.load.image('portrait-bizhiw',      'assets/portraits/portrait-bizhiw.png');
     this.load.image('portrait-animikiikaa', 'assets/portraits/portrait-animikiikaa.png');
 
-    // Ground creep sprites (48×48) — refreshed animal-inspired silhouettes
+    // Ground creep sprites (48x48)
     this.load.image('creep-normal',  'assets/sprites/creep-normal.png');
     this.load.image('creep-fast',    'assets/sprites/creep-fast.png');
     this.load.image('creep-armored', 'assets/sprites/creep-armored.png');
     this.load.image('creep-immune',  'assets/sprites/creep-immune.png');
     this.load.image('creep-regen',   'assets/sprites/creep-regen.png');
 
-    // Air creep sprites — distinct bird silhouettes per subtype
+    // Air creep sprites
     this.load.image('creep-air-basic',   'assets/sprites/creep-air-basic.png');
     this.load.image('creep-air-scout',   'assets/sprites/creep-air-scout.png');
     this.load.image('creep-air-armored', 'assets/sprites/creep-air-armored.png');
 
-    // Boss sprites — unique animal portraits (Ojibwe TD bosses)
+    // Boss sprites
     this.load.image('boss-makwa',        'assets/sprites/boss-makwa.png');
     this.load.image('boss-migizi',       'assets/sprites/boss-migizi.png');
     this.load.image('boss-waabooz',      'assets/sprites/boss-waabooz.png');
     this.load.image('boss-animikiins',   'assets/sprites/boss-animikiins.png');
     this.load.image('boss-waabooz-mini', 'assets/sprites/boss-waabooz-mini.png');
 
-    // Map tiles (64×64)
+    // Map tiles (64x64)
     this.load.image('tile-tree',  'assets/tiles/tile-tree.png');
     this.load.image('tile-brush', 'assets/tiles/tile-brush.png');
     this.load.image('tile-rock',  'assets/tiles/tile-rock.png');
     this.load.image('tile-water', 'assets/tiles/tile-water.png');
   }
 
-  /**
-   * After Phaser's loader completes, pass any successfully loaded audio
-   * ArrayBuffers to AudioManager for pre-decoding. Keys not present in the
-   * cache (missing files) are silently skipped — AudioManager procedural
-   * synthesis remains the fallback for those events.
-   *
-   * Phaser stores audio as ArrayBuffer in WebAudio mode; this is checked at
-   * runtime so the method is safe to call in any Phaser audio backend mode.
-   */
+  // ── Audio bridge ───────────────────────────────────────────────────────────
+
   private _bridgeAudioToManager(): void {
     const am = AudioManager.getInstance();
     const allKeys = [
       ...AUDIO_LOAD_DEFS.map(([key]) => key),
       ...MUSIC_VARIANT_DEFS.map(([key]) => key),
     ];
-    console.log('[AudioBridge] Bridging', allKeys.length, 'keys. Cache exists:', !!this.cache.audio);
     for (const key of allKeys) {
       const data: unknown = this.cache.audio.get(key);
-      const type = data === null ? 'null' : data === undefined ? 'undefined' : (data as object).constructor?.name ?? typeof data;
-      console.log(`[AudioBridge] key="${key}" type=${type}`, data);
       if (data instanceof AudioBuffer) {
         am.registerDecodedBuffer(key, data);
-        console.log(`[AudioBridge]   → registered as AudioBuffer (${data.duration.toFixed(1)}s)`);
       } else if (data instanceof ArrayBuffer) {
         void am.registerBuffer(key, data);
-        console.log(`[AudioBridge]   → registered as ArrayBuffer (${data.byteLength} bytes)`);
-      } else {
-        console.warn(`[AudioBridge]   → SKIPPED (not ArrayBuffer or AudioBuffer)`);
+      } else if (data != null) {
+        const duck = data as Record<string, unknown>;
+        if (typeof duck['duration'] === 'number' && typeof duck['getChannelData'] === 'function') {
+          am.registerDecodedBuffer(key, data as AudioBuffer);
+        }
       }
     }
   }

@@ -1,7 +1,7 @@
 ---
 id: TASK-055
 title: Creep Walking & Movement Animations — Sprite Frame Sequences
-status: pending
+status: in-progress
 priority: high
 phase: polish
 ---

@@ -1739,6 +1739,50 @@ _Reviewed 2026-03-02_
 
 ---
 
+### TASK-055 — Creep Walking Animations (non-blocking observations)
+
+_Reviewed 2026-03-02_
+
+1. **Leg stubs not implemented**: The task's "Procedural Fallback" section lists
+   "Leg stubs: small Graphics lines below the sprite that alternate position" as
+   an option. The squash-and-stretch + wing-flap approach already conveys strong
+   movement feel, but adding simple alternating leg lines beneath ground creeps
+   would further sell the walk cycle — especially at 1× speed for slower creeps
+   (waddle, float).
+
+2. **Armour badge doesn't follow body sway**: When `swayAmpX > 0` (makwa lumber,
+   salamander slither, animikiins crackle), the body image/rect gets an X offset
+   oscillation but the armour indicator stays fixed at `armorBaseX`. The drift is
+   small (±1.5–3px) and visually acceptable, but for full polish the armour badge
+   X should track the sway.
+
+3. **Scout glide frame not implemented**: The task specifies "quick sharp flaps
+   with occasional glide frame" for the scout (hawk) air creep. The current
+   implementation uses `freqMult: 3` for rapid flaps but has no periodic pause/
+   glide. Could be achieved by zeroing wingRotAmp for a few frames when
+   `sin(phase) > 0.95` or similar threshold check.
+
+### TASK-081 — Post-Wave UI Sequencing (non-blocking findings)
+
+_Reviewed 2026-03-02_
+
+1. **PostWaveUIQueue stale-dismiss after clear + re-enqueue**: If `clear()` is
+   called mid-processing (e.g., game-over) and new entries are enqueued before
+   the captured `onDismiss` callback fires, those new entries would be processed
+   by the stale callback. Currently harmless — game-over transitions to a
+   different scene so no re-enqueue occurs — but a generation counter in
+   `PostWaveUIQueue._next()` would make it fully safe for future callers.
+
+2. **Vignette marked "seen" before display**: `_buildBetweenWaveVignetteEntry()`
+   calls `vignetteManager.check()` immediately (marking the vignette as fired),
+   but actual display is deferred to the queue. If the queue is cleared before
+   the vignette is shown (e.g., game-over mid-sequence), the player misses the
+   story beat but it remains marked as seen. Acceptable for game-over, but if
+   queue cancellation becomes common in other scenarios, the vignette should be
+   marked seen only inside its `show()` callback.
+
+---
+
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
 
 <!-- HEALTH_CHECK_START -->
