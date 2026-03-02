@@ -951,3 +951,23 @@ As the codebase grew rapidly through orchestrator pipelines, no security review 
 **Security documentation.** `docs/SECURITY.md` was created with the full audit report: dependency inventory, CVE status, client-side risk analysis, build configuration review, code quality scan, recommended CSP headers for future web deployment, and a future-proofing section documenting requirements for leaderboards, multiplayer, and IAP if those features are ever added.
 
 **Test coverage.** `SaveManagerSecurity.test.ts` (39 tests, new) covers the full sanitization and checksum lifecycle: clean save round-trips, tamper detection on currency / unlocks / stat fields, checksum mismatch warning, missing checksum acceptance, and invalid-type coercion. Total: 1 230 tests passing, 0 type errors.
+
+---
+
+### TASK-057 — Commander Portrait in Game HUD: Active Commander Display (2026-03-02)
+
+Players were selecting a commander before each run but losing all visual connection to them the moment gameplay started. The selected commander's identity, bonuses, and ability state were completely invisible during play. This feature makes the commander a persistent, interactive presence in the HUD.
+
+**CommanderPortrait widget.** A new `CommanderPortrait` class (`src/ui/CommanderPortrait.ts`) extends `Phaser.GameObjects.Container` to bundle all portrait concerns in one place. On desktop the portrait is 48×48px; on mobile it's 56×56px for a larger touch target. A coloured border ring is drawn via `roleBorderColour()` from `palette.ts`, matching the commander's role element (frost blue for Makwa, gold for support roles, etc.). If no `portrait-<id>` texture has been loaded, the widget falls back to the first letter of the commander's name on a dark panel background — ensuring nothing breaks when textures are absent.
+
+**Ability state.** When a commander has an active ability, the portrait pulses with a gentle border glow (alpha 1.0→0.4→1.0 on a 1.2s sine loop) to signal readiness. After the ability fires, `markAbilityUsed()` kills the tween, draws a 55%-opacity black rounded overlay, and redraws the border in a muted neutral colour — making the "on cooldown" state immediately legible. Clicking/tapping the portrait activates the ability if it hasn't been used yet. For passive-only commanders the glow simply continues as a subtle decorative pulse.
+
+**Tooltip.** Hovering or tapping the portrait opens a 210px-wide tooltip positioned below the portrait and clamped to screen bounds. It shows the commander's name in bold, their role and clan on a muted second line, then the aura name and description, and (if applicable) the ability name with a READY/USED indicator and its description. The tooltip is destroyed on pointerout and recreated on the next hover, keeping state fresh.
+
+**Visual reactions.** Three contextual animations tie the portrait into the game's emotional beats: `reactBossWave()` fires a rapid 6-repeat lateral shake (±4px) when a boss wave is announced; `reactVictory()` plays a 1.25× scale bounce (3 repeats, Back ease) on run completion; `reactGameOver()` fades the portrait to 35% opacity on a 600ms Power2 curve. All tweens use the scene's tween manager and do not require manual cleanup.
+
+**HUD integration.** `HUD.ts` gained a `showCommanderPortrait()` method that constructs the widget at a fixed top-left position (HALF + BORDER_WIDTH + 8 offset from left, vertically centred within the HUD bar). `GameScene` calls it from `create()` using the `commanderDef` resolved from the `commanderId` passed via `init()`, and wires `onActivateAbility` to the existing commander ability dispatch. Boss-wave, victory, and game-over events each call the matching `react*()` method. A `palette.ts` addition provides `textAbility` (a yellow-gold colour token) and a `roleBorderColour()` helper mapping the four commander roles to element colours.
+
+**Guards.** Portrait click events are blocked when `commanderState.abilityUsed` is already true, preventing double-activation. The portrait is seated at depth 105 — above the HUD background (100) and text layers (101–104) but below the tower panel and tooltip overlays. No new blocking geometry is added to the playfield; the portrait sits entirely within the HUD bar.
+
+**Test coverage.** `commanderPortrait.test.ts` (41 tests, new) covers: widget construction with and without a loaded texture, border colour derivation from role, ability-used state transitions, tooltip show/hide lifecycle, all three react methods, cleanup on destroy, and the passive-only commander path. Total: 1 290 tests passing, 0 type errors.

@@ -1513,6 +1513,59 @@ Non-blocking items surfaced during Opus review of the mobile-responsive branch:
 
 ---
 
+## TASK-066 Review Findings (non-blocking)
+
+Surfaced during code review of the Creep Status Effect Visuals branch
+(`orch/creep-status-effect--402273`). None are blockers for merge; all are
+follow-up items.
+
+1. **Burn smoke trail not implemented** — Acceptance criteria specifies "Smoke
+   trail behind moving creep (grey particles, lower opacity)." The current
+   implementation shows flame particles only. Add a secondary grey-particle
+   layer to `_syncParticles` keyed as `'burnSmoke'` when burn is active.
+
+2. **Chain lightning arc path not rendered** — The Tesla section of TASK-066
+   specifies "Chain lightning visual clearly shows the arc path between chained
+   creeps." This belongs in the tower/projectile rendering code, not in
+   `Creep.ts`. Wire this when the Tesla tower's chain-lightning mechanic is
+   built out.
+
+3. **`applyBurn()` and `applyTeslaShock()` have no callers** — These are
+   public API surface on `Creep` but no tower or system code invokes them yet.
+   Wire `applyBurn()` when cannon/mortar burn-splash is enabled, and
+   `applyTeslaShock()` when the Tesla tower applies chain-lightning hits.
+
+4. **Poison icon bar shows dot only, no stack count** — Acceptance criteria
+   stretch goal specifies "poison drop icon (with stack count number)." The
+   current icon bar draws coloured circles. Adding a tiny numeric overlay in
+   `_drawIconBar` via `gfx.fillText` or a BitmapText child would fulfil this.
+
+### TASK-057 Commander Portrait — Non-blocking Findings (2026-03-02)
+
+1. **Radial cooldown animation**: The task spec mentions a "clock-wipe fill from
+   grey→clear" radial cooldown overlay. Since abilities are once-per-run (no
+   time-based cooldown), the implementation uses a solid greyed-out overlay
+   instead. If timed cooldowns are added later, a radial wipe using `Graphics.arc`
+   inside an `update()` call should replace `drawCooldownOverlay()`.
+
+2. **Commander portrait asset loading**: The portrait falls back to a text initial
+   when `portrait-${id}` texture is not loaded. Actual portrait images should be
+   created and loaded in `BootScene.preload()` as part of an art pass (ties into
+   the animal-based icon redesign pipeline).
+
+3. **Stacked tween risk on rapid boss waves**: If `reactBossWave()` is called
+   while a previous shake tween is still running (theoretically possible during
+   closely-spaced boss waves in endless mode), multiple tweens could compete for
+   `this.x`. A `_bossShakeTween` field that gets stopped before starting a new
+   one would prevent jitter. Low priority — unlikely in practice.
+
+4. **Commander dialogue lines during boss waves**: The task notes mention a
+   stretch goal of showing brief commander dialogue ("Makwa approaches...").
+   This pairs with the story/vignette system and should be tracked as a
+   separate story-layer task.
+
+---
+
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
 
 <!-- HEALTH_CHECK_START -->

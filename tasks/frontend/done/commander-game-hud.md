@@ -1,7 +1,7 @@
 ---
 id: TASK-057
 title: Commander Portrait in Game HUD — Active Commander Display
-status: pending
+status: done
 priority: high
 phase: gameplay
 ---

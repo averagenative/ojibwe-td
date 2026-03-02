@@ -1,7 +1,7 @@
 ---
 id: TASK-066
 title: Creep Status Effect Visuals — Poison, Slow, Burn, Bleed Indicators
-status: pending
+status: in-progress
 priority: high
 phase: polish
 ---
