@@ -23,13 +23,43 @@ const TOOLTIP_DEPTH = DEPTH + 20;
 const TOOLTIP_W = 190;
 const TOOLTIP_PAD = 8;
 
-/** Human-readable targeting domain label shown in the tower tooltip. */
+/**
+ * Human-readable domain label for tower tooltips.
+ *
+ * Uses directional arrows so the indicator conveys meaning through shape,
+ * not colour alone:
+ *   ▼ = targets below (ground)
+ *   ▲ = targets above (air)
+ *   ⇅ = targets both directions (all)
+ */
 function domainLabel(domain: 'ground' | 'air' | 'both'): string {
   switch (domain) {
     case 'ground': return '▼ Ground only';
     case 'air':    return '▲ Air only';
-    case 'both':   return '◆ Air & Ground';
+    case 'both':   return '⇅ Air & Ground';
   }
+}
+
+/**
+ * Short domain symbol for the tower panel button (bottom-left corner).
+ * Must be readable at 9–10 px — single character or very short string.
+ *   ▼ ground   ▲ air   ⇅ both
+ */
+function domainSymbol(domain: 'ground' | 'air' | 'both'): string {
+  switch (domain) {
+    case 'ground': return '▼';
+    case 'air':    return '▲';
+    case 'both':   return '⇅';
+  }
+}
+
+/**
+ * CSS colour for the domain symbol in the tooltip row.
+ * Air towers get a distinct blue so the indicator stands out visually.
+ * Both and ground are neutral leaf-green; colourblind users rely on the arrow shape.
+ */
+function domainColor(domain: 'ground' | 'air' | 'both'): string {
+  return domain === 'air' ? '#88ccff' : PAL.textSecondary;
 }
 
 /**
@@ -130,6 +160,20 @@ export class TowerPanel {
       scene.add.text(bx, by + (_IS_MOBILE ? 32 : 26), def.name.toUpperCase(), {
         fontSize: _IS_MOBILE ? '11px' : '9px', color: PAL.textDesc, fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
+
+      // Domain symbol — bottom-left corner of button.
+      // ▼ ground / ▲ air / ⇅ both. Shape cue: readable without colour.
+      scene.add.text(
+        bx - BTN_SIZE / 2 + 2,
+        by + BTN_SIZE / 2 - 2,
+        domainSymbol(def.targetDomain),
+        {
+          fontSize: _IS_MOBILE ? '10px' : '9px',
+          color:    domainColor(def.targetDomain),
+          fontFamily: PAL.fontBody,
+          fontStyle: 'bold',
+        },
+      ).setOrigin(0, 1).setDepth(DEPTH + 3);
 
       // Keyboard shortcut hint — desktop only (top-right corner of button)
       if (!_IS_MOBILE && i < 6) {
@@ -279,12 +323,11 @@ export class TowerPanel {
       .setVisible(true);
     cursor += 12 + LINE_GAP;
 
-    // Domain indicator — colour-coded: air=blue, ground=neutral, both=neutral
-    const domainColor = def.targetDomain === 'air' ? '#88ccff' : PAL.textSecondary;
+    // Domain indicator — shape cue via arrow symbol, colour for redundant signal.
     this._tooltipDomain
       .setPosition(textX, cursor)
       .setText(dLabel)
-      .setColor(domainColor)
+      .setColor(domainColor(def.targetDomain))
       .setVisible(true);
     cursor += 12 + LINE_GAP;
 
