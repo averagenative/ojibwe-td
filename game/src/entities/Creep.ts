@@ -6,6 +6,7 @@ import {
   computeDirection,
   type CreepDirection,
 } from '../data/pathing';
+import { hpBarColor } from '../systems/visualUtils';
 
 // Re-export so existing imports from Creep.ts still work.
 export { tickRegen };
@@ -82,6 +83,14 @@ const HP_BAR_OFFSET_Y = -20;
 const BOSS_HP_BAR_WIDTH    = 64;
 const BOSS_HP_BAR_HEIGHT   = 8;
 const BOSS_HP_BAR_OFFSET_Y = -36;
+
+// Health bar fill colours — bosses use a fixed ember colour; normal creeps
+// transition green → yellow → red as HP drops (see visualUtils.hpBarColor).
+const BOSS_HP_BAR_COLOR   = 0xc0501e;   // deep ember (PAL.bossWarningN) for boss bars
+
+// Depth for the creep container — must be above terrain (0-1) and decorations (1)
+// but below projectiles (20) and UI (30+). Matches the depth hierarchy spec.
+const CREEP_DEPTH = 15;
 
 /** Regen cooldown after taking damage (ms). Animikiins-specific. */
 const REGEN_DAMAGE_COOLDOWN_MS = 3000;
@@ -222,6 +231,10 @@ export class Creep extends Phaser.GameObjects.Container {
     // Apply the initial directional transform (flip / rotation / size).
     this.updateDirectionalVisual();
     scene.add.existing(this);
+    // Depth 15: above terrain (0), decorations (1), towers (10); below
+    // projectiles (20) and UI panels (30+).  Health bars render at this depth
+    // too since they are children of this container.
+    this.setDepth(CREEP_DEPTH);
   }
 
   // ── update ────────────────────────────────────────────────────────────────
@@ -236,7 +249,9 @@ export class Creep extends Phaser.GameObjects.Container {
       );
       if (result.hp !== this.hp) {
         this.hp = result.hp;
-        this.hpBarFill.width = this.hpBarMaxWidth * (this.hp / this.maxHp);
+        const hpPct = this.hp / this.maxHp;
+        this.hpBarFill.width = this.hpBarMaxWidth * hpPct;
+        if (!this.isBossCreep) this.hpBarFill.setFillStyle(hpBarColor(hpPct));
       }
       this.regenCooldownMs = result.regenCooldownMs;
     }
@@ -311,7 +326,9 @@ export class Creep extends Phaser.GameObjects.Container {
     const amplified = afterArmor * (1 + this.damageAmpPct);
 
     this.hp = Math.max(0, this.hp - amplified);
-    this.hpBarFill.width = this.hpBarMaxWidth * (this.hp / this.maxHp);
+    const hpPct = this.hp / this.maxHp;
+    this.hpBarFill.width = this.hpBarMaxWidth * hpPct;
+    if (!this.isBossCreep) this.hpBarFill.setFillStyle(hpBarColor(hpPct));
 
     // Regen cooldown: reset 3 s after any damage (Animikiins).
     if (this.regenPercentPerSec > 0) {
@@ -567,7 +584,7 @@ export class Creep extends Phaser.GameObjects.Container {
       barOffY,
       barW,
       barH,
-      0x00ff44,
+      isBoss ? BOSS_HP_BAR_COLOR : hpBarColor(1),
     );
     this.hpBarFill.setOrigin(0, 0.5);
 
