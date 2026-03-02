@@ -58,5 +58,28 @@ export class BootScene extends Phaser.Scene {
     // Misc UI icons
     this.load.image('icon-dice',    'assets/icons/icon-dice.png');
     this.load.image('icon-mystery', 'assets/icons/icon-mystery.png');
+
+    // Commander portraits (96×96)
+    this.load.image('portrait-nokomis',     'assets/portraits/portrait-nokomis.png');
+    this.load.image('portrait-makoons',     'assets/portraits/portrait-makoons.png');
+    this.load.image('portrait-waabizii',    'assets/portraits/portrait-waabizii.png');
+    this.load.image('portrait-bizhiw',      'assets/portraits/portrait-bizhiw.png');
+    this.load.image('portrait-animikiikaa', 'assets/portraits/portrait-animikiikaa.png');
+
+    // Creep sprites (48×48)
+    this.load.image('creep-normal',    'assets/sprites/creep-normal.png');
+    this.load.image('creep-fast',      'assets/sprites/creep-fast.png');
+    this.load.image('creep-armored',   'assets/sprites/creep-armored.png');
+    this.load.image('creep-immune',    'assets/sprites/creep-immune.png');
+    this.load.image('creep-regen',     'assets/sprites/creep-regen.png');
+    this.load.image('creep-flying',    'assets/sprites/creep-flying.png');
+    this.load.image('creep-boss',      'assets/sprites/creep-boss.png');
+    this.load.image('creep-boss-mini', 'assets/sprites/creep-boss-mini.png');
+
+    // Map tiles (64×64)
+    this.load.image('tile-tree',  'assets/tiles/tile-tree.png');
+    this.load.image('tile-brush', 'assets/tiles/tile-brush.png');
+    this.load.image('tile-rock',  'assets/tiles/tile-rock.png');
+    this.load.image('tile-water', 'assets/tiles/tile-water.png');
   }
 }

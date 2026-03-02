@@ -180,14 +180,34 @@ export class CommanderSelectScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
+    // ── Portrait ─────────────────────────────────────────────────────────────
+    // Center the portrait between the clan/totem line and the aura area.
+    const portraitKey = `portrait-${def.id}`;
+    const portraitCenterY = by - CARD_H / 2 + 112; // ~midpoint of remaining card space
+    const hasPortrait = this.textures.exists(portraitKey);
+
+    if (hasPortrait && !isLocked) {
+      this.add.image(bx, portraitCenterY, portraitKey)
+        .setDisplaySize(64, 64)
+        .setDepth(DEPTH_BASE + 1);
+    } else if (isLocked && hasPortrait) {
+      // Show portrait but darkened for locked commanders.
+      this.add.image(bx, portraitCenterY, portraitKey)
+        .setDisplaySize(64, 64)
+        .setTint(0x333333)
+        .setDepth(DEPTH_BASE + 1);
+    }
+
     if (isLocked) {
-      // Locked overlay
-      this.add.text(bx, by + 10, '???', {
-        fontSize: '28px',
-        color: '#333333',
-        fontFamily: 'monospace',
-        fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
+      if (!hasPortrait) {
+        // Locked overlay text when no portrait is available.
+        this.add.text(bx, by + 10, '???', {
+          fontSize: '28px',
+          color: '#333333',
+          fontFamily: 'monospace',
+          fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
+      }
 
       this.add.text(bx, by + 50, 'Unlock in\nMeta Tree', {
         fontSize: '11px',
@@ -205,21 +225,13 @@ export class CommanderSelectScene extends Phaser.Scene {
         fontFamily: 'monospace',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
     } else {
-      // Aura summary
-      this.add.text(bx, by - 10, def.aura.name, {
+      // Aura name (below portrait)
+      this.add.text(bx, by + 50, def.aura.name, {
         fontSize: '11px',
         color: '#88cc88',
         fontFamily: 'monospace',
         fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
-
-      this.add.text(bx, by + 15, def.aura.description, {
-        fontSize: '10px',
-        color: '#999999',
-        fontFamily: 'monospace',
-        wordWrap: { width: CARD_W - 20 },
-        align: 'center',
-      }).setOrigin(0.5, 0).setDepth(DEPTH_BASE + 1);
 
       // Ability name
       this.add.text(bx, by + CARD_H / 2 - 30, def.ability.name, {

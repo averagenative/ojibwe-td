@@ -17,11 +17,13 @@ export type CreepType = 'ground' | 'air';
 export type BossAbility = 'armored' | 'slow-immune' | 'split' | 'regen';
 
 export interface CreepConfig {
-  hp:     number;
-  speed:  number;   // pixels per second (base, before status effects)
-  type:   CreepType;
-  reward: number;   // gold on kill
+  hp:       number;
+  speed:    number;   // pixels per second (base, before status effects)
+  type:     CreepType;
+  reward:   number;   // gold on kill
   isArmored?: boolean; // optional; defaults to false
+  /** Texture key for the creep sprite (e.g. 'creep-normal'). Falls back to rectangle if absent. */
+  spriteKey?: string;
 
   // ── Boss-specific fields (optional) ─────────────────────────────────────
   isBoss?:             boolean;
@@ -116,11 +118,19 @@ export class Creep extends Phaser.GameObjects.Container {
   private waypoints: Waypoint[];
   private waypointIndex = 1; // index 0 is spawn
 
-  private bodyRect!: Phaser.GameObjects.Rectangle;
+  /** Sprite image — set when a valid spriteKey texture is available. */
+  private bodyImage?: Phaser.GameObjects.Image;
+  /** Rectangle fallback — used when no sprite texture is available. */
+  private bodyRect?: Phaser.GameObjects.Rectangle;
   private hpBarFill!: Phaser.GameObjects.Rectangle;
   private readonly hpBarMaxWidth: number;
   /** Stored separately so status-effect color changes don't lose the tint. */
   private readonly baseBodyColor: number;
+  /**
+   * For sprite-path creeps: the base tint applied to bodyImage when no status
+   * effect is active.  0xffffff means no tint (clear).
+   */
+  private readonly baseSpriteTint: number;
 
   // ── status effects ────────────────────────────────────────────────────────
   private slowFactor  = 1.0; // 1 = full speed
@@ -173,6 +183,8 @@ export class Creep extends Phaser.GameObjects.Container {
 
     this.hpBarMaxWidth  = this.isBossCreep ? BOSS_HP_BAR_WIDTH : HP_BAR_WIDTH;
     this.baseBodyColor  = config.tint ?? BODY_COLORS[config.type];
+    // For sprite-path: boss tint or 0xffffff (no tint) for standard creeps.
+    this.baseSpriteTint = config.tint ?? 0xffffff;
 
     this.buildVisuals(config);
     scene.add.existing(this);
@@ -462,11 +474,30 @@ export class Creep extends Phaser.GameObjects.Container {
     const barW     = this.hpBarMaxWidth;
     const barH     = isBoss ? BOSS_HP_BAR_HEIGHT   : HP_BAR_HEIGHT;
     const barOffY  = isBoss ? BOSS_HP_BAR_OFFSET_Y : HP_BAR_OFFSET_Y;
-    const bodyColor = config.tint ?? BODY_COLORS[config.type];
 
-    this.bodyRect = new Phaser.GameObjects.Rectangle(
-      this.scene, 0, 0, bodySize, bodySize, bodyColor,
-    );
+    // ── Body: sprite image or coloured rectangle fallback ────────────────────
+    const useSprite = config.spriteKey
+      && this.scene.textures.exists(config.spriteKey);
+
+    let bodyObj: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
+
+    if (useSprite) {
+      this.bodyImage = new Phaser.GameObjects.Image(
+        this.scene, 0, 0, config.spriteKey!,
+      );
+      this.bodyImage.setDisplaySize(bodySize, bodySize);
+      // Apply boss tint if specified; 0xffffff means no tint (clear).
+      if (this.baseSpriteTint !== 0xffffff) {
+        this.bodyImage.setTint(this.baseSpriteTint);
+      }
+      bodyObj = this.bodyImage;
+    } else {
+      const bodyColor = config.tint ?? BODY_COLORS[config.type];
+      this.bodyRect = new Phaser.GameObjects.Rectangle(
+        this.scene, 0, 0, bodySize, bodySize, bodyColor,
+      );
+      bodyObj = this.bodyRect;
+    }
 
     const hpBg = new Phaser.GameObjects.Rectangle(
       this.scene, 0, barOffY, barW, barH, 0x333333,
@@ -482,22 +513,40 @@ export class Creep extends Phaser.GameObjects.Container {
     );
     this.hpBarFill.setOrigin(0, 0.5);
 
-    this.add([this.bodyRect, hpBg, this.hpBarFill]);
+    this.add([bodyObj, hpBg, this.hpBarFill]);
   }
 
   private refreshStatusVisual(): void {
     const slowed   = this.slowFactor < 1.0;
     const poisoned = this.dotStacks > 0;
 
-    if (slowed && poisoned) {
-      this.bodyRect.setFillStyle(0x44aaaa); // teal: both
-    } else if (slowed) {
-      this.bodyRect.setFillStyle(0x4488ff); // blue: slowed
-    } else if (poisoned) {
-      this.bodyRect.setFillStyle(0x44ff66); // bright green: poisoned
-    } else {
-      // Restore the base color (boss tint or normal type color).
-      this.bodyRect.setFillStyle(this.baseBodyColor);
+    if (this.bodyImage) {
+      // Image path: use setTint for status overlays, clearTint to restore.
+      if (slowed && poisoned) {
+        this.bodyImage.setTint(0x44aaaa);
+      } else if (slowed) {
+        this.bodyImage.setTint(0x4488ff);
+      } else if (poisoned) {
+        this.bodyImage.setTint(0x44ff66);
+      } else {
+        // Restore the base tint (boss colour or no tint for normal creeps).
+        if (this.baseSpriteTint !== 0xffffff) {
+          this.bodyImage.setTint(this.baseSpriteTint);
+        } else {
+          this.bodyImage.clearTint();
+        }
+      }
+    } else if (this.bodyRect) {
+      // Rectangle path: use setFillStyle as before.
+      if (slowed && poisoned) {
+        this.bodyRect.setFillStyle(0x44aaaa);
+      } else if (slowed) {
+        this.bodyRect.setFillStyle(0x4488ff);
+      } else if (poisoned) {
+        this.bodyRect.setFillStyle(0x44ff66);
+      } else {
+        this.bodyRect.setFillStyle(this.baseBodyColor);
+      }
     }
   }
 }
