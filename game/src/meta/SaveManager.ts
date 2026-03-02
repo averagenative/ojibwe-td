@@ -59,6 +59,8 @@ interface SaveData {
   seenVignetteIds:  string[];
   /** Codex entry IDs that have been unlocked. */
   unlockedCodexIds: string[];
+  /** Codex entry IDs that have been viewed/read by the player. */
+  readCodexIds: string[];
   /**
    * Best moon rating (1–5) per stage, keyed by stageId.
    * Stages never played are absent (not stored as 0).
@@ -95,6 +97,7 @@ function defaultSaveData(): SaveData {
     endlessRecords:  {},
     seenVignetteIds: [],
     unlockedCodexIds: [],
+    readCodexIds: [],
     stageMoons: {},
     gearData:       { inventory: [], equipped: {} },
     commanderXp:    { xp: {}, enhancementSlots: {} },
@@ -280,6 +283,57 @@ export class SaveManager {
     return unlocked.filter(id => !lastKnownIds.includes(id)).length;
   }
 
+  /** Returns true if this codex entry has been read/viewed by the player. */
+  isCodexRead(id: string): boolean {
+    return this.data.readCodexIds?.includes(id) ?? false;
+  }
+
+  /** Mark a codex entry as read. Idempotent. */
+  markCodexRead(id: string): void {
+    if (!this.data.readCodexIds) this.data.readCodexIds = [];
+    if (this.data.readCodexIds.includes(id)) return;
+    this.data.readCodexIds.push(id);
+    this._save();
+  }
+
+  /** Mark all unlocked codex entries as read. */
+  markAllCodexRead(unlockedIds: string[]): void {
+    if (!this.data.readCodexIds) this.data.readCodexIds = [];
+    let changed = false;
+    for (const id of unlockedIds) {
+      if (!this.data.readCodexIds.includes(id)) {
+        this.data.readCodexIds.push(id);
+        changed = true;
+      }
+    }
+    if (changed) this._save();
+  }
+
+  /** Return the full list of read codex entry IDs. */
+  getReadCodexIds(): string[] {
+    return this.data.readCodexIds ?? [];
+  }
+
+  /**
+   * Return the number of unlocked-but-unread codex entries.
+   * Counts both explicitly unlocked entries and default-unlocked entries
+   * that the player has not yet viewed.
+   */
+  getUnreadCodexCount(allEntries: readonly { id: string; defaultUnlocked?: boolean }[]): number {
+    const unlocked = this.data.unlockedCodexIds ?? [];
+    const read     = this.data.readCodexIds ?? [];
+    const defaultIds = new Set(allEntries.filter(e => e.defaultUnlocked).map(e => e.id));
+    let count = 0;
+    for (const id of unlocked) {
+      if (!read.includes(id)) count++;
+    }
+    // Also count default-unlocked entries that are not read
+    for (const id of defaultIds) {
+      if (!unlocked.includes(id) && !read.includes(id)) count++;
+    }
+    return count;
+  }
+
   // ── Gear inventory ──────────────────────────────────────────────────────────
 
   /** Get the raw gear save data (inventory + equip map). */
@@ -450,6 +504,9 @@ export class SaveManager {
     const unlockedCodexIds = Array.isArray(d.unlockedCodexIds)
       ? (d.unlockedCodexIds as unknown[]).filter((v): v is string => typeof v === 'string')
       : [];
+    const readCodexIds = Array.isArray(d.readCodexIds)
+      ? (d.readCodexIds as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
 
     // Simple string fields: coerce to string with defaults.
     const lastPlayedStage = typeof d.lastPlayedStage === 'string'
@@ -471,6 +528,7 @@ export class SaveManager {
       endlessRecords,
       seenVignetteIds,
       unlockedCodexIds,
+      readCodexIds,
       lastPlayedStage,
       challengeWeek,
     };
