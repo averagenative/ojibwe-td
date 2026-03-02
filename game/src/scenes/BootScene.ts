@@ -150,8 +150,9 @@ export class BootScene extends Phaser.Scene {
       btnBg.setFillStyle(PAL.bgStartBtnPress);
     });
 
-    // Click → enable audio + enter main menu
+    // Click → reveal HTML header, enable audio, enter main menu
     btnBg.on('pointerup', () => {
+      document.getElementById('game-header')?.classList.add('visible');
       AudioManager.getInstance().startMusicTrack('music-menu');
       this.scene.start('MainMenuScene');
     });
