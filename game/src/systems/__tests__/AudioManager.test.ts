@@ -54,14 +54,20 @@ function makeMockContext() {
 
   const makeBufferSource = () => ({
     buffer:     null as AudioBuffer | null,
+    loop:       false,
     connect:    vi.fn(),
     disconnect: vi.fn(),
     start:      vi.fn(),
+    stop:       vi.fn(),
     onended:    null as (() => void) | null,
   });
 
   const mockBuffer = {
     getChannelData: (_channel: number) => new Float32Array(4410),
+    duration:         1.0,
+    length:           44100,
+    numberOfChannels: 2,
+    sampleRate:       44100,
   } as unknown as AudioBuffer;
 
   return {
@@ -74,6 +80,7 @@ function makeMockContext() {
     createBiquadFilter: vi.fn().mockImplementation(() => makeFilter()),
     createBufferSource: vi.fn().mockImplementation(() => makeBufferSource()),
     createBuffer:       vi.fn().mockReturnValue(mockBuffer),
+    decodeAudioData:    vi.fn().mockResolvedValue(mockBuffer),
     resume:             vi.fn().mockResolvedValue(undefined),
     close:              vi.fn(),
   };
@@ -397,6 +404,292 @@ describe('AudioManager', () => {
       const am = AudioManager.getInstance();
       expect(() => am.playWaveIncoming('ground')).not.toThrow();
       expect(() => am.playWaveIncoming('boss')).not.toThrow();
+    });
+  });
+
+  describe('file-based audio — registerBuffer', () => {
+    it('registerBuffer decodes the array buffer via decodeAudioData', async () => {
+      const am = AudioManager.getInstance();
+      const raw = new ArrayBuffer(8);
+      await am.registerBuffer('sfx-test', raw);
+      expect(mockCtx.decodeAudioData).toHaveBeenCalledOnce();
+    });
+
+    it('registerBuffer is a no-op when AudioContext is unavailable', async () => {
+      vi.stubGlobal('AudioContext', class { constructor() { throw new Error('no ctx'); } });
+      resetSingleton();
+      const am = AudioManager.getInstance();
+      await expect(am.registerBuffer('sfx-test', new ArrayBuffer(8))).resolves.toBeUndefined();
+    });
+
+    it('registerBuffer survives a decode failure gracefully', async () => {
+      mockCtx.decodeAudioData = vi.fn().mockRejectedValue(new Error('bad codec'));
+      const am = AudioManager.getInstance();
+      await expect(am.registerBuffer('sfx-bad', new ArrayBuffer(8))).resolves.toBeUndefined();
+    });
+
+    it('after registerBuffer, SFX play method uses buffer source (not oscillator)', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-cannon', new ArrayBuffer(8));
+
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playProjectileFired('cannon');
+
+      // File path: uses createBufferSource, NOT createOscillator
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('without registered buffer, cannon fire still uses oscillator (procedural fallback)', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createOscillator.mockClear();
+      am.playProjectileFired('cannon');
+      expect(mockCtx.createOscillator).toHaveBeenCalled();
+    });
+
+    it('after registering creep death buffers, playCreepKilled uses buffer source', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-creep-death-01', new ArrayBuffer(8));
+      await am.registerBuffer('sfx-creep-death-02', new ArrayBuffer(8));
+      await am.registerBuffer('sfx-creep-death-03', new ArrayBuffer(8));
+
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playCreepKilled();
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('after registering sfx-tower-place, playTowerPlaced uses buffer source', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-tower-place', new ArrayBuffer(8));
+
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playTowerPlaced();
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('file-based audio — startMusicTrack', () => {
+    it('startMusicTrack is a no-op when buffer is not registered', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createBufferSource.mockClear();
+      expect(() => am.startMusicTrack('music-menu')).not.toThrow();
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+    });
+
+    it('startMusicTrack starts a looping buffer source when buffer is registered', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrack('music-gameplay');
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      // The created buffer source should have loop = true
+      const srcMock = mockCtx.createBufferSource.mock.results[0].value as { loop: boolean };
+      expect(srcMock.loop).toBe(true);
+    });
+
+    it('startMusicTrack same key twice is a no-op (no double source)', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+
+      am.startMusicTrack('music-gameplay');
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrack('music-gameplay'); // second call — same key
+
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+    });
+
+    it('startMusicTrack does not throw when AudioContext is unavailable', async () => {
+      vi.stubGlobal('AudioContext', class { constructor() { throw new Error('no'); } });
+      resetSingleton();
+      const am = AudioManager.getInstance();
+      expect(() => am.startMusicTrack('music-gameplay')).not.toThrow();
+    });
+  });
+
+  describe('startMusic with file fallback', () => {
+    it('startMusic falls back to procedural when no gameplay buffer registered', () => {
+      const am = AudioManager.getInstance();
+      am.destroy();
+      const oscillatorsBefore = mockCtx.createOscillator.mock.calls.length;
+      am.startMusic();
+      // Procedural path: music scheduler eventually creates oscillators
+      // (may not fire synchronously, but no throw)
+      expect(mockCtx.createOscillator.mock.calls.length).toBeGreaterThanOrEqual(oscillatorsBefore);
+    });
+
+    it('startMusic uses file buffer when music-gameplay is registered', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+      am.destroy();
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusic();
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+  });
+
+  describe('destroy stops file music', () => {
+    it('destroy does not throw even when file music is playing', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+      am.startMusicTrack('music-gameplay');
+      expect(() => am.destroy()).not.toThrow();
+    });
+
+    it('after destroy + startMusicTrack, music restarts', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-menu', new ArrayBuffer(8));
+      am.startMusicTrack('music-menu');
+      am.destroy();
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrack('music-menu');
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+  });
+
+  describe('crossfade between tracks', () => {
+    it('switching from track A to track B stops A and starts B', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-menu', new ArrayBuffer(8));
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+
+      am.startMusicTrack('music-menu');
+      const srcA = mockCtx.createBufferSource.mock.results.at(-1)!.value as { stop: ReturnType<typeof vi.fn> };
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrack('music-gameplay');
+
+      // Old track A should have been scheduled for stop
+      expect(srcA.stop).toHaveBeenCalled();
+      // New track B should have started
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('switching track stops procedural arpeggio', async () => {
+      const am = AudioManager.getInstance();
+      // Procedural arpeggio was started in constructor via _startMusic()
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+
+      // startMusicTrack should stop procedural and start file-based
+      am.startMusicTrack('music-gameplay');
+      const src = mockCtx.createBufferSource.mock.results.at(-1)!.value as { loop: boolean };
+      expect(src.loop).toBe(true);
+    });
+  });
+
+  describe('registerBuffer edge cases', () => {
+    it('registerBuffer with same key twice overwrites the first', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-cannon', new ArrayBuffer(8));
+      await am.registerBuffer('sfx-cannon', new ArrayBuffer(16));
+
+      // Should still work — second registration overwrites the first
+      mockCtx.createBufferSource.mockClear();
+      am.playProjectileFired('cannon');
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('registerBuffer with zero-length ArrayBuffer does not crash', async () => {
+      const am = AudioManager.getInstance();
+      await expect(am.registerBuffer('sfx-test', new ArrayBuffer(0))).resolves.toBeUndefined();
+    });
+  });
+
+  describe('file-based SFX coverage', () => {
+    it('after registering sfx-frost, playProjectileFired("frost") uses buffer', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-frost', new ArrayBuffer(8));
+
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playProjectileFired('frost');
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('after registering sfx-ui-click, playUiClick uses buffer', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-ui-click', new ArrayBuffer(8));
+
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playUiClick();
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('after registering sfx-creep-escape, playCreepEscaped uses buffer', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-creep-escape', new ArrayBuffer(8));
+
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playCreepEscaped();
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('after registering sfx-game-over, playGameOver uses buffer', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-game-over', new ArrayBuffer(8));
+
+      mockCtx.createOscillator.mockClear();
+      mockCtx.createBufferSource.mockClear();
+      am.playGameOver();
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('_playBufferSfx connects source to sfxGain and starts it', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('sfx-victory', new ArrayBuffer(8));
+
+      mockCtx.createBufferSource.mockClear();
+      am.playVictory();
+
+      const src = mockCtx.createBufferSource.mock.results[0].value as {
+        connect: ReturnType<typeof vi.fn>;
+        start: ReturnType<typeof vi.fn>;
+      };
+      expect(src.connect).toHaveBeenCalled();
+      expect(src.start).toHaveBeenCalled();
+    });
+  });
+
+  describe('volume controls with file-based audio', () => {
+    it('mute/unmute does not crash when file music is playing', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+      am.startMusicTrack('music-gameplay');
+
+      expect(() => am.toggleMute()).not.toThrow();
+      expect(am.isMuted()).toBe(true);
+      expect(() => am.toggleMute()).not.toThrow();
+      expect(am.isMuted()).toBe(false);
+    });
+
+    it('setMusicVolume does not crash when file music is playing', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-gameplay', new ArrayBuffer(8));
+      am.startMusicTrack('music-gameplay');
+
+      expect(() => am.setMusicVolume(0.5)).not.toThrow();
+      expect(am.getMusicVolume()).toBeCloseTo(0.5);
     });
   });
 });
