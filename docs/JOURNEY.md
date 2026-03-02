@@ -883,3 +883,19 @@ With the core gameplay loop and meta-progression established, TASK-067 introduce
 **Loot drops and the post-run loop.** `GameScene` tracks a `pendingLoot: GearInstance[]` array that accumulates drops during the run — boss kills roll 1–2 items with rarity boosted one tier, milestone waves roll 1 item at standard weights, and challenges guarantee at least one Rare+ drop. `GameOverScene` was substantially extended: it renders the loot-drop panel (item cards with rarity colour, stat summary, and equip/salvage buttons), posts XP to the active commander, and calls `InventoryManager.addItems()` with overflow items auto-salvaged for shards. This creates a tight loop — finish a run, receive gear, equip it in `TowerEquipScene`, return to map selection with meaningfully stronger towers.
 
 **Test coverage.** `src/systems/__tests__/gearSystem.test.ts` (46 tests) verifies stat accumulation, enhance scaling, rune stacking, type-restriction enforcement, and empty-inventory fast path. `src/systems/__tests__/inventoryManager.test.ts` (54 tests) covers add/overflow, salvage shard accounting, equip/unequip slot management, enhance cost gating, and persistence round-trips. Total: 1 134 tests passing, 0 type errors.
+
+---
+
+### Keyboard Shortcuts — Pause, Speed, Deselect, Tower Hotkeys
+
+Desktop players previously had no keyboard controls whatsoever — every action required a mouse click. TASK-060 wired a complete shortcut layer into GameScene without disrupting the existing click-based flow.
+
+**Core shortcuts.** Space toggles pause/unpause, saving the active speed into `_prePauseSpeed` so unpausing restores the original rate rather than always snapping to 1×. F cycles speed 1× → 2× → 1×, mirroring the HUD buttons. Escape exits placement mode if active, otherwise deselects the selected tower. S sells the currently selected tower immediately. U opens or closes the upgrade/behavior panel for the selected tower.
+
+**Tower placement hotkeys.** Number keys 1–6 map to the six tower types in panel order (Cannon, Frost, Tesla, Mortar, Poison, Aura). Pressing a number enters placement mode for that tower if the player can afford it; pressing the same number again while already in that tower's placement mode cancels — matching the double-click cancel idiom that players already know.
+
+**Guard logic extracted to `KeyboardShortcuts.ts`.** Rather than inlining the blocking conditions in each `keydown` handler, a small Phaser-free module (`src/systems/KeyboardShortcuts.ts`) exports `isShortcutBlocked(ctx, allowWhenPaused?)`. The `ShortcutContext` snapshot captures `gameOver`, `bossOfferOpen`, and `paused`. Space and Escape pass `allowWhenPaused: true`; all other shortcuts pass the default `false`, so they silently no-op while the game is paused or a boss-offer panel is open. Extracting the guard function makes the branching logic independently testable.
+
+**HUD keyboard hints.** Pause and speed buttons in `HUD.ts` now render small `'Spc'` and `'F'` hints in the top-right corner of each button, drawn only on desktop (guarded by the existing `_IS_MOBILE` constant). `TowerPanel.ts` draws `'1'`–`'6'` hints in the top-right corner of each tower button the same way — again desktop-only, so the mobile layout is untouched.
+
+**Test coverage.** `src/systems/__tests__/KeyboardShortcuts.test.ts` (13 tests) covers all guard combinations: normal gameplay allows everything, game-over and boss-offer block everything including pause-safe shortcuts, paused blocks regular shortcuts but allows pause-safe ones, and combined flags all resolve correctly. Total: 1 047 tests passing, 0 type errors.
