@@ -1,7 +1,7 @@
 ---
 id: TASK-053
 title: Audio Generation — Suno Music & Sound Design Pipeline
-status: pending
+status: in-progress
 priority: medium
 phase: polish
 interactive: true

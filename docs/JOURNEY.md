@@ -799,3 +799,17 @@ Every TD game does stars. Ojibwe TD does moons — *dibiki-giizis*, the night su
 **Main menu stage tile.** `MainMenuScene` reads `getStageMoons()` for each stage card and renders a compact moon row below the stage name. Stages that have never been completed show no moons at all — blank rather than a zero — so the absence of moons communicates "not yet attempted" rather than "failed".
 
 **Tests.** Twenty-nine unit tests in `src/systems/__tests__/MoonRating.test.ts` cover every rating threshold, boundary conditions (exact 20% and 50% life loss, exactly 75% waves), and edge cases (zero lives, zero waves). All 890 tests pass; 0 type errors.
+
+---
+
+### TASK-054 — Creep & Boss Art Assets — Flying Variants, Boss Animal Portraits
+
+Every creep used a generic tinted rectangle or a single shared sprite regardless of its type. The bosses — Makwa (Bear), Migizi (Eagle), Waabooz (Hare), and Animikiins (Thunderbird) — were visually identical except for a colour tint. This task replaced those placeholders with purpose-built sprites that give each unit a distinct visual identity rooted in the Ojibwe animal namesakes.
+
+**Boss portraits.** Four boss sprites were added to `game/public/assets/sprites/`: `boss-makwa.png` (stocky bear silhouette from above, amber/brown), `boss-migizi.png` (spread-wing eagle, golden), `boss-waabooz.png` (compact hare with long ears, pale blue-white), and `boss-animikiins.png` (mythic thunderbird with lightning-energy motif, electric blue). A fifth sprite, `boss-waabooz-mini.png`, replaces the old generic mini-boss used for Waabooz split copies, making the baby-hare copies immediately recognisable as Waabooz offspring rather than unrelated enemies.
+
+**Air creep variants.** The air combat system (TASK-051) introduced `domain: 'air'` creeps but all shared one `creep-flying.png`. Three distinct bird silhouettes now cover each subtype: `creep-air-basic.png` (generic bird, basic flier), `creep-air-scout.png` (sleek hawk/falcon, swift unit), and `creep-air-armored.png` (heavy raven shape, armoured air unit).
+
+**Ground creep refresh.** The five ground-creep sprites were redrawn with naturalistic animal-inspired silhouettes — deer/chipmunk for normal, fox for fast, porcupine/turtle for armoured, ghost-spirit for immune, and salamander for regen — bringing them visually in line with the boss and air art quality.
+
+**Technical wiring.** `BossDef` gained an optional `spriteKey` field; each boss definition now carries its own key (e.g. `'boss-makwa'`). `WaveManager.spawnBoss()` uses `bossDef.spriteKey ?? \`boss-\${bossDef.key}\`` so any future boss automatically gets a predictable fallback without code changes. `WaveManager.CREEP_SPRITE_KEYS` maps `scout` → `creep-air-scout` and `flier` → `creep-air-basic` instead of the shared `creep-flying`. `BootScene.loadAssets()` was updated to load all new keys. `Creep.ts` rendering was adjusted so air creeps using a sprite skip the procedural wing-rectangle fallback (the sprite already contains wings). All 950 tests pass; 0 type errors.

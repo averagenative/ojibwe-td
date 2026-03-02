@@ -1261,6 +1261,61 @@ Discovered during the Opus review pass. None block merge; all are polish candida
   exit. If a future map has paths with different exits, the air route would need its own
   multi-path logic or a custom `airWaypoints` entry in the map JSON.
 
+## TASK-054 Review Findings (non-blocking)
+
+**Reviewed**: 2026-03-01 — Creep & Boss Art Assets branch (`orch/creep-and-boss-art-a-167176`)
+
+1. **`creep-air-armored.png` loaded but unmapped** — BootScene loads the texture key
+   `creep-air-armored`, but no entry in `CREEP_SPRITE_KEYS` (WaveManager.ts) maps to it.
+   There is no air-brute creep type yet, so the sprite is pre-loaded for a future creep
+   variant. When an armored air creep type is added, wire it as
+   `'air-brute': 'creep-air-armored'` (or equivalent) in the map.
+
+2. **Stale sprite files on disk** — `creep-flying.png`, `creep-boss.png`, and
+   `creep-boss-mini.png` still exist in `public/assets/sprites/` but are no longer
+   loaded by BootScene. They are harmless (not served/bundled) but could be deleted
+   to avoid confusion.
+
+3. **Boss tint + unique sprite interaction** — Each boss now has a unique animal sprite
+   and a `tint` colour. `Creep.buildVisuals()` applies the tint on top of the sprite
+   (`setTint()`). For hand-drawn art this may over-colour the image. If the new sprites
+   already have the correct colouring baked in, consider setting `tint: 0xffffff` (no-op)
+   on the boss defs to avoid double-tinting.
+
+4. **Art prompts documentation** — The task file requests `game/assets/ART-PROMPTS.md`
+   documenting generation prompts for reproducibility. This file was not created in this
+   branch. Consider adding it as a follow-up.
+
+## TASK-053 Review Findings (non-blocking)
+
+**Reviewed**: 2026-03-01 — Suno Audio Generation branch (`orch/suno-audio-generatio-167176`)
+
+1. **`_bridgeAudioToManager` fire-and-forget race condition** — `BootScene.create()`
+   calls `void am.registerBuffer(key, data)` for each audio key. Because `decodeAudioData`
+   is async (off-thread), the decoded buffers may not be ready by the time
+   `MainMenuScene.create()` calls `startMusicTrack('music-menu')`. In practice the decode
+   is fast enough (< 1 frame) for small files, but for large music tracks the menu
+   music could silently fail to start. Fix: await `Promise.all` of registerBuffer calls
+   before transitioning scenes, or retry `startMusicTrack` in MainMenuScene's first
+   update tick if the buffer becomes available.
+
+2. **`playWaveIncoming` has no file-based audio path** — All other SFX methods check
+   `_playBufferSfx()` first and fall back to procedural. `playWaveIncoming` still only
+   uses procedural synthesis. When wave-incoming SFX files are produced, add buffer
+   keys `sfx-wave-ground`, `sfx-wave-air`, `sfx-wave-boss` and wire them.
+
+3. **No positional / distance-based SFX attenuation** — The task file's SFX style
+   notes mention "spatially aware — lower volume for distant sounds (future: positional
+   audio)." The current `_playBufferSfx` plays at full SFX volume regardless of where
+   the tower/creep is on screen. Consider adding an optional `volume` parameter to
+   `_playBufferSfx` for future distance attenuation.
+
+4. **Crossfade `linearRampToValueAtTime` anchoring** — Fixed in this review. Both
+   `_crossfadeToTrack` and `_stopFileMusicTrack` were missing a `setValueAtTime` call
+   to anchor the ramp start value before `linearRampToValueAtTime`. Without the anchor,
+   Web Audio ramps from the *previous scheduled event value*, which can produce unexpected
+   fade behaviour if stale automation events remain on the gain parameter.
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

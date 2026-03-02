@@ -1,7 +1,7 @@
 ---
 id: TASK-054
 title: Creep & Boss Art Assets — Flying Variants, Boss Animal Portraits
-status: pending
+status: done
 priority: high
 phase: polish
 interactive: true
