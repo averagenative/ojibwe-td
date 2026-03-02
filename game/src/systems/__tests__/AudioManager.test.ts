@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AudioManager } from '../AudioManager';
+import { SaveManager } from '../../meta/SaveManager';
 
 // ── AudioContext mock ──────────────────────────────────────────────────────────
 
@@ -102,6 +103,9 @@ beforeEach(() => {
   // Use a class constructor so Vitest doesn't warn about non-class mock implementations.
   vi.stubGlobal('AudioContext', class { constructor() { return mockCtx; } });
   resetSingleton();
+  // Reset SaveManager singleton + clear storage so audio settings don't leak between tests.
+  (SaveManager as unknown as { _instance: null })._instance = null;
+  localStorage.clear();
 });
 
 afterEach(() => {
@@ -690,6 +694,161 @@ describe('AudioManager', () => {
 
       expect(() => am.setMusicVolume(0.5)).not.toThrow();
       expect(am.getMusicVolume()).toBeCloseTo(0.5);
+    });
+  });
+
+  describe('independent channel muting', () => {
+    it('isMusicMuted is false by default', () => {
+      const am = AudioManager.getInstance();
+      expect(am.isMusicMuted()).toBe(false);
+    });
+
+    it('isSfxMuted is false by default', () => {
+      const am = AudioManager.getInstance();
+      expect(am.isSfxMuted()).toBe(false);
+    });
+
+    it('setMusicMuted(true) mutes music independently', () => {
+      const am = AudioManager.getInstance();
+      am.setMusicMuted(true);
+      expect(am.isMusicMuted()).toBe(true);
+      expect(am.isSfxMuted()).toBe(false);
+      expect(am.isMuted()).toBe(false);
+    });
+
+    it('setSfxMuted(true) mutes SFX independently', () => {
+      const am = AudioManager.getInstance();
+      am.setSfxMuted(true);
+      expect(am.isSfxMuted()).toBe(true);
+      expect(am.isMusicMuted()).toBe(false);
+      expect(am.isMuted()).toBe(false);
+    });
+
+    it('setMusicMuted(false) restores music after muting', () => {
+      const am = AudioManager.getInstance();
+      am.setMusicMuted(true);
+      am.setMusicMuted(false);
+      expect(am.isMusicMuted()).toBe(false);
+    });
+
+    it('setSfxMuted(false) restores SFX after muting', () => {
+      const am = AudioManager.getInstance();
+      am.setSfxMuted(true);
+      am.setSfxMuted(false);
+      expect(am.isSfxMuted()).toBe(false);
+    });
+
+    it('setMusicMuted does not affect stored music volume', () => {
+      const am = AudioManager.getInstance();
+      am.setMusicVolume(0.5);
+      am.setMusicMuted(true);
+      expect(am.getMusicVolume()).toBeCloseTo(0.5);
+      am.setMusicMuted(false);
+      expect(am.getMusicVolume()).toBeCloseTo(0.5);
+    });
+
+    it('setSfxMuted does not affect stored sfx volume', () => {
+      const am = AudioManager.getInstance();
+      am.setSfxVolume(0.7);
+      am.setSfxMuted(true);
+      expect(am.getSfxVolume()).toBeCloseTo(0.7);
+      am.setSfxMuted(false);
+      expect(am.getSfxVolume()).toBeCloseTo(0.7);
+    });
+
+    it('setMusicMuted and setSfxMuted do not throw when AudioContext unavailable', () => {
+      vi.stubGlobal('AudioContext', class { constructor() { throw new Error('no ctx'); } });
+      resetSingleton();
+      const am = AudioManager.getInstance();
+      expect(() => am.setMusicMuted(true)).not.toThrow();
+      expect(() => am.setSfxMuted(true)).not.toThrow();
+      expect(am.isMusicMuted()).toBe(true);
+      expect(am.isSfxMuted()).toBe(true);
+    });
+
+    it('master mute and per-channel mutes are independent', () => {
+      const am = AudioManager.getInstance();
+      am.setMusicMuted(true);
+      am.setSfxMuted(true);
+      am.toggleMute(); // master mute on
+      expect(am.isMuted()).toBe(true);
+      expect(am.isMusicMuted()).toBe(true);
+      expect(am.isSfxMuted()).toBe(true);
+      am.toggleMute(); // master mute off
+      expect(am.isMuted()).toBe(false);
+      // per-channel mutes survive master toggle
+      expect(am.isMusicMuted()).toBe(true);
+      expect(am.isSfxMuted()).toBe(true);
+    });
+  });
+
+  describe('persistence roundtrip', () => {
+    it('musicMuted persists across AudioManager re-init', () => {
+      const am1 = AudioManager.getInstance();
+      am1.setMusicMuted(true);
+      am1.setSfxMuted(false);
+
+      // Reset AudioManager only (keep SaveManager + localStorage)
+      resetSingleton();
+      const am2 = AudioManager.getInstance();
+      expect(am2.isMusicMuted()).toBe(true);
+      expect(am2.isSfxMuted()).toBe(false);
+    });
+
+    it('sfxMuted persists across AudioManager re-init', () => {
+      const am1 = AudioManager.getInstance();
+      am1.setMusicMuted(false);
+      am1.setSfxMuted(true);
+
+      resetSingleton();
+      const am2 = AudioManager.getInstance();
+      expect(am2.isMusicMuted()).toBe(false);
+      expect(am2.isSfxMuted()).toBe(true);
+    });
+
+    it('both channel mutes persist simultaneously', () => {
+      const am1 = AudioManager.getInstance();
+      am1.setMusicMuted(true);
+      am1.setSfxMuted(true);
+      am1.setMusicVolume(0.4);
+      am1.setSfxVolume(0.6);
+
+      resetSingleton();
+      const am2 = AudioManager.getInstance();
+      expect(am2.isMusicMuted()).toBe(true);
+      expect(am2.isSfxMuted()).toBe(true);
+      expect(am2.getMusicVolume()).toBeCloseTo(0.4);
+      expect(am2.getSfxVolume()).toBeCloseTo(0.6);
+    });
+
+    it('SaveManager getAudioSettings returns musicMuted and sfxMuted', () => {
+      const am = AudioManager.getInstance();
+      am.setMusicMuted(true);
+      am.setSfxMuted(true);
+
+      const settings = SaveManager.getInstance().getAudioSettings();
+      expect(settings.musicMuted).toBe(true);
+      expect(settings.sfxMuted).toBe(true);
+    });
+
+    it('SaveManager sanitizes missing audioMusicMuted/audioSfxMuted to false', () => {
+      // Write save data without the new fields (simulating old save format)
+      const rawData = JSON.stringify({
+        crystals: 0, totalCrystalsEarned: 0,
+        unlockedIds: [], selectedCommander: 'default',
+        lastPlayedStage: 'stage-01',
+        audioMaster: 0.8, audioSfx: 0.9, audioMusic: 0.2, audioMuted: false,
+        // intentionally omit audioMusicMuted and audioSfxMuted
+        stageMoons: {}, endlessRecords: {},
+        seenVignetteIds: [], unlockedCodexIds: [], readCodexIds: [],
+        pendingConsumables: { rerollTokens: 0, goldBoostTokens: 0, extraLifeTokens: 0 },
+      });
+      localStorage.setItem('ojibwe-td-save', rawData);
+      (SaveManager as unknown as { _instance: null })._instance = null;
+
+      const settings = SaveManager.getInstance().getAudioSettings();
+      expect(settings.musicMuted).toBe(false);
+      expect(settings.sfxMuted).toBe(false);
     });
   });
 });

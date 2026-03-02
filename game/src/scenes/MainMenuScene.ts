@@ -3,6 +3,7 @@ import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
 import { MobileManager } from '../systems/MobileManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
+import { AudioSettingsPanel } from '../ui/AudioSettingsPanel';
 import { ALL_CODEX_ENTRIES } from '../data/codexDefs';
 import {
   ALL_REGIONS,
@@ -90,6 +91,8 @@ export class MainMenuScene extends Phaser.Scene {
   private stagePanels:  Map<string, Panel> = new Map();
   private stageTiles:   Phaser.GameObjects.GameObject[] = [];
 
+  private _audioPanel: AudioSettingsPanel | null = null;
+
   private regionRowY = 0;
   private stageRowY  = 0;
 
@@ -147,12 +150,15 @@ export class MainMenuScene extends Phaser.Scene {
     this.regionRowY = labelY + 16 + this._regionH / 2;
     this.stageRowY  = this.regionRowY + this._regionH / 2 + 28 + this._stageH / 2;
 
+    this._audioPanel = null;
+
     this.createBackground();
     this.createHeader(cx, iconY, labelY);
     this.createRegionRow(cx);
     this.createStageRow(cx);
     this.createButtons(cx, height);
     this.createFooter(cx, height);
+    this.createAudioButton(width, height);
   }
 
   // ── Background ─────────────────────────────────────────────────────────────
@@ -545,6 +551,36 @@ export class MainMenuScene extends Phaser.Scene {
         fontSize: '10px', color: '#ffffff', fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
     }
+  }
+
+  private createAudioButton(width: number, height: number): void {
+    const btnSize = this._isMobile ? 48 : 40;
+    const pad     = 12;
+    const bx      = width  - pad - btnSize / 2;
+    const by      = height - pad - btnSize / 2;
+
+    const bg = this.add.rectangle(bx, by, btnSize, btnSize, 0x222222)
+      .setStrokeStyle(1, PAL.borderNeutral)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH_BUTTONS);
+
+    this.add.text(bx, by, '⚙', {
+      fontSize:   this._isMobile ? '20px' : '16px',
+      fontFamily: PAL.fontBody,
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH_BUTTONS + 1);
+
+    bg.on('pointerover', () => bg.setFillStyle(0x333333));
+    bg.on('pointerout',  () => bg.setFillStyle(0x222222));
+    bg.on('pointerup',   () => {
+      if (!this._audioPanel) {
+        this._audioPanel = new AudioSettingsPanel(this);
+      }
+      if (this._audioPanel.isVisible()) {
+        this._audioPanel.hide();
+      } else {
+        this._audioPanel.show();
+      }
+    });
   }
 
   private createFooter(cx: number, height: number): void {
