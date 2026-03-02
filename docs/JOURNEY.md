@@ -829,3 +829,23 @@ All game audio was procedurally synthesised — OscillatorNode beeps, chirps, an
 **Suno prompt archive.** `game/audio/PROMPTS.md` documents production-ready Suno prompts for every planned track — menu theme, gameplay calm, gameplay intense, victory, game over — with style tags, tempo targets, loop guidance, and export settings. `game/audio/SUNO-RESEARCH.md` evaluates unofficial Suno API projects and documents the recommended manual workflow for generating and placing audio files, including volume normalisation and loop-point trimming steps.
 
 **AudioManager test coverage.** The `AudioManager.test.ts` suite was extended to cover the new file-based layer: `registerBuffer` decode-and-store path, graceful skip when `ctx` is null, `startMusicTrack` source creation and crossfade gain ramp, stopping a track with fade-out, and the no-op behaviour when a key is not registered. Total tests: 968 passing, 0 type errors.
+
+---
+
+### TASK-068 — Mobile-Responsive Layout — Detect Mobile, Fix Logo Overlap, Touch-Friendly UI
+
+On mobile browsers the HTML header and logo consumed vertical space that the Phaser canvas needs, and all interactive touch targets were too small for finger taps. This task made the game fully playable on phones and tablets without touching the desktop layout.
+
+**MobileManager singleton.** A new `src/systems/MobileManager.ts` singleton performs mobile detection at startup via `window.innerWidth <= 768 || 'ontouchstart' in window`, sets `window.__OJIBWE_MOBILE` and adds a `'mobile'` CSS class to `document.body`. It listens to `resize` and `orientationchange` events to re-evaluate as the device rotates, and exposes a `particleScale()` helper (returns 0.5 on mobile, 1 on desktop) for throttling particle budgets. All detection is isolated in one place — every other module simply calls `MobileManager.getInstance().isMobile()`.
+
+**HTML and CSS layout.** `index.html` adds the proper `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">` tag, and a `#rotate-prompt` overlay that CSS shows only in mobile + portrait orientation via `@media (orientation: portrait)`. `style.css` uses the `body.mobile` class to hide the game header entirely (`display: none`), switch the container to `height: 100dvh` (dynamic viewport height for iOS Safari's collapsing toolbar), and apply `env(safe-area-inset-*)` padding so content stays clear of notches and home indicators on iPhone. Desktop rules are completely unchanged — no regressions.
+
+**Touch-friendly HUD.** `HUD.ts` exports a `getHudHeight()` function that returns 64 px on mobile and 48 px on desktop; all HUD buttons grow accordingly — speed buttons 48×44 px, the mute button 44×44 px, and the next-wave / give-up buttons all reach the minimum 44 px tap target recommended by Apple HIG and WCAG.
+
+**Touch-friendly tower panel.** `TowerPanel.ts` computes `PANEL_HEIGHT` (88 px mobile / 72 px desktop) and `BTN_SIZE` (64 px mobile / 52 px desktop) at module level from `MobileManager`. Icon sizes increase to 34 px and font sizes scale up by roughly 20 % so labels remain readable at arm's length.
+
+**GameScene mobile adaptations.** `GameScene.ts` imports `getHudHeight()` from `HUD.ts` and removes its previous hard-coded `HUD_HEIGHT = 48` constant. Touch placement uses a long-press gesture — a 400 ms `_startPlacementHold()` timer triggers the placement flow, and `_cancelPlacementHold()` cancels it on pointer-up or if the pointer drifts more than 20 px, preventing accidental tower drops during scrolling. Boss death particles are multiplied by `MobileManager.particleScale()`, and terrain decorations are hidden on mobile to reduce draw calls.
+
+**MainMenuScene scaling.** `MainMenuScene.ts` gained `_isMobile`, `_regionH`, and `_stageH` class fields and a `_fs(n)` helper that applies a 1.35× font multiplier on mobile. All card heights, button heights, and font sizes route through these helpers so the menu remains readable and tappable on a 375 px wide phone in landscape.
+
+**Test coverage.** `MobileManager.test.ts` provides 30 unit tests covering detection logic, body-class toggling, `particleScale()`, resize re-evaluation, and singleton reset. A companion `mobileCompat.test.ts` (15 tests) validates layout-contract constants: `getHudHeight()` and `getPanelHeight()` return the correct values in both mobile and desktop modes, and the minimum tap-target threshold is enforced. Total: 1 006 tests passing, 0 type errors.

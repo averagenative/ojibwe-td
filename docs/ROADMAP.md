@@ -1316,6 +1316,60 @@ Discovered during the Opus review pass. None block merge; all are polish candida
    Web Audio ramps from the *previous scheduled event value*, which can produce unexpected
    fade behaviour if stale automation events remain on the gain parameter.
 
+### Performance (TASK-063 review)
+
+1. **`SpatialGrid.queryRadius` allocates a result array per call** — With 20 towers
+   each calling `queryRadius()` every frame, that's 20 short-lived array allocations
+   per frame (~60 fps = 1 200 allocs/s). The arrays are small (1–5 elements) so GC
+   impact is minimal, but a pre-allocated scratch array pattern would eliminate this
+   entirely. Low priority — only matters at extreme tower counts (40+).
+
+2. **Tesla chain `onHit` callback still iterates `getCreeps()` (full Set)** — The
+   spatial grid optimises `Tower.findTarget()`, but the Tesla chain-hit callback
+   inside `fireTesla()` still spreads the full creep set (`[...getCreeps()]`) to find
+   chain candidates. This is O(all_creeps) per Tesla chain event. Since Tesla fires
+   per-hit (not per-frame), the impact is low at current tower counts. A spatial query
+   from the chain-hit position would make this O(k) as well.
+
+3. **Impact particle effects (dust, frost burst, mortar debris, poison splatter) still
+   use create/tween/destroy pattern** — Same GC concern as trail particles, but at
+   lower frequency (per-hit, not per-frame). The `TrailPool` pattern could be extended
+   with a general-purpose `ParticlePool` for these effects.
+
+4. **Lightning arc Graphics objects (Tower.ts + Projectile.ts) use create/tween/destroy**
+   — Each Tesla chain hit and primary strike creates a `Graphics` object, draws a path,
+   tweens alpha to 0, then destroys it. Low frequency but could benefit from a Graphics
+   pool if Tesla tower count grows.
+
+### TASK-068 Mobile-Responsive Layout (review findings)
+
+Non-blocking items surfaced during Opus review of the mobile-responsive branch:
+
+- **Orphaned helper methods on MobileManager**: `physicalScale()` and `minTapTarget()`
+  are public but never called outside the class. `getPanelHeight()` (TowerPanel.ts) is
+  exported but never imported — redundant with the already-exported `PANEL_HEIGHT` const.
+  Consider removing unused exports or wiring them into the UI sizing logic to replace
+  the current hardcoded mobile constants.
+- **Module-level `_IS_MOBILE` const vs dynamic `getHudHeight()`**: HUD.ts and
+  TowerPanel.ts capture `isMobile()` once at module load into a `const`. `getHudHeight()`
+  re-evaluates dynamically each call. These can diverge if the mobile state changes
+  after module load (unlikely in practice, but the dual mechanism is confusing). Consider
+  consolidating to a single approach.
+- **Redundant CSS rule**: `body.mobile #rotate-prompt { display: none; }` duplicates
+  the base `#rotate-prompt { display: none; }` rule. Safe to remove.
+- **`mobileCompat.test.ts` mirrors only desktop constants**: The existing mobile
+  compatibility tests hardcode `HUD_HEIGHT = 48` and `PANEL_HEIGHT = 72` (desktop
+  values). They don't cover the mobile layout (HUD 64, panel 88). The new
+  `MobileManager.test.ts` adds mobile layout constraint tests, but the older test file
+  could be updated to cover both layouts.
+- **Tower selection double-tap/hold for upgrade panel**: The acceptance criteria
+  mention "double-tap or hold opens upgrade panel" but this isn't implemented — tower
+  selection uses the existing single-tap via the Tower's own `pointerup` listener.
+  Consider adding a long-press gesture to open the upgrade panel on mobile.
+- **PWA manifest / service worker**: The task notes mention this as a bonus. Not
+  implemented, but would improve the mobile experience (fullscreen without browser
+  chrome via "Add to Home Screen").
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
