@@ -2,7 +2,9 @@
 # status.sh — quick orchestrator + task status check
 # Usage: ./status.sh
 
-set -euo pipefail
+set -uo pipefail
+# NOTE: -e intentionally omitted — many commands (pgrep, grep, find) return
+# non-zero when they find nothing, which would kill the script early.
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
 TASKS="$REPO/tasks"
@@ -24,9 +26,9 @@ sep
 printf "${BOLD}Orchestrator processes${RESET}\n"
 sep
 
-SINGLE_PIDS=$(pgrep -f "[o]rchestrator\.sh" 2>/dev/null | grep -vw "parallel" || true)
+SINGLE_PIDS=$(pgrep -f "[o]rchestrator\.sh" 2>/dev/null | { grep -vw "parallel" || true; })
 PARALLEL_PIDS=$(pgrep -f "[p]arallel-orchestrator\.sh" 2>/dev/null || true)
-CLAUDE_PIDS=$(pgrep -af "claude.*--dangerously-skip" 2>/dev/null | grep -v "^$$" || true)
+CLAUDE_PIDS=$(pgrep -af "claude.*--dangerously-skip" 2>/dev/null | { grep -v "^$$" || true; })
 
 if [ -n "$SINGLE_PIDS" ]; then
   printf "  ${GREEN}✓${RESET} Single orchestrator running  (PIDs: %s)\n" "$(echo "$SINGLE_PIDS" | tr '\n' ' ')"
@@ -55,8 +57,8 @@ sep
 printf "${BOLD}In-progress tasks${RESET}\n"
 sep
 
-IN_PROGRESS=$(find "$TASKS" -name "*.md" -not -path "*/done/*" \
-  -exec grep -l "^status: in-progress$" {} \; 2>/dev/null | sort || true)
+IN_PROGRESS=$(find "$TASKS" -name "*.md" -not -path "*/done/*" -not -path "*/health/*" \
+  -exec grep -l "^status: in-progress$" {} \; 2>/dev/null | sort) || true
 
 if [ -n "$IN_PROGRESS" ]; then
   while IFS= read -r f; do
@@ -160,7 +162,7 @@ sep
       fi
     done < <(find "$dir" -maxdepth 1 -name "*.md" -print0)
   done
-} | sort | while IFS='|' read -r rank id pri title; do
+} | sort -t'|' -k1,1n | while IFS='|' read -r rank id pri title; do
   case "$pri" in
     critical) col="${RED}" ;;
     high)     col="${YELLOW}" ;;
@@ -170,8 +172,8 @@ sep
   printf "  ${col}%-10s${RESET}  %-8s  %s\n" "$id" "$pri" "$title"
 done
 
-TOTAL=$(find "$TASKS" -name "*.md" -not -path "*/done/*" \
-  -exec grep -l "^status: pending$" {} \; 2>/dev/null | wc -l | tr -d ' ')
+TOTAL=$(find "$TASKS" -name "*.md" -not -path "*/done/*" -not -path "*/health/*" \
+  -exec grep -l "^status: pending$" {} \; 2>/dev/null | wc -l | tr -d ' ') || true
 printf "\n  ${DIM}%s pending total${RESET}\n" "$TOTAL"
 
 # ── Recent shipped tasks (git log) ──────────────────────────────────────────

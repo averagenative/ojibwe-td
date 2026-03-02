@@ -1,7 +1,7 @@
 ---
 id: TASK-089
 title: Arrow Tower Assets — Icon, Projectile Sprite, Gear Icons
-status: in-progress
+status: done
 priority: critical
 phase: feature
 creative: true

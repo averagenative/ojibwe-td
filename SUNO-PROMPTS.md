@@ -1,21 +1,84 @@
 # Suno Audio Prompts — Ojibwe TD
 
-## File Placement
+## How to Generate
 
-Once generated, download the mp3 and place here:
-```
-game/public/assets/audio/music/<filename>.mp3
-game/public/assets/audio/sfx/<filename>.mp3
-```
+### Music Tracks (Song mode)
+1. Go to [suno.com](https://suno.com) → **Create**
+2. Use **Custom** mode
+3. Paste the **Prompt** into the lyrics/description field
+4. Set the **Style of Music** tags listed for each track
+5. Generate, pick the best of the two options
+6. Download as **.wav** (Pro account: click download → select WAV)
 
-No code changes needed — BootScene already loads these paths and AudioManager
-auto-uses them with procedural fallback if any are missing.
+### Sound Effects (Sounds mode)
+1. Go to [suno.com](https://suno.com) → **Create**
+2. Click the **dropdown** at the top of Custom mode → select **Sounds**
+3. Paste the **Prompt** into the description field
+4. Set **Type** to **One Shot** (not Loop) for all SFX
+5. Leave BPM and Key blank for pure sound effects
+6. Generate, pick the best of the two options
+7. Download as **.wav**
+
+### Tips for Suno Sounds
+- Use specific vocabulary: "whoosh", "thunk", "crack", "sizzle", "rumble"
+- Specify duration explicitly (e.g., "0.3 seconds")
+- If results are too musical, add "no melody, no rhythm, pure sound effect"
+- Very short SFX (<0.2s) may be hard — try [jsfxr.app](https://sfxr.me) as backup
+- You get two options per generation — try 2-3 generations per sound to find the best
 
 ---
 
-## Music Tracks (5)
+## File Drop Location
 
-### 1. Menu Theme → `music/menu-theme.mp3`
+Download all files as **.wav** and drop them here:
+
+```
+game/public/assets/audio/source/music/       ← music .wav files
+game/public/assets/audio/source/sfx/          ← SFX .wav files
+```
+
+Claude will then convert to mp3 (128kbps) and place the final files in:
+```
+game/public/assets/audio/music/<filename>.mp3   ← BootScene loads these
+game/public/assets/audio/sfx/<filename>.mp3     ← BootScene loads these
+```
+
+**Prerequisite**: `sudo apt-get install -y ffmpeg` (needed for wav→mp3 conversion)
+
+### Naming Convention
+
+When downloading from Suno, rename the files to match exactly:
+
+**Music files** (drop in `source/music/`):
+- `menu-theme.wav`
+- `gameplay-calm.wav`
+- `gameplay-intense.wav`
+- `victory.wav`
+- `gameover.wav`
+
+**SFX files** (drop in `source/sfx/`):
+- `tower-place.wav`
+- `cannon-fire.wav`
+- `frost-fire.wav`
+- `tesla-fire.wav`
+- `mortar-fire.wav`
+- `poison-fire.wav`
+- `aura-hum.wav`
+- `creep-death-01.wav`
+- `creep-death-02.wav`
+- `creep-death-03.wav`
+- `creep-escape.wav`
+- `wave-complete.wav`
+- `boss-death.wav`
+- `victory-fanfare.wav`
+- `game-over.wav`
+- `ui-click.wav`
+
+---
+
+## Music Tracks (5) — Use Song/Custom Mode
+
+### 1. Menu Theme → `menu-theme.wav`
 
 **Prompt:**
 ```
@@ -25,12 +88,12 @@ contemplative and grounding. Natural reverb like an open forest clearing.
 Minor pentatonic scale. Seamless loop. 2 minutes.
 ```
 
-**Style tags:** Ambient, World Music, Indigenous Flute, Cinematic
+**Style of Music:** Ambient, World Music, Indigenous Flute, Cinematic
 **Duration:** 2:00–2:30
 
 ---
 
-### 2. Gameplay Calm → `music/gameplay-calm.mp3`
+### 2. Gameplay Calm → `gameplay-calm.wav`
 
 **Prompt:**
 ```
@@ -40,12 +103,12 @@ wooden percussion layers — log drum, seed rattle. Builds slightly but stays
 understated. Must loop seamlessly. Not distracting. 3 minutes.
 ```
 
-**Style tags:** Ambient, World Music, Game Soundtrack, Rhythmic
+**Style of Music:** Ambient, World Music, Game Soundtrack, Rhythmic
 **Duration:** 3:00–3:30
 
 ---
 
-### 3. Gameplay Intense / Boss → `music/gameplay-intense.mp3`
+### 3. Gameplay Intense / Boss → `gameplay-intense.wav`
 
 **Prompt:**
 ```
@@ -55,12 +118,12 @@ war-drum urgency. Deep bass drum hits on downbeats. Shaker rattles driving
 sixteenth notes. Cinematic battle tension. Seamless loop. 2 minutes.
 ```
 
-**Style tags:** Cinematic, Tribal Drums, Intense, Battle Music
+**Style of Music:** Cinematic, Tribal Drums, Intense, Battle Music
 **Duration:** 2:00–2:30
 
 ---
 
-### 4. Victory → `music/victory.mp3`
+### 4. Victory → `victory.wav`
 
 **Prompt:**
 ```
@@ -70,12 +133,12 @@ Feeling of earned achievement and community celebration. Resolves on a
 satisfying major chord. 30 seconds.
 ```
 
-**Style tags:** Cinematic, Triumphant, World Music, Celebration
+**Style of Music:** Cinematic, Triumphant, World Music, Celebration
 **Duration:** 0:25–0:40
 
 ---
 
-### 5. Game Over → `music/gameover.mp3`
+### 5. Game Over → `gameover.wav`
 
 **Prompt:**
 ```
@@ -84,40 +147,36 @@ Minimal accompaniment — just breath and wood. Fading like dying embers.
 Gentle, not harsh. Pentatonic minor. Ends with silence. 20 seconds.
 ```
 
-**Style tags:** Ambient, Melancholic, Solo Flute, Cinematic
+**Style of Music:** Ambient, Melancholic, Solo Flute, Cinematic
 **Duration:** 0:20–0:30
 
 ---
 
-## Sound Effects (16)
+## Sound Effects (16) — Use Sounds Mode (One Shot)
 
-### Tower Placement → `sfx/tower-place.mp3`
+To access: Create → Custom dropdown → **Sounds** → Type: **One Shot**
 
-**Prompt:**
-```
-Short wooden thunk sound. Heavy log being placed on soft earth. Deep and
-satisfying. Single hit, no reverb tail. 0.5 seconds.
-```
-
-**Style tags:** Sound Effect, Foley, Wood Impact
-**Duration:** <1s
-
----
-
-### Cannon Fire → `sfx/cannon-fire.mp3`
+### Tower Placement → `tower-place.wav`
 
 **Prompt:**
 ```
-Deep stone cannon blast. Heavy thud with a crack. Like a boulder launched
-from a wooden catapult. Short punchy impact. 0.3 seconds.
+Heavy wooden thunk. Log placed on soft earth. Deep satisfying single hit.
+No reverb tail. 0.5 seconds.
 ```
-
-**Style tags:** Sound Effect, Impact, Explosion
-**Duration:** <0.5s
 
 ---
 
-### Frost Fire → `sfx/frost-fire.mp3`
+### Cannon Fire → `cannon-fire.wav`
+
+**Prompt:**
+```
+Deep stone cannon blast. Heavy thud with a crack. Boulder launched from
+wooden catapult. Short punchy impact. 0.3 seconds.
+```
+
+---
+
+### Frost Fire → `frost-fire.wav`
 
 **Prompt:**
 ```
@@ -125,193 +184,159 @@ Icy crystalline burst. High-pitched shimmering crack like breaking thin ice.
 Sparkle and frost. Brief and sharp. 0.3 seconds.
 ```
 
-**Style tags:** Sound Effect, Ice, Magic, Crystal
-**Duration:** <0.5s
-
 ---
 
-### Tesla Fire → `sfx/tesla-fire.mp3`
+### Tesla Fire → `tesla-fire.wav`
 
 **Prompt:**
 ```
 Electric zap. Sharp buzzing lightning crack. Quick electrical discharge with
-a sizzle tail. Like a static shock amplified. 0.3 seconds.
+sizzle tail. Static shock amplified. 0.3 seconds.
 ```
-
-**Style tags:** Sound Effect, Electric, Lightning, Zap
-**Duration:** <0.5s
 
 ---
 
-### Mortar Fire → `sfx/mortar-fire.mp3`
+### Mortar Fire → `mortar-fire.wav`
 
 **Prompt:**
 ```
-Low heavy thump. Deep bass mortar launch like a hollow log being struck hard
-from inside. Muffled boom with slight whoosh. 0.4 seconds.
+Low heavy thump. Deep bass mortar launch. Hollow log struck hard from inside.
+Muffled boom with slight whoosh. 0.4 seconds.
 ```
-
-**Style tags:** Sound Effect, Explosion, Deep Impact, Launch
-**Duration:** <0.5s
 
 ---
 
-### Poison Fire → `sfx/poison-fire.mp3`
+### Poison Fire → `poison-fire.wav`
 
 **Prompt:**
 ```
-Wet bubbling hiss. Like a poison vial shattering on stone. Brief acidic
-sizzle with a squelch. Organic and toxic sounding. 0.3 seconds.
+Wet bubbling hiss. Poison vial shattering on stone. Brief acidic sizzle
+with squelch. Organic and toxic. 0.3 seconds.
 ```
-
-**Style tags:** Sound Effect, Liquid, Poison, Organic
-**Duration:** <0.5s
 
 ---
 
-### Aura Hum → `sfx/aura-hum.mp3`
+### Aura Hum → `aura-hum.wav`
 
 **Prompt:**
 ```
-Soft mystical hum. Gentle resonant tone like wind through a hollow log.
-Warm and steady. Subtle harmonic overtones. Fades in and out softly.
-1 second.
+Soft mystical hum. Gentle resonant tone like wind through hollow log.
+Warm and steady. Subtle harmonic overtones. Fades softly. 1 second.
 ```
-
-**Style tags:** Sound Effect, Ambient, Magic, Resonance
-**Duration:** ~1s
 
 ---
 
-### Creep Death 01 → `sfx/creep-death-01.mp3`
+### Creep Death 01 → `creep-death-01.wav`
 
 **Prompt:**
 ```
-Quick creature defeat sound. Short descending squeak-pop. Tiny and
-cartoonish. Like a small creature popping. 0.2 seconds.
+Quick creature defeat. Short descending squeak-pop. Tiny cartoonish.
+Small creature popping. 0.3 seconds.
 ```
-
-**Style tags:** Sound Effect, Game SFX, Creature, Pop
-**Duration:** <0.3s
 
 ---
 
-### Creep Death 02 → `sfx/creep-death-02.mp3`
+### Creep Death 02 → `creep-death-02.wav`
 
 **Prompt:**
 ```
-Creature defeat variant. Brief crunch-splat. Slightly different pitch from
-variant 01. Small and quick. Cartoonish. 0.2 seconds.
+Creature defeat variant. Brief crunch-splat. Different pitch. Small quick
+cartoonish impact. 0.3 seconds.
 ```
-
-**Style tags:** Sound Effect, Game SFX, Creature, Crunch
-**Duration:** <0.3s
 
 ---
 
-### Creep Death 03 → `sfx/creep-death-03.mp3`
+### Creep Death 03 → `creep-death-03.wav`
 
 **Prompt:**
 ```
-Creature defeat variant. Quick fizz-poof. Like a small spirit dissipating.
-Airy and light. Different character from variants 01 and 02. 0.2 seconds.
+Creature defeat variant. Quick fizz-poof. Small spirit dissipating.
+Airy and light. 0.3 seconds.
 ```
-
-**Style tags:** Sound Effect, Game SFX, Creature, Poof
-**Duration:** <0.3s
 
 ---
 
-### Creep Escape → `sfx/creep-escape.mp3`
+### Creep Escape → `creep-escape.wav`
 
 **Prompt:**
 ```
-Negative alert sound. Descending tone, like something slipping away.
-Slightly alarming but not harsh. Wooden wind-down. 0.5 seconds.
+Negative alert. Descending tone, something slipping away. Slightly alarming
+but not harsh. Wooden wind-down. 0.5 seconds.
 ```
-
-**Style tags:** Sound Effect, Alert, Negative, Descending
-**Duration:** <0.6s
 
 ---
 
-### Wave Complete → `sfx/wave-complete.mp3`
+### Wave Complete → `wave-complete.wav`
 
 **Prompt:**
 ```
-Positive three-note ascending chime. Wooden xylophone or log drum hitting
-three rising notes. Bright and rewarding. Clean and short. 0.8 seconds.
+Positive three-note ascending chime. Wooden xylophone or log drum.
+Three rising notes. Bright and rewarding. Clean short. 0.8 seconds.
 ```
-
-**Style tags:** Sound Effect, Chime, Positive, Achievement
-**Duration:** <1s
 
 ---
 
-### Boss Death → `sfx/boss-death.mp3`
+### Boss Death → `boss-death.wav`
 
 **Prompt:**
 ```
-Heavy dramatic impact sequence. Three deep hits — boom boom BOOM — each
-bigger than the last. Reverberant. Earth-shaking. Like a great tree falling.
-Echoing aftermath. 1.5 seconds.
+Heavy dramatic impact sequence. Three deep hits — boom boom BOOM — each bigger.
+Reverberant earth-shaking. Great tree falling. Echoing aftermath. 1.5 seconds.
 ```
-
-**Style tags:** Sound Effect, Epic Impact, Boss Defeat, Dramatic
-**Duration:** 1–2s
 
 ---
 
-### Victory Fanfare → `sfx/victory-fanfare.mp3`
+### Victory Fanfare → `victory-fanfare.wav`
 
 **Prompt:**
 ```
-Short triumphant fanfare sting. Wooden flute plays a quick ascending
-celebratory phrase. Hand drum accent on the final beat. Joyful and punchy.
-2 seconds.
+Short triumphant fanfare sting. Wooden flute quick ascending celebratory phrase.
+Hand drum accent on final beat. Joyful punchy. 2 seconds.
 ```
-
-**Style tags:** Sound Effect, Fanfare, Triumph, Celebration
-**Duration:** 1.5–2.5s
 
 ---
 
-### Game Over → `sfx/game-over.mp3`
+### Game Over SFX → `game-over.wav`
 
 **Prompt:**
 ```
-Somber descending four-note phrase. Low wooden flute, slow and mournful.
-Each note lower and quieter than the last. Fades to silence. 2 seconds.
+Somber descending four-note phrase. Low wooden flute, slow mournful.
+Each note lower and quieter. Fades to silence. 2 seconds.
 ```
-
-**Style tags:** Sound Effect, Game Over, Somber, Descending
-**Duration:** 1.5–2.5s
 
 ---
 
-### UI Click → `sfx/ui-click.mp3`
+### UI Click → `ui-click.wav`
 
 **Prompt:**
 ```
-Crisp wooden click. Like two small sticks tapping together. Bright, clean,
-instant. No tail. Perfect for button press feedback. 0.1 seconds.
+Crisp wooden click. Two small sticks tapping together. Bright clean instant.
+No tail. Button press feedback. 0.1 seconds.
 ```
-
-**Style tags:** Sound Effect, UI, Click, Wood
-**Duration:** <0.15s
 
 ---
 
-## Tips for Suno
+## Post-Download Processing
 
-- **Looping music**: After downloading, test loops by playing the track twice
-  back-to-back. If there's a gap or jarring transition, try regenerating or
-  trim the silence from start/end with Audacity.
-- **SFX length**: Suno tends to generate longer clips. You may need to trim
-  SFX down to the specified duration using Audacity or ffmpeg:
-  `ffmpeg -i input.mp3 -t 0.5 -af "afade=t=out:st=0.3:d=0.2" output.mp3`
-- **File size target**: Keep total audio payload under 10 MB (compressed mp3).
-  Music tracks at 128kbps: ~2MB for 2min, ~3MB for 3min.
-- **Format**: mp3 is fine (Suno default). The system handles mp3 natively.
-- **If Suno can't do short SFX well**: Consider using sfxr.me or jsfxr.app
-  for the very short effects (<0.5s) and Suno for the longer musical pieces.
+Once wav files are dropped in `source/`, Claude will run:
+
+```bash
+# Music: convert to 128kbps mp3
+ffmpeg -i source/music/menu-theme.wav -b:a 128k music/menu-theme.mp3
+
+# SFX: convert, trim silence, normalize volume
+ffmpeg -i source/sfx/cannon-fire.wav -af "silenceremove=1:0:-50dB,loudnorm" -b:a 128k sfx/cannon-fire.mp3
+```
+
+### Size Budget
+- Target: < 10 MB total (all audio combined)
+- Music at 128kbps: ~1 MB/min
+- SFX at 128kbps: negligible (< 50 KB each)
+- 5 music tracks (~8 min total) + 16 SFX = ~8-9 MB estimated
+
+### If Suno Sounds Doesn't Work Well for Short SFX
+
+Backup options for very short effects (<0.3s):
+- **[jsfxr.app](https://sfxr.me)** — browser-based retro SFX generator, export as wav
+- **[Freesound.org](https://freesound.org)** — CC-licensed sound library
+- Keep using the existing procedural WebAudio synthesis (it works, just less polished)
