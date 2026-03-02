@@ -1,7 +1,7 @@
 ---
 id: TASK-082
 title: Arrow Tower -- Cheap Air+Ground Tower with Damage Cap
-status: pending
+status: done
 priority: critical
 phase: feature
 category: backend

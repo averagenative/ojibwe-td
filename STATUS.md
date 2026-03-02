@@ -1,82 +1,173 @@
 # Ojibwe TD — Status
 
 > Quick-start doc for resuming work. Read this first each session.
+> Last updated: March 2, 2026
 
 ---
 
-## Where We Are
+## Project Summary
 
-| Phase | Title | Status |
-|-------|-------|--------|
-| 1 | Project Scaffold | done |
-| 2 | Walking Skeleton | done |
-| 3 | Core TD Loop | done |
-| 4 | Tower Archetypes (all 6) | done |
-| 5 | Wave System (20 waves, scaling) | done |
-| **6** | **Tower Upgrade Trees** | **next** |
-| 7 | Roguelike Offer Layer | pending |
-| 8 | Run Loop & Game States | pending |
-| 9 | Meta-Progression | pending |
-| 10 | Second Map | pending |
-| 11 | Polish & Balance | pending |
+**57 tasks completed** | **31 pending** | **2 in-progress** | **106 health-check items**
+**Completion rate:** 65% (feature/bugfix tasks)
 
-**Current task file:** `tasks/backend/pending/phase-6-tower-upgrades.md`
+---
+
+## Currently In-Progress
+
+| Task | Priority | Status |
+|------|----------|--------|
+| TASK-082: Arrow Tower — Cheap Air+Ground with Damage Cap | critical | orchestrator working |
+| TASK-089: Arrow Tower Assets — Icon, Projectile, Gear Icons | critical | orchestrator working |
+
+**Orchestrator running** — parallel mode, 2 workers, continuous loop
+
+---
+
+## Pending Queue (31 tasks)
+
+### Critical
+| Task | File |
+|------|------|
+| Arrow Tower (TASK-082) | `tasks/backend/pending/arrow-tower.md` |
+| Arrow Tower Assets (TASK-089) | `tasks/frontend/pending/arrow-tower-assets.md` |
+
+### High (8)
+| Task | File |
+|------|------|
+| Audio Settings UI — Music/SFX Volume & Toggle | `tasks/backend/pending/audio-settings-ui.md` |
+| Boss Loot Timing & Post-Wave UI Sequencing | `tasks/backend/pending/post-wave-ui-sequencing.md` |
+| Crystal Sink Expansion | `tasks/backend/pending/crystal-sink-expansion.md` |
+| Desktop Drag-to-Place | `tasks/backend/pending/desktop-drag-placement.md` |
+| Fix All Region/Stage Crystal Unlocks | `tasks/backend/pending/niizh-miikana-map-unlock.md` |
+| Mobile Menu Layout Audit | `tasks/frontend/pending/mobile-menu-layout-audit.md` |
+| Creep Walking Animations | `tasks/frontend/pending/creep-walking-animations.md` |
+| Tower Idle & Attack Animations | `tasks/frontend/pending/tower-idle-attack-animations.md` |
+
+### Medium (14)
+| Task | File |
+|------|------|
+| Colorblind Accessibility | `tasks/backend/pending/colorblind-accessibility.md` |
+| Commander Idle Animations | `tasks/frontend/pending/commander-idle-animations.md` |
+| Commander Portrait Icons | `tasks/frontend/pending/commander-portraits.md` |
+| Elder Portraits & Dialog | `tasks/frontend/pending/elder-portraits-dialog.md` |
+| Expanded Offer Pool | `tasks/frontend/pending/expanded-offer-pool.md` |
+| Gear & Tower Icons for Equipment UI | `tasks/frontend/pending/gear-and-tower-icons.md` |
+| Map Ambient VFX | `tasks/frontend/pending/map-ambient-vfx.md` |
+| Map Environment Artifacts | `tasks/frontend/pending/map-environment-artifacts.md` |
+| Menu Screen Polish | `tasks/frontend/pending/menu-screen-polish.md` |
+| Meta Screen Ambiance | `tasks/frontend/pending/meta-screen-ambiance.md` |
+| Mobile App Publishing Plan | `tasks/frontend/pending/mobile-app-publishing-plan.md` |
+| Moon Rating Visual Fix | `tasks/frontend/pending/moon-rating-visual-fix.md` |
+| Story Cutscene System | `tasks/frontend/pending/story-cutscene-system.md` |
+| Creep Visual Variety | `tasks/frontend/pending/creep-visual-variety.md` |
+
+### Low (3)
+| Task | File |
+|------|------|
+| Ojibwe TD Logo | `tasks/frontend/pending/ojibwe-td-logo.md` |
+| Tower Sell Rubble | `tasks/frontend/pending/tower-sell-rubble.md` |
+| Wildlife Ambient Critters | `tasks/frontend/pending/wildlife-ambient-critters.md` |
+
+### Unset Priority (5)
+| Task | File |
+|------|------|
+| Ascension System | `tasks/backend/pending/ascension-system.md` |
+| Balance Pass — DPS & Economy | `tasks/backend/pending/balance-pass.md` |
+| Health Check Triage | `tasks/backend/pending/health-triage.md` |
+| Ojibwe Tower Icons | `tasks/frontend/pending/ojibwe-tower-icons.md` |
+| Seeded RNG | `tasks/backend/pending/seeded-rng.md` |
+
+---
+
+## Completed Tasks (57)
+
+All phases 1–11 complete. Major shipped features include:
+- Core TD loop, 6 tower archetypes, upgrade trees, targeting & behavior controls
+- Roguelike offer layer (52+ offers), run loop, meta-progression
+- 5 maps across 4 regions, dual entrance map, endless mode
+- Commander system, story/lore, boss waves, air combat
+- Deep progression (loot, gear, enhancements), challenges
+- Mobile-responsive layout, session persistence, keyboard shortcuts
+- Audio system (procedural + file-based), visual effects
+- Security audit, performance optimization, codex notifications
 
 ---
 
 ## Quick Commands
 
 ```bash
-# Run next pending task end-to-end (implement → review → ship)
+# Parallel orchestrator (2 workers, continuous loop)
 cd /home/dmichael/projects/greentd
-./orchestrator.sh
+bash parallel-orchestrator.sh -n 2
 
-# Run a specific task file
-./orchestrator.sh --task tasks/backend/pending/phase-6-tower-upgrades.md
+# Pause / resume / stop orchestrator
+touch .orch_pause          # pause after current batch
+rm .orch_pause             # resume
+touch .orch_stop           # clean stop after current batch
 
-# Resume after a Ctrl-C, terminal close, or quota interruption
-./orchestrator.sh --resume
+# Dev server
+cd game && npx vite --host 0.0.0.0 --port 3000
 
-# Start the dev server
-cd game && npm run dev
-
-# Type-check only
+# Quality checks
 cd game && npm run typecheck
-
-# Run tests
 cd game && npm run test
+cd game && npm run check       # typecheck + test
 ```
 
 ---
 
-## Resuming With Claude
+## Automation & Crons
 
-Just say one of these to orient quickly:
-
-- **"Read STATUS.md and let's work on phase 6"** — dive straight into implementation
-- **"Run the orchestrator on phase 6"** — hands-free agent pipeline
-- **"What's left in phase 6?"** — I'll read the task file and summarize open criteria
+- **Health Check** (`scripts/health-check.sh`): daily 2 AM — scans for stubs, placeholders, unsafe casts
+- **Agent Watchdog** (`scripts/agent-watchdog.sh`): every 5 min — detects/restarts stalled orchestrators
 
 ---
 
-## Key Architecture (phases 1-5)
+## Key Architecture
 
 ```
 game/src/
-├── scenes/         BootScene, MainMenuScene, GameScene
+├── scenes/         BootScene, MainMenuScene, GameScene, MetaMenuScene, etc.
 ├── entities/
-│   ├── towers/     Tower.ts (base class + TowerDef + CANNON_DEF, etc.)
-│   └── Projectile.ts
+│   ├── towers/     Tower.ts (base class + all tower defs)
+│   └── Projectile.ts, Creep.ts
 ├── systems/
-│   ├── WaveManager.ts     emits: creep-killed, creep-escaped, wave-complete
-│   └── UpgradeManager.ts  (stub — Phase 6 will flesh this out)
-├── data/           JSON defs: towers.json, waves.json, maps.json
-├── ui/             HUD.ts, TowerPanel.ts (PANEL_HEIGHT = 72px)
-└── meta/           SaveManager.ts (localStorage)
+│   ├── WaveManager.ts        emits: creep-killed, creep-escaped, wave-complete
+│   ├── UpgradeManager.ts     per-tower upgrade state, path lock, respec
+│   ├── AudioManager.ts       dual audio: procedural + file-based, singleton
+│   ├── MobileManager.ts      mobile detection singleton
+│   └── SessionManager.ts     auto-save to sessionStorage
+├── data/
+│   ├── towerDefs.ts          TowerDef constants (Phaser-free)
+│   ├── upgradeDefs.ts        3 paths × 5 tiers per tower
+│   ├── targeting.ts          pickTarget(), priorities, behavior toggles
+│   ├── stageDefs.ts          regions, stages, maps
+│   └── offerDefs.ts          52+ roguelike offers
+├── ui/             HUD, TowerPanel, UpgradePanel, BehaviorPanel
+└── meta/           SaveManager, unlockDefs, statBonusDefs
 ```
 
-HUD height: **48px** (top) | Tower panel: **72px** (bottom)
-Click filter: skip placement if `ptr.y < 48` or `ptr.y > height - 72`
+Audio assets expected at: `public/assets/audio/{music,sfx,ambient}/`
+(currently empty — Suno generation in progress)
+
+---
+
+## Orchestrator Notes
+
+### Parallel Orchestrator (`parallel-orchestrator.sh`)
+- Runs N tasks simultaneously in isolated git worktrees
+- 3 agents per task: implement → review (Opus) → ship
+- Ship phase serialised to avoid merge conflicts
+- Continuous loop until queue empty
+- API resilience: failed tasks reset to pending, 5-min cooldown after 3 consecutive failures
+
+### Single Orchestrator (`orchestrator.sh`)
+- Runs 1 task at a time: implement → review → ship
+- Checkpoint/resume via `.orch_checkpoint`
+
+### Model routing
+Tasks matching `story|lore|vignette|narrative|commander|character|codex|region|cultural`
+run on **claude-opus**. All others run on **claude-sonnet**.
 
 ---
 
@@ -84,31 +175,9 @@ Click filter: skip placement if `ptr.y < 48` or `ptr.y > height - 72`
 
 | File | Purpose |
 |------|---------|
-| `docs/JOURNEY.md` | Full decision log — why things are the way they are |
+| `docs/JOURNEY.md` | Full decision log |
 | `docs/game-design.md` | Tower archetypes, upgrade paths, wave design |
-| `docs/tech-stack.md` | Phaser 3 + TypeScript + Vite setup notes |
-| `openspec/changes/greentd-project/proposal.md` | Original design doc + business value |
+| `docs/review-checklist.md` | Orchestrator review gate checklist |
+| `NIGHTLY-REPORT-2026-03-02.md` | Latest overnight report |
+| `SUNO-PROMPTS.md` | Suno audio generation prompts |
 | `tasks/_template.md` | Format for new task files |
-
----
-
-## Orchestrator Notes
-
-`orchestrator.sh` runs 3 agents sequentially:
-1. **Implement** — reads task file, writes code, typechecks
-2. **Review** — diffs output, fixes bugs, writes Vitest unit tests
-3. **Ship** — moves task to `done/`, updates `JOURNEY.md`, commits + pushes
-
-On context/rate-limit hit it waits 90s and retries with `[RESUME]` semantics.
-Max 8 retries per agent.
-
-**Checkpoint / resume**: a `.orch_checkpoint` file is written at `$REPO_DIR`
-after each stage completes. If the process is killed at any point, run
-`./orchestrator.sh --resume` to skip already-completed stages and continue.
-
-**Model routing**: tasks whose filename or title matches
-`story|lore|vignette|narrative|commander|character|codex|region|cultural`
-automatically run on **claude-opus** for richer creative output.
-All other tasks run on the default **claude-sonnet** model.
-
-To run a task manually instead of via orchestrator, just tell me the task file path and we'll work through the acceptance criteria together.

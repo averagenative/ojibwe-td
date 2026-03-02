@@ -1601,6 +1601,55 @@ follow-up items.
 
 ---
 
+## Non-blocking: TASK-089 (Arrow Tower Assets) review findings
+
+*Added 2026-03-02 by code review.*
+
+1. **No upgrade paths for Arrow tower**: ARROW_DEF is added to `towerDefs.ts` and
+   `ALL_TOWER_DEFS`, but no entries exist in `upgradeDefs.ts` for arrow upgrade
+   trees (Path A/B/C). The task marks upgrade path visuals as optional, but the
+   arrow tower currently has no upgrade progression at all. A follow-up task
+   should define arrow upgrade paths (rapid fire / multi-shot / utility).
+
+2. **No legendary-tier arrow gear**: Arrow-fletching gear definitions range from
+   common through epic (6 items). Other tower types (e.g. cannon, frost) have
+   legendary gear. Consider adding a legendary arrow-fletching item for
+   late-game parity.
+
+3. **Missing `arrow-fire.mp3` audio file**: BootScene registers `sfx-arrow` →
+   `assets/audio/sfx/arrow-fire.mp3` but no such file exists on disk. This is
+   non-blocking because AudioManager gracefully falls back to procedural
+   synthesis, but a real audio sample would improve the experience. Generate or
+   source a short bow-release SFX.
+
+4. **`icon-arrow.png` is 16-bit RGBA (3.6 KB)**: Other tower icons are 8-bit
+   RGBA (1.1–1.7 KB). The arrow icon works fine but is ~2× larger than peers.
+   Running `pngquant` or re-generating with 8-bit depth in `gen_icons.py` would
+   halve the file size — purely cosmetic/bandwidth savings.
+
+## Non-blocking: TASK-082 (Arrow Tower — Upgrade Trees & Damage Cap) review findings
+
+*Added 2026-03-02 by code review (Opus).*
+
+1. **`towerEffectiveDPS()` does not account for arrow's `damageCap`**: The
+   `BalanceCalc.towerEffectiveDPS` function returns `stats.damage / interval`
+   without clamping to `towerDef.damageCap`. For the arrow tower, this can
+   overstate DPS at high upgrade tiers. Similarly, multi-shot (`multiShotCount`)
+   is not factored into the DPS calculation, which understates effective DPS when
+   Path B is invested. A follow-up should add arrow-specific DPS logic:
+   `Math.min(damage, cap) * (1 + multiShotCount) / interval`.
+
+2. **InventoryScene filter buttons don't include Arrow**: `FILTER_OPTIONS` in
+   `InventoryScene.ts` lists Cannon/Frost/Tesla/Mortar/Poison/Aura but not
+   Arrow. Once arrow-type gear items are added, a filter button should be
+   included for consistency.
+
+3. **TASK-089 item 1 (no upgrade paths) is now resolved**: The arrow upgrade
+   tree (3 paths x 5 tiers) was added in this task. Consider removing item 1
+   from the TASK-089 findings.
+
+---
+
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
 
 <!-- HEALTH_CHECK_START -->
