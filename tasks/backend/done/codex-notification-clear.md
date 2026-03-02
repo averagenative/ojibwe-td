@@ -1,7 +1,7 @@
 ---
 id: TASK-087
 title: Codex Notification Badge — Clear on View
-status: in-progress
+status: done
 priority: high
 phase: bugfix
 ---

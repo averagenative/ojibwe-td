@@ -1007,3 +1007,17 @@ The challenges list in `ChallengeSelectScene` previously clipped any cards that 
 **Scroll reset.** `create()` now calls `this.cameras.main.setScroll(0, 0)` and zeros all scroll-state fields before rebuilding the card list, so re-entering the scene always starts at the top.
 
 **Test coverage.** `challengesListScroll.test.ts` (42 tests, new) covers the scroll-state machine: initial state, wheel delta clamping, drag start/move/up momentum capture, friction decay convergence, `_maxScrollY` boundary clamping, thumb height proportionality, thumb Y-position tracking, and fade-gradient visibility toggling. Total: 1 389 tests passing, 0 type errors.
+
+### TASK-087 — Codex Notification Badge: Clear on View (2026-03-02)
+
+The Codex button on the main menu displayed a notification badge counting new entries, but opening the Codex never cleared it — the badge persisted indefinitely and became meaningless noise after the first visit.
+
+**SaveManager additions.** A new `readCodexIds: string[]` field was added to the `SaveData` interface and wired through `defaultSaveData()`, the validation/migration layer (`_parseSaveData`), and the serialisation path. Four new public methods were added: `isCodexRead(id)` checks whether a single entry has been viewed; `markCodexRead(id)` appends the id and persists (idempotent); `markAllCodexRead(unlockedIds)` bulk-marks a set of ids; and `getUnreadCodexCount(allEntries)` replaces the old `unlockedCount − defaultCount` heuristic with a precise count of entries that are either explicitly unlocked or default-unlocked but not yet present in `readCodexIds`. Saves are backwards-compatible: missing `readCodexIds` field defaults to `[]`.
+
+**CodexScene mark-on-view.** `showDetail()` now calls `save.markCodexRead(entry.id)` immediately when an entry is opened, then calls `refreshEntries()` to repaint the list. Entry tiles gain a visual read/unread distinction: unread entries retain the bright `#ccddcc` title with bold weight plus a small green dot (4px radius, 0x00ff44) in the top-right corner; read entries are downgraded to a quieter `#99aa99` with normal weight and no dot.
+
+**"Mark All Read" button.** A secondary button was added to the bottom bar of CodexScene, left of the existing BACK button. Clicking it calls `save.markAllCodexRead()` with all currently accessible entry ids and triggers a `refreshEntries()` repaint — giving players a one-click way to silence the badge without reading every entry individually.
+
+**MainMenuScene badge fix.** The badge calculation was replaced: instead of `unlockedCount − defaultCount`, it now calls `save.getUnreadCodexCount(ALL_CODEX_ENTRIES)`. When the count reaches zero the badge object is never created, so the circle and number disappear entirely until a new entry is unlocked.
+
+**Test coverage.** `codexReadState.test.ts` (17 tests) covers `isCodexRead`, `markCodexRead` idempotency, `markAllCodexRead` bulk behaviour, `getUnreadCodexCount` across unlocked-only, default-only, and mixed scenarios, and SaveManager serialisation round-trips for the new field. Total: 1 406 tests passing, 0 type errors.
