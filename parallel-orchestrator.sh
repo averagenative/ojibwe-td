@@ -267,6 +267,8 @@ worker() {
   fi
 
   state_write "$task_file" "claimed" "$wt_path" "$branch"
+  state_write "$task_file" "implementing" "$wt_path" "$branch"
+  show_worker_status
 
   # ── Agent 1: Implement ──────────────────────────────────────────────────────
   run_agent "implement" \
@@ -289,6 +291,8 @@ Steps
     "$wt_game" "$mdl" "$slug" || { state_write "$task_file" "failed" "$wt_path" "$branch"; echo "FAIL" > "$status_file"; cleanup_worker "$wt_path" "$branch"; return 1; }
 
   state_write "$task_file" "implement_done" "$wt_path" "$branch"
+  show_worker_status
+  state_write "$task_file" "reviewing" "$wt_path" "$branch"
 
   # ── Agent 2: Review (Opus) ──────────────────────────────────────────────────
   run_agent "review" \
@@ -315,6 +319,7 @@ Steps
     "$wt_game" "$REVIEW_MODEL" "$slug" || { state_write "$task_file" "failed" "$wt_path" "$branch"; echo "FAIL" > "$status_file"; cleanup_worker "$wt_path" "$branch"; return 1; }
 
   state_write "$task_file" "review_done" "$wt_path" "$branch"
+  show_worker_status
 
   # Signal success — main process will handle ship
   echo "OK:$wt_path:$branch:$task_file" > "$status_file"
@@ -341,6 +346,9 @@ ship_task() {
   hr
   log "=== SHIP: $title ==="
   hr
+
+  state_write "$task_file" "shipping" "$wt_path" "$branch"
+  show_worker_status
 
   run_agent "ship" \
 "You are finalising and shipping a completed feature for Ojibwe TD.
@@ -399,26 +407,127 @@ EOF
   "$REPO_DIR" "$DEFAULT_MODEL" "ship-$(basename "$task_file" .md | cut -c1-15)"
 
   state_write "$task_file" "shipped" "" ""
+  show_worker_status
 }
 
 # ── State file helpers ────────────────────────────────────────────────────────
 # Records per-task progress so the watchdog and --resume can pick up mid-run.
-# Format: one line per task — "task_file|stage|worktree|branch"
-# stage: claimed | implement_done | review_done | shipped | failed
+# Format: one line per task — "task_file|stage|worktree|branch|task_start|phase_start"
+# stage: claimed | implementing | implement_done | reviewing | review_done | shipping | shipped | failed
+# task_start: epoch when task was first claimed
+# phase_start: epoch when current phase began
 
 state_write() {
   local task_file="$1" stage="$2" wt="${3:-}" branch="${4:-}"
-  # Update or insert the line for this task
+  local now
+  now=$(date +%s)
+
+  # Preserve task_start from existing entry, or use now if new
+  local task_start="$now"
+  if [ -f "$PARALLEL_STATE_FILE" ]; then
+    local existing_start
+    existing_start=$(grep "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null | head -1 | cut -d'|' -f5)
+    [ -n "$existing_start" ] && task_start="$existing_start"
+  fi
+
   local tmp
   tmp=$(mktemp)
   grep -v "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null > "$tmp" || true
-  echo "${task_file}|${stage}|${wt}|${branch}" >> "$tmp"
+  echo "${task_file}|${stage}|${wt}|${branch}|${task_start}|${now}" >> "$tmp"
   mv "$tmp" "$PARALLEL_STATE_FILE"
 }
 
 state_clear() {
   rm -f "$PARALLEL_STATE_FILE"
   log "Parallel state cleared."
+}
+
+# ── Status display ───────────────────────────────────────────────────────────
+# Pretty-prints the current worker state with timestamps.
+
+fmt_elapsed() {
+  local secs="$1"
+  if [ "$secs" -ge 3600 ]; then
+    printf "%dh %02dm %02ds" $(( secs / 3600 )) $(( (secs % 3600) / 60 )) $(( secs % 60 ))
+  elif [ "$secs" -ge 60 ]; then
+    printf "%dm %02ds" $(( secs / 60 )) $(( secs % 60 ))
+  else
+    printf "%ds" "$secs"
+  fi
+}
+
+stage_emoji() {
+  case "$1" in
+    claimed)         echo "📋" ;;
+    implementing)    echo "🔨" ;;
+    implement_done)  echo "✅" ;;
+    reviewing)       echo "🔍" ;;
+    review_done)     echo "🚢" ;;
+    shipping)        echo "📦" ;;
+    shipped)         echo "🎉" ;;
+    failed)          echo "❌" ;;
+    *)               echo "❓" ;;
+  esac
+}
+
+stage_label() {
+  case "$1" in
+    claimed)         echo "claimed" ;;
+    implementing)    echo "implementing" ;;
+    implement_done)  echo "implemented" ;;
+    reviewing)       echo "reviewing" ;;
+    review_done)     echo "ready to ship" ;;
+    shipping)        echo "shipping" ;;
+    shipped)         echo "shipped" ;;
+    failed)          echo "failed" ;;
+    *)               echo "$1" ;;
+  esac
+}
+
+show_worker_status() {
+  [ -f "$PARALLEL_STATE_FILE" ] || return 0
+  local now
+  now=$(date +%s)
+
+  echo ""
+  log "────────────────────────────────────────"
+  log "Parallel worker state  $(date '+%Y-%m-%d %H:%M:%S')"
+  log "────────────────────────────────────────"
+
+  while IFS='|' read -r task_file stage wt branch task_start phase_start; do
+    [ -z "$task_file" ] && continue
+    local slug
+    slug=$(basename "$task_file" .md)
+    local emoji
+    emoji=$(stage_emoji "$stage")
+    local label
+    label=$(stage_label "$stage")
+
+    local total_elapsed=0 phase_elapsed=0
+    [ -n "$task_start" ] && [ "$task_start" -gt 0 ] 2>/dev/null && total_elapsed=$(( now - task_start ))
+    [ -n "$phase_start" ] && [ "$phase_start" -gt 0 ] 2>/dev/null && phase_elapsed=$(( now - phase_start ))
+
+    printf "[porch %s]   %s  %-38s %-16s (total: %s | phase: %s)\n" \
+      "$(date +%H:%M:%S)" \
+      "$emoji" "$slug" "$label" \
+      "$(fmt_elapsed $total_elapsed)" \
+      "$(fmt_elapsed $phase_elapsed)"
+
+    # Show changed files if worktree exists
+    if [ -n "$wt" ] && [ -d "$wt" ]; then
+      local file_count changed_files
+      changed_files=$(git -C "$wt" diff --name-only HEAD 2>/dev/null || true)
+      if [ -n "$changed_files" ]; then
+        file_count=$(echo "$changed_files" | wc -l)
+        printf "[porch %s]       %d file(s) changed:\n" "$(date +%H:%M:%S)" "$file_count"
+        echo "$changed_files" | while read -r f; do
+          printf "[porch %s]         %s\n" "$(date +%H:%M:%S)" "$f"
+        done
+      fi
+    fi
+  done < "$PARALLEL_STATE_FILE"
+  log "────────────────────────────────────────"
+  echo ""
 }
 
 # ── Resume: clean up stale worktrees and re-run stuck tasks ──────────────────
@@ -547,6 +656,7 @@ main() {
 
     hr
     log "All workers launched — waiting for implement+review to complete…"
+    show_worker_status
     hr
 
     # Wait for all workers

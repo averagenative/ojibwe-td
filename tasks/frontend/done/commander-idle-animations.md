@@ -1,7 +1,7 @@
 ---
 id: TASK-056
 title: Commander Portrait Idle Animations — Breathing, Expressions, Life
-status: pending
+status: done
 priority: medium
 phase: polish
 ---
