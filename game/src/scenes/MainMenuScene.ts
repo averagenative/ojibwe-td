@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
+import { AudioManager } from '../systems/AudioManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
 import { ALL_CODEX_ENTRIES } from '../data/codexDefs';
 import {
@@ -95,6 +96,9 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Start menu music (no-op if the file buffer isn't loaded yet).
+    AudioManager.getInstance().startMusicTrack('music-menu');
+
     const { width, height } = this.scale;
     const cx = width / 2;
 

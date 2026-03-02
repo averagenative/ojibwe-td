@@ -1,9 +1,20 @@
 /**
- * AudioManager — procedural WebAudio sound effects and background music.
+ * AudioManager — procedural WebAudio sound effects and background music,
+ * with optional file-based audio layer that is preferred when available.
  *
  * Singleton. Degrades gracefully when AudioContext is unavailable (old browsers,
  * server-side test environments). All audio is generated procedurally via
  * OscillatorNode + GainNode + BiquadFilterNode chains — no audio files required.
+ *
+ * File-based audio layer (Phase 3):
+ *   Call `registerBuffer(key, arrayBuffer)` to pre-decode an audio file. Once
+ *   registered, play methods automatically prefer the decoded buffer over
+ *   procedural synthesis. Missing buffers → transparent procedural fallback.
+ *
+ * Music tracks:
+ *   `startMusicTrack(key, fadeMs?)` — start a named file-based track with
+ *   optional crossfade. `startMusic()` tries 'music-gameplay' buffer first,
+ *   then falls back to the procedural arpeggio.
  *
  * Phaser-free — can be accessed from any scene or system.
  */
@@ -25,6 +36,9 @@ const YELP_VARIANTS   = [
   [420, 720, 340],
   [260, 500, 210],
 ] as const;
+
+// Default crossfade duration for music track transitions
+const CROSSFADE_MS    = 800;
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 function clamp01(v: number): number {
@@ -48,11 +62,28 @@ export class AudioManager {
   private _musicVolume  = 0.3;
   private _muted        = false;
 
-  // Background music scheduler state.
+  // Background music scheduler state (procedural arpeggio).
   private _musicRunning    = false;
   private _musicNextNoteT  = 0;
   private _musicNoteIdx    = 0;
   private _musicTimerId:     ReturnType<typeof setTimeout> | null = null;
+
+  // ── File-based audio ──────────────────────────────────────────────────────
+
+  /** Pre-decoded AudioBuffers keyed by 'sfx-*' / 'music-*'. */
+  private _buffers: Map<string, AudioBuffer> = new Map();
+
+  /** Currently playing file-based music source (null if using procedural). */
+  private _fileMusicSource: AudioBufferSourceNode | null = null;
+
+  /**
+   * Per-track gain node used for crossfade (0 → 1 on start, 1 → 0 on stop).
+   * Connects to `musicGain` so that `setMusicVolume()` still applies.
+   */
+  private _fileMusicGain: GainNode | null = null;
+
+  /** Key of the currently playing file-based music track. */
+  private _fileMusicKey: string | null = null;
 
   private constructor() {
     this._initAudioContext();
@@ -83,7 +114,8 @@ export class AudioManager {
     if (!this.ctx) return;
 
     // Gain chain: [sfx nodes] → sfxGain ─┐
-    //             [music nodes] → musicGain ─┤→ masterGain → destination
+    //             [proc. music] → musicGain ─┤→ masterGain → destination
+    //             [file music] → _fileMusicGain → musicGain ─┘
     this.masterGain = this.ctx.createGain();
     this.sfxGain    = this.ctx.createGain();
     this.musicGain  = this.ctx.createGain();
@@ -152,10 +184,61 @@ export class AudioManager {
     this._persist();
   }
 
+  // ── File-based audio registration ─────────────────────────────────────────
+
+  /**
+   * Decode and register an audio file buffer.
+   *
+   * Call once per audio key (typically from BootScene after Phaser loads the
+   * file). Decoding is async; once resolved, the buffer is available for all
+   * play methods which will prefer it over procedural synthesis.
+   *
+   * @param key        AudioManager key, e.g. 'sfx-cannon', 'music-gameplay'
+   * @param arrayBuffer Raw audio data (e.g. from Phaser's audio cache)
+   */
+  async registerBuffer(key: string, arrayBuffer: ArrayBuffer): Promise<void> {
+    if (!this.ctx) return;
+    try {
+      // .slice(0) copies the buffer — some implementations detach the original
+      const decoded = await this.ctx.decodeAudioData(arrayBuffer.slice(0));
+      this._buffers.set(key, decoded);
+    } catch {
+      // Decode failed (unsupported codec, corrupt file, etc.) — procedural
+      // fallback remains active for this key.
+    }
+  }
+
+  /**
+   * Start a named file-based music track with an optional crossfade.
+   *
+   * If no buffer is registered for `key`, this is a no-op (silent — does NOT
+   * fall back to procedural arpeggio). Use `startMusic()` for the gameplay
+   * track with procedural fallback.
+   *
+   * If the same key is already playing, this is a no-op.
+   *
+   * @param key    AudioManager music key, e.g. 'music-menu', 'music-gameplay'
+   * @param fadeMs Crossfade duration in milliseconds (default 800 ms)
+   */
+  startMusicTrack(key: string, fadeMs = CROSSFADE_MS): void {
+    const buf = this._buffers.get(key);
+    if (!buf || !this.ctx || !this.musicGain) return;
+
+    // Same track already playing — no-op.
+    if (this._fileMusicKey === key && this._fileMusicSource) return;
+
+    // Stop procedural arpeggio if running.
+    this._stopMusic();
+
+    // Fade out and stop current file track (if any), then start new track.
+    this._crossfadeToTrack(buf, key, fadeMs);
+  }
+
   // ── Sound effects ─────────────────────────────────────────────────────────
 
   /** Short woody "thunk" — played when a non-aura tower is placed. */
   playTowerPlaced(): void {
+    if (this._playBufferSfx('sfx-tower-place')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
     const t = ctx.currentTime;
@@ -180,18 +263,22 @@ export class AudioManager {
    */
   playProjectileFired(towerKey: string): void {
     switch (towerKey) {
-      case 'cannon': this._sfxCannon(); break;
-      case 'frost':  this._sfxFrost();  break;
-      case 'tesla':  this._sfxTesla();  break;
-      case 'mortar': this._sfxMortar(); break;
-      case 'poison': this._sfxPoison(); break;
-      case 'aura':   this._sfxAura();   break;
+      case 'cannon': if (this._playBufferSfx('sfx-cannon')) return; this._sfxCannon(); break;
+      case 'frost':  if (this._playBufferSfx('sfx-frost'))  return; this._sfxFrost();  break;
+      case 'tesla':  if (this._playBufferSfx('sfx-tesla'))  return; this._sfxTesla();  break;
+      case 'mortar': if (this._playBufferSfx('sfx-mortar')) return; this._sfxMortar(); break;
+      case 'poison': if (this._playBufferSfx('sfx-poison')) return; this._sfxPoison(); break;
+      case 'aura':   if (this._playBufferSfx('sfx-aura'))   return; this._sfxAura();   break;
       default: break;
     }
   }
 
   /** Creep killed — brief creature yelp, randomly selects from 3 variants. */
   playCreepKilled(): void {
+    const sfxKeys = ['sfx-creep-death-01', 'sfx-creep-death-02', 'sfx-creep-death-03'];
+    const pick = sfxKeys[Math.floor(Math.random() * sfxKeys.length)];
+    if (this._playBufferSfx(pick)) return;
+
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
     const t = ctx.currentTime;
@@ -216,6 +303,7 @@ export class AudioManager {
 
   /** Creep escaped — low descending negative tone. */
   playCreepEscaped(): void {
+    if (this._playBufferSfx('sfx-creep-escape')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
     const t = ctx.currentTime;
@@ -236,6 +324,7 @@ export class AudioManager {
 
   /** Wave complete — short 3-note ascending sting. */
   playWaveComplete(): void {
+    if (this._playBufferSfx('sfx-wave-complete')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
 
@@ -264,6 +353,7 @@ export class AudioManager {
 
   /** Boss death — low impact with decaying echoes. */
   playBossDeath(): void {
+    if (this._playBufferSfx('sfx-boss-death')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
 
@@ -297,6 +387,7 @@ export class AudioManager {
 
   /** Victory — ~3-second ascending fanfare sting. */
   playVictory(): void {
+    if (this._playBufferSfx('sfx-victory')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
 
@@ -330,6 +421,7 @@ export class AudioManager {
 
   /** Game over — descending minor line. */
   playGameOver(): void {
+    if (this._playBufferSfx('sfx-game-over')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
 
@@ -378,6 +470,7 @@ export class AudioManager {
 
   /** UI click — crisp high-frequency tick for buttons and tower selection. */
   playUiClick(): void {
+    if (this._playBufferSfx('sfx-ui-click')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
     const t = ctx.currentTime;
@@ -396,6 +489,24 @@ export class AudioManager {
   }
 
   // ── Private SFX helpers ───────────────────────────────────────────────────
+
+  /**
+   * Play a pre-decoded audio buffer as a one-shot SFX through the sfxGain bus.
+   * Returns `true` if the buffer was found and playback was started.
+   * Returns `false` if the buffer is not registered (caller should use
+   * procedural fallback).
+   */
+  private _playBufferSfx(key: string): boolean {
+    const buf = this._buffers.get(key);
+    if (!buf || !this.ctx || !this.sfxGain) return false;
+
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(this.sfxGain);
+    src.start();
+    src.onended = () => { src.disconnect(); };
+    return true;
+  }
 
   /** Low percussive drum hit — ground-wave incoming cue. */
   private _sfxWaveDrum(): void {
@@ -639,7 +750,7 @@ export class AudioManager {
     osc.onended = () => { osc.disconnect(); g.disconnect(); };
   }
 
-  // ── Background music ──────────────────────────────────────────────────────
+  // ── Background music (procedural arpeggio) ────────────────────────────────
 
   private _startMusic(): void {
     if (!this.ctx || this._musicRunning) return;
@@ -692,23 +803,104 @@ export class AudioManager {
     osc.onended = () => { osc.disconnect(); g.disconnect(); };
   }
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // ── File-based music helpers ───────────────────────────────────────────────
 
   /**
-   * Stop background music. Called when leaving a scene.
-   * The AudioContext remains open; music restarts on the next getInstance() call
-   * once the scene is re-entered.
+   * Internal: crossfade from the current file track to a new one.
+   * Fades out the old source over `fadeMs / 2` ms, then starts the new one
+   * with a fade-in over `fadeMs` ms.
    */
-  destroy(): void {
-    this._stopMusic();
+  private _crossfadeToTrack(
+    buf: AudioBuffer,
+    key: string,
+    fadeMs: number,
+  ): void {
+    if (!this.ctx || !this.musicGain) return;
+
+    const t     = this.ctx.currentTime;
+    const fadeS = Math.max(fadeMs / 1000, 0.01);
+
+    // Fade out the currently playing file track (if any).
+    if (this._fileMusicSource && this._fileMusicGain) {
+      const oldSrc  = this._fileMusicSource;
+      const oldGain = this._fileMusicGain;
+      const fadeOutS = fadeS * 0.5;
+      oldGain.gain.setValueAtTime(oldGain.gain.value, t);
+      oldGain.gain.linearRampToValueAtTime(0, t + fadeOutS);
+      oldSrc.stop(t + fadeOutS);
+      oldSrc.onended = () => { oldSrc.disconnect(); oldGain.disconnect(); };
+      // Clear references so stop/destroy don't double-stop.
+      this._fileMusicSource = null;
+      this._fileMusicGain   = null;
+      this._fileMusicKey    = null;
+    }
+
+    // Start the new track with a fade-in.
+    const src  = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop   = true;
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(1, t + fadeS);
+
+    // Route: src → gain (crossfade) → musicGain (volume) → masterGain
+    src.connect(gain);
+    gain.connect(this.musicGain);
+    src.start();
+
+    this._fileMusicSource = src;
+    this._fileMusicGain   = gain;
+    this._fileMusicKey    = key;
   }
 
   /**
-   * Restart background music. Call after destroy() when re-entering a scene.
-   * Safe to call multiple times (no-op if already running).
+   * Stop the currently playing file-based music track with an optional fade.
+   * @param fadeMs Fade-out duration in ms (0 = immediate stop)
+   */
+  private _stopFileMusicTrack(fadeMs = CROSSFADE_MS): void {
+    if (!this._fileMusicSource || !this._fileMusicGain || !this.ctx) return;
+
+    const src   = this._fileMusicSource;
+    const gain  = this._fileMusicGain;
+    const fadeS = Math.max(fadeMs / 1000, 0);
+    const t     = this.ctx.currentTime;
+
+    gain.gain.setValueAtTime(gain.gain.value, t);
+    gain.gain.linearRampToValueAtTime(0, t + fadeS);
+    src.stop(t + fadeS);
+    src.onended = () => { src.disconnect(); gain.disconnect(); };
+
+    this._fileMusicSource = null;
+    this._fileMusicGain   = null;
+    this._fileMusicKey    = null;
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  /**
+   * Stop background music (both procedural and file-based).
+   * Called when leaving a scene. The AudioContext remains open; music restarts
+   * on the next `startMusic()` call when the scene is re-entered.
+   */
+  destroy(): void {
+    this._stopMusic();
+    this._stopFileMusicTrack(0);
+  }
+
+  /**
+   * Restart background music. Call from GameScene.create() after destroy().
+   *
+   * Prefers the 'music-gameplay' file buffer if registered; otherwise falls
+   * back to the procedural A2-minor-pentatonic arpeggio. Safe to call multiple
+   * times (no-op if the correct music is already running).
    */
   startMusic(): void {
-    this._startMusic();
+    if (this._buffers.has('music-gameplay')) {
+      this.startMusicTrack('music-gameplay');
+    } else {
+      this._startMusic();
+    }
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
