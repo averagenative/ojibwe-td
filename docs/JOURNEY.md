@@ -783,3 +783,19 @@ Every map before this task had a single spawn point and a single exit — tower 
 **TerrainRenderer spawn markers.** `TerrainRenderer` was updated to render a spawn marker at the first waypoint of *every* path (not just path 0), so both entry points display the visual indicator on the minimap and in-game tile overlay. The existing single-path rendering path is unchanged.
 
 **Tests.** Fifty-two unit tests in `src/systems/__tests__/dualEntranceMap.test.ts` cover: `getWaypointPaths` normalisation (flat array wrapping, multi-path pass-through, edge cases); map-05 data integrity (id, name, tile dimensions, two-path structure, convergence at col 8 row 9, shared corridor to col 31, starting gold ≥ 125); stage registration (region membership, difficulty rating, affinity hint); unlock node existence, cost range, and stage-ID linkage; WaveManager alternation (creeps on path A then B then A again); boss always on path A; air creeps always on air waypoints; and single-path maps being wholly unaffected by the multi-path logic. All 913 tests pass; 0 type errors.
+
+---
+
+### TASK-045 — Stage Completion Moons — Performance Rating
+
+Every TD game does stars. Ojibwe TD does moons — *dibiki-giizis*, the night sun — fitting the Ojibwe night-sky aesthetic and standing apart visually. TASK-045 adds a 1–5 moon performance rating that is calculated at the end of every completed run, displayed on the victory screen, and persisted as a per-stage best in `SaveManager`.
+
+**Rating logic.** `src/systems/MoonRating.ts` exposes a single pure function `calculateMoons(livesLeft, maxLives, wavesCleared, totalWaves): number`. The thresholds are: 5 moons for full health and every wave cleared; 4 moons for losing at most 20% of lives with a full clear; 3 moons for losing at most 50% of lives with a full clear; 2 moons for any full clear; and 1 moon for clearing at least 75% of waves. The module is Phaser-free, depending only on primitive numbers, so it is trivially unit-testable and portable to any future UI layer.
+
+**Persistence.** `SaveManager` gained two new methods: `getStageMoons(stageId): number` and `setStageMoons(stageId, moons): void`. `setStageMoons` is idempotent in the "never regress" direction — it only writes when the new rating strictly exceeds the stored best. Moon data is stored under a `stageMoons` record in the save schema; the field is back-filled with an empty object for saves created before this change, so existing saves are not invalidated and no schema version bump was required.
+
+**Victory screen.** `GameOverScene` was extended to compute and display the moon rating whenever the player wins. A horizontal row of five moon symbols appears prominently — filled moons (🌕) for earned, empty moons (🌑) for unearned — followed by a flavour-text label: "Full Moon!" for 5, "Waxing Gibbous" for 4, "Half Moon" for 3, "Crescent" for 2, and "New Moon" for 1. When the run achieves a new personal best, a "New Best!" indicator is shown alongside the moon row so players get immediate feedback on improvement.
+
+**Main menu stage tile.** `MainMenuScene` reads `getStageMoons()` for each stage card and renders a compact moon row below the stage name. Stages that have never been completed show no moons at all — blank rather than a zero — so the absence of moons communicates "not yet attempted" rather than "failed".
+
+**Tests.** Twenty-nine unit tests in `src/systems/__tests__/MoonRating.test.ts` cover every rating threshold, boundary conditions (exact 20% and 50% life loss, exactly 75% waves), and edge cases (zero lives, zero waves). All 890 tests pass; 0 type errors.
