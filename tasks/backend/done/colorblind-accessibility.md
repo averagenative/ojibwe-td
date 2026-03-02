@@ -1,7 +1,7 @@
 ---
 id: TASK-062
 title: Colorblind Accessibility — Non-Color Indicators & Palette Options
-status: pending
+status: done
 priority: medium
 phase: polish
 ---

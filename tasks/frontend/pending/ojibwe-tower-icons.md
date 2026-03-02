@@ -20,12 +20,15 @@ visual culture — geometric patterns, natural imagery, and the six directional 
 ## Acceptance Criteria
 
 - [ ] `scripts/gen_icons.py` updated with six new SVG definitions replacing the placeholders:
-  - **Cannon** → Bow & Arrow icon (geometric bow shape, arrow pointing right)
+  - **Arrow** → Bow & Arrow icon (geometric bow shape, arrow pointing right)
   - **Frost** → Snowflake / Biboon (winter spirit) — 6-pointed geometric snowflake
-  - **Tesla** → Animikiikaa (Thunderbird) silhouette — stylised bird with lightning bolt wings
-  - **Mortar** → Stone / Earth — concentric circle with dot centre (earth/target symbol)
-  - **Poison** → Mashkiki (plant medicine) — stylised leaf or mushroom with spiral pattern
+  - **Thunder** (Tesla) → Animikiikaa (Thunderbird) silhouette — stylised bird with lightning bolt wings
+  - **Rock Hurler** (Cannon/Mortar) → Stone / Earth — concentric circle with dot centre, or large rock with crack lines
+  - **Poison** → Spider (Asabikeshiinh) — stylised spider icon, web motif, natural predator theme
   - **Aura** → Medicine Wheel — circle divided into 4 quadrants, each a directional colour
+
+  **Design direction**: Natural elements theme — animals, plants, weather, earth. Not mechanical/modern.
+  Spider for poison, thunderbird for lightning, snowflake for frost, stone for siege, bow for arrows.
 - [ ] Icons generated at 64×64px and 32×32px variants, saved to `converted_assets/`:
   - `icon-cannon.png`, `icon-frost.png`, `icon-tesla.png`, `icon-mortar.png`, `icon-poison.png`, `icon-aura.png`
 - [ ] `TowerPanel.ts` loads the new icons (verify asset key mappings are correct).

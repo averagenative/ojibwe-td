@@ -1840,6 +1840,48 @@ _Reviewed 2026-03-02_
   node height is larger (via `Math.max(NODE_H_COMPACT, 44)`). Since 60 > 44
   this is harmless today, but would break if the mobile nodeH ever exceeds 60.
 
+### TASK-062 — Colorblind Accessibility (non-blocking observations)
+
+- **Unicode icon rendering in Georgia font**: Badge icons (⛰ ✈ ☠ ⇅) rely on
+  Unicode characters that may render inconsistently across platforms. Georgia has
+  limited symbol coverage; on some systems ⛰ (U+26F0) may fall back to emoji or
+  a missing-glyph box. Consider adding a `fontFamily` with a symbol fallback
+  (e.g. `'Georgia, "Segoe UI Symbol", serif'`) or switching to small SVG/sprite
+  icons if field reports show rendering gaps.
+
+- **BADGE_LABEL['boss'] dead code in WaveBanner**: The `BADGE_LABEL` record
+  includes a `boss: '☠ BOSS'` entry, but boss waves route to
+  `_buildBossContent()` instead of the normal badge path. The entry is required
+  by the `Record<WaveAnnouncementInfo['waveType'], string>` type, so it's not
+  removable without a type change — just a note for future maintainers.
+
+- **_drawDashedRect per-frame overhead**: During placement mode,
+  `_drawDashedRect` issues ~16 beginPath/strokePath calls per frame. This is
+  acceptable for the short-lived placement interaction, but if placement mode
+  ever becomes persistent (e.g. a "build many" mode), consider caching the
+  dashed border as a RenderTexture.
+
+### TASK-056 Review Findings (Commander Idle Animations) — 2026-03-02
+
+Non-blocking items surfaced during code review:
+
+- **Nature particle drift direction**: All ambient particles drift upward
+  (`p.y -= delta * 0.02`). This looks correct for fire (embers rising) and
+  spirit (ethereal glow) but visually odd for nature leaves, which spawn at the
+  card top and float *up* off-screen. Consider adding a per-element drift
+  direction so nature leaves drift downward.
+
+- **Ambient particle allocation in update loop**: `_spawnAmbientParticle()`
+  creates a new `Phaser.GameObjects.Graphics` per particle. This is capped at
+  6 per card (36 total) and rate-limited, so it's fine for the selection screen.
+  If this pattern is reused in a 60fps gameplay scene, consider pre-allocating a
+  Graphics pool and recycling objects instead of `this.add.graphics()`.
+
+- **`CommanderAnimDef` imported but unused in scene**: `CommanderSelectScene.ts`
+  imports `CommanderAnimDef` as a type (used in the `CardAnimState` interface).
+  The `CommanderElement` type import is similarly used in `ELEMENT_COLORS`. Both
+  are correctly consumed — no issue, just noted for traceability.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)
