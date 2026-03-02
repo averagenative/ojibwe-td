@@ -14,8 +14,9 @@ export default defineConfig({
     },
   },
   build: {
-    target: 'es2022',
-    outDir: 'dist',
+    target:    'es2022',
+    outDir:    'dist',
+    sourcemap: false,  // do not expose source maps in production builds
   },
   test: {
     // Vitest config lives here alongside Vite config (zero extra config file)

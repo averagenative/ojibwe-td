@@ -13,6 +13,9 @@
 const SAVE_KEY     = 'ojibwe-td-save';
 const SCHEMA_VER   = 1;
 
+/** Maximum plausible currency a legitimate playthrough can accumulate. */
+export const MAX_CURRENCY = 999_999;
+
 /** Serialised gear data stored alongside the save. */
 export interface GearSaveData {
   inventory: GearSaveItem[];
@@ -70,6 +73,13 @@ interface SaveData {
   commanderXp:    CommanderXpData;
   /** Challenge map weekly featured ID (rotates weekly). */
   challengeWeek:  string;
+
+  /**
+   * djb2 checksum of the serialised save data (excluding this field).
+   * Used to detect casual manual tampering via browser DevTools.
+   * Optional so old saves without the field still load gracefully.
+   */
+  _checksum?: string;
 }
 
 function defaultSaveData(): SaveData {
@@ -340,11 +350,24 @@ export class SaveManager {
         this._save(); // persist the reset
         return;
       }
-      // Back-fill fields added in later schema iterations (same version — no reset needed).
-      this.data = {
-        ...defaultSaveData(),
-        ...parsed,
-      };
+
+      // ── Tamper detection ──────────────────────────────────────────────────
+      // Verify the djb2 checksum if present (absent in saves written by older
+      // code — those load without warning to preserve backward compatibility).
+      if (parsed._checksum !== undefined) {
+        const { _checksum: storedCs, ...dataFields } = parsed;
+        const expectedCs = SaveManager._computeChecksum(JSON.stringify(dataFields));
+        if (storedCs !== expectedCs) {
+          this.lastWarning = 'Save data appears to have been modified outside the game.';
+          // Continue loading — we still apply the clamping pass below.
+        }
+      }
+
+      // ── Schema validation & sanitization ─────────────────────────────────
+      // Back-fill fields added in later schema iterations (same version — no
+      // reset needed) then clamp values to plausible ranges.
+      const merged: SaveData = { ...defaultSaveData(), ...parsed };
+      this.data = SaveManager._sanitize(merged);
     } catch {
       // Malformed JSON — start fresh
       this.data = defaultSaveData();
@@ -354,10 +377,103 @@ export class SaveManager {
   private _save(): void {
     if (!this.storageAvailable) return;
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(this.data));
+      // Compute checksum over the data fields only (exclude any existing _checksum).
+      const { _checksum: _old, ...dataFields } = this.data;
+      const cs = SaveManager._computeChecksum(JSON.stringify(dataFields));
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ ...dataFields, _checksum: cs }));
     } catch {
       this.lastWarning = 'Storage is full — progress may not be saved.';
     }
+  }
+
+  /**
+   * djb2 hash over an arbitrary string.  Returns an 8-char hex string.
+   * Not crypto-grade — intended solely for casual tamper detection.
+   */
+  private static _computeChecksum(s: string): string {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) {
+      h = Math.imul(h, 33) ^ s.charCodeAt(i);
+    }
+    // Convert to unsigned 32-bit, then hex.
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  /**
+   * Clamp / coerce loaded data fields to plausible ranges.
+   * Mutates nothing — returns a new object.
+   */
+  private static _sanitize(d: SaveData): SaveData {
+    // Currency must be a finite non-negative integer within the game's maximum.
+    const currency = typeof d.currency === 'number' && Number.isFinite(d.currency)
+      ? Math.max(0, Math.min(MAX_CURRENCY, Math.floor(d.currency)))
+      : 0;
+
+    // Unlocks must be an array of strings; non-strings are discarded.
+    const unlocks = Array.isArray(d.unlocks)
+      ? (d.unlocks as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+
+    // Audio volumes must be finite numbers in [0, 1].
+    const clampAudio = (v: unknown, def: number): number =>
+      typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : def;
+
+    const audioMaster = clampAudio(d.audioMaster, 1);
+    const audioSfx    = clampAudio(d.audioSfx, 1);
+    const audioMusic  = clampAudio(d.audioMusic, 0.3);
+    const audioMuted  = typeof d.audioMuted === 'boolean' ? d.audioMuted : false;
+
+    // Moon ratings must be integers 1–5.
+    const stageMoons: Record<string, number> = {};
+    if (d.stageMoons && typeof d.stageMoons === 'object') {
+      for (const [k, v] of Object.entries(d.stageMoons)) {
+        if (typeof v === 'number' && v >= 1 && v <= 5) {
+          stageMoons[k] = Math.floor(v);
+        }
+      }
+    }
+
+    // Endless records must be non-negative integers.
+    const endlessRecords: Record<string, number> = {};
+    if (d.endlessRecords && typeof d.endlessRecords === 'object') {
+      for (const [k, v] of Object.entries(d.endlessRecords)) {
+        if (typeof v === 'number' && v >= 0) {
+          endlessRecords[k] = Math.floor(v);
+        }
+      }
+    }
+
+    // String-array fields: filter to strings only (same treatment as unlocks).
+    const seenVignetteIds = Array.isArray(d.seenVignetteIds)
+      ? (d.seenVignetteIds as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+    const unlockedCodexIds = Array.isArray(d.unlockedCodexIds)
+      ? (d.unlockedCodexIds as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+
+    // Simple string fields: coerce to string with defaults.
+    const lastPlayedStage = typeof d.lastPlayedStage === 'string'
+      ? d.lastPlayedStage
+      : defaultSaveData().lastPlayedStage;
+    const challengeWeek = typeof d.challengeWeek === 'string'
+      ? d.challengeWeek
+      : '';
+
+    return {
+      ...d,
+      currency,
+      unlocks,
+      audioMaster,
+      audioSfx,
+      audioMusic,
+      audioMuted,
+      stageMoons,
+      endlessRecords,
+      seenVignetteIds,
+      unlockedCodexIds,
+      lastPlayedStage,
+      challengeWeek,
+    };
   }
 
   private static _testStorage(): boolean {
