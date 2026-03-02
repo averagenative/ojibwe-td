@@ -15,6 +15,15 @@
       <img src="/assets/ui/logo.png" alt="Ojibwe TD" id="logo" />
     </header>
     <div id="game-container"></div>
+
+    <!-- Portrait-mode overlay — only visible on mobile + portrait via CSS -->
+    <div id="rotate-prompt" aria-live="polite" role="alert">
+      <div class="rotate-content">
+        <div class="rotate-icon">⟳</div>
+        <p class="rotate-text">Rotate your device to play</p>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

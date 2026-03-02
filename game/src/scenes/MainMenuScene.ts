@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
+import { MobileManager } from '../systems/MobileManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
 import { ALL_CODEX_ENTRIES } from '../data/codexDefs';
 import {
@@ -91,6 +92,22 @@ export class MainMenuScene extends Phaser.Scene {
   private regionRowY = 0;
   private stageRowY  = 0;
 
+  // ── Mobile layout state ────────────────────────────────────────────────────
+  private _isMobile   = false;
+  /** Active region card height (scaled for mobile). */
+  private _regionH    = REGION_H;
+  /** Active stage card height (scaled for mobile). */
+  private _stageH     = STAGE_H;
+
+  /**
+   * Returns a CSS font-size string scaled up by 1.35× on mobile.
+   * Example: _fs(11) → '11px' on desktop, '15px' on mobile.
+   */
+  private _fs(size: number): string {
+    const s = this._isMobile ? Math.round(size * 1.35) : size;
+    return `${s}px`;
+  }
+
   constructor() {
     super({ key: 'MainMenuScene' });
   }
@@ -98,6 +115,11 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     // Start menu music (no-op if the file buffer isn't loaded yet).
     AudioManager.getInstance().startMusicTrack('music-menu');
+
+    // Mobile layout sizing — resolved once per scene create().
+    this._isMobile = MobileManager.getInstance().isMobile();
+    this._regionH  = this._isMobile ? 108 : REGION_H;
+    this._stageH   = this._isMobile ? 160 : STAGE_H;
 
     const { width, height } = this.scale;
     const cx = width / 2;
@@ -121,8 +143,8 @@ export class MainMenuScene extends Phaser.Scene {
     // Vertical flow: icons → label → regions → label → stage → buttons → footer
     const iconY  = TOP_PAD;
     const labelY = iconY + 28;
-    this.regionRowY = labelY + 16 + REGION_H / 2;
-    this.stageRowY  = this.regionRowY + REGION_H / 2 + 28 + STAGE_H / 2;
+    this.regionRowY = labelY + 16 + this._regionH / 2;
+    this.stageRowY  = this.regionRowY + this._regionH / 2 + 28 + this._stageH / 2;
 
     this.createBackground();
     this.createHeader(cx, iconY, labelY);
@@ -159,7 +181,7 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     this.add.text(cx, labelY, 'SELECT REGION', {
-      fontSize: '11px', color: PAL.textDim, fontFamily: PAL.fontBody,
+      fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION);
   }
 
@@ -182,29 +204,30 @@ export class MainMenuScene extends Phaser.Scene {
   private buildRegionTile(region: RegionDef, bx: number, by: number): void {
     const pal = SEASON_PALETTE[region.seasonalTheme];
 
-    const panel = makePanel(this, bx, by, REGION_W, REGION_H, DEPTH_REGION);
+    const rh = this._regionH;
+    const panel = makePanel(this, bx, by, REGION_W, rh, DEPTH_REGION);
     fillPanel(panel, R, pal.dim, pal.border, 1, 0.5);
     this.regionPanels.set(region.id, panel);
 
-    this.add.text(bx, by - 22, region.name, {
-      fontSize: '14px', color: pal.text, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    this.add.text(bx, by - rh * 0.25, region.name, {
+      fontSize: this._fs(14), color: pal.text, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     const parts = region.displayName.split('(');
     const english = parts[1] ? '(' + parts[1] : '';
     if (english) {
-      this.add.text(bx, by - 4, english, {
-        fontSize: '10px', color: PAL.textMuted, fontFamily: PAL.fontBody,
+      this.add.text(bx, by - rh * 0.04, english, {
+        fontSize: this._fs(10), color: PAL.textMuted, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
     }
 
     const stageCount = region.stages.length;
-    this.add.text(bx, by + 16, `${stageCount} stage${stageCount !== 1 ? 's' : ''}`, {
-      fontSize: '10px', color: PAL.textDim, fontFamily: PAL.fontBody,
+    this.add.text(bx, by + rh * 0.18, `${stageCount} stage${stageCount !== 1 ? 's' : ''}`, {
+      fontSize: this._fs(10), color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
-    this.add.text(bx, by + 30, region.seasonalTheme.toUpperCase(), {
-      fontSize: '9px', color: PAL.textFaint, fontFamily: PAL.fontBody,
+    this.add.text(bx, by + rh * 0.34, region.seasonalTheme.toUpperCase(), {
+      fontSize: this._fs(9), color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     panel.zone.on('pointerover', () => {
@@ -224,6 +247,8 @@ export class MainMenuScene extends Phaser.Scene {
     for (const [id, panel] of this.regionPanels) {
       const region = ALL_REGIONS.find(r => r.id === id)!;
       const pal    = SEASON_PALETTE[region.seasonalTheme];
+      // Rebuild panel dimensions to match current mobile height.
+      panel.h = this._regionH;
       if (id === regionId) {
         fillPanel(panel, R, pal.bg, pal.border, 2, 1.0);
       } else {
@@ -250,8 +275,8 @@ export class MainMenuScene extends Phaser.Scene {
   private createStageRow(cx: number): void {
     this.refreshStageTiles();
 
-    this.add.text(cx, this.stageRowY - STAGE_H / 2 - 16, 'SELECT STAGE', {
-      fontSize: '11px', color: PAL.textDim, fontFamily: PAL.fontBody,
+    this.add.text(cx, this.stageRowY - this._stageH / 2 - 16, 'SELECT STAGE', {
+      fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_STAGE);
   }
 
@@ -297,18 +322,19 @@ export class MainMenuScene extends Phaser.Scene {
     const bgColor = isLocked ? PAL.bgPanelLocked : PAL.bgPanel;
     const border  = isLocked ? PAL.borderLocked   : PAL.borderInactive;
 
-    const panel = makePanel(this, bx, by, STAGE_W, STAGE_H, DEPTH_STAGE, !isLocked);
+    const sh = this._stageH;
+    const panel = makePanel(this, bx, by, STAGE_W, sh, DEPTH_STAGE, !isLocked);
     fillPanel(panel, R, bgColor, border, 2);
     this.stagePanels.set(stage.id, panel);
     // don't push gfx/zone to created — handled by stagePanels cleanup
 
     const nameColor = isLocked ? PAL.textLocked : '#ffffff';
-    const nameText = this.add.text(bx, by - STAGE_H / 2 + 18, stage.name, {
-      fontSize: '16px', color: nameColor, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    const nameText = this.add.text(bx, by - sh / 2 + 18, stage.name, {
+      fontSize: this._fs(16), color: nameColor, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
     created.push(nameText);
 
-    const stars = this.buildDifficultyStars(bx, by - STAGE_H / 2 + 40, stage.difficulty, isLocked);
+    const stars = this.buildDifficultyStars(bx, by - sh / 2 + 40, stage.difficulty, isLocked);
     created.push(...stars);
 
     // Best moon rating row — only shown for unlocked stages that have been completed.
@@ -316,8 +342,8 @@ export class MainMenuScene extends Phaser.Scene {
       const bestMoons = SaveManager.getInstance().getStageMoons(stage.id);
       if (bestMoons > 0) {
         const moonRow = Array.from({ length: 5 }, (_, i) => moonSymbol(i, bestMoons)).join('');
-        const moonText = this.add.text(bx, by - STAGE_H / 2 + 53, moonRow, {
-          fontSize: '10px',
+        const moonText = this.add.text(bx, by - sh / 2 + 53, moonRow, {
+          fontSize: this._fs(10),
           fontFamily: PAL.fontBody,
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
         created.push(moonText);
@@ -326,7 +352,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     const descColor = isLocked ? PAL.textLockedDim : PAL.textDesc;
     const desc = this.add.text(bx, by - 4, stage.description, {
-      fontSize: '10px', color: descColor, fontFamily: PAL.fontBody,
+      fontSize: this._fs(10), color: descColor, fontFamily: PAL.fontBody,
       wordWrap: { width: STAGE_W - 24 }, align: 'center',
     }).setOrigin(0.5, 0).setDepth(DEPTH_STAGE + 1);
     created.push(desc);
@@ -337,31 +363,32 @@ export class MainMenuScene extends Phaser.Scene {
         : null;
       const cost = unlockNode?.cost ?? stage.unlockCost;
 
-      const lockLabel = this.add.text(bx, by + STAGE_H / 2 - 16,
+      const lockLabel = this.add.text(bx, by + sh / 2 - 16,
         `LOCKED  ${cost} crystals`, {
-          fontSize: '11px', color: PAL.textLockWarning, fontFamily: PAL.fontBody, fontStyle: 'bold',
+          fontSize: this._fs(11), color: PAL.textLockWarning, fontFamily: PAL.fontBody, fontStyle: 'bold',
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
       created.push(lockLabel);
 
       panel.zone.on('pointerup', () => this.scene.start('MetaMenuScene'));
     } else {
-      const dots = this.buildAffinityDots(bx, by + STAGE_H / 2 - 36, stage.towerAffinities);
+      const dots = this.buildAffinityDots(bx, by + sh / 2 - 36, stage.towerAffinities);
       created.push(...dots);
 
       const bestWave = SaveManager.getInstance().getEndlessRecord(stage.pathFile);
       if (bestWave > 0) {
-        const bestText = this.add.text(bx, by + STAGE_H / 2 - 14, `∞ Best: Wave ${bestWave}`, {
-          fontSize: '11px', color: PAL.accentBlue, fontFamily: PAL.fontBody,
+        const bestText = this.add.text(bx, by + sh / 2 - 14, `∞ Best: Wave ${bestWave}`, {
+          fontSize: this._fs(11), color: PAL.accentBlue, fontFamily: PAL.fontBody,
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
         created.push(bestText);
       }
 
-      // ENDLESS button
-      const eBtnY = by + STAGE_H / 2 + 18;
-      const ePanel = makePanel(this, bx, eBtnY, 160, 26, DEPTH_STAGE + 1);
+      // ENDLESS button — taller on mobile for better touch target
+      const eBtnH = this._isMobile ? 36 : 26;
+      const eBtnY = by + sh / 2 + (this._isMobile ? 22 : 18);
+      const ePanel = makePanel(this, bx, eBtnY, 160, eBtnH, DEPTH_STAGE + 1);
       fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1);
       const eLabel = this.add.text(bx, eBtnY, '∞ ENDLESS', {
-        fontSize: '12px', color: PAL.accentBlue, fontFamily: PAL.fontBody, fontStyle: 'bold',
+        fontSize: this._fs(12), color: PAL.accentBlue, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_STAGE + 2);
       created.push(ePanel.gfx, ePanel.zone, eLabel);
 
@@ -392,11 +419,12 @@ export class MainMenuScene extends Phaser.Scene {
     const filled = isLocked ? PAL.textLockedDim : PAL.gold;
     const empty  = isLocked ? PAL.textLockedDim : PAL.textFaint;
     const stars: Phaser.GameObjects.Text[] = [];
-    const totalW = 5 * 14;
+    const starSize = this._isMobile ? 18 : 14;
+    const totalW = 5 * starSize;
     for (let i = 0; i < 5; i++) {
-      const x = cx - totalW / 2 + i * 14 + 7;
+      const x = cx - totalW / 2 + i * starSize + starSize / 2;
       const t = this.add.text(x, cy, i < difficulty ? '★' : '☆', {
-        fontSize: '13px', color: i < difficulty ? filled : empty, fontFamily: PAL.fontBody,
+        fontSize: this._fs(13), color: i < difficulty ? filled : empty, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
       stars.push(t);
     }
@@ -432,6 +460,8 @@ export class MainMenuScene extends Phaser.Scene {
       if (!stage) continue;
       const isLocked = stage.unlockId !== null && !SaveManager.getInstance().isUnlocked(stage.unlockId);
       if (!isLocked) {
+        // Keep panel height in sync with current mobile state.
+        panel.h = this._stageH;
         const sel = id === stageId;
         fillPanel(panel, R, sel ? PAL.bgPanelHover : PAL.bgPanel, sel ? PAL.borderActive : PAL.borderInactive, 2);
       }
@@ -441,16 +471,17 @@ export class MainMenuScene extends Phaser.Scene {
   // ── Buttons ────────────────────────────────────────────────────────────────
 
   private createButtons(cx: number, height: number): void {
-    const stageBottom = this.stageRowY + STAGE_H / 2 + 36;
-    const btnY = Math.min(stageBottom + 44, height - 110);
-    const btnW = 240;
-    const btnH = 48;
+    const stageBottom = this.stageRowY + this._stageH / 2 + 36;
+    // On mobile the stage cards are taller, so ensure the button fits.
+    const btnY = Math.min(stageBottom + 44, height - (this._isMobile ? 130 : 110));
+    const btnW = this._isMobile ? 280 : 240;
+    const btnH = this._isMobile ? 60  : 48;
 
     // START GAME
     const startP = makePanel(this, cx, btnY, btnW, btnH, DEPTH_BUTTONS);
     fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
     const startLabel = this.add.text(cx, btnY, 'START GAME', {
-      fontSize: '22px', color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
+      fontSize: this._fs(22), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     startP.zone.on('pointerover',  () => { fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2); startLabel.setColor('#ffffff'); });
@@ -461,9 +492,9 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Bottom row: UPGRADES | CODEX
-    const bottomBtnW = 115;
-    const bottomBtnH = 38;
-    const bottomBtnY = btnY + btnH / 2 + 26;
+    const bottomBtnW = this._isMobile ? 135 : 115;
+    const bottomBtnH = this._isMobile ? 48  : 38;
+    const bottomBtnY = btnY + btnH / 2 + (this._isMobile ? 32 : 26);
     const bottomGap  = 8;
 
     // UPGRADES
@@ -471,7 +502,7 @@ export class MainMenuScene extends Phaser.Scene {
     const metaP = makePanel(this, metaX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(metaP, R, PAL.bgMetaBtn, PAL.borderMeta, 2);
     const metaLabel = this.add.text(metaX, bottomBtnY, 'UPGRADES', {
-      fontSize: '15px', color: PAL.accentBlue, fontFamily: PAL.fontBody,
+      fontSize: this._fs(15), color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     metaP.zone.on('pointerover', () => metaLabel.setColor(PAL.accentBlueLight));
@@ -483,7 +514,7 @@ export class MainMenuScene extends Phaser.Scene {
     const codexP = makePanel(this, codexX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(codexP, R, PAL.bgPanel, PAL.borderCodex, 2);
     const codexLabel = this.add.text(codexX, bottomBtnY, 'CODEX', {
-      fontSize: '15px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
+      fontSize: this._fs(15), color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     codexP.zone.on('pointerover', () => codexLabel.setColor(PAL.textPrimary));
@@ -508,8 +539,8 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private createFooter(cx: number, height: number): void {
-    this.add.text(cx, height - 14, 'Solo Desktop · v0.1.0 · Inspired by Green TD', {
-      fontSize: '11px', color: PAL.textFaint, fontFamily: PAL.fontBody,
+    this.add.text(cx, height - 14, 'v0.1.0 · Inspired by Green TD', {
+      fontSize: this._fs(11), color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BG + 1);
   }
 }

@@ -10,8 +10,9 @@ import { UpgradeManager } from '../systems/UpgradeManager';
 import { OfferManager } from '../systems/OfferManager';
 import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyManager';
 import { towerEffectiveDPS } from '../systems/BalanceCalc';
-import { HUD } from '../ui/HUD';
+import { HUD, getHudHeight } from '../ui/HUD';
 import { TowerPanel, PANEL_HEIGHT } from '../ui/TowerPanel';
+import { MobileManager } from '../systems/MobileManager';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
@@ -31,7 +32,6 @@ import { TriggerType } from '../data/vignetteDefs';
 import { PAL } from '../ui/palette';
 
 const DEFAULT_TOTAL_WAVES = 20;
-const HUD_HEIGHT          = 48; // must match HUD.ts
 const DOT_SPREAD_RADIUS   = 80; // px — Poison C spread radius
 
 type GameState = 'pregame' | 'wave' | 'between' | 'over';
@@ -123,6 +123,12 @@ export class GameScene extends Phaser.Scene {
   private decoGfx: Phaser.GameObjects.Graphics | null = null;
   private decoVisible = true;
 
+  // ── mobile long-press placement ────────────────────────────────────────────
+  /** Phaser TimerEvent for long-press-to-place (mobile only). */
+  private _placementHoldTimer: Phaser.Time.TimerEvent | null = null;
+  /** Target position recorded on pointerdown for long-press confirmation. */
+  private _placementHoldTarget: { x: number; y: number } | null = null;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -168,8 +174,10 @@ export class GameScene extends Phaser.Scene {
     this.firstAirWaveSeen    = false;
     this.debugOverlay        = null;
     this.debugVisible        = false;
-    this.decoGfx             = null;
-    this.decoVisible         = true;
+    this.decoGfx                = null;
+    this.decoVisible            = true;
+    this._placementHoldTimer    = null;
+    this._placementHoldTarget   = null;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -477,6 +485,8 @@ export class GameScene extends Phaser.Scene {
     // Input
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
+    // Mobile long-press: cancel the placement hold timer on finger lift.
+    this.input.on('pointerup', this._cancelPlacementHold, this);
 
     // ── BetweenWaveScene offer-picked event ───────────────────────────────
     // Fired by BetweenWaveScene after the player selects a card.
@@ -650,6 +660,12 @@ export class GameScene extends Phaser.Scene {
     const terrainResult = renderTerrain(this, this.mapData, season);
     this.decoGfx = terrainResult.decoGfx;
 
+    // On mobile, hide terrain decorations by default to reduce rendering overhead.
+    if (MobileManager.getInstance().isMobile()) {
+      this.decoGfx?.setVisible(false);
+      this.decoVisible = false;
+    }
+
     // Spawn & exit markers (depth 3 — above decorations at 1, below towers at 10).
     const markerGfx = this.add.graphics();
     markerGfx.setDepth(3);
@@ -678,6 +694,16 @@ export class GameScene extends Phaser.Scene {
   private onPointerMove(ptr: Phaser.Input.Pointer): void {
     if (!this.placementDef) return;
     this.updatePlacementPreview(ptr);
+
+    // On mobile: cancel pending long-press if the finger drifts more than
+    // ~20 logical pixels (finger wobble is common; larger drift = intentional pan).
+    if (this._placementHoldTarget) {
+      const dx = ptr.x - this._placementHoldTarget.x;
+      const dy = ptr.y - this._placementHoldTarget.y;
+      if (dx * dx + dy * dy > 400) { // 20² = 400
+        this._cancelPlacementHold();
+      }
+    }
   }
 
   private onPointerDown(ptr: Phaser.Input.Pointer): void {
@@ -686,12 +712,13 @@ export class GameScene extends Phaser.Scene {
 
     // Filter clicks in HUD strip (top) and bottom UI panels.
     // BehaviorPanel and UpgradePanel are always open/closed together.
+    const hudHeight   = getHudHeight();
     const panelsOpen  = this.upgradePanel.isOpen();
     const bottomLimit = this.scale.height
       - PANEL_HEIGHT
       - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
 
-    if (ptr.y < HUD_HEIGHT || ptr.y > bottomLimit) return;
+    if (ptr.y < hudHeight || ptr.y > bottomLimit) return;
 
     if (ptr.rightButtonDown()) {
       this.handleRightClick(ptr);
@@ -699,7 +726,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.placementDef) {
-      this.tryPlaceTower(ptr.x, ptr.y);
+      if (MobileManager.getInstance().isMobile()) {
+        // On mobile: require a 400 ms long-press to confirm placement.
+        // This prevents accidental taps from placing towers unintentionally.
+        this._startPlacementHold(ptr.x, ptr.y);
+      } else {
+        this.tryPlaceTower(ptr.x, ptr.y);
+      }
     } else {
       // Deselect any selected tower if clicking empty space.
       // Tower clicks are handled via tower's own 'pointerup' listener.
@@ -714,6 +747,37 @@ export class GameScene extends Phaser.Scene {
     }
     const tower = this.findTowerAt(ptr.x, ptr.y);
     if (tower) this.sellTower(tower);
+  }
+
+  // ── mobile long-press placement ────────────────────────────────────────────
+
+  /**
+   * Start a 400 ms hold timer; when it fires the tower is placed at (x, y).
+   * Called from `onPointerDown` on mobile when in placement mode.
+   */
+  private _startPlacementHold(worldX: number, worldY: number): void {
+    this._cancelPlacementHold();
+    this._placementHoldTarget = { x: worldX, y: worldY };
+    this._placementHoldTimer = this.time.addEvent({
+      delay: 400,
+      callback: () => {
+        if (this._placementHoldTarget) {
+          this.tryPlaceTower(this._placementHoldTarget.x, this._placementHoldTarget.y);
+        }
+        this._placementHoldTarget = null;
+        this._placementHoldTimer  = null;
+      },
+      callbackScope: this,
+    });
+  }
+
+  /** Cancel a pending long-press placement hold (if any). */
+  private _cancelPlacementHold(): void {
+    if (this._placementHoldTimer) {
+      this._placementHoldTimer.destroy();
+      this._placementHoldTimer = null;
+    }
+    this._placementHoldTarget = null;
   }
 
   // ── placement ─────────────────────────────────────────────────────────────
@@ -1241,7 +1305,8 @@ export class GameScene extends Phaser.Scene {
    * @param tint  Boss colour tint for particle colours
    */
   private triggerBossDeathParticles(x: number, y: number, tint: number): void {
-    const PARTICLE_COUNT = 16;
+    // Halve particle budget on mobile to reduce GPU load.
+    const PARTICLE_COUNT = Math.round(16 * MobileManager.getInstance().particleScale());
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const angle  = (i / PARTICLE_COUNT) * Math.PI * 2;
@@ -1320,7 +1385,7 @@ export class GameScene extends Phaser.Scene {
     this.debugVisible = !this.debugVisible;
     if (this.debugVisible) {
       if (!this.debugOverlay) {
-        this.debugOverlay = this.add.text(8, HUD_HEIGHT + 4, '', {
+        this.debugOverlay = this.add.text(8, getHudHeight() + 4, '', {
           fontSize:        '12px',
           color:           PAL.accentBlue,
           backgroundColor: '#000000aa',
