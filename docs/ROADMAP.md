@@ -1149,6 +1149,76 @@ Discovered during the Opus review pass. None block merge; all are polish candida
 
 ---
 
+## Non-Blocking Findings — Wave Announcement Banners (TASK-052)
+
+*Surfaced during code review 2026-03-01.*
+
+- **Ascension modifier callout**: The acceptance criterion for "Ascension modifier
+  waves: show the active modifier" is not implemented because no ascension system
+  exists in the codebase yet. When ascension is added, extend
+  `WaveAnnouncementInfo` with an `ascensionModifier?: string` field and show it in
+  the WaveBanner sub-line.
+
+- **BetweenWaveScene per-type creep breakdown**: The task AC mentions "Creep type
+  breakdown (e.g. '10 normal + 3 armoured + 2 fast')" in the between-wave panel.
+  The current implementation shows wave-type badge + total count + traits, which is
+  a good summary but not a per-type count. To add per-type counts, extend
+  `WaveAnnouncementInfo` with a `composition?: { typeKey: string; count: number }[]`
+  field and render it in `BetweenWaveScene.buildWavePreview()`.
+
+- **AIR_KEYS set created per call**: `getWaveAnnouncementInfo()` creates
+  `new Set(['scout', 'flier'])` on each invocation. This is fine (called once per
+  wave) but could be promoted to a module-level constant for cleanliness.
+
+- **First-air callout overrides traits**: When the first air/mixed wave appears,
+  the "NEW: AIR WAVE" callout replaces the trait sub-line rather than appending.
+  With the banner's single sub-line layout this is the right trade-off, but if a
+  second row is added later, both should be shown.
+
+- **AudioManager filter mock gap**: The existing `makeFilter()` mock was missing
+  `linearRampToValueAtTime` and `exponentialRampToValueAtTime` on the `frequency`
+  AudioParam. Fixed during review — other future SFX using filter frequency
+  automation will now work in tests.
+
+---
+
+### TASK-051 Air & Ground Combat System (reviewed 2026-03-01)
+
+**Fixes applied during review:**
+- **Tesla chain domain leak**: `fireTesla()` chain candidates, Animikiikaa chain AoE,
+  and Thunder Quake AoE were iterating all creeps without domain filtering. Tesla is
+  air-only, so chain hits could incorrectly damage ground creeps. Added `towerDomain`
+  capture and filtering in the `onHit` closure.
+- **Orphaned event emission**: `WaveManager.startWave()` emitted `'air-wave-start'` on
+  `scene.events` but nothing subscribed. The air wave warning is handled via
+  `hasAirCreepsInWave()` called from `GameScene.onWaveComplete()`. Removed the dead emit.
+- **Duplicate JSDoc**: `showBossWarning` JSDoc block was displaced above `showAirWaveAlert`
+  in HUD.ts, leaving two consecutive JSDoc comments. Reordered so each method has its
+  own JSDoc and the methods appear in logical order.
+- **Stale test helper**: `commanderAbilityWiring.test.ts` `stickyTargetResult()` used the
+  old `groundOnly: boolean` param. Updated to `targetDomain: 'ground'|'air'|'both'` to
+  match the actual `Tower.findTarget()` implementation. Added `targetDomain: 'air'` tests.
+- **Weak TowerDef test**: `domain-filter.test.ts` `TowerDef targetDomain assignment` test
+  verified only inline constants. Replaced with imports of real `ALL_TOWER_DEFS` and
+  per-tower assertions.
+
+**Non-blocking findings (future work):**
+- **`groundOnly` field redundancy**: `TowerDef.groundOnly` and `ProjectileOptions.groundOnly`
+  still exist alongside the new `targetDomain`. `groundOnly` is only used for Mortar AoE
+  splash filtering in `Projectile.applyAoe()`. Consider unifying both into `targetDomain`
+  in a future cleanup — Mortar AoE could check the tower's domain instead of a separate flag.
+- **Air bosses**: All four boss archetypes (Makwa, Migizi, Waabooz, Animikiins) are
+  `type: 'ground'`. The system supports air bosses but none exist yet. Consider adding
+  an air boss variant (Migizi is thematically appropriate — the eagle boss should fly).
+- **Air creep HP balance**: scout has 65 HP (~81% of grunt's 80) and flier has 130 HP
+  (~59% of brute's 220). The task spec targets ~70% — the flier is significantly below.
+  May warrant a tuning pass once playtesting reveals whether air creeps are too easy/hard.
+- **Flak Cannon upgrade**: The task notes suggest a Cannon upgrade path that adds anti-air
+  capability ("Flak Cannon") so players invested in Cannon aren't helpless against air waves.
+  Not implemented yet — good candidate for a future upgrade tree expansion.
+
+---
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

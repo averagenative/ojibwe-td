@@ -1,7 +1,7 @@
 ---
 id: TASK-051
 title: Air & Ground Combat System — Flying Creeps, Tower Targeting Domains
-status: pending
+status: in-progress
 priority: medium
 phase: gameplay
 depends_on: ["TASK-049", "TASK-050"]

@@ -1,7 +1,7 @@
 ---
 id: TASK-052
 title: Wave Announcement Banners — Pre-Wave Intel & Warnings
-status: pending
+status: done
 priority: high
 phase: gameplay
 ---
