@@ -503,7 +503,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private createFooter(cx: number, height: number): void {
-    this.add.text(cx, height - 14, 'Solo Desktop · v0.1.0 · Placeholder Art · Inspired by Green TD', {
+    this.add.text(cx, height - 14, 'Solo Desktop · v0.1.0 · Inspired by Green TD', {
       fontSize: '11px', color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BG + 1);
   }
