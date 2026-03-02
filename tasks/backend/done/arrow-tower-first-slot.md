@@ -1,7 +1,7 @@
 ---
 id: TASK-091
 title: Reorder Arrow Tower to First Slot in Tower Panel
-status: pending
+status: done
 category: backend
 priority: high
 depends_on: [TASK-082]

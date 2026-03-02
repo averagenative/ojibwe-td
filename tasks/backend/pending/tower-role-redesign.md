@@ -1,7 +1,7 @@
 ---
 id: TASK-098
 title: Tower Role Redesign — Rock Hurler Merger & Armor Effectiveness
-status: pending
+status: in-progress
 category: backend
 priority: critical
 depends_on: []

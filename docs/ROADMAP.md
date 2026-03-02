@@ -1882,6 +1882,17 @@ Non-blocking items surfaced during code review:
   The `CommanderElement` type import is similarly used in `ELEMENT_COLORS`. Both
   are correctly consumed — no issue, just noted for traceability.
 
+### TASK-091 Review Findings (Arrow Tower First Slot) — 2026-03-02
+
+Non-blocking items surfaced during code review:
+
+- **Aura tower lost keyboard shortcut**: The reorder moved Aura from index 5
+  (shortcut `6`) to index 6 (no shortcut — only 6 numKeys mapped). This is an
+  acceptable trade-off: Arrow (cheapest, most-placed tower) gains shortcut `1`,
+  while Aura (passive buff tower, rarely placed mid-wave) loses `6`. If players
+  report missing the Aura shortcut, consider adding a 7th key mapping (`SEVEN`)
+  or letting players rebind tower shortcuts.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)
