@@ -1,7 +1,7 @@
 ---
 id: TASK-048
 title: Visual Clarity Audit — Ensure Assets Don't Obscure Gameplay
-status: pending
+status: in-progress
 priority: high
 phase: polish
 ---

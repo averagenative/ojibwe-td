@@ -1103,6 +1103,52 @@ the prior wave completes), but a defensive `cleanup()` call at the top of
 
 ---
 
+## TASK-047 Review Findings (non-blocking)
+
+_Surfaced during code review of Tower Attack Type Visuals._
+
+1. **Duplicated `drawLightningArc`** — `Projectile.ts:343` (private instance
+   method) and `Tower.ts:688` (module-level function) contain near-identical
+   lightning-arc-drawing code. Consider extracting to a shared visual utility
+   (e.g. `src/utils/drawLightningArc.ts`) to keep a single source of truth.
+
+2. **Trail particles are full GameObjects** — The task spec suggests "Graphics
+   strokes, not full game objects" for trail particles. The current
+   implementation uses `scene.add.circle()` (Arc GameObjects). With max 6
+   concurrent particles per projectile this is fine at current scale, but if
+   projectile density grows, refactoring to a single `Graphics` object per
+   projectile with batched strokes would reduce overhead.
+
+3. **Allocations in the update loop** — `emitTrailParticle()` calls
+   `scene.add.circle()` + `scene.tweens.add()` during `step()` (up to once
+   per 30 ms per projectile). At 50 simultaneous projectiles this creates
+   ~1 667 short-lived objects/second. If frame-rate dips appear, introduce an
+   object pool or switch to a pre-allocated `Graphics` stroke buffer.
+
+---
+
+### Visual Clarity Audit (TASK-048) — Non-blocking Findings
+
+Discovered during the Opus review pass. None block merge; all are polish candidates.
+
+- **Depth constants not centralised**: Tower depth (10), creep depth (15), projectile
+  depth (20) are hardcoded in their respective entity files. The terrain depths are
+  exported from `TerrainRenderer.ts` (`TERRAIN_BASE_DEPTH`, `TERRAIN_DECO_DEPTH`,
+  `TERRAIN_PATH_DEPTH`). Consider a single `depths.ts` constants file that all entities
+  import, so the hierarchy is documented and enforced in one place.
+- **Aura pulse depth (6) not in hierarchy spec**: `Tower.buildAuraPulse()` sets depth 6
+  for the aura ripple animation. This sits between range circles (5) and towers (10),
+  which is fine visually, but the spec doesn't mention it. Add to the spec for completeness.
+- **Lightning arc depth (30) overlaps UI layer**: `drawLightningArc()` in Tower.ts uses
+  depth 30, same as the effects band in HUD/TowerPanel. Not a practical issue currently
+  but worth noting if new UI elements are added at depth 30.
+- **Seasonal theme contrast verification**: The code changes (stroke width 2, alpha 0.35
+  for range circles, path edge alpha 0.5) improve contrast, but automated per-pixel
+  contrast testing is not in place. Consider a visual regression test or screenshot diff
+  for each season × map combination.
+
+---
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

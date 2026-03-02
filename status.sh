@@ -24,18 +24,8 @@ sep
 printf "${BOLD}Orchestrator processes${RESET}\n"
 sep
 
-SINGLE_PIDS=$(pgrep -f "orchestrator\.sh" 2>/dev/null | while read p; do
-  # Exclude parallel-orchestrator and our own pgrep
-  cmd=$(ps -p "$p" -o args= 2>/dev/null || true)
-  echo "$cmd" | grep -q "parallel" && continue
-  echo "$cmd" | grep -q "pgrep" && continue
-  echo "$p"
-done || true)
-PARALLEL_PIDS=$(pgrep -f "parallel-orchestrator\.sh" 2>/dev/null | while read p; do
-  cmd=$(ps -p "$p" -o args= 2>/dev/null || true)
-  echo "$cmd" | grep -q "pgrep" && continue
-  echo "$p"
-done || true)
+SINGLE_PIDS=$(pgrep -f "[o]rchestrator\.sh" 2>/dev/null | grep -vw "parallel" || true)
+PARALLEL_PIDS=$(pgrep -f "[p]arallel-orchestrator\.sh" 2>/dev/null || true)
 CLAUDE_PIDS=$(pgrep -af "claude.*--dangerously-skip" 2>/dev/null | grep -v "^$$" || true)
 
 if [ -n "$SINGLE_PIDS" ]; then
@@ -118,7 +108,7 @@ if [ -f "$STATE_FILE" ]; then
     if [ -d "$worktree" ]; then
       changed=$(git -C "$worktree" diff --name-only HEAD 2>/dev/null | head -10)
       untracked=$(git -C "$worktree" ls-files --others --exclude-standard 2>/dev/null | head -5)
-      all_files=$(printf "%s\n%s" "$changed" "$untracked" | grep -v "^$" | sort -u | head -10)
+      all_files=$(printf "%s\n%s" "$changed" "$untracked" | { grep -v "^$" || true; } | sort -u | head -10)
       if [ -n "$all_files" ]; then
         file_count=$(echo "$all_files" | wc -l | tr -d ' ')
         printf "      ${DIM}%s file(s) changed:${RESET}\n" "$file_count"
@@ -130,43 +120,24 @@ if [ -f "$STATE_FILE" ]; then
   done < "$STATE_FILE"
 fi
 
-# ── Active Claude agents (live details) ───────────────────────────────────────
-if [ -n "$CLAUDE_PIDS" ]; then
+# ── Active Claude agent output (last 5 lines) ───────────────────────────────
+PORCH_LOGS=$(ls -t /tmp/porch_*.log 2>/dev/null | head -1)
+TASK_OUTPUT=$(ls -t /tmp/claude-*/-home-dmichael-projects-greentd/tasks/*.output 2>/dev/null | head -1)
+
+if [ -n "$PORCH_LOGS" ] && [ -s "$PORCH_LOGS" ]; then
   sep
-  printf "${BOLD}Active Claude agents${RESET}\n"
+  printf "${BOLD}Active agent output${RESET} ${DIM}(%s)${RESET}\n" "$(basename "$PORCH_LOGS")"
   sep
-  while IFS= read -r line; do
-    pid=$(echo "$line" | awk '{print $1}')
-    cmd=$(echo "$line" | cut -d' ' -f2-)
-    # Extract model name
-    model=$(echo "$cmd" | grep -oP '(?<=--model )\S+' || echo "default")
-    # Check which porch log this agent writes to
-    log_file=$(ls -la /proc/"$pid"/fd/1 2>/dev/null | grep -oP '/tmp/porch_\S+' || echo "")
-    log_size=""
-    if [ -n "$log_file" ] && [ -f "$log_file" ]; then
-      sz=$(stat -c %s "$log_file" 2>/dev/null || echo 0)
-      if [ "$sz" -gt 0 ]; then
-        log_size="  ${DIM}(${sz} bytes output)${RESET}"
-      fi
-    fi
-    # Elapsed time since process started
-    start_time=$(stat -c %Y /proc/"$pid" 2>/dev/null || echo "")
-    elapsed=""
-    if [ -n "$start_time" ]; then
-      now=$(date +%s)
-      diff_s=$((now - start_time))
-      diff_m=$((diff_s / 60))
-      diff_h=$((diff_m / 60))
-      diff_m_rem=$((diff_m % 60))
-      if [ "$diff_h" -gt 0 ]; then
-        elapsed="${diff_h}h ${diff_m_rem}m"
-      else
-        elapsed="${diff_m}m $((diff_s % 60))s"
-      fi
-    fi
-    printf "  ${GREEN}●${RESET}  PID %-6s  ${CYAN}%-8s${RESET}  ${DIM}running %s${RESET}%b\n" \
-      "$pid" "$model" "$elapsed" "$log_size"
-  done <<< "$CLAUDE_PIDS"
+  tail -5 "$PORCH_LOGS" | while IFS= read -r line; do
+    printf "  ${DIM}%s${RESET}\n" "$(echo "$line" | cut -c1-120)"
+  done
+elif [ -n "$TASK_OUTPUT" ] && [ -s "$TASK_OUTPUT" ]; then
+  sep
+  printf "${BOLD}Orchestrator output${RESET} ${DIM}(last 8 lines)${RESET}\n"
+  sep
+  tail -8 "$TASK_OUTPUT" | while IFS= read -r line; do
+    printf "  ${DIM}%s${RESET}\n" "$(echo "$line" | cut -c1-120)"
+  done
 fi
 
 # ── Pending task queue ───────────────────────────────────────────────────────
@@ -203,17 +174,7 @@ TOTAL=$(find "$TASKS" -name "*.md" -not -path "*/done/*" \
   -exec grep -l "^status: pending$" {} \; 2>/dev/null | wc -l | tr -d ' ')
 printf "\n  ${DIM}%s pending total${RESET}\n" "$TOTAL"
 
-# ── Completed tasks (done/) ───────────────────────────────────────────────────
-sep
-DONE_COUNT=$(find "$TASKS" -path "*/done/*.md" 2>/dev/null | wc -l | tr -d ' ')
-IN_PROGRESS_COUNT=$(find "$TASKS" -name "*.md" -not -path "*/done/*" \
-  -exec grep -l "^status: in-progress$" {} \; 2>/dev/null | wc -l | tr -d ' ')
-ALL_TASKS=$((DONE_COUNT + IN_PROGRESS_COUNT + TOTAL))
-printf "${BOLD}Progress${RESET}  ${GREEN}%s done${RESET}  ${YELLOW}%s active${RESET}  ${DIM}%s pending${RESET}  ${DIM}(%s total)${RESET}\n" \
-  "$DONE_COUNT" "$IN_PROGRESS_COUNT" "$TOTAL" "$ALL_TASKS"
-sep
-
-# ── Recent commits ───────────────────────────────────────────────────────────
+# ── Recent shipped tasks (git log) ──────────────────────────────────────────
 sep
 printf "${BOLD}Recent commits${RESET}\n"
 sep

@@ -1,7 +1,7 @@
 ---
 id: TASK-047
 title: Tower Attack Type Visuals — Distinct Projectile & Effect Styles
-status: pending
+status: done
 priority: high
 phase: gameplay
 ---
