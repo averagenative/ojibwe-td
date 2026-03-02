@@ -1893,6 +1893,39 @@ Non-blocking items surfaced during code review:
   report missing the Aura shortcut, consider adding a 7th key mapping (`SEVEN`)
   or letting players rebind tower shortcuts.
 
+### TASK-098 Review Findings (Tower Role Redesign — Rock Hurler Merger)
+
+*Identified during Opus 4.6 review pass, 2026-03-02.*
+
+#### Fixed in this review pass:
+- **Tower.ts stale key references** (critical): Barrel tracking (`_stepBarrelTracking`) was gated
+  to `'cannon' || 'mortar'` — never fired for the new `'rock-hurler'` key. Fire animation dispatch
+  (`_playFireAnim`) had dead `'cannon'` and `'mortar'` cases with no `'rock-hurler'` entry. Rock
+  Hurler towers would render without barrel tracking or fire animations. Fixed by remapping to
+  `'rock-hurler'` and creating `_playRockHurlerKick()` from the mortar kick template.
+- **Projectile.ts stale key references** (critical): Mortar lobbed-arc scale, trail colours, and
+  impact effects all keyed off `'mortar'` / `'cannon'`. Rock Hurler projectiles had no trail colour
+  (white fallback), no arc scaling, and no impact visual. Fixed with `'rock-hurler'` keys.
+- **TowerEquipScene.ts default tower** (minor): Universal gear defaulted to `'cannon'` tower
+  selection; changed to `'rock-hurler'`.
+- **Tower.ts dead re-export** cleaned: `CANNON_DEF` and `MORTAR_DEF` removed from Tower.ts
+  convenience re-export (no consumers remained).
+- **10 test files updated**: attackVisuals, wireAssets, towerIdleAnims, towerTooltip,
+  domain-filter, gearSystem, AudioManager, OfferManager, challengesListScroll — all had stale
+  `'cannon'` / `'mortar'` references that would silently test dead code.
+
+#### Non-blocking debt (future cleanup):
+- **Dead `CANNON_DEF` / `MORTAR_DEF` exports**: Still defined in `towerDefs.ts` lines 170–206
+  (not in `ALL_TOWER_DEFS`). Safe to remove once all consumer chains are confirmed clear.
+- **Dead anim defs**: `towerAnimDefs.ts` still has entries for `'cannon'` and `'mortar'` keys.
+  Harmless (fallback lookup still works) but could be cleaned.
+- **`targeting.ts` holdFire toggle**: Marked "Reserved (unused)" but the field still exists
+  on `TowerBehaviorToggles`. Consider removing the field entirely in a cleanup pass.
+- **Rock Hurler icon asset**: Currently reuses `icon-cannon.png` as placeholder. Needs a
+  dedicated rock/boulder icon for visual consistency.
+- **Arrow `'arrow'` SFX missing**: `AudioManager.playProjectileFired()` has no `'arrow'` case
+  — Arrow towers fire silently. Consider adding a bow-twang procedural SFX.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)

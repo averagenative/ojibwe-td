@@ -1,7 +1,7 @@
 ---
 id: TASK-092
 title: Mobile Audio — Music Not Playing on iOS Chrome
-status: pending
+status: done
 category: backend
 priority: high
 depends_on: []

@@ -18,7 +18,7 @@ export const AUTOSAVE_EXPIRY_MS = 30 * 60 * 1000;
 // ── AutoSave shape ─────────────────────────────────────────────────────────────
 
 export interface AutoSaveTower {
-  key:        string;                  // tower def key (e.g. 'cannon')
+  key:        string;                  // tower def key (e.g. 'rock-hurler')
   col:        number;                  // grid column
   row:        number;                  // grid row
   upgrades:   Record<string, number>;  // path → tier (e.g. { A: 2, B: 1, C: 0 })

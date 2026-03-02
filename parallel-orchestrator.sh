@@ -333,15 +333,17 @@ cleanup_worker() {
 }
 
 # ── Ship: serialised merge + commit + push ─────────────────────────────────────
+# Pure bash — no AI agent needed. Deterministic git operations only.
 
 ship_task() {
   local wt_path="$1"
   local branch="$2"
   local task_file="$3"
-  local title done_path
+  local title done_path slug
 
   title=$(get_title "$task_file")
   done_path=$(done_path_for "$task_file")
+  slug="ship-$(basename "$task_file" .md | cut -c1-15)"
 
   hr
   log "=== SHIP: $title ==="
@@ -350,64 +352,66 @@ ship_task() {
   state_write "$task_file" "shipping" "$wt_path" "$branch"
   show_worker_status
 
-  run_agent "ship" \
-"You are finalising and shipping a completed feature for Ojibwe TD.
-
-MAIN REPO  : $REPO_DIR
-WORKTREE   : $wt_path
-BRANCH     : $branch
-TASK FILE  : $task_file  (status: in-progress)
-TASK TITLE : $title
-DONE PATH  : $done_path
-
-Steps
-─────
-1. Verify quality gate:
-     cd $wt_path/game && npm run check
-   Fix anything that fails.
-
-2. Mark task done and move file:
-     a. Edit $task_file → change status: in-progress to status: done
-     b. mkdir -p $(dirname $done_path)
-     c. mv $task_file $done_path
-
-3. Update $REPO_DIR/docs/JOURNEY.md — append a paragraph on what was built.
-
-4. Commit ALL implementation changes in the worktree:
-     git -C $wt_path add -A
-     git -C $wt_path commit -m \"\$(cat <<'EOF'
+  # 1. Commit all implementation changes in the worktree
+  log "[$slug] Committing worktree changes…"
+  git -C "$wt_path" add -A
+  if ! git -C "$wt_path" diff --cached --quiet; then
+    git -C "$wt_path" commit -m "$(cat <<EOF
 feat: $title
-
-<paragraph describing what was implemented and why>
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 EOF
-)\"
-   This is the critical step — the implement and review agents do not commit,
-   so ALL code changes live as uncommitted files in the worktree. You MUST
-   commit them here before merging, or they will be lost when the worktree
-   is removed.
+)"
+    log "[$slug] Worktree committed ✓"
+  else
+    log "[$slug] No changes to commit in worktree (unexpected)"
+  fi
 
-5. Merge worktree branch into main:
-     git -C $REPO_DIR fetch origin main
-     git -C $REPO_DIR checkout main
-     git -C $REPO_DIR pull --rebase origin main
-     git -C $REPO_DIR merge --no-ff $branch
+  # 2. Mark task done and move file
+  log "[$slug] Moving task to done…"
+  sed -i 's/^status: in-progress$/status: done/' "$task_file"
+  mkdir -p "$(dirname "$done_path")"
+  mv "$task_file" "$done_path"
+  log "[$slug] Task marked done ✓"
 
-6. Commit any remaining changes in main (task file move, JOURNEY.md, etc.):
-     git -C $REPO_DIR add -A
-     git -C $REPO_DIR diff --cached --quiet || git -C $REPO_DIR commit -m \"chore: ship metadata for $title\"
+  # 3. Merge worktree branch into main
+  log "[$slug] Merging $branch into main…"
+  git -C "$REPO_DIR" checkout main 2>&1 | sed "s/^/[$slug] /"
+  git -C "$REPO_DIR" merge --no-ff "$branch" -m "Merge branch '$branch'" \
+    2>&1 | sed "s/^/[$slug] /"
 
-7. Push:
-     git -C $REPO_DIR push origin main
+  # Handle merge conflicts — abort and preserve worktree for manual resolution
+  if [ $? -ne 0 ]; then
+    log "[$slug] MERGE CONFLICT — aborting merge, preserving worktree for manual fix"
+    git -C "$REPO_DIR" merge --abort 2>/dev/null || true
+    return 1
+  fi
+  log "[$slug] Merge complete ✓"
 
-8. Remove worktree and branch:
-     git -C $REPO_DIR worktree remove --force $wt_path
-     git -C $REPO_DIR branch -D $branch" \
-  "$REPO_DIR" "$DEFAULT_MODEL" "ship-$(basename "$task_file" .md | cut -c1-15)"
+  # 4. Commit metadata (task file move) on main
+  git -C "$REPO_DIR" add -A
+  if ! git -C "$REPO_DIR" diff --cached --quiet; then
+    git -C "$REPO_DIR" commit -m "chore: ship metadata for $title"
+    log "[$slug] Metadata committed ✓"
+  fi
+
+  # 5. Push
+  log "[$slug] Pushing to origin…"
+  if git -C "$REPO_DIR" push origin main 2>&1 | sed "s/^/[$slug] /"; then
+    log "[$slug] Push complete ✓"
+  else
+    log "[$slug] Push failed — may need manual push"
+  fi
+
+  # 6. Clean up worktree and branch
+  git -C "$REPO_DIR" worktree remove --force "$wt_path" 2>/dev/null || true
+  git -C "$REPO_DIR" branch -D "$branch" 2>/dev/null || true
+  log "[$slug] Worktree cleaned up ✓"
 
   state_write "$task_file" "shipped" "" ""
   show_worker_status
+
+  log "[$slug] === SHIPPED: $title ==="
 }
 
 # ── State file helpers ────────────────────────────────────────────────────────
