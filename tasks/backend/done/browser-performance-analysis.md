@@ -1,7 +1,7 @@
 ---
 id: TASK-063
 title: Browser Performance Analysis — Profiling, Bottlenecks, Optimization
-status: in-progress
+status: done
 priority: high
 phase: polish
 ---

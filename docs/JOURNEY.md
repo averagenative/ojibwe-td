@@ -849,3 +849,19 @@ On mobile browsers the HTML header and logo consumed vertical space that the Pha
 **MainMenuScene scaling.** `MainMenuScene.ts` gained `_isMobile`, `_regionH`, and `_stageH` class fields and a `_fs(n)` helper that applies a 1.35× font multiplier on mobile. All card heights, button heights, and font sizes route through these helpers so the menu remains readable and tappable on a 375 px wide phone in landscape.
 
 **Test coverage.** `MobileManager.test.ts` provides 30 unit tests covering detection logic, body-class toggling, `particleScale()`, resize re-evaluation, and singleton reset. A companion `mobileCompat.test.ts` (15 tests) validates layout-contract constants: `getHudHeight()` and `getPanelHeight()` return the correct values in both mobile and desktop modes, and the minimum tap-target threshold is enforced. Total: 1 006 tests passing, 0 type errors.
+
+---
+
+### Browser Performance Analysis — Profiling, Bottlenecks, Optimization
+
+With 45+ shipped features the game loop had grown organically without a systematic performance audit. TASK-063 produced a static code analysis of every hot-path module, documented in `game/docs/PERFORMANCE.md`, and implemented the two highest-impact optimisations found.
+
+**`SpatialGrid<T>` — O(n²) → O(k) target search.** `Tower.findTarget()` previously iterated the entire active-creep set on every tower step. With 20 towers and 30 creeps this was 600 iterations per frame, or 72 000/s at 2× speed. `SpatialGrid` (cell size 80 px) divides the map into a pre-allocated flat array of cells; `GameScene.update()` rebuilds it in one pass (`clear()` + one `insert()` per creep), then each tower calls `queryRadius()` which scans only the cells whose bounding squares overlap the tower's range circle. For a Cannon (range ≈ 120 px) this is 9 cells containing ≈ 1–2 candidates — roughly a 15× reduction in comparisons. Tower.ts accepts a new optional `queryCreepsInRadius` constructor parameter; GameScene passes a closure over the grid, leaving the slow-path fallback (`getCreeps()`) intact for tests and other scenes.
+
+**`TrailPool` — zero-GC projectile trail particles.** Each projectile emitted a trail particle every 30 ms by calling `scene.add.circle()` (allocates a `Phaser.GameObjects.Arc`) and `scene.tweens.add()` (allocates a `Tween`), both destroyed 180 ms later. At 10+ simultaneous projectiles and 2× speed this was ~40 short-lived allocations per frame, each adding GC pressure. `TrailPool` pre-allocates a fixed pool of `Arc` objects; `emit()` reuses an idle arc (`setActive`/`setVisible`), and `update()` decrements alpha manually each frame — no `Tween` objects, no create/destroy. `Projectile.emitTrailParticle()` reads the pool from `scene.data` via an optional-chaining fast path, falling back to the original tween path in scenes that don't initialise the pool.
+
+**Background-tab throttle.** `main.ts` registers a single `visibilitychange` listener that calls `game.loop.sleep()` on tab hide and `game.loop.wake()` on tab show, stopping the requestAnimationFrame loop while the tab is hidden and eliminating all CPU/battery usage in that state. Phaser's TimeStep clamps the delta on the first wake frame so gameplay does not jump forward.
+
+**FPS config.** `main.ts` now explicitly sets `fps: { target: 60, forceSetTimeOut: false }` in the Phaser config to make the intended frame rate and RAF preference auditable, even though both are Phaser's defaults.
+
+**Test coverage.** `SpatialGrid.test.ts` (12 tests) covers insert, clear, single-cell query, radius spanning multiple cells, and inactive-object filtering. `TrailPool.test.ts` (16 tests) covers pool exhaustion (all slots busy), decay, reuse of expired arcs, and `destroy()` cleanup. Total: 1 004 tests passing, 0 type errors.
