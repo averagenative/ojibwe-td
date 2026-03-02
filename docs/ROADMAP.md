@@ -1022,6 +1022,37 @@ the tooltip feature.
   `max-width: min(520px, 90vw)` but CSS was changed to `min(320px, 70vw)` in a prior
   commit. Update the test assertion to match the current CSS.
 
+### Documentation (TASK-036 review)
+- **Dead link in README**: `docs/asset-generation.md` is referenced from `README.md` but does not
+  exist yet. Create this file when asset generation tooling is documented, or remove the link.
+- **Screenshot placeholder**: `docs/screenshot.png` is referenced but does not exist. Capture a
+  representative screenshot to replace the placeholder once visual polish is complete.
+
+---
+
+## Non-blocking Findings — TASK-037 (Boss Wave Escort Spawns)
+
+*Surfaced during code review of TASK-037 (2026-03-01). None of these block the merge.*
+
+### Fire-and-forget boss spawn timer not tracked for cleanup
+The 800 ms boss dramatic-delay timer (`scene.time.addEvent` at WaveManager.ts:236)
+is not stored or destroyed in `cleanup()`. If `cleanup()` is called during that
+800 ms window (e.g. mid-wave scene restart), the callback will still fire on a
+stale WaveManager. The same pattern now applies to `escortDelayTimer` callbacks
+that themselves create the `escortTimer`. Pre-existing issue, not introduced here.
+
+### `buildEscortQueue` near-duplicate of `buildSpawnQueue`
+Both methods iterate a count, pick a random type from a pool, look up the
+`creepTypeDefs` entry, and push a scaled `CreepConfig`. A shared helper
+`buildQueue(count, types, hpMult, speedMult)` would DRY this up. Low priority
+since both are short and stable.
+
+### Escort/spawn timers not reset between consecutive `startWave()` calls
+Neither `spawnTimer`, `escortDelayTimer`, nor `escortTimer` are destroyed at the
+start of `startWave()`. In normal gameplay this is safe (waves only start after
+the prior wave completes), but a defensive `cleanup()` call at the top of
+`startWave()` would guard against accidental double-starts.
+
 ---
 
 ## Health Check Findings

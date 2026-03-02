@@ -627,3 +627,19 @@ The DALL-E pipeline had generated 25 assets — commander portraits, creep sprit
 **HUD.** The commander portrait displayed in the HUD was already using a `Graphics` rectangle; it now renders via `Phaser.GameObjects.Image` using `portrait-${commander.id}`, keeping the same 40×40 display size.
 
 **Test coverage.** `src/systems/__tests__/towerTooltip.test.ts` adds 12 Vitest tests covering: `clampTooltipX` keeps the tooltip inside the viewport at both edges, `formatDmgLine` formats normal and Aura towers correctly, all six `TowerDef` exports carry a non-empty `description`, and the `description` field is a valid string. Two pre-existing quality issues were also resolved: the `layoutContract.test.ts` logo max-width assertion was updated to match the actual CSS value (`min(320px, 70vw)`), and `@types/node` was added to the compiler `types` array in `tsconfig.json` so the `favicon.test.ts` Node.js imports resolve cleanly under `tsc --noEmit`. The full suite passes at 639 tests with 0 type errors.
+
+---
+
+### TASK-037 — Boss Waves — Escort Creep Spawns
+
+Boss waves previously spawned only the boss itself (`totalToSpawn = 1`), leaving the player with no creeps to kill for gold or synergy procs during the game's most dramatic moments. TASK-037 adds configurable escort packs so every boss arrives flanked by a wave of normal creeps, letting kill-gold income, Poison spread, Waabizii heal procs, and Supply Cache counts all fire naturally.
+
+**WaveDef extension.** The `escorts` field was added to the `WaveDef` interface: `count` (how many escort creeps), `types` (pool of creep-type keys drawn uniformly), `intervalMs` (gap between spawns), and an optional `delayMs` (default 1200 ms — just after the boss appears). The field is optional so non-boss waves are completely unaffected.
+
+**WaveManager logic.** `startWave()` now calls the new `buildEscortQueue(waveDef, escorts)` helper when `waveDef.escorts` is present. The helper applies the same HP/speed scaling used for normal creeps on that wave number, drawing creep types uniformly from the provided pool and silently skipping any unrecognised type keys. `totalToSpawn` is set to `1 + escortQueue.length` so the settled counter naturally waits for both the boss and every escort before emitting `wave-complete`. Escorts spawn via two new timer fields — `escortDelayTimer` fires once after `delayMs` to spawn the first escort, then `escortTimer` repeats at `intervalMs` for the remainder. Both timers are destroyed in `cleanup()` to prevent memory leaks between scenes.
+
+**Four named boss waves updated.** Wave 5 (Makwa): 6× grunt escorts at 1400 ms interval. Wave 10 (Migizi): 8× runner escorts at 1000 ms interval. Wave 15 (Waabooz): 10 escorts mixing brute and grunt types at 1200 ms interval. Wave 20 (Animikiins): 8 escorts mixing scout and runner types at 1000 ms interval.
+
+**Endless mode auto-escorts.** `generateEndlessWave()` now attaches an escort pack to every endless boss (waves 25+): `count = 4 + floor((waveNum − 25) / 5)`, drawing from runner and brute types at a 1000 ms interval. This means the escort pack grows by one creep for every five endless waves, keeping boss encounters progressively more intense without any manual data entry.
+
+**Test coverage.** `WaveManager.boss.e2e.test.ts` was extended with new assertions confirming that a boss wave with escorts fires `wave-complete` only after all escorts are settled (killed or escaped), that `totalToSpawn` reflects the escort count, and that endless boss waves auto-generate escort packs of the correct size. `endlessMode.test.ts` likewise gains assertions on escort scaling at wave 25, 30, and 35. The full suite passes at 672 tests with 0 type errors.

@@ -1,7 +1,7 @@
 ---
 id: TASK-036
 title: GitHub README for Ojibwe TD
-status: pending
+status: in-progress
 priority: medium
 phase: polish
 ---

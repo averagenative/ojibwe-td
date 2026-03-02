@@ -46,8 +46,8 @@ hr()     { echo ""; log "──────────────────�
 task_model() {
   local task_file="$1"
   local combined
-  combined="$(basename "$task_file" .md) $(grep "^title:" "$task_file" 2>/dev/null | head -1 || true)"
-  if echo "$combined" | grep -qiE 'story|lore|vignette|narrative|commander|character|codex|act[- ][0-9]|region|cultural'; then
+  combined="$(basename "$task_file" .md) $(grep "^title:" "$task_file" 2>/dev/null | head -1 || true) $(grep "^creative:" "$task_file" 2>/dev/null | head -1 || true)"
+  if echo "$combined" | grep -qiE 'story|lore|vignette|narrative|commander|character|codex|act[- ][0-9]|region|cultural|creative:\s*true|terrain|landscape'; then
     echo "opus"
   else
     echo "$DEFAULT_MODEL"

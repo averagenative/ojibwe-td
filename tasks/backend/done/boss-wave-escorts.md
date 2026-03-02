@@ -1,7 +1,7 @@
 ---
 id: TASK-037
 title: Boss Waves — Escort Creep Spawns
-status: pending
+status: done
 priority: medium
 phase: gameplay
 ---
