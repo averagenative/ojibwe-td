@@ -44,8 +44,8 @@ describe('style.css — layout contract', () => {
     expect(css).toContain('overflow-x: hidden');
   });
 
-  it('scales logo responsively with max-width: min(520px, 90vw)', () => {
-    expect(css).toContain('max-width: min(520px, 90vw)');
+  it('scales logo responsively with max-width: min(320px, 70vw)', () => {
+    expect(css).toContain('max-width: min(320px, 70vw)');
   });
 
   it('keeps logo aspect ratio with height: auto', () => {
