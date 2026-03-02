@@ -15,6 +15,7 @@ function makeMockTower(def: TowerDef = CANNON_DEF): Tower {
     def,
     upgStats: defaultUpgradeStats(def),
     applyUpgradeStats(s: TowerUpgradeStats): void { mock.upgStats = s; },
+    setAnimTier(_t: number): void { /* no-op in tests */ },
     onChainFired: undefined as ((pos: Array<{ x: number; y: number }>) => void) | undefined,
   };
   return mock as unknown as Tower;

@@ -10,6 +10,13 @@ import {
 import type { TowerBehaviorToggles } from '../../data/targeting';
 import type { OfferManager } from '../../systems/OfferManager';
 import type { CommanderRunState } from '../../data/commanderDefs';
+import {
+  getTowerAnimDef,
+  tierIntensity,
+  tierSizeScale,
+  lerpAngleDeg,
+} from '../../data/towerAnimDefs';
+import type { TowerAnimDef } from '../../data/towerAnimDefs';
 
 // Re-export pure data types & constants from the Phaser-free data module so
 // existing importers of Tower.ts continue to work unchanged.
@@ -92,6 +99,33 @@ export class Tower extends Phaser.GameObjects.Container {
    */
   onChainFired?: (positions: Array<{ x: number; y: number }>) => void;
 
+  // ── Animation state ────────────────────────────────────────────────────────
+
+  /** Animation definition for this tower type — looked up once in constructor. */
+  private _animDef:      TowerAnimDef;
+  /** Current upgrade tier bracket (0–5); set by setAnimTier(). */
+  private _animTier      = 0;
+  /** Idle phase accumulator (radians), advances proportionally to idleFreq. */
+  private _idlePhase     = 0;
+  /** Current barrel/body rotation angle in degrees (tracks toward visual target). */
+  private _barrelAngle   = 0;
+  /** World-X of the last known attack target (0 = no recent target). */
+  private _visualTargetX = 0;
+  /** World-Y of the last known attack target (0 = no recent target). */
+  private _visualTargetY = 0;
+  /** Ms accumulated for Tesla idle spark timer. */
+  private _sparkTimer    = 0;
+  /** Ms accumulated for Poison idle bubble timer. */
+  private _bubbleTimer   = 0;
+  /** Persistent Graphics object for Tesla idle arc sparks (cleaned up on sell). */
+  private _sparkGfx?:    Phaser.GameObjects.Graphics;
+  /** Handle to the currently running fire-animation tween (kill to interrupt). */
+  private _fireAnimTween?: Phaser.Tweens.Tween;
+  /** Direct reference to the tower body Rectangle (stored in buildBody). */
+  private _bodyRef?:     Phaser.GameObjects.Rectangle;
+  /** Direct reference to the tower icon Image (stored in buildBody, if present). */
+  private _iconRef?:     Phaser.GameObjects.Image;
+
   constructor(
     scene: Phaser.Scene,
     tileCol: number,
@@ -122,6 +156,9 @@ export class Tower extends Phaser.GameObjects.Container {
     this.commanderState        = commanderState;
     this.queryCreepsInRadius   = queryCreepsInRadius;
 
+    // Animation def resolved before buildBody() so it's available immediately.
+    this._animDef = getTowerAnimDef(def.key);
+
     this.rangeGfx = this.buildRangeCircle();
     this.buildBody();
 
@@ -147,6 +184,7 @@ export class Tower extends Phaser.GameObjects.Container {
 
     if (this.def.isAura) {
       this.stepAuraPulse(delta);
+      this._stepIdleAnim(delta);
       return;
     }
 
@@ -160,6 +198,8 @@ export class Tower extends Phaser.GameObjects.Container {
       this.attackElapsed = 0;
       this.tryAttack();
     }
+
+    this._stepIdleAnim(delta);
   }
 
   /**
@@ -169,6 +209,19 @@ export class Tower extends Phaser.GameObjects.Container {
   applyUpgradeStats(stats: TowerUpgradeStats): void {
     this.upgStats = stats;
     this.refreshRangeCircle();
+  }
+
+  /**
+   * Update the animation tier (0–5) — called by UpgradeManager after any
+   * upgrade or respec.  Re-scales the tower body when the tier bracket changes.
+   */
+  setAnimTier(tier: number): void {
+    const prevScale = tierSizeScale(this._animTier);
+    const newScale  = tierSizeScale(tier);
+    this._animTier  = tier;
+    if (prevScale !== newScale && this._bodyRef) {
+      this._bodyRef.setScale(newScale);
+    }
   }
 
   /**
@@ -244,6 +297,11 @@ export class Tower extends Phaser.GameObjects.Container {
     this.auraPulseGfx?.destroy();
     this.debuffTimer?.destroy();
     this.bloodlustTimer?.destroy();
+    // Clean up animation resources to prevent orphaned tweens / graphics.
+    this._fireAnimTween?.stop();
+    this._fireAnimTween = undefined;
+    this._sparkGfx?.destroy();
+    this._sparkGfx = undefined;
     this.destroy();
   }
 
@@ -256,7 +314,17 @@ export class Tower extends Phaser.GameObjects.Container {
     }
 
     const target = this.findTarget();
-    if (!target) return;
+    if (!target) {
+      // No target in range — clear visual tracking so idle sweep can resume.
+      this._visualTargetX = 0;
+      this._visualTargetY = 0;
+      return;
+    }
+
+    // Update visual tracking and trigger fire animation.
+    this._visualTargetX = target.x;
+    this._visualTargetY = target.y;
+    this._playFireAnim();
 
     this.onFired?.(this.def.key);
 
@@ -296,7 +364,17 @@ export class Tower extends Phaser.GameObjects.Container {
     if (this.behaviorToggles.holdFire) return;
 
     const target = this.findTarget();
-    if (!target) return;
+    if (!target) {
+      // No target in range — clear visual tracking so idle sweep can resume.
+      this._visualTargetX = 0;
+      this._visualTargetY = 0;
+      return;
+    }
+
+    // Update visual tracking and trigger fire animation.
+    this._visualTargetX = target.x;
+    this._visualTargetY = target.y;
+    this._playFireAnim();
 
     this.onFired?.(this.def.key);
 
@@ -726,14 +804,22 @@ export class Tower extends Phaser.GameObjects.Container {
       this.scene, 0, 0, BODY_SIZE, BODY_SIZE, this.def.bodyColor,
     );
     body.setStrokeStyle(2, 0xffffff, 0.35);
+    this._bodyRef = body;
 
     const iconKey = `icon-${this.def.key}`;
     if (this.scene.textures.exists(iconKey)) {
       const icon = new Phaser.GameObjects.Image(this.scene, 0, 0, iconKey);
       icon.setDisplaySize(20, 20);
+      this._iconRef = icon;
       this.add([body, icon]);
     } else {
       this.add([body]);
+    }
+
+    // Tesla: create a persistent Graphics object for idle arc sparks.
+    if (this.def.key === 'tesla') {
+      this._sparkGfx = this.scene.add.graphics();
+      this._sparkGfx.setDepth(11);
     }
   }
 
@@ -757,6 +843,348 @@ export class Tower extends Phaser.GameObjects.Container {
       this.auraPulseGfx.lineStyle(2, 0xffdd44, alpha);
       this.auraPulseGfx.strokeCircle(this.x, this.y, r);
     }
+  }
+
+  // ── Idle animation ─────────────────────────────────────────────────────────
+
+  /**
+   * Called every frame by step().  Advances the idle phase and dispatches
+   * to the appropriate per-archetype idle animation.
+   */
+  private _stepIdleAnim(delta: number): void {
+    // Advance idle phase accumulator.
+    this._idlePhase = (this._idlePhase + (delta / 1000) * this._animDef.idleFreq * Math.PI * 2) % (Math.PI * 2);
+
+    const intensity = tierIntensity(this._animTier);
+
+    // Barrel-aiming towers always run the tracking step.
+    if (this.def.key === 'cannon' || this.def.key === 'mortar') {
+      this._stepBarrelTracking();
+    }
+
+    // Tesla subtle lean toward target.
+    if (this.def.key === 'tesla') {
+      this._stepTeslaLean(intensity);
+    }
+
+    switch (this._animDef.idleType) {
+      case 'sweep':     this._stepSweepIdle(intensity);           break;
+      case 'pulse':     this._stepPulseIdle(intensity);           break;
+      case 'spark':     this._stepSparkIdle(delta, intensity);    break;
+      case 'bob':       this._stepBobIdle(intensity);             break;
+      case 'bubble':    this._stepBubbleIdle(delta, intensity);   break;
+      case 'aura-idle': break; // handled by stepAuraPulse
+    }
+  }
+
+  /**
+   * Lerp the container's rotation angle toward the last-known visual target.
+   * Used by Cannon and Mortar to smoothly aim their barrels.
+   */
+  private _stepBarrelTracking(): void {
+    // Sentinel: (0, 0) means no target has been acquired yet.
+    if (this._visualTargetX === 0 && this._visualTargetY === 0) return;
+
+    const targetAngle = Phaser.Math.RAD_TO_DEG * Math.atan2(
+      this._visualTargetY - this.y,
+      this._visualTargetX - this.x,
+    );
+    this._barrelAngle = lerpAngleDeg(
+      this._barrelAngle,
+      targetAngle,
+      this._animDef.lerpDegPerFrame,
+    );
+    this.setAngle(this._barrelAngle);
+  }
+
+  /**
+   * Cannon idle: slow ±sweepDeg oscillation while no target is in sight.
+   * Defers to barrel-tracking when a visual target is present.
+   */
+  private _stepSweepIdle(intensity: number): void {
+    // Only sweep when there is no active tracking target.
+    if (this._visualTargetX !== 0 || this._visualTargetY !== 0) return;
+    const sweepAngle = Math.sin(this._idlePhase) * this._animDef.sweepDeg * intensity;
+    this.setAngle(sweepAngle);
+    this._barrelAngle = sweepAngle;
+  }
+
+  /**
+   * Frost/Arrow idle: subtle scale pulse (breathing effect) on the body rect.
+   */
+  private _stepPulseIdle(intensity: number): void {
+    if (!this._bodyRef) return;
+    const base  = tierSizeScale(this._animTier);
+    const pulse = 1 + Math.sin(this._idlePhase) * this._animDef.pulseScale * intensity;
+    this._bodyRef.setScale(base * pulse);
+  }
+
+  /**
+   * Tesla idle: periodic random electric arc sparks around the coil tips.
+   */
+  private _stepSparkIdle(delta: number, intensity: number): void {
+    this._sparkTimer += delta;
+    const interval = this._animDef.sparkIntervalMs / Math.max(0.1, intensity);
+    if (this._sparkTimer < interval) return;
+    this._sparkTimer = 0;
+
+    if (!this._sparkGfx) return;
+
+    // Redraw three random arc spokes emanating from the tower edge.
+    this._sparkGfx.clear();
+    this._sparkGfx.setAlpha(1);
+    this._sparkGfx.lineStyle(1, 0x88aaff, 0.75);
+
+    const numArcs = 3;
+    for (let i = 0; i < numArcs; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r1    = BODY_SIZE / 2;
+      const r2    = r1 + 6 + Math.random() * 6;
+      const x1    = this.x + Math.cos(angle) * r1;
+      const y1    = this.y + Math.sin(angle) * r1;
+      const x2    = this.x + Math.cos(angle) * r2;
+      const y2    = this.y + Math.sin(angle) * r2;
+      this._sparkGfx.beginPath();
+      this._sparkGfx.moveTo(x1, y1);
+      this._sparkGfx.lineTo(x2, y2);
+      this._sparkGfx.strokePath();
+    }
+
+    // Fade the sparks out over the next interval.
+    this.scene.tweens.add({
+      targets:  this._sparkGfx,
+      alpha:    0,
+      duration: Math.min(interval * 0.8, 300),
+      onComplete: () => { this._sparkGfx?.setAlpha(0); },
+    });
+  }
+
+  /**
+   * Mortar idle: slow vertical Y bob on the body (simulates barrel elevation).
+   * Also defers to barrel-tracking when a visual target is present.
+   */
+  private _stepBobIdle(intensity: number): void {
+    if (!this._bodyRef) return;
+    const bobY = Math.sin(this._idlePhase) * this._animDef.bobAmpY * intensity;
+    this._bodyRef.y = bobY;
+  }
+
+  /**
+   * Poison idle: periodic small green bubble particles rising from the tower.
+   */
+  private _stepBubbleIdle(delta: number, intensity: number): void {
+    this._bubbleTimer += delta;
+    const interval = this._animDef.bubbleIntervalMs / Math.max(0.1, intensity);
+    if (this._bubbleTimer < interval) return;
+    this._bubbleTimer = 0;
+
+    const gfx = this.scene.add.graphics();
+    gfx.setDepth(11);
+    gfx.fillStyle(0x44ff44, 0.65);
+    gfx.fillCircle(0, 0, 2 + Math.random() * 2);
+    // Position near tower centre with small random offset.
+    gfx.x = this.x + (Math.random() - 0.5) * 14;
+    gfx.y = this.y + (Math.random() - 0.5) * 14;
+
+    this.scene.tweens.add({
+      targets:  gfx,
+      y:        gfx.y - (10 + Math.random() * 8),
+      alpha:    0,
+      scaleX:   1.4,
+      scaleY:   1.4,
+      duration: 500 + Math.random() * 200,
+      onComplete: () => gfx.destroy(),
+    });
+  }
+
+  /**
+   * Tesla idle: subtle lean (rotation) of the container toward the target.
+   * Maximum lean = leanDeg × intensity, reset to 0 when no target.
+   */
+  private _stepTeslaLean(intensity: number): void {
+    const leanMax = this._animDef.leanDeg * intensity;
+    if (this._visualTargetX === 0 && this._visualTargetY === 0) {
+      // Ease back to upright.
+      this.setAngle(lerpAngleDeg(this.angle, 0, 1.5));
+      return;
+    }
+    // Lean in the horizontal direction of the target, clamped to ±leanMax.
+    const dx           = this._visualTargetX - this.x;
+    const normalised   = Math.max(-1, Math.min(1, dx / 200));
+    const targetLean   = normalised * leanMax;
+    this.setAngle(lerpAngleDeg(this.angle, targetLean, 1.5));
+  }
+
+  // ── Fire animations ────────────────────────────────────────────────────────
+
+  /**
+   * Dispatch to the correct per-archetype fire animation.
+   * Any currently running fire tween is killed first so rapid shots don't stack.
+   */
+  private _playFireAnim(): void {
+    switch (this.def.key) {
+      case 'cannon': this._playCannonRecoil();  break;
+      case 'frost':  this._playFrostFire();     break;
+      case 'tesla':  this._playTeslaFlash();    break;
+      case 'mortar': this._playMortarKick();    break;
+      case 'poison': this._playPoisonGlow();    break;
+      case 'arrow':  this._playArrowRecoil();   break;
+    }
+  }
+
+  /** Cannon: body snaps to recoilScale, tweens back over recoilMs. */
+  private _playCannonRecoil(): void {
+    if (!this._bodyRef) return;
+    this._fireAnimTween?.stop();
+    const base = tierSizeScale(this._animTier);
+    this._bodyRef.setScale(base * this._animDef.recoilScale);
+    this._fireAnimTween = this.scene.tweens.add({
+      targets:  this._bodyRef,
+      scaleX:   base,
+      scaleY:   base,
+      duration: this._animDef.recoilMs,
+      ease:     'Cubic.Out',
+      onComplete: () => { this._fireAnimTween = undefined; },
+    });
+  }
+
+  /**
+   * Frost: brief scale expansion pulse (1.0 → firePulseScale → 1.0)
+   * + scatter of small ice crystal particles.
+   */
+  private _playFrostFire(): void {
+    if (!this._bodyRef) return;
+    this._fireAnimTween?.stop();
+    const base  = tierSizeScale(this._animTier);
+    const peak  = base * (1 + this._animDef.firePulseScale);
+    this._bodyRef.setScale(peak);
+    this._spawnFrostCrystals();
+    this._fireAnimTween = this.scene.tweens.add({
+      targets:  this._bodyRef,
+      scaleX:   base,
+      scaleY:   base,
+      duration: this._animDef.fireFlashMs,
+      ease:     'Cubic.Out',
+      onComplete: () => { this._fireAnimTween = undefined; },
+    });
+  }
+
+  /** Spawn small ice-crystal shards that scatter outward from the tower. */
+  private _spawnFrostCrystals(): void {
+    const numCrystals = 4;
+    for (let i = 0; i < numCrystals; i++) {
+      const angle = (i / numCrystals) * Math.PI * 2 + Math.random() * 0.4;
+      const gfx   = this.scene.add.graphics();
+      gfx.setDepth(11);
+      gfx.fillStyle(0x88ccff, 0.85);
+      gfx.fillRect(-2, -2, 4, 4);
+      gfx.x = this.x;
+      gfx.y = this.y;
+      this.scene.tweens.add({
+        targets:  gfx,
+        x:        this.x + Math.cos(angle) * 20,
+        y:        this.y + Math.sin(angle) * 20,
+        alpha:    0,
+        duration: 280 + Math.random() * 80,
+        onComplete: () => gfx.destroy(),
+      });
+    }
+  }
+
+  /**
+   * Tesla: entire tower body flashes white for fireFlashMs, body shakes
+   * horizontally on the body rect.
+   */
+  private _playTeslaFlash(): void {
+    if (!this._bodyRef) return;
+    this._fireAnimTween?.stop();
+
+    // Flash body to white (Rectangle uses setFillStyle, not setTint).
+    this._bodyRef.setFillStyle(0xffffff);
+    // Icon tint (Image supports setTint).
+    this._iconRef?.setTint(0xffffff);
+
+    this._fireAnimTween = this.scene.tweens.add({
+      targets:  {},       // dummy target — we just need an onComplete timer
+      duration: this._animDef.fireFlashMs,
+      onComplete: () => {
+        this._bodyRef?.setFillStyle(this.def.bodyColor);
+        this._iconRef?.clearTint();
+        this._fireAnimTween = undefined;
+      },
+    });
+
+    // Rapid shake of body rect along X axis.
+    const origX = this._bodyRef.x;
+    this.scene.tweens.add({
+      targets:  this._bodyRef,
+      x:        origX + 2,
+      duration: 20,
+      yoyo:     true,
+      repeat:   2,
+      onComplete: () => {
+        if (this._bodyRef) this._bodyRef.x = origX;
+      },
+    });
+  }
+
+  /**
+   * Mortar: barrel kicks +kickDeg on firing, eases back over kickMs.
+   * Body receives a slight squash (scaleY 0.9) during the kick.
+   */
+  private _playMortarKick(): void {
+    this._fireAnimTween?.stop();
+    const base     = tierSizeScale(this._animTier);
+    const kickAngle = this._barrelAngle + this._animDef.kickDeg;
+    this.setAngle(kickAngle);
+    if (this._bodyRef) {
+      this._bodyRef.setScale(base * 1.0, base * 0.9);
+    }
+    this._fireAnimTween = this.scene.tweens.add({
+      targets:  this,
+      angle:    this._barrelAngle,
+      duration: this._animDef.kickMs,
+      ease:     'Cubic.Out',
+      onComplete: () => {
+        if (this._bodyRef) this._bodyRef.setScale(base);
+        this._fireAnimTween = undefined;
+      },
+    });
+  }
+
+  /**
+   * Poison: tower briefly glows bright green when firing a blob.
+   */
+  private _playPoisonGlow(): void {
+    if (!this._bodyRef) return;
+    this._fireAnimTween?.stop();
+    this._bodyRef.setFillStyle(0x88ff44);
+    this._fireAnimTween = this.scene.tweens.add({
+      targets:  {},
+      duration: 200,
+      onComplete: () => {
+        this._bodyRef?.setFillStyle(this.def.bodyColor);
+        this._fireAnimTween = undefined;
+      },
+    });
+  }
+
+  /**
+   * Arrow: snappier recoil than Cannon (lighter recoilScale, shorter recoilMs).
+   */
+  private _playArrowRecoil(): void {
+    if (!this._bodyRef) return;
+    this._fireAnimTween?.stop();
+    const base = tierSizeScale(this._animTier);
+    this._bodyRef.setScale(base * this._animDef.recoilScale);
+    this._fireAnimTween = this.scene.tweens.add({
+      targets:  this._bodyRef,
+      scaleX:   base,
+      scaleY:   base,
+      duration: this._animDef.recoilMs,
+      ease:     'Cubic.Out',
+      onComplete: () => { this._fireAnimTween = undefined; },
+    });
   }
 }
 

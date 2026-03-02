@@ -18,6 +18,7 @@ function makeMockTower(def: TowerDef = POISON_DEF): Tower {
     def,
     upgStats: defaultUpgradeStats(def),
     applyUpgradeStats(s: TowerUpgradeStats): void { mock.upgStats = s; },
+    setAnimTier(_t: number): void { /* no-op in tests */ },
     onChainFired: undefined as unknown,
     x: 0,
     y: 0,
