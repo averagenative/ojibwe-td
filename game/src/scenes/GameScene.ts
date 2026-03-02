@@ -16,7 +16,7 @@ import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
 import type { MapData } from '../types/MapData';
-import { TILE } from '../types/MapData';
+import { TILE, getWaypointPaths } from '../types/MapData';
 import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
 import { getStageDef, getStageByPathFile, getRegionDef } from '../data/stageDefs';
@@ -41,7 +41,10 @@ interface PixelWaypoint { x: number; y: number; }
 export class GameScene extends Phaser.Scene {
   // ── data ──────────────────────────────────────────────────────────────────
   private mapData!: MapData;
+  /** Primary ground path (path A) in pixel coords. */
   private waypoints: PixelWaypoint[] = [];
+  /** All ground paths in pixel coords — length 1 for single-path maps. */
+  private waypointPaths: PixelWaypoint[][] = [];
 
   // ── selected stage / map (set via init()) ────────────────────────────────
   private selectedStageId = 'zaagaiganing-01';
@@ -179,10 +182,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.mapData   = this.cache.json.get(this.selectedMapId) as MapData;
-    this.lives     = this.mapData.startingLives;
-    this.gold      = this.mapData.startingGold;
-    this.waypoints = this.buildPixelWaypoints();
+    this.mapData       = this.cache.json.get(this.selectedMapId) as MapData;
+    this.lives         = this.mapData.startingLives;
+    this.gold          = this.mapData.startingGold;
+    this.waypointPaths = this.buildAllPixelWaypointPaths();
+    this.waypoints     = this.waypointPaths[0] ?? [];
 
     // ── Commander system ─────────────────────────────────────────────────────
     this.commanderDef   = getCommanderDef(this.selectedCommanderId) ?? null;
@@ -268,7 +272,7 @@ export class GameScene extends Phaser.Scene {
     const waveDefs      = this.cache.json.get('wave-defs');
     const airWaypoints  = this.buildAirWaypoints();
     this.waveManager = new WaveManager(
-      this, this.waypoints, this.activeCreeps, creepTypeDefs, waveDefs, airWaypoints,
+      this, this.waypointPaths, this.activeCreeps, creepTypeDefs, waveDefs, airWaypoints,
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
 
@@ -605,12 +609,14 @@ export class GameScene extends Phaser.Scene {
 
   // ── map ───────────────────────────────────────────────────────────────────
 
-  private buildPixelWaypoints(): PixelWaypoint[] {
-    const ts = this.mapData.tileSize;
-    return this.mapData.waypoints.map(wp => ({
+  /** Convert all map paths to pixel-space waypoint arrays. */
+  private buildAllPixelWaypointPaths(): PixelWaypoint[][] {
+    const ts    = this.mapData.tileSize;
+    const paths = getWaypointPaths(this.mapData);
+    return paths.map(path => path.map(wp => ({
       x: wp.col * ts + ts / 2,
       y: wp.row * ts + ts / 2,
-    }));
+    })));
   }
 
   /**
@@ -648,10 +654,16 @@ export class GameScene extends Phaser.Scene {
     const markerGfx = this.add.graphics();
     markerGfx.setDepth(3);
 
-    const spawnY = this.waypoints[0].y;
+    // Show a spawn marker at each path's entry point (supports multi-path maps).
     markerGfx.fillStyle(PAL.accentGreenN, 0.6);
-    markerGfx.fillTriangle(0, spawnY - 8, 0, spawnY + 8, 12, spawnY);
+    for (const path of this.waypointPaths) {
+      if (path.length > 0) {
+        const spawnY = path[0].y;
+        markerGfx.fillTriangle(0, spawnY - 8, 0, spawnY + 8, 12, spawnY);
+      }
+    }
 
+    // Exit marker — all paths share the same exit (last waypoint of path A).
     const exitWp = this.waypoints[this.waypoints.length - 1];
     markerGfx.fillStyle(PAL.dangerN, 0.6);
     markerGfx.fillTriangle(

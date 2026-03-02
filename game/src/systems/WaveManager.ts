@@ -94,7 +94,10 @@ const ENDLESS_BOSS_ROTATION = ['makwa', 'migizi', 'waabooz', 'animikiins'] as co
 
 export class WaveManager extends Phaser.Events.EventEmitter {
   private scene:        Phaser.Scene;
+  /** Primary ground path (path A / path index 0). Used by Waabooz split and single-path maps. */
   private waypoints:    Waypoint[];
+  /** All ground paths — length 1 for single-path maps, 2+ for multi-path maps. */
+  private waypointPaths: Waypoint[][];
   /** Simplified route for air creeps (spawn → exit or custom air lane). */
   private airWaypoints: Waypoint[];
   private activeCreeps: Set<Creep>;
@@ -109,6 +112,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   private waveActive   = false;
   private spawnQueue:  CreepConfig[] = [];
   private spawnTimer?: Phaser.Time.TimerEvent;
+  /** Increments with each ground/air creep spawned; used to alternate between paths. */
+  private spawnPathIndex = 0;
   /** Timer for the initial delay before escort spawning begins. */
   private escortDelayTimer?: Phaser.Time.TimerEvent;
   /** Timer for the repeat-interval escort spawning after the first escort. */
@@ -121,7 +126,12 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   constructor(
     scene:        Phaser.Scene,
-    waypoints:    Waypoint[],
+    /**
+     * Ground waypoints — either a flat single-path array (`Waypoint[]`) for
+     * backward compatibility, or a multi-path array (`Waypoint[][]`).
+     * Single-path arrays are normalised to `[[...waypoints]]` internally.
+     */
+    waypoints:    Waypoint[] | Waypoint[][],
     activeCreeps: Set<Creep>,
     creepTypeDefs: CreepTypeDef[],
     waveDefs:      WaveDef[],
@@ -129,16 +139,23 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   ) {
     super();
     this.scene         = scene;
-    this.waypoints     = waypoints;
     this.activeCreeps  = activeCreeps;
     this.creepTypeDefs = creepTypeDefs;
     this.waveDefs      = waveDefs;
 
-    // Default air path: direct line from spawn to exit (first and last waypoints).
+    // Normalise waypoints to array-of-paths.
+    if (waypoints.length > 0 && Array.isArray(waypoints[0])) {
+      this.waypointPaths = waypoints as Waypoint[][];
+    } else {
+      this.waypointPaths = [waypoints as Waypoint[]];
+    }
+    this.waypoints = this.waypointPaths[0] ?? [];
+
+    // Default air path: direct line from spawn to exit of path A.
     // A custom air lane can be supplied via the optional parameter (from map JSON).
     this.airWaypoints = (airWaypoints && airWaypoints.length >= 2)
       ? airWaypoints
-      : [waypoints[0], waypoints[waypoints.length - 1]];
+      : [this.waypoints[0], this.waypoints[this.waypoints.length - 1]];
   }
 
   isActive():      boolean { return this.waveActive; }
@@ -324,10 +341,11 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       ?? (this.isEndless ? this.generateEndlessWave(waveNumber) : undefined);
     if (!waveDef) return;
 
-    this.currentWave  = waveNumber;
-    this.spawned      = 0;
-    this.settled      = 0;
-    this.waveActive   = true;
+    this.currentWave   = waveNumber;
+    this.spawned       = 0;
+    this.settled       = 0;
+    this.waveActive    = true;
+    this.spawnPathIndex = 0; // reset alternation each wave
 
     if (waveDef.boss) {
       // ── Boss wave ────────────────────────────────────────────────────────
@@ -578,8 +596,17 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   private spawnOne(config: CreepConfig): void {
     this.spawned++;
-    // Air creeps fly a simplified direct route; ground creeps follow the ground path.
-    const wp = config.type === 'air' ? this.airWaypoints : this.waypoints;
+    // Air creeps fly a simplified direct route (always path A for single or multi-path).
+    // Ground creeps alternate between paths on multi-path maps.
+    let wp: Waypoint[];
+    if (config.type === 'air') {
+      wp = this.airWaypoints;
+    } else if (this.waypointPaths.length > 1) {
+      wp = this.waypointPaths[this.spawnPathIndex % this.waypointPaths.length];
+      this.spawnPathIndex++;
+    } else {
+      wp = this.waypoints;
+    }
     const creep = new Creep(this.scene, wp, config);
     this.activeCreeps.add(creep);
 

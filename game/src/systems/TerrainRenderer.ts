@@ -10,7 +10,7 @@
 
 import Phaser from 'phaser';
 import type { MapData } from '../types/MapData';
-import { TILE } from '../types/MapData';
+import { TILE, getWaypointPaths } from '../types/MapData';
 import type { SeasonalTheme } from '../data/stageDefs';
 
 // ── Seeded pseudo-random ─────────────────────────────────────────────────────
@@ -296,8 +296,9 @@ export function renderTerrain(
   const { tileSize: ts, cols, rows, tiles } = mapData;
   const seed = mapIdToSeed(mapData.id);
   const pal = PALETTES[season];
-  const spawnWp = mapData.waypoints[0];
-  const exitWp  = mapData.waypoints[mapData.waypoints.length - 1];
+  const primaryPath = getWaypointPaths(mapData)[0] ?? [];
+  const spawnWp = primaryPath[0];
+  const exitWp  = primaryPath[primaryPath.length - 1];
 
   // ── Base layer (ground fills only — no paths) ──────────────────────────────
   const baseGfx = scene.add.graphics();
