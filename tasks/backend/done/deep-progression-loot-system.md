@@ -1,7 +1,7 @@
 ---
 id: TASK-067
 title: Deep Progression — Loot Drops, Tower Gear, Commander Enhancements, Replayability Loop
-status: pending
+status: done
 priority: high
 phase: gameplay
 planning: true

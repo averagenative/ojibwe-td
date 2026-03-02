@@ -7,6 +7,11 @@ export default defineConfig({
     host: '0.0.0.0',
     open: true,
     allowedHosts: true,
+    hmr: {
+      // Long timeout prevents Vite from treating a backgrounded mobile tab
+      // as a disconnected client and triggering a full page reload.
+      timeout: 300000,
+    },
   },
   build: {
     target: 'es2022',

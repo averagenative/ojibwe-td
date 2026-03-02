@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Tower } from '../entities/towers/Tower';
 import type { UpgradeManager } from '../systems/UpgradeManager';
+import { calculateSellRefund } from '../systems/EconomyManager';
 import { PAL } from './palette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ interface PathColumnUI {
 export class UpgradePanel {
   private readonly manager: UpgradeManager;
   private readonly getGold: () => number;
+  private readonly getSellRate: () => number;
 
   private _open         = false;
   private currentTower: Tower | null = null;
@@ -44,10 +46,14 @@ export class UpgradePanel {
   private allObjects:  Phaser.GameObjects.GameObject[] = [];
   private panelBg:     Phaser.GameObjects.Rectangle;
   private nameTxt:     Phaser.GameObjects.Text;
+  private sellBg:      Phaser.GameObjects.Rectangle;
+  private sellLabel:   Phaser.GameObjects.Text;
   private respecBg:    Phaser.GameObjects.Rectangle;
   private respecLabel: Phaser.GameObjects.Text;
   private columns:     PathColumnUI[] = [];
 
+  /** GameScene sets this so selling a tower refunds gold. */
+  onSell?: (tower: Tower) => void;
   /** GameScene sets this so buying deducts gold and refreshes HUD. */
   onBuy?:    (cost: number) => void;
   /**
@@ -62,9 +68,11 @@ export class UpgradePanel {
     scene:   Phaser.Scene,
     manager: UpgradeManager,
     getGold: () => number,
+    getSellRate: () => number = () => 0.7,
   ) {
     this.manager = manager;
     this.getGold = getGold;
+    this.getSellRate = getSellRate;
 
     const { width, height } = scene.scale;
 
@@ -91,8 +99,30 @@ export class UpgradePanel {
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(this.nameTxt);
 
+    // Sell button (gold text, prominent)
+    const sellW  = 120;
+    const sellX  = width - 12 - sellW / 2;
+
+    this.sellBg = scene.add.rectangle(sellX, headerCY, sellW, HEADER_H - 4, 0x3a2a00)
+      .setStrokeStyle(2, 0xdaa520)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 1);
+    this.allObjects.push(this.sellBg);
+
+    this.sellLabel = scene.add.text(sellX, headerCY, 'SELL', {
+      fontSize: '12px', color: PAL.gold, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
+    this.allObjects.push(this.sellLabel);
+
+    this.sellBg.on('pointerover', () => this.sellBg.setFillStyle(0x4a3a10));
+    this.sellBg.on('pointerout',  () => this.sellBg.setFillStyle(0x3a2a00));
+    this.sellBg.on('pointerup',   () => {
+      if (this.currentTower) this.onSell?.(this.currentTower);
+    });
+
+    // Respec button
     const respecW = 160;
-    const respecX = width - 12 - respecW / 2;
+    const respecX = sellX - sellW / 2 - 8 - respecW / 2;
 
     this.respecBg = scene.add.rectangle(respecX, headerCY, respecW, HEADER_H - 4, PAL.bgGiveUp)
       .setStrokeStyle(1, PAL.borderDanger)
@@ -235,6 +265,11 @@ export class UpgradePanel {
     const gold  = this.getGold();
 
     this.nameTxt.setText(`${tower.def.name.toUpperCase()} UPGRADES`);
+
+    // Sell button — show refund amount
+    const upgradeSpent = state?.totalSpent ?? 0;
+    const sellRefund = calculateSellRefund(tower.def.cost + upgradeSpent, this.getSellRate());
+    this.sellLabel.setText(`SELL  +${sellRefund}g`);
 
     // Respec button label
     if (state && state.totalSpent > 0) {

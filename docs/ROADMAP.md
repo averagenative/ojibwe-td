@@ -1370,6 +1370,55 @@ Non-blocking items surfaced during Opus review of the mobile-responsive branch:
   implemented, but would improve the mobile experience (fullscreen without browser
   chrome via "Add to Home Screen").
 
+## Non-blocking Findings — TASK-060 (Keyboard Shortcuts)
+
+*Surfaced during code review of the keyboard shortcuts feature.*
+
+- **Text input guard**: Keyboard shortcuts do not check `document.activeElement`
+  for `<input>` / `<textarea>` focus. Currently safe (no text inputs exist in
+  the game), but any future text field (e.g. chat, search, name entry) will need
+  an `activeElement` guard added to the `isShortcutBlocked()` helper.
+
+- **Hint label cleanup**: Speed button and tower panel shortcut hint labels are
+  added directly to the scene (`scene.add.text(...)`) rather than to the HUD /
+  TowerPanel container. This follows the existing pattern for button labels in
+  those components, but means the hints aren't grouped with their parent and
+  can't be independently hidden/destroyed. Fine for now; worth consolidating if
+  the UI ever gets a dynamic layout or resize support.
+
+### TASK-067 Deep Progression — Non-blocking Findings (reviewed 2026-03-02)
+
+1. **Challenge modifiers `allArmored`, `allAir`, `splitOnDeath` are defined but not applied.**
+   `ChallengeModifier` includes boolean flags for forcing all-armored, all-air, and split-on-death
+   creep behavior, and 3 of 5 challenge maps set these flags. However `GameScene.create()` only
+   applies `creepHpMult`, `creepSpeedMult`, `waveCount`, `goldMult`, and `bannedTowers`. The
+   boolean modifiers are dead data. Implementing them requires WaveManager and/or Creep spawning
+   changes (force creep-type override, add split-spawn handler on `creep-killed`). Medium effort.
+
+2. **Gear special effects are descriptive only — no runtime wiring.**
+   `GearSpecialEffect` items like `armor-shred-50`, `frost-vuln`, `tesla-overcharge`, `lightning-strike`,
+   `seven-fires`, etc. appear as tooltip text but have no runtime effect in `Tower.ts` or `Creep.ts`.
+   The `hasGearEffect()` helper exists in GearSystem but is never called from game logic. These need
+   per-effect handlers wired into the tower attack pipeline (e.g. `if (hasGearEffect(bonuses, 'armor-shred-50')) creep.applyArmorShred(0.5, 3000)`).
+
+3. **Commander enhancement equip UI is missing.**
+   `SaveManager.setCommanderEnhancement()` and `getCommanderEnhancements()` exist, and
+   `ALL_ENHANCEMENTS` are defined in `enhancementDefs.ts`, but there is no scene/panel for players
+   to equip enhancements to commanders. The data layer is complete; only the UI is needed.
+
+4. **`ChallengeSelectScene._estimateTotalSpent()` is an approximation.**
+   Returns `save.getCurrency()` (current balance) instead of total crystals ever earned/spent.
+   Challenge unlock thresholds compare against "total crystals spent" but there's no field tracking
+   cumulative spending. Consider adding a `totalCrystalsEarned` counter to SaveManager.
+
+5. **`_makeButton` helper duplicated across 3 scenes.**
+   `ChallengeSelectScene`, `InventoryScene`, and `TowerEquipScene` each have nearly identical
+   `_makeButton` private methods. Extract to a shared `ui/ButtonFactory.ts` utility.
+
+6. **Signature abilities defined but not invocable.**
+   `SIGNATURE_ABILITIES` in `enhancementDefs.ts` define 6 per-commander abilities with descriptions
+   and icon IDs, but there's no activation UI or gameplay effect. These are Phase 4 stretch items.
+
 ## Health Check Findings
 
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*

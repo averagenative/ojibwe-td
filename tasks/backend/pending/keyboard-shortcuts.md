@@ -1,7 +1,7 @@
 ---
 id: TASK-060
 title: Keyboard Shortcuts — Pause, Speed, Deselect, Tower Hotkeys
-status: pending
+status: in-progress
 priority: high
 phase: gameplay
 ---

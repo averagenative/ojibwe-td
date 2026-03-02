@@ -140,9 +140,17 @@ export class TowerPanel {
         btn.setFillStyle(PAL.bgCard);
         this._hideTooltip();
       });
-      btn.on('pointerup', () => {
-        if (getGold() >= def.cost) onSelect(def);
-      });
+      if (_IS_MOBILE) {
+        // Mobile: pointerdown starts placement so the player can drag onto the
+        // map and release to place (drag-to-place).
+        btn.on('pointerdown', () => {
+          if (getGold() >= def.cost) onSelect(def);
+        });
+      } else {
+        btn.on('pointerup', () => {
+          if (getGold() >= def.cost) onSelect(def);
+        });
+      }
     });
   }
 

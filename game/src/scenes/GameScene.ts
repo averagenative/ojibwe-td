@@ -88,6 +88,7 @@ export class GameScene extends Phaser.Scene {
   private placementDef: TowerDef | null = null;
   private rangePreview!:    Phaser.GameObjects.Graphics;
   private placementMarker!: Phaser.GameObjects.Rectangle;
+  private placementHint: Phaser.GameObjects.Text | null = null;
 
   // ── selection ─────────────────────────────────────────────────────────────
   private selectedTower: Tower | null = null;
@@ -135,12 +136,6 @@ export class GameScene extends Phaser.Scene {
   /** Reference to terrain decoration Graphics returned by renderTerrain(). */
   private decoGfx: Phaser.GameObjects.Graphics | null = null;
   private decoVisible = true;
-
-  // ── mobile long-press placement ────────────────────────────────────────────
-  /** Phaser TimerEvent for long-press-to-place (mobile only). */
-  private _placementHoldTimer: Phaser.Time.TimerEvent | null = null;
-  /** Target position recorded on pointerdown for long-press confirmation. */
-  private _placementHoldTarget: { x: number; y: number } | null = null;
 
   // ── performance systems ───────────────────────────────────────────────────
   /**
@@ -213,8 +208,6 @@ export class GameScene extends Phaser.Scene {
     this.debugVisible        = false;
     this.decoGfx                = null;
     this.decoVisible            = true;
-    this._placementHoldTimer    = null;
-    this._placementHoldTarget   = null;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -512,6 +505,16 @@ export class GameScene extends Phaser.Scene {
       0, 0, this.mapData.tileSize, this.mapData.tileSize, PAL.bgPlacementValid, 0.5,
     ).setStrokeStyle(2, PAL.bgPlacementValid, 0.8).setDepth(5).setVisible(false);
 
+    // Mobile placement hint — shown while in placement mode.
+    if (MobileManager.getInstance().isMobile()) {
+      this.placementHint = this.add.text(
+        this.scale.width / 2, getHudHeight() + 12,
+        'Drag to map & release to place',
+        { fontSize: '14px', color: '#ffffff', fontFamily: 'monospace',
+          backgroundColor: '#000000aa', padding: { x: 8, y: 4 } },
+      ).setOrigin(0.5, 0).setDepth(200).setVisible(false);
+    }
+
     // Tower panel (bottom strip) — filter out challenge-banned towers.
     const panelDefs = this.challengeModifier
       ? ALL_TOWER_DEFS.filter(d => !(this.challengeModifier!.bannedTowers ?? []).includes(d.key))
@@ -519,7 +522,10 @@ export class GameScene extends Phaser.Scene {
     new TowerPanel(this, panelDefs, (def) => this.enterPlacementMode(def), () => this.gold);
 
     // Upgrade panel (above tower panel — shown when a tower is selected)
-    this.upgradePanel = new UpgradePanel(this, this.upgradeManager, () => this.gold);
+    this.upgradePanel = new UpgradePanel(
+      this, this.upgradeManager, () => this.gold,
+      () => this.offerManager.getSellRefundRate(),
+    );
     this.upgradePanel.onBuy = (cost) => {
       this.gold -= cost;
       this.hud.setGold(this.gold);
@@ -530,6 +536,7 @@ export class GameScene extends Phaser.Scene {
       this.gold += actualRefund;
       this.hud.setGold(this.gold);
     };
+    this.upgradePanel.onSell = (tower) => this.sellTower(tower);
 
     // Behavior panel (above upgrade panel — targeting priority + per-tower toggle)
     this.behaviorPanel = new BehaviorPanel(this);
@@ -548,9 +555,10 @@ export class GameScene extends Phaser.Scene {
     // Input
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
-    // Mobile long-press: cancel the placement hold timer on finger lift.
-    this.input.on('pointerup', this._cancelPlacementHold, this);
-
+    if (MobileManager.getInstance().isMobile()) {
+      // Mobile: place tower on finger-lift (drag-to-place from TowerPanel).
+      this.input.on('pointerup', this.onPointerUp, this);
+    }
     // ── BetweenWaveScene offer-picked event ───────────────────────────────
     // Fired by BetweenWaveScene after the player selects a card.
     // Applies any instant-gold offer effect and reveals the next-wave button.
@@ -771,16 +779,6 @@ export class GameScene extends Phaser.Scene {
   private onPointerMove(ptr: Phaser.Input.Pointer): void {
     if (!this.placementDef) return;
     this.updatePlacementPreview(ptr);
-
-    // On mobile: cancel pending long-press if the finger drifts more than
-    // ~20 logical pixels (finger wobble is common; larger drift = intentional pan).
-    if (this._placementHoldTarget) {
-      const dx = ptr.x - this._placementHoldTarget.x;
-      const dy = ptr.y - this._placementHoldTarget.y;
-      if (dx * dx + dy * dy > 400) { // 20² = 400
-        this._cancelPlacementHold();
-      }
-    }
   }
 
   private onPointerDown(ptr: Phaser.Input.Pointer): void {
@@ -803,17 +801,34 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.placementDef) {
-      if (MobileManager.getInstance().isMobile()) {
-        // On mobile: require a 400 ms long-press to confirm placement.
-        // This prevents accidental taps from placing towers unintentionally.
-        this._startPlacementHold(ptr.x, ptr.y);
-      } else {
+      // On mobile, placement happens on pointerup (drag-to-place).
+      if (!MobileManager.getInstance().isMobile()) {
         this.tryPlaceTower(ptr.x, ptr.y);
       }
     } else {
       // Deselect any selected tower if clicking empty space.
       // Tower clicks are handled via tower's own 'pointerup' listener.
       this.deselectTower();
+    }
+  }
+
+  /** Mobile: place tower on finger-lift (drag-to-place). */
+  private onPointerUp(ptr: Phaser.Input.Pointer): void {
+    if (!this.placementDef) return;
+
+    const hudHeight   = getHudHeight();
+    const panelsOpen  = this.upgradePanel.isOpen();
+    const bottomLimit = this.scale.height
+      - PANEL_HEIGHT
+      - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
+
+    // Finger lifted inside the map area — place the tower.
+    if (ptr.y >= hudHeight && ptr.y <= bottomLimit) {
+      this.tryPlaceTower(ptr.x, ptr.y);
+    }
+    // Finger lifted outside the map (back on panel/HUD) — cancel placement.
+    else {
+      this.exitPlacementMode();
     }
   }
 
@@ -826,37 +841,6 @@ export class GameScene extends Phaser.Scene {
     if (tower) this.sellTower(tower);
   }
 
-  // ── mobile long-press placement ────────────────────────────────────────────
-
-  /**
-   * Start a 400 ms hold timer; when it fires the tower is placed at (x, y).
-   * Called from `onPointerDown` on mobile when in placement mode.
-   */
-  private _startPlacementHold(worldX: number, worldY: number): void {
-    this._cancelPlacementHold();
-    this._placementHoldTarget = { x: worldX, y: worldY };
-    this._placementHoldTimer = this.time.addEvent({
-      delay: 400,
-      callback: () => {
-        if (this._placementHoldTarget) {
-          this.tryPlaceTower(this._placementHoldTarget.x, this._placementHoldTarget.y);
-        }
-        this._placementHoldTarget = null;
-        this._placementHoldTimer  = null;
-      },
-      callbackScope: this,
-    });
-  }
-
-  /** Cancel a pending long-press placement hold (if any). */
-  private _cancelPlacementHold(): void {
-    if (this._placementHoldTimer) {
-      this._placementHoldTimer.destroy();
-      this._placementHoldTimer = null;
-    }
-    this._placementHoldTarget = null;
-  }
-
   // ── placement ─────────────────────────────────────────────────────────────
 
   private enterPlacementMode(def: TowerDef): void {
@@ -864,6 +848,7 @@ export class GameScene extends Phaser.Scene {
     this.placementDef = def;
     this.rangePreview.setVisible(true);
     this.placementMarker.setVisible(true);
+    this.placementHint?.setVisible(true);
     this.deselectTower();
   }
 
@@ -871,6 +856,7 @@ export class GameScene extends Phaser.Scene {
     this.placementDef = null;
     this.rangePreview.setVisible(false);
     this.placementMarker.setVisible(false);
+    this.placementHint?.setVisible(false);
   }
 
   private updatePlacementPreview(ptr: Phaser.Input.Pointer): void {
