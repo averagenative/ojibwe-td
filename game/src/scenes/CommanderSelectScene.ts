@@ -1,6 +1,13 @@
 import Phaser from 'phaser';
 import { ALL_COMMANDERS } from '../data/commanderDefs';
 import type { CommanderDef } from '../data/commanderDefs';
+import {
+  getCommanderAnimDef,
+  pickExpression,
+  EXPRESSION_MIN_INTERVAL,
+  EXPRESSION_MAX_INTERVAL,
+} from '../data/commanderAnimDefs';
+import type { CommanderAnimDef, CommanderElement } from '../data/commanderAnimDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { getCommanderUnlockNode } from '../meta/unlockDefs';
 import { MobileManager } from '../systems/MobileManager';
@@ -27,6 +34,44 @@ const ROLE_COLORS: Record<string, number> = {
   Resilience: 0x88ccff,
 };
 
+// ── Ambient particle colours by element ─────────────────────────────────────
+
+const ELEMENT_COLORS: Record<CommanderElement, number> = {
+  fire:      0xff6622,
+  ice:       0x88ddff,
+  lightning: 0xffff44,
+  nature:    0x44cc44,
+  spirit:    0xccaaff,
+};
+
+// ── Per-card animation state ────────────────────────────────────────────────
+
+interface CardAnimState {
+  commanderId: string;
+  animDef: CommanderAnimDef;
+  portrait: Phaser.GameObjects.Image;
+  baseX: number;
+  baseY: number;
+  baseScaleX: number;
+  baseScaleY: number;
+  /** Next scheduled expression time (ms game clock). */
+  nextExpressionAt: number;
+  /** True when this commander's card is hovered. */
+  hovered: boolean;
+  /** Ambient particle graphics objects (recycled pool per card). */
+  particles: Phaser.GameObjects.Graphics[];
+  /** Frame border graphics for elemental glow. */
+  borderGfx: Phaser.GameObjects.Graphics;
+  /** Card background rectangle (for highlight sync). */
+  cardBg: Phaser.GameObjects.Rectangle;
+  /** Card center X (for border drawing). */
+  cardCx: number;
+  /** Card center Y (for border drawing). */
+  cardCy: number;
+  /** Game clock time (ms) until which breathing is suppressed (selection flash). */
+  flashUntil: number;
+}
+
 /**
  * CommanderSelectScene — shown between MainMenu and GameScene.
  *
@@ -47,6 +92,11 @@ export class CommanderSelectScene extends Phaser.Scene {
 
   /** True when running on a mobile/touch device. Set once in create(). */
   private _isMobile = false;
+
+  /** Per-card animation state for unlocked commanders. */
+  private _animStates: CardAnimState[] = [];
+  /** Max ambient particles per card (keep light for performance). */
+  private static readonly MAX_PARTICLES_PER_CARD = 6;
 
   /**
    * Returns a CSS font-size string scaled up by 1.35× on mobile.
@@ -205,9 +255,36 @@ export class CommanderSelectScene extends Phaser.Scene {
     const hasPortrait = this.textures.exists(portraitKey);
 
     if (hasPortrait && !isLocked) {
-      this.add.image(bx, portraitCenterY, portraitKey)
+      const portrait = this.add.image(bx, portraitCenterY, portraitKey)
         .setDisplaySize(64, 64)
         .setDepth(DEPTH_BASE + 1);
+
+      // Set up idle animation state for this portrait
+      const animDef = getCommanderAnimDef(def.id);
+      const borderGfx = this.add.graphics().setDepth(DEPTH_BASE + 2);
+      const state: CardAnimState = {
+        commanderId: def.id,
+        animDef,
+        portrait,
+        baseX: bx,
+        baseY: portraitCenterY,
+        baseScaleX: portrait.scaleX,
+        baseScaleY: portrait.scaleY,
+        nextExpressionAt: this.time.now + EXPRESSION_MIN_INTERVAL
+          + Math.random() * (EXPRESSION_MAX_INTERVAL - EXPRESSION_MIN_INTERVAL),
+        hovered: false,
+        particles: [],
+        borderGfx,
+        cardBg: bg,
+        cardCx: bx,
+        cardCy: by,
+        flashUntil: 0,
+      };
+      this._animStates.push(state);
+
+      // Hover detection for animation intensify
+      bg.on('pointerover', () => { state.hovered = true; });
+      bg.on('pointerout', () => { state.hovered = false; });
     } else if (isLocked && hasPortrait) {
       // Show portrait but darkened for locked commanders.
       this.add.image(bx, portraitCenterY, portraitKey)
@@ -293,6 +370,51 @@ export class CommanderSelectScene extends Phaser.Scene {
       const isSelected = id === selectedId;
       bg.setStrokeStyle(2, isSelected ? 0x00ff44 : 0x333333);
       bg.setFillStyle(isSelected ? 0x1a2a1a : 0x111111);
+    }
+
+    // Selection feedback animations on portraits
+    for (const state of this._animStates) {
+      const isSelected = state.commanderId === selectedId;
+      if (isSelected) {
+        // Suppress breathing during the flash so the tween is visible
+        state.flashUntil = this.time.now + 500;
+        // "Power up" flash then settle into confident pose
+        this.tweens.add({
+          targets: state.portrait,
+          scaleX: state.baseScaleX * 1.05,
+          scaleY: state.baseScaleY * 1.05,
+          duration: 150,
+          ease: 'Quad.easeOut',
+          yoyo: true,
+          onComplete: () => {
+            // Settle at slightly zoomed confident pose
+            this.tweens.add({
+              targets: state.portrait,
+              scaleX: state.baseScaleX * 1.02,
+              scaleY: state.baseScaleY * 1.02,
+              duration: 200,
+              ease: 'Sine.easeOut',
+            });
+          },
+        });
+        // Brief white flash tint
+        state.portrait.setTint(0xffffff);
+        this.time.delayedCall(100, () => {
+          if (state.portrait.active) state.portrait.clearTint();
+        });
+      } else {
+        // Unselected: dim slightly (tween for smooth transition)
+        this.tweens.add({
+          targets: state.portrait,
+          alpha: 0.7,
+          duration: 200,
+        });
+      }
+    }
+    // Restore full alpha on the selected one
+    const selState = this._animStates.find(s => s.commanderId === selectedId);
+    if (selState) {
+      selState.portrait.setAlpha(1.0);
     }
   }
 
@@ -557,5 +679,226 @@ export class CommanderSelectScene extends Phaser.Scene {
       this.sheetContainer.destroy(true);
       this.sheetContainer = null;
     }
+  }
+
+  // ── Frame update — drives all idle animations ─────────────────────────────
+
+  update(time: number, delta: number): void {
+    for (const state of this._animStates) {
+      if (!state.portrait.active) continue;
+      this._stepBreathing(state, time);
+      this._stepExpressions(state, time);
+      this._stepAmbientParticles(state, time, delta);
+      this._stepBorderGlow(state, time);
+    }
+  }
+
+  // ── Breathing animation ───────────────────────────────────────────────────
+
+  private _stepBreathing(state: CardAnimState, time: number): void {
+    // Skip breathing while the selection flash tween is playing
+    if (time < state.flashUntil) return;
+
+    const { animDef, portrait, baseScaleX, baseScaleY } = state;
+    const isSelected = state.commanderId === this.selectedId;
+
+    // Hovered: speed up breathing by 1.5×; unselected: slow by 0.7×
+    let rateMultiplier = 1.0;
+    if (state.hovered) rateMultiplier = 0.67;         // faster cycle
+    else if (!isSelected) rateMultiplier = 1.4;       // slower cycle
+
+    const period = animDef.breathRateMs * rateMultiplier;
+    const phase = ((time % period) / period) * Math.PI * 2;
+    const sin = Math.sin(phase);
+
+    // Hover intensifies amplitude by 1.5×
+    const ampMult = state.hovered ? 1.5 : 1.0;
+    const scaleXOff = -animDef.breathAmpX * sin * ampMult;   // inverse: contracts on inhale
+    const scaleYOff = animDef.breathAmpY * sin * ampMult;
+
+    // Selected commanders get the confident 1.02× base; unselected get dimmed 1.0×
+    const selectedScale = isSelected ? 1.02 : 1.0;
+    portrait.setScale(
+      baseScaleX * selectedScale + scaleXOff,
+      baseScaleY * selectedScale + scaleYOff,
+    );
+  }
+
+  // ── Expression micro-animations ───────────────────────────────────────────
+
+  private _stepExpressions(state: CardAnimState, time: number): void {
+    if (time < state.nextExpressionAt) return;
+
+    // Schedule next expression
+    state.nextExpressionAt = time + EXPRESSION_MIN_INTERVAL
+      + Math.random() * (EXPRESSION_MAX_INTERVAL - EXPRESSION_MIN_INTERVAL);
+
+    const expr = pickExpression(state.animDef.expressionPool);
+    const { portrait } = state;
+
+    switch (expr) {
+      case 'blink':
+        // Quick scaleY squish (100ms)
+        this.tweens.add({
+          targets: portrait,
+          scaleY: portrait.scaleY * 0.95,
+          duration: 50,
+          yoyo: true,
+          ease: 'Sine.easeInOut',
+        });
+        break;
+
+      case 'smirk':
+        // Slight horizontal shift of portrait (1-2px, 200ms)
+        this.tweens.add({
+          targets: portrait,
+          x: state.baseX + 1.5,
+          duration: 100,
+          yoyo: true,
+          ease: 'Sine.easeInOut',
+        });
+        break;
+
+      case 'brow-furrow':
+        // Slight downward shift of portrait (1px, 300ms)
+        this.tweens.add({
+          targets: portrait,
+          y: state.baseY + 1,
+          duration: 150,
+          yoyo: true,
+          ease: 'Sine.easeInOut',
+        });
+        break;
+
+      case 'glance':
+        // Subtle horizontal shift (±2px, 400ms ease)
+        this.tweens.add({
+          targets: portrait,
+          x: state.baseX + (Math.random() > 0.5 ? 2 : -2),
+          duration: 200,
+          yoyo: true,
+          ease: 'Quad.easeInOut',
+        });
+        break;
+    }
+  }
+
+  // ── Ambient elemental particles ───────────────────────────────────────────
+
+  private _stepAmbientParticles(state: CardAnimState, _time: number, delta: number): void {
+    const { animDef } = state;
+    const color = ELEMENT_COLORS[animDef.element];
+    const isSelected = state.commanderId === this.selectedId;
+
+    // Spawn rate: one particle every ~800ms (faster when hovered/selected)
+    const spawnInterval = state.hovered ? 400 : (isSelected ? 600 : 800);
+    const shouldSpawn = state.particles.length < CommanderSelectScene.MAX_PARTICLES_PER_CARD
+      && Math.random() < (delta / spawnInterval);
+
+    if (shouldSpawn) {
+      this._spawnAmbientParticle(state, color);
+    }
+
+    // Update existing particles (simple upward drift + fade)
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const p = state.particles[i];
+      if (!p.active) {
+        state.particles.splice(i, 1);
+        continue;
+      }
+      p.y -= delta * 0.02;   // drift up
+      p.alpha -= delta * 0.001;
+      if (p.alpha <= 0) {
+        p.destroy();
+        state.particles.splice(i, 1);
+      }
+    }
+  }
+
+  private _spawnAmbientParticle(state: CardAnimState, color: number): void {
+    const { cardCx, cardCy, animDef } = state;
+    const halfW = CARD_W / 2;
+    const halfH = CARD_H / 2;
+
+    // Position varies by element
+    let px: number;
+    let py: number;
+    const radius = 1.5 + Math.random() * 1.5;
+
+    switch (animDef.element) {
+      case 'fire':
+        // Embers from bottom
+        px = cardCx + (Math.random() - 0.5) * CARD_W * 0.6;
+        py = cardCy + halfH - 4;
+        break;
+      case 'ice':
+        // Frost sparkle at edges
+        px = cardCx + (Math.random() > 0.5 ? halfW - 4 : -halfW + 4);
+        py = cardCy + (Math.random() - 0.5) * CARD_H * 0.6;
+        break;
+      case 'lightning':
+        // Arc flicker on frame border (random edge)
+        px = cardCx + (Math.random() - 0.5) * CARD_W * 0.9;
+        py = cardCy + (Math.random() > 0.5 ? halfH - 2 : -halfH + 2);
+        break;
+      case 'nature':
+        // Leaf drift from top
+        px = cardCx + (Math.random() - 0.5) * CARD_W * 0.6;
+        py = cardCy - halfH + 4;
+        break;
+      case 'spirit':
+      default:
+        // Soft glow pulse near portrait
+        px = cardCx + (Math.random() - 0.5) * 40;
+        py = cardCy - 30 + (Math.random() - 0.5) * 40;
+        break;
+    }
+
+    const gfx = this.add.graphics().setDepth(DEPTH_BASE + 3);
+    gfx.fillStyle(color, 0.6);
+    gfx.fillCircle(0, 0, radius);
+    gfx.setPosition(px, py);
+    gfx.setAlpha(0.6 + Math.random() * 0.3);
+    state.particles.push(gfx);
+  }
+
+  // ── Elemental border glow ─────────────────────────────────────────────────
+
+  private _stepBorderGlow(state: CardAnimState, time: number): void {
+    const { animDef, borderGfx, cardCx, cardCy } = state;
+    const isSelected = state.commanderId === this.selectedId;
+
+    borderGfx.clear();
+
+    // Only draw elemental glow for selected or hovered
+    if (!isSelected && !state.hovered) return;
+
+    const color = ELEMENT_COLORS[animDef.element];
+    // Gentle pulse alpha
+    const pulse = 0.15 + Math.sin(time * 0.003) * 0.1;
+    const alpha = state.hovered ? pulse + 0.1 : pulse;
+    const lineW = state.hovered ? 2 : 1;
+
+    borderGfx.lineStyle(lineW, color, alpha);
+    borderGfx.strokeRect(
+      cardCx - CARD_W / 2 - 1,
+      cardCy - CARD_H / 2 - 1,
+      CARD_W + 2,
+      CARD_H + 2,
+    );
+  }
+
+  // ── Lifecycle cleanup ─────────────────────────────────────────────────────
+
+  shutdown(): void {
+    // Destroy all ambient particle graphics
+    for (const state of this._animStates) {
+      for (const p of state.particles) {
+        if (p.active) p.destroy();
+      }
+      state.particles.length = 0;
+      if (state.borderGfx.active) state.borderGfx.destroy();
+    }
+    this._animStates.length = 0;
   }
 }
