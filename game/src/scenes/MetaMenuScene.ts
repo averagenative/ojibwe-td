@@ -77,9 +77,16 @@ export class MetaMenuScene extends Phaser.Scene {
       }
     }
 
-    // Back button
-    this.makeButton(cx, height - 50, 'BACK', () => {
+    // Navigation buttons
+    const btnY = height - 50;
+    this.makeButton(cx - 220, btnY, 'BACK', () => {
       this.scene.start('MainMenuScene');
+    });
+    this.makeButton(cx, btnY, 'GEAR', () => {
+      this.scene.start('InventoryScene');
+    });
+    this.makeButton(cx + 220, btnY, 'CHALLENGES', () => {
+      this.scene.start('ChallengeSelectScene');
     });
   }
 

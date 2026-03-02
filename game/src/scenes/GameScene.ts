@@ -32,6 +32,9 @@ import { TriggerType } from '../data/vignetteDefs';
 import { PAL } from '../ui/palette';
 import { SpatialGrid } from '../systems/SpatialGrid';
 import { TrailPool } from '../systems/TrailPool';
+import { resolveGearBonuses, applyGearToStats } from '../systems/GearSystem';
+import type { ChallengeModifier } from '../data/challengeDefs';
+import { getChallengeDef } from '../data/challengeDefs';
 
 const DEFAULT_TOTAL_WAVES = 20;
 const DOT_SPREAD_RADIUS   = 80; // px — Poison C spread radius
@@ -116,6 +119,14 @@ export class GameScene extends Phaser.Scene {
   /** Boss key from a boss-killed event, queued for the next between-wave window. */
   private pendingBossKillKey: string | null = null;
 
+  // ── deep progression ─────────────────────────────────────────────────────
+  /** Number of bosses killed this run (passed to GameOverScene for XP calculation). */
+  private bossesKilled = 0;
+  /** True when this run is a challenge map (affects loot, modifiers). */
+  private isChallengeRun = false;
+  /** Active challenge modifier (null for normal/endless runs). */
+  private challengeModifier: ChallengeModifier | null = null;
+
   // ── debug overlay (dev builds only) ───────────────────────────────────────
   private debugOverlay: Phaser.GameObjects.Text | null = null;
   private debugVisible = false;
@@ -148,9 +159,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Called by Phaser before preload() — captures scene-start data and resets state. */
-  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean }): void {
+  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean; isChallenge?: boolean; challengeId?: string }): void {
     this.selectedCommanderId = data?.commanderId ?? 'nokomis';
     this.isEndlessMode       = data?.isEndless   ?? false;
+    this.isChallengeRun      = data?.isChallenge ?? false;
+    this.bossesKilled        = 0;
+
+    // Resolve challenge modifier if applicable.
+    if (this.isChallengeRun && data?.challengeId) {
+      const cDef = getChallengeDef(data.challengeId);
+      this.challengeModifier = cDef?.modifier ?? null;
+    } else {
+      this.challengeModifier = null;
+    }
 
     // Resolve stage: prefer stageId, fall back to mapId (backward compat), then default.
     if (data?.stageId) {
@@ -169,7 +190,9 @@ export class GameScene extends Phaser.Scene {
       this.selectedMapId     = 'map-01';
     }
 
-    this.totalWaves = this.activeStageDef?.waveCount ?? DEFAULT_TOTAL_WAVES;
+    this.totalWaves = this.challengeModifier?.waveCount
+      ?? this.activeStageDef?.waveCount
+      ?? DEFAULT_TOTAL_WAVES;
 
     // Persist last-played stage for retry continuity.
     SaveManager.getInstance().setLastPlayedStage(this.selectedStageId);
@@ -301,7 +324,18 @@ export class GameScene extends Phaser.Scene {
 
     // Wave system
     const creepTypeDefs = this.cache.json.get('creep-types');
-    const waveDefs      = this.cache.json.get('wave-defs');
+    let waveDefs = this.cache.json.get('wave-defs');
+
+    // Apply challenge modifiers to wave definitions (HP/speed scaling).
+    if (this.challengeModifier) {
+      const mod = this.challengeModifier;
+      waveDefs = waveDefs.map((w: { hpMult: number; speedMult: number }) => ({
+        ...w,
+        hpMult:    w.hpMult    * (mod.creepHpMult    ?? 1),
+        speedMult: w.speedMult * (mod.creepSpeedMult  ?? 1),
+      }));
+    }
+
     const airWaypoints  = this.buildAirWaypoints();
     this.waveManager = new WaveManager(
       this, this.waypointPaths, this.activeCreeps, creepTypeDefs, waveDefs, airWaypoints,
@@ -404,8 +438,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.events.on('wave-bonus', (bonus: number) => {
-      // Gold Rush offer: wave completion bonus +50%.
-      const adjustedBonus = Math.round(bonus * this.offerManager.getWaveBonusMult());
+      // Gold Rush offer: wave completion bonus +50%; challenge gold multiplier.
+      const challengeGoldMult = this.challengeModifier?.goldMult ?? 1;
+      const adjustedBonus = Math.round(bonus * this.offerManager.getWaveBonusMult() * challengeGoldMult);
       this.gold += adjustedBonus;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
@@ -420,6 +455,7 @@ export class GameScene extends Phaser.Scene {
 
     // ── Boss killed: award bonus gold, visual effects, offer ─────────────
     this.events.on('boss-killed', (data: BossKilledData) => {
+      this.bossesKilled++;
       AudioManager.getInstance().playBossDeath();
 
       // Bonus gold reward (in addition to normal kill gold from 'creep-killed').
@@ -476,8 +512,11 @@ export class GameScene extends Phaser.Scene {
       0, 0, this.mapData.tileSize, this.mapData.tileSize, PAL.bgPlacementValid, 0.5,
     ).setStrokeStyle(2, PAL.bgPlacementValid, 0.8).setDepth(5).setVisible(false);
 
-    // Tower panel (bottom strip — all 6 towers)
-    new TowerPanel(this, ALL_TOWER_DEFS, (def) => this.enterPlacementMode(def), () => this.gold);
+    // Tower panel (bottom strip) — filter out challenge-banned towers.
+    const panelDefs = this.challengeModifier
+      ? ALL_TOWER_DEFS.filter(d => !(this.challengeModifier!.bannedTowers ?? []).includes(d.key))
+      : ALL_TOWER_DEFS;
+    new TowerPanel(this, panelDefs, (def) => this.enterPlacementMode(def), () => this.gold);
 
     // Upgrade panel (above tower panel — shown when a tower is selected)
     this.upgradePanel = new UpgradePanel(this, this.upgradeManager, () => this.gold);
@@ -894,6 +933,14 @@ export class GameScene extends Phaser.Scene {
     // Register with upgrade manager
     this.upgradeManager.registerTower(tower);
 
+    // Apply equipped gear bonuses to tower stats.
+    const gearBonuses = resolveGearBonuses(this.placementDef.key);
+    if (gearBonuses.damagePct || gearBonuses.rangePct || gearBonuses.attackSpeedPct ||
+        gearBonuses.chainCountBonus || gearBonuses.slowPctBonus || gearBonuses.auraStrengthPct ||
+        gearBonuses.specialEffects.length > 0) {
+      applyGearToStats(tower.upgStats, gearBonuses);
+    }
+
     tower.on('pointerup', () => this.selectTower(tower));
     this.towers.push(tower);
     this.exitPlacementMode();
@@ -1032,6 +1079,8 @@ export class GameScene extends Phaser.Scene {
             commanderId:    this.selectedCommanderId,
             livesLeft:      this.lives,
             maxLives,
+            isChallenge:    this.isChallengeRun,
+            bossesKilled:   this.bossesKilled,
           });
         });
         return;
@@ -1051,6 +1100,8 @@ export class GameScene extends Phaser.Scene {
         commanderId:    this.selectedCommanderId,
         livesLeft:      this.lives,
         maxLives:       maxLivesNoVig,
+        isChallenge:    this.isChallengeRun,
+        bossesKilled:   this.bossesKilled,
       });
       return;
     }
@@ -1501,6 +1552,8 @@ export class GameScene extends Phaser.Scene {
       mapId:          this.selectedMapId,
       commanderId:    this.selectedCommanderId,
       isEndless:      this.isEndlessMode,
+      isChallenge:    this.isChallengeRun,
+      bossesKilled:   this.bossesKilled,
     });
   }
 

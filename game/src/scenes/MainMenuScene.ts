@@ -491,14 +491,14 @@ export class MainMenuScene extends Phaser.Scene {
       this.scene.start('CommanderSelectScene', { stageId: this.selectedStageId });
     });
 
-    // Bottom row: UPGRADES | CODEX
-    const bottomBtnW = this._isMobile ? 135 : 115;
+    // Bottom row: UPGRADES | CHALLENGES | CODEX
+    const bottomBtnW = this._isMobile ? 120 : 100;
     const bottomBtnH = this._isMobile ? 48  : 38;
     const bottomBtnY = btnY + btnH / 2 + (this._isMobile ? 32 : 26);
     const bottomGap  = 8;
 
     // UPGRADES
-    const metaX = cx - bottomBtnW / 2 - bottomGap / 2;
+    const metaX = cx - bottomBtnW - bottomGap;
     const metaP = makePanel(this, metaX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(metaP, R, PAL.bgMetaBtn, PAL.borderMeta, 2);
     const metaLabel = this.add.text(metaX, bottomBtnY, 'UPGRADES', {
@@ -509,8 +509,20 @@ export class MainMenuScene extends Phaser.Scene {
     metaP.zone.on('pointerout',  () => metaLabel.setColor(PAL.accentBlue));
     metaP.zone.on('pointerup',   () => this.scene.start('MetaMenuScene'));
 
+    // CHALLENGES
+    const chalX = cx;
+    const chalP = makePanel(this, chalX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
+    fillPanel(chalP, R, PAL.bgEndlessBtn, PAL.borderEndless, 2);
+    const chalLabel = this.add.text(chalX, bottomBtnY, 'CHALLENGES', {
+      fontSize: this._fs(13), color: PAL.accentBlue, fontFamily: PAL.fontBody,
+    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+    chalP.zone.on('pointerover', () => chalLabel.setColor(PAL.accentBlueLight));
+    chalP.zone.on('pointerout',  () => chalLabel.setColor(PAL.accentBlue));
+    chalP.zone.on('pointerup',   () => this.scene.start('ChallengeSelectScene'));
+
     // CODEX
-    const codexX = cx + bottomBtnW / 2 + bottomGap / 2;
+    const codexX = cx + bottomBtnW + bottomGap;
     const codexP = makePanel(this, codexX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(codexP, R, PAL.bgPanel, PAL.borderCodex, 2);
     const codexLabel = this.add.text(codexX, bottomBtnY, 'CODEX', {
