@@ -4,6 +4,7 @@ import type { OfferDef } from '../data/offerDefs';
 import type { WaveAnnouncementInfo } from '../systems/WaveManager';
 import { PAL } from '../ui/palette';
 import { MobileManager } from '../systems/MobileManager';
+import { cbGroundBadgeFill, cbBossBadgeFill } from '../ui/colorblindPalette';
 
 /** Data passed from GameScene when launching this scene. */
 interface BetweenWaveData {
@@ -203,37 +204,41 @@ export class BetweenWaveScene extends Phaser.Scene {
    * row below the "Wave N begins after your choice" sub-header.
    */
   private buildWavePreview(cx: number, y: number, info: WaveAnnouncementInfo): void {
-    // Wave type badge colours
-    const BADGE_FILL: Record<WaveAnnouncementInfo['waveType'], number> = {
-      ground: PAL.accentGreenN,
-      air:    PAL.accentBlueN,
-      mixed:  PAL.accentGreenN,  // drawn as split below
-      boss:   PAL.bossWarningN,
-    };
+    /**
+     * Badge labels include shape/icon characters for non-colour identification:
+     * ⛰ = ground/terrain  ✈ = air  ☠ = boss skull
+     */
     const BADGE_TEXT: Record<WaveAnnouncementInfo['waveType'], string> = {
-      ground: 'GROUND',
+      ground: '⛰ GROUND',
       air:    '✈ AIR',
-      mixed:  'MIXED',
-      boss:   'BOSS',
+      mixed:  '⛰✈ MIXED',
+      boss:   '☠ BOSS',
     };
 
-    const badgeW   = info.waveType === 'mixed' ? 64 : 54;
+    const badgeW   = info.waveType === 'mixed' ? 72 : 60;
     const badgeH   = 18;
     const badgeX   = cx - badgeW / 2 - 60;
 
     if (info.waveType === 'mixed') {
       const gfx = this.add.graphics().setDepth(DEPTH);
-      gfx.fillStyle(PAL.accentGreenN, 1);
+      gfx.fillStyle(cbGroundBadgeFill(), 1);
       gfx.fillRect(badgeX - badgeW / 2, y - badgeH / 2, badgeW / 2, badgeH);
       gfx.fillStyle(PAL.accentBlueN, 1);
       gfx.fillRect(badgeX, y - badgeH / 2, badgeW / 2, badgeH);
     } else {
-      this.add.rectangle(badgeX, y, badgeW, badgeH, BADGE_FILL[info.waveType])
+      const fillColor = info.waveType === 'ground'
+        ? cbGroundBadgeFill()
+        : info.waveType === 'boss'
+          ? cbBossBadgeFill()
+          : PAL.accentBlueN; // air — always lake blue
+      this.add.rectangle(badgeX, y, badgeW, badgeH, fillColor)
         .setDepth(DEPTH);
     }
 
+    // Boss badge gets larger text per the colorblind-accessibility spec.
+    const badgeFontSize = info.waveType === 'boss' ? this._fs(13) : this._fs(11);
     this.add.text(badgeX, y, BADGE_TEXT[info.waveType], {
-      fontSize:   this._fs(11),
+      fontSize:   badgeFontSize,
       color:      '#ffffff',
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',

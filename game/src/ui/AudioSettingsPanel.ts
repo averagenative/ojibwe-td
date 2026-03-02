@@ -17,6 +17,7 @@ import Phaser from 'phaser';
 import { AudioManager } from '../systems/AudioManager';
 import { MobileManager } from '../systems/MobileManager';
 import { PAL } from './palette';
+import { SaveManager } from '../meta/SaveManager';
 
 const DEPTH      = 200;
 const PANEL_W    = 360;
@@ -95,10 +96,10 @@ export class AudioSettingsPanel {
     const rowGap   = m ? 10 : 8;
     const padV     = 20;
 
-    // Five interactive rows: music, sfx, master, separator, close
-    // Height = padV + titleH + padV + 3*(btnH + rowGap) + btnH + padV
+    // Rows: music, sfx, master, colorblind toggle, close
+    // Height = padV + titleH + padV + 4*(btnH + rowGap) + btnH + padV
     const titleH = m ? 20 : 16;
-    const panelH = padV + titleH + padV + (btnH + rowGap) * 3 + btnH + padV;
+    const panelH = padV + titleH + padV + (btnH + rowGap) * 4 + btnH + padV;
 
     // ── Backdrop (blocks pointer events to the scene behind) ──────────────
     const backdrop = this._reg(
@@ -187,6 +188,42 @@ export class AudioSettingsPanel {
       const a = AudioManager.getInstance();
       a.toggleMute();
       this._syncMasterRow(a.isMuted());
+    });
+
+    y += btnH + rowGap;
+
+    // ── Colorblind mode toggle ──────────────────────────────────────────────
+    const sm = SaveManager.getInstance();
+    const cbInitial = sm.getColorblindMode();
+
+    const cbBg = this._reg(
+      this.scene.add.rectangle(cx, y + btnH / 2, 280, btnH,
+        cbInitial ? C_ON_BG : PAL.bgSpeedBtn)
+        .setStrokeStyle(1, cbInitial ? C_ON_STROKE : PAL.borderNeutral)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(DEPTH + 2),
+    ) as Phaser.GameObjects.Rectangle;
+
+    const cbLabel = this._reg(
+      this.scene.add.text(cx, y + btnH / 2, this._cbText(cbInitial), {
+        fontSize:   m ? '13px' : '12px',
+        color:      cbInitial ? PAL.accentGreen : PAL.textNeutral,
+        fontFamily: PAL.fontBody,
+        fontStyle:  'bold',
+      }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3),
+    ) as Phaser.GameObjects.Text;
+
+    cbBg.on('pointerover', () => cbBg.setFillStyle(PAL.bgBtnHover));
+    cbBg.on('pointerout', () => {
+      cbBg.setFillStyle(SaveManager.getInstance().getColorblindMode() ? C_ON_BG : PAL.bgSpeedBtn);
+    });
+    cbBg.on('pointerup', () => {
+      const nowEnabled = !SaveManager.getInstance().getColorblindMode();
+      SaveManager.getInstance().setColorblindMode(nowEnabled);
+      cbBg.setFillStyle(nowEnabled ? C_ON_BG : PAL.bgSpeedBtn);
+      cbBg.setStrokeStyle(1, nowEnabled ? C_ON_STROKE : PAL.borderNeutral);
+      cbLabel.setText(this._cbText(nowEnabled));
+      cbLabel.setColor(nowEnabled ? PAL.accentGreen : PAL.textNeutral);
     });
 
     y += btnH + rowGap;
@@ -351,6 +388,10 @@ export class AudioSettingsPanel {
 
   private _masterText(muted: boolean): string {
     return muted ? '🔇  ALL MUTED' : '🔊  SOUND ON';
+  }
+
+  private _cbText(enabled: boolean): string {
+    return enabled ? '⬛  COLORBLIND MODE: ON' : '⬜  COLORBLIND MODE: OFF';
   }
 
   private _syncToggle(

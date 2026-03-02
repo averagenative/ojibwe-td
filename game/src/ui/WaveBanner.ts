@@ -16,6 +16,7 @@
 import Phaser from 'phaser';
 import type { WaveAnnouncementInfo } from '../systems/WaveManager';
 import { PAL } from './palette';
+import { cbGroundBadgeFill, cbBossBadgeFill } from './colorblindPalette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const DEPTH      = 200;
@@ -26,18 +27,20 @@ const ANIM_MS    = 280;  // slide-in / slide-out duration
 const HOLD_MS    = 1800; // how long the banner stays fully visible
 
 // ── Wave-type badge config ────────────────────────────────────────────────────
-const BADGE_FILL: Record<WaveAnnouncementInfo['waveType'], number> = {
-  ground: PAL.accentGreenN,
-  air:    PAL.accentBlueN,
-  mixed:  PAL.accentGreenN, // drawn specially as a split badge
-  boss:   PAL.bossWarningN,
-};
+// BADGE_FILL for air and mixed-left are static; ground and boss use colorblind helpers.
+const BADGE_FILL_AIR = PAL.accentBlueN;
 
+/**
+ * Wave-type badge labels include non-colour shape icons so the wave type is
+ * readable in greyscale or with colour vision deficiency.
+ *
+ * ⛰ = mountain/ground  ✈ = aircraft/air  ☠ = skull/boss
+ */
 const BADGE_LABEL: Record<WaveAnnouncementInfo['waveType'], string> = {
-  ground: 'GROUND',
+  ground: '⛰ GROUND',
   air:    '✈ AIR',
-  mixed:  'MIXED',
-  boss:   'BOSS',
+  mixed:  '⛰✈ MIXED',
+  boss:   '☠ BOSS',
 };
 
 // ── Suggested tower hints by wave type ───────────────────────────────────────
@@ -157,16 +160,22 @@ export class WaveBanner {
     const badgeY = -16;
 
     if (info.waveType === 'mixed') {
-      // Split badge: left half earthy green, right half sky blue
+      // Split badge: left half ground colour, right half air colour.
+      // Both halves respect the colorblind palette.
       const gfx = this.scene.add.graphics();
-      gfx.fillStyle(PAL.accentGreenN, 1);
+      gfx.fillStyle(cbGroundBadgeFill(), 1);
       gfx.fillRect(badgeX - badgeW / 2, badgeY - badgeH / 2, badgeW / 2, badgeH);
-      gfx.fillStyle(PAL.accentBlueN, 1);
+      gfx.fillStyle(BADGE_FILL_AIR, 1);
       gfx.fillRect(badgeX, badgeY - badgeH / 2, badgeW / 2, badgeH);
       container.add(gfx);
     } else {
+      const fillColor = info.waveType === 'ground'
+        ? cbGroundBadgeFill()
+        : info.waveType === 'boss'
+          ? cbBossBadgeFill()
+          : BADGE_FILL_AIR; // air — always lake blue
       container.add(
-        this.scene.add.rectangle(badgeX, badgeY, badgeW, badgeH, BADGE_FILL[info.waveType]),
+        this.scene.add.rectangle(badgeX, badgeY, badgeW, badgeH, fillColor),
       );
     }
 
@@ -204,10 +213,10 @@ export class WaveBanner {
     info:      WaveAnnouncementInfo,
     _width:    number,
   ): void {
-    // ── Boss heading ──────────────────────────────────────────────────────────
+    // ── Boss heading — ☠ skull icon provides non-colour shape cue ──────────────
     const bossLine = info.bossName
-      ? `⚠  BOSS INCOMING — ${info.bossName.toUpperCase()}  ⚠`
-      : '⚠  BOSS INCOMING  ⚠';
+      ? `☠  BOSS INCOMING — ${info.bossName.toUpperCase()}  ☠`
+      : '☠  BOSS INCOMING  ☠';
 
     container.add(this.scene.add.text(0, -16, bossLine, {
       fontSize:        '21px',

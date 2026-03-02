@@ -106,6 +106,9 @@ interface SaveData {
    */
   pendingConsumables: ConsumablePending;
 
+  /** When true the UI switches to a colorblind-friendly palette (red→orange, green→blue). */
+  colorblindMode: boolean;
+
   /**
    * djb2 checksum of the serialised save data (excluding this field).
    * Used to detect casual manual tampering via browser DevTools.
@@ -135,6 +138,7 @@ function defaultSaveData(): SaveData {
     commanderXp:        { xp: {}, enhancementSlots: {} },
     challengeWeek:      '',
     pendingConsumables: { rerollTokens: 0, goldBoostTokens: 0, extraLifeTokens: 0 },
+    colorblindMode:     false,
   };
 }
 
@@ -434,6 +438,19 @@ export class SaveManager {
     this._save();
   }
 
+  // ── Accessibility settings ──────────────────────────────────────────────────
+
+  /** True when the colorblind-friendly palette is active. */
+  getColorblindMode(): boolean {
+    return this.data.colorblindMode ?? false;
+  }
+
+  /** Persist the colorblind mode preference. */
+  setColorblindMode(enabled: boolean): void {
+    this.data.colorblindMode = enabled;
+    this._save();
+  }
+
   // ── Crystal-sink consumables ────────────────────────────────────────────────
 
   /** Return the current pending consumable counts. */
@@ -608,6 +625,8 @@ export class SaveManager {
       extraLifeTokens: clampCount(rawPc?.extraLifeTokens),
     };
 
+    const colorblindMode = typeof d.colorblindMode === 'boolean' ? d.colorblindMode : false;
+
     return {
       ...d,
       currency,
@@ -626,6 +645,7 @@ export class SaveManager {
       lastPlayedStage,
       challengeWeek,
       pendingConsumables,
+      colorblindMode,
     };
   }
 

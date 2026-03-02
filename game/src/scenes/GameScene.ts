@@ -30,6 +30,10 @@ import { VignetteManager } from '../systems/VignetteManager';
 import { VignetteOverlay } from '../ui/VignetteOverlay';
 import { TriggerType } from '../data/vignetteDefs';
 import { PAL } from '../ui/palette';
+import {
+  cbPlacementValidFill, cbPlacementInvalidFill,
+  cbValidAccent, cbInvalidAccent,
+} from '../ui/colorblindPalette';
 import { SpatialGrid } from '../systems/SpatialGrid';
 import { isShortcutBlocked } from '../systems/KeyboardShortcuts';
 import type { ShortcutContext } from '../systems/KeyboardShortcuts';
@@ -98,6 +102,8 @@ export class GameScene extends Phaser.Scene {
   private _isDragPlacing = false;
   private rangePreview!:    Phaser.GameObjects.Graphics;
   private placementMarker!: Phaser.GameObjects.Rectangle;
+  /** Graphics for non-colour placement indicators: solid/dashed border + ✓ / ✗ mark. */
+  private _placementIcon!:  Phaser.GameObjects.Graphics;
   private placementHint: Phaser.GameObjects.Text | null = null;
 
   // ── selection ─────────────────────────────────────────────────────────────
@@ -584,7 +590,10 @@ export class GameScene extends Phaser.Scene {
     this.rangePreview  = this.add.graphics().setDepth(5).setVisible(false);
     this.placementMarker = this.add.rectangle(
       0, 0, this.mapData.tileSize, this.mapData.tileSize, PAL.bgPlacementValid, 0.5,
-    ).setStrokeStyle(2, PAL.bgPlacementValid, 0.8).setDepth(5).setVisible(false);
+    ).setDepth(5).setVisible(false);  // border drawn by _placementIcon for solid/dashed support
+    // Non-colour placement indicators: solid border (valid) / dashed border (invalid)
+    // + ✓ checkmark (valid) / ✗ X mark (invalid). Depth 6 — above marker fill.
+    this._placementIcon = this.add.graphics().setDepth(6).setVisible(false);
 
     // Mobile placement hint — shown while in placement mode.
     if (MobileManager.getInstance().isMobile()) {
@@ -1121,6 +1130,7 @@ export class GameScene extends Phaser.Scene {
     this._isDragPlacing  = isDrag && !MobileManager.getInstance().isMobile();
     this.rangePreview.setVisible(true);
     this.placementMarker.setVisible(true);
+    this._placementIcon.setVisible(true);
     this.placementHint?.setVisible(true);
     this.deselectTower();
   }
@@ -1130,6 +1140,7 @@ export class GameScene extends Phaser.Scene {
     this._isDragPlacing  = false;
     this.rangePreview.setVisible(false);
     this.placementMarker.setVisible(false);
+    this._placementIcon.setVisible(false);
     this.placementHint?.setVisible(false);
   }
 
@@ -1142,17 +1153,106 @@ export class GameScene extends Phaser.Scene {
     const valid = this.isBuildable(col, row) && !this.isTileOccupied(col, row);
 
     this.placementMarker.setPosition(cx, cy);
-    // Alpha 0.5: clearly visible ghost tile per placement-preview spec.
-    this.placementMarker.setFillStyle(valid ? PAL.bgPlacementValid : PAL.bgPlacementInvalid, 0.5);
-    this.placementMarker.setStrokeStyle(2, valid ? PAL.bgPlacementValid : PAL.bgPlacementInvalid, 0.8);
+    // Use colorblind-aware fill colours — alpha 0.5 ghost tile.
+    this.placementMarker.setFillStyle(
+      valid ? cbPlacementValidFill() : cbPlacementInvalidFill(), 0.5,
+    );
+
+    // Non-colour indicators: solid border + ✓ (valid) or dashed border + ✗ (invalid).
+    const accentCol = valid ? cbValidAccent() : cbInvalidAccent();
+    this._placementIcon.clear();
+    if (valid) {
+      // Solid border
+      this._placementIcon.lineStyle(2, accentCol, 0.9);
+      this._placementIcon.strokeRect(cx - ts / 2, cy - ts / 2, ts, ts);
+      // ✓ checkmark
+      this._drawPlacementCheckmark(cx, cy, ts * 0.28, accentCol);
+    } else {
+      // Dashed border
+      this._drawDashedRect(cx - ts / 2, cy - ts / 2, ts, ts, accentCol, 5, 3);
+      // ✗ X mark
+      this._drawPlacementXMark(cx, cy, ts * 0.24, accentCol);
+    }
 
     this.rangePreview.clear();
-    const col32 = valid ? PAL.accentGreenN : PAL.dangerN;
+    const col32 = valid ? cbValidAccent() : cbInvalidAccent();
     // Line width 2px so the range preview matches the selected-tower ring style.
     this.rangePreview.lineStyle(2, col32, 0.4);
     this.rangePreview.fillStyle(col32, 0.05);
     this.rangePreview.strokeCircle(cx, cy, this.placementDef.range);
     this.rangePreview.fillCircle(cx, cy, this.placementDef.range);
+  }
+
+  // ── Placement icon helpers ─────────────────────────────────────────────────
+
+  /**
+   * Draw a dashed rectangle border on `_placementIcon`.
+   * Used for the invalid-placement tile to provide a shape cue beyond colour.
+   */
+  private _drawDashedRect(
+    x: number, y: number, w: number, h: number,
+    color: number, dashLen: number, gapLen: number,
+  ): void {
+    this._placementIcon.lineStyle(2, color, 0.9);
+    const step = dashLen + gapLen;
+
+    // top edge
+    for (let dx = 0; dx < w; dx += step) {
+      const ex = Math.min(dx + dashLen, w);
+      this._placementIcon.beginPath();
+      this._placementIcon.moveTo(x + dx, y);
+      this._placementIcon.lineTo(x + ex, y);
+      this._placementIcon.strokePath();
+    }
+    // right edge
+    for (let dy = 0; dy < h; dy += step) {
+      const ey = Math.min(dy + dashLen, h);
+      this._placementIcon.beginPath();
+      this._placementIcon.moveTo(x + w, y + dy);
+      this._placementIcon.lineTo(x + w, y + ey);
+      this._placementIcon.strokePath();
+    }
+    // bottom edge (right-to-left)
+    for (let dx = 0; dx < w; dx += step) {
+      const ex = Math.min(dx + dashLen, w);
+      this._placementIcon.beginPath();
+      this._placementIcon.moveTo(x + w - dx, y + h);
+      this._placementIcon.lineTo(x + w - ex, y + h);
+      this._placementIcon.strokePath();
+    }
+    // left edge (bottom-to-top)
+    for (let dy = 0; dy < h; dy += step) {
+      const ey = Math.min(dy + dashLen, h);
+      this._placementIcon.beginPath();
+      this._placementIcon.moveTo(x, y + h - dy);
+      this._placementIcon.lineTo(x, y + h - ey);
+      this._placementIcon.strokePath();
+    }
+  }
+
+  /** Draw a ✓ checkmark on `_placementIcon` centred at (cx, cy). */
+  private _drawPlacementCheckmark(cx: number, cy: number, size: number, color: number): void {
+    this._placementIcon.lineStyle(3, color, 1.0);
+    this._placementIcon.beginPath();
+    // Short left arm of tick
+    this._placementIcon.moveTo(cx - size, cy + size * 0.1);
+    this._placementIcon.lineTo(cx - size * 0.1, cy + size * 0.7);
+    // Long right arm of tick
+    this._placementIcon.lineTo(cx + size, cy - size * 0.5);
+    this._placementIcon.strokePath();
+  }
+
+  /** Draw an ✗ X mark on `_placementIcon` centred at (cx, cy). */
+  private _drawPlacementXMark(cx: number, cy: number, size: number, color: number): void {
+    this._placementIcon.lineStyle(3, color, 1.0);
+    this._placementIcon.beginPath();
+    this._placementIcon.moveTo(cx - size, cy - size);
+    this._placementIcon.lineTo(cx + size, cy + size);
+    this._placementIcon.strokePath();
+    this._placementIcon.beginPath();
+    this._placementIcon.moveTo(cx + size, cy - size);
+    this._placementIcon.lineTo(cx - size, cy + size);
+    this._placementIcon.strokePath();
   }
 
   private tryPlaceTower(worldX: number, worldY: number): void {
