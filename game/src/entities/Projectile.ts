@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Creep } from './Creep';
+import type { TrailPool } from '../systems/TrailPool';
 
 export interface ProjectileOptions {
   color?:       number;  // fill colour, default yellow
@@ -225,7 +226,19 @@ export class Projectile extends Phaser.GameObjects.Arc {
 
   private emitTrailParticle(): void {
     const color = TRAIL_COLORS[this.opts.towerKey ?? ''] ?? 0xffffff;
-    const dot   = this.scene.add.circle(this.x, this.y, 2, color, 0.65);
+
+    // Fast path: reuse a pooled arc from TrailPool — no GC, no Tween object.
+    // GameScene sets 'trailPool' on scene.data during create() and removes it
+    // on shutdown(), so this is safe to access via optional chaining.
+    const pool = this.scene.data?.get('trailPool') as TrailPool | undefined;
+    if (pool) {
+      pool.emit(this.x, this.y, 2, color, 0.65, 18, TRAIL_LIFE_MS);
+      return;
+    }
+
+    // Fallback: original tween-based circle (used in scenes without a pool,
+    // e.g. unit-test stubs or future scenes that don't init GameScene pools).
+    const dot = this.scene.add.circle(this.x, this.y, 2, color, 0.65);
     dot.setDepth(18);
     this.scene.tweens.add({
       targets:    dot,

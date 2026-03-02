@@ -51,9 +51,15 @@ export class Tower extends Phaser.GameObjects.Container {
   /** Phase [0, 1) drives both pulse rings; advances at 0.35 cycles/s. */
   private auraPulsePhase   = 0;
 
-  private getCreeps:         () => ReadonlySet<Creep>;
-  private onProjectileFired: (proj: Projectile) => void;
-  private onFired?:          (towerKey: string) => void;
+  private getCreeps:             () => ReadonlySet<Creep>;
+  private onProjectileFired:     (proj: Projectile) => void;
+  private onFired?:              (towerKey: string) => void;
+  /**
+   * Optional fast-path query supplied by GameScene via SpatialGrid.
+   * When set, findTarget() uses this instead of iterating getCreeps() — O(k)
+   * where k = creeps in nearby cells rather than O(all creeps).
+   */
+  private queryCreepsInRadius?: (x: number, y: number, radius: number) => readonly Creep[];
 
   // Step-based attack timing (replaces Phaser timer for buff support)
   private attackElapsed      = 0;
@@ -97,22 +103,24 @@ export class Tower extends Phaser.GameObjects.Container {
     offerManager?: OfferManager,
     onFired?: (towerKey: string) => void,
     commanderState?: CommanderRunState,
+    queryCreepsInRadius?: (x: number, y: number, radius: number) => readonly Creep[],
   ) {
     const px = tileCol * tileSize + tileSize / 2;
     const py = tileRow * tileSize + tileSize / 2;
     super(scene, px, py);
 
-    this.def              = def;
-    this.tileCol          = tileCol;
-    this.tileRow          = tileRow;
-    this.upgStats         = defaultUpgradeStats(def);
-    this.priority         = def.defaultPriority;
-    this.behaviorToggles  = defaultBehaviorToggles();
-    this.getCreeps         = getCreeps;
-    this.onProjectileFired = onProjectileFired;
-    this.offerManager      = offerManager;
-    this.onFired           = onFired;
-    this.commanderState    = commanderState;
+    this.def                  = def;
+    this.tileCol              = tileCol;
+    this.tileRow              = tileRow;
+    this.upgStats             = defaultUpgradeStats(def);
+    this.priority             = def.defaultPriority;
+    this.behaviorToggles      = defaultBehaviorToggles();
+    this.getCreeps             = getCreeps;
+    this.onProjectileFired     = onProjectileFired;
+    this.offerManager          = offerManager;
+    this.onFired               = onFired;
+    this.commanderState        = commanderState;
+    this.queryCreepsInRadius   = queryCreepsInRadius;
 
     this.rangeGfx = this.buildRangeCircle();
     this.buildBody();
@@ -612,8 +620,14 @@ export class Tower extends Phaser.GameObjects.Container {
     }
 
     // Build in-range candidate list, filtered by targeting domain.
+    // Fast path: use spatial grid (O(nearby cells)) when GameScene provides one.
+    // Slow path fallback: iterate the full creep set (O(all creeps)).
     const candidates: Creep[] = [];
-    for (const c of this.getCreeps()) {
+    const source: Iterable<Creep> = this.queryCreepsInRadius
+      ? this.queryCreepsInRadius(this.x, this.y, effectiveRange)
+      : this.getCreeps();
+
+    for (const c of source) {
       if (!c.active) continue;
       if (!domainMatch(c)) continue;
       const dx = c.x - this.x;
