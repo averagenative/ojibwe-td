@@ -1,9 +1,20 @@
 import Phaser from 'phaser';
+import { MobileManager } from '../systems/MobileManager';
 import { PAL } from './palette';
 
-const HUD_HEIGHT = 48;
+const _IS_MOBILE = MobileManager.getInstance().isMobile();
+const HUD_HEIGHT = _IS_MOBILE ? 64 : 48;
 const PADDING    = 16;
 const DEPTH      = 100;
+
+/**
+ * Returns the HUD strip height in Phaser logical pixels.
+ * 64 on mobile (larger touch targets), 48 on desktop.
+ * Import this in GameScene instead of hard-coding 48.
+ */
+export function getHudHeight(): number {
+  return MobileManager.getInstance().isMobile() ? 64 : 48;
+}
 
 type SpeedCallback = (multiplier: number) => void;
 
@@ -102,10 +113,11 @@ export class HUD extends Phaser.GameObjects.Container {
    * onSpeedChange receives the new multiplier (0 = paused, 1, or 2).
    */
   createSpeedControls(onSpeedChange: SpeedCallback): void {
-    const btnW   = 38;
-    const btnH   = 30;
+    // On mobile use larger touch targets (closer to 44px physical on tablets).
+    const btnW   = _IS_MOBILE ? 48 : 38;
+    const btnH   = _IS_MOBILE ? 44 : 30;
     const gap    = 4;
-    const startX = 155; // left edge of first button
+    const startX = _IS_MOBILE ? 135 : 155; // left edge of first button
     const cy     = HUD_HEIGHT / 2;
 
     const defs: Array<{ mult: number; label: string }> = [
@@ -185,7 +197,7 @@ export class HUD extends Phaser.GameObjects.Container {
     const btnX = width - PADDING - btnW / 2;
     const btnY = HUD_HEIGHT / 2;
 
-    this.nextWaveBg = this.scene.add.rectangle(btnX, btnY, btnW, 36, PAL.bgNextWave)
+    this.nextWaveBg = this.scene.add.rectangle(btnX, btnY, btnW, _IS_MOBILE ? 44 : 36, PAL.bgNextWave)
       .setStrokeStyle(2, PAL.borderNextWave)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 2)
@@ -250,9 +262,9 @@ export class HUD extends Phaser.GameObjects.Container {
    * Clicking it immediately triggers the provided callback (ends the run).
    */
   createGiveUpButton(onClick: () => void): void {
-    const btnW  = 100;
-    const btnH  = 30;
-    const btnX  = 400;
+    const btnW  = _IS_MOBILE ? 110 : 100;
+    const btnH  = _IS_MOBILE ? 44  : 30;
+    const btnX  = _IS_MOBILE ? 440 : 400;
     const btnY  = HUD_HEIGHT / 2;
 
     const bg = this.scene.add.rectangle(btnX, btnY, btnW, btnH, PAL.bgGiveUp)
@@ -363,9 +375,11 @@ export class HUD extends Phaser.GameObjects.Container {
    * (true = muted) so the button icon can update.
    */
   createMuteButton(initialMuted: boolean, onToggle: () => boolean): void {
-    const btnW = 36;
-    const btnH = 30;
-    const cx   = 305;         // just right of speed buttons (speed btns end ~258)
+    // On mobile: wider speed buttons end ~287 (3×48 + 2×4 + start 135) → mute at ~317.
+    // On desktop: speed buttons end ~277 (3×38 + 2×4 + start 155) → mute at 305.
+    const btnW = _IS_MOBILE ? 44 : 36;
+    const btnH = _IS_MOBILE ? 44 : 30;
+    const cx   = _IS_MOBILE ? 317 : 305;
     const cy   = HUD_HEIGHT / 2;
 
     this.muteBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, PAL.bgSpeedBtn)

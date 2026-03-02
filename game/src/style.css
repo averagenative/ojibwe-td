@@ -40,3 +40,80 @@ canvas {
   display: block;
   touch-action: none;
 }
+
+/* ── Mobile layout ────────────────────────────────────────────────────────── */
+
+/* Hide header logo; let the game canvas fill the full viewport */
+body.mobile #game-header {
+  display: none;
+}
+
+/* Respect device notch / home indicator safe areas */
+body.mobile {
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+/* Use dvh (dynamic viewport height) so iOS Safari toolbar doesn't clip */
+body.mobile #game-container {
+  height: 100dvh;
+  width: 100vw;
+}
+
+/* ── Portrait orientation prompt ─────────────────────────────────────────── */
+
+#rotate-prompt {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0d1208;
+  color: #d4e8c2;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  font-family: 'Cinzel', Georgia, serif;
+  user-select: none;
+}
+
+/* Show only on mobile + portrait */
+body.mobile #rotate-prompt {
+  display: none; /* default; shown only in portrait below */
+}
+
+@media (orientation: portrait) {
+  body.mobile #rotate-prompt {
+    display: flex;
+  }
+}
+
+.rotate-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.rotate-icon {
+  font-size: 72px;
+  line-height: 1;
+  animation: rotate-hint 2.4s ease-in-out infinite;
+}
+
+.rotate-text {
+  font-size: 18px;
+  opacity: 0.85;
+  letter-spacing: 0.05em;
+}
+
+@keyframes rotate-hint {
+  0%   { transform: rotate(0deg);  opacity: 1.0; }
+  35%  { transform: rotate(90deg); opacity: 0.6; }
+  65%  { transform: rotate(90deg); opacity: 0.6; }
+  100% { transform: rotate(0deg);  opacity: 1.0; }
+}

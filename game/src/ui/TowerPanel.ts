@@ -1,12 +1,23 @@
 import Phaser from 'phaser';
 import type { TowerDef } from '../entities/towers/Tower';
+import { MobileManager } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { formatDmgLine, clampTooltipX } from './tooltipFormat';
 
-export const PANEL_HEIGHT = 72;
-const BTN_SIZE = 52;
-const BTN_PADDING = 10;
-const DEPTH = 100;
+const _IS_MOBILE = MobileManager.getInstance().isMobile();
+
+export const PANEL_HEIGHT = _IS_MOBILE ? 88 : 72;
+const BTN_SIZE            = _IS_MOBILE ? 64 : 52;
+const BTN_PADDING         = 10;
+const DEPTH               = 100;
+
+/**
+ * Returns the tower-panel strip height in Phaser logical pixels.
+ * 88 on mobile (larger tap targets), 72 on desktop.
+ */
+export function getPanelHeight(): number {
+  return MobileManager.getInstance().isMobile() ? 88 : 72;
+}
 
 const TOOLTIP_DEPTH = DEPTH + 20;
 const TOOLTIP_W = 190;
@@ -106,17 +117,18 @@ export class TowerPanel {
 
       const iconKey = `icon-${def.key}`;
       if (scene.textures.exists(iconKey)) {
-        scene.add.image(bx, by - 10, iconKey)
-          .setDisplaySize(26, 26)
+        const iconSize = _IS_MOBILE ? 34 : 26;
+        scene.add.image(bx, by - (_IS_MOBILE ? 14 : 10), iconKey)
+          .setDisplaySize(iconSize, iconSize)
           .setDepth(DEPTH + 2);
       }
 
-      scene.add.text(bx, by + 14, `${def.cost}g`, {
-        fontSize: '11px', color: PAL.gold, fontFamily: PAL.fontBody,
+      scene.add.text(bx, by + (_IS_MOBILE ? 18 : 14), `${def.cost}g`, {
+        fontSize: _IS_MOBILE ? '13px' : '11px', color: PAL.gold, fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
 
-      scene.add.text(bx, by + 26, def.name.toUpperCase(), {
-        fontSize: '9px', color: PAL.textDesc, fontFamily: PAL.fontBody,
+      scene.add.text(bx, by + (_IS_MOBILE ? 32 : 26), def.name.toUpperCase(), {
+        fontSize: _IS_MOBILE ? '11px' : '9px', color: PAL.textDesc, fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
 
       btn.on('pointerover', () => {

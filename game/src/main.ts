@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { MobileManager } from './systems/MobileManager';
 import { BootScene } from './scenes/BootScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { CommanderSelectScene } from './scenes/CommanderSelectScene';
@@ -7,6 +8,10 @@ import { GameOverScene } from './scenes/GameOverScene';
 import { BetweenWaveScene } from './scenes/BetweenWaveScene';
 import { MetaMenuScene } from './scenes/MetaMenuScene';
 import { CodexScene } from './scenes/CodexScene';
+
+// Initialise mobile detection early — sets window.__OJIBWE_MOBILE and
+// toggles the 'mobile' body class used by CSS.
+MobileManager.getInstance();
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
