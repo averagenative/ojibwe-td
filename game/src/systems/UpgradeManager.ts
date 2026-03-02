@@ -287,11 +287,18 @@ export class UpgradeManager {
 
   /**
    * Recompute and push the latest stats to the tower.
-   * Also wires the Tesla overload callback when overload mode is active.
+   * Also wires the Tesla overload callback when overload mode is active,
+   * and updates the animation tier so idle/fire effects scale with upgrades.
    */
   applyStatsToTower(tower: Tower): void {
     const stats = this.computeEffectiveStats(tower);
     tower.applyUpgradeStats(stats);
+
+    // Sync animation tier: highest path tier determines the visual energy level.
+    const state = this.states.get(tower);
+    if (state) {
+      tower.setAnimTier(Math.max(state.tiers.A, state.tiers.B, state.tiers.C));
+    }
 
     // Wire / unwire Tesla overload callback
     if (stats.overloadMode && tower.def.key === 'tesla') {
