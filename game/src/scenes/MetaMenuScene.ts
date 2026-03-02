@@ -122,39 +122,104 @@ export class MetaMenuScene extends Phaser.Scene {
     balanceText: Phaser.GameObjects.Text,
   ): void {
     const mapNodes       = UNLOCK_NODES.filter(n => n.effect.type === 'map');
+    const stageNodes     = UNLOCK_NODES.filter(n => n.effect.type === 'stage');
     const commanderNodes = UNLOCK_NODES.filter(n => n.effect.type === 'commander');
+
+    // All scrollable unlock content lives in this container.
+    const container = this.add.container(0, 0);
 
     let y = startY;
 
     // Maps section
     if (mapNodes.length > 0) {
-      this.add.text(cx - PANEL_W / 2, y, 'Maps', {
+      container.add(this.add.text(cx - PANEL_W / 2, y, 'Maps', {
         fontSize:   '14px',
         color:      '#557755',
         fontFamily: 'monospace',
         fontStyle:  'bold',
-      });
+      }));
       y += 24;
       for (const node of mapNodes) {
-        this.renderNode(cx, y, node, save, balanceText);
-        y += NODE_H + NODE_GAP;
+        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT, container);
+        y += NODE_H_COMPACT + NODE_GAP;
+      }
+    }
+
+    // Stages section
+    if (stageNodes.length > 0) {
+      y += 8;
+      container.add(this.add.text(cx - PANEL_W / 2, y, 'Stages', {
+        fontSize:   '14px',
+        color:      '#557755',
+        fontFamily: 'monospace',
+        fontStyle:  'bold',
+      }));
+      y += 24;
+      for (const node of stageNodes) {
+        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT, container);
+        y += NODE_H_COMPACT + NODE_GAP;
       }
     }
 
     // Commanders section
     if (commanderNodes.length > 0) {
       y += 8;
-      this.add.text(cx - PANEL_W / 2, y, 'Commanders', {
+      container.add(this.add.text(cx - PANEL_W / 2, y, 'Commanders', {
         fontSize:   '14px',
         color:      '#557755',
         fontFamily: 'monospace',
         fontStyle:  'bold',
-      });
+      }));
       y += 24;
       for (const node of commanderNodes) {
-        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT);
+        this.renderNode(cx, y, node, save, balanceText, NODE_H_COMPACT, container);
         y += NODE_H_COMPACT + NODE_GAP;
       }
+    }
+
+    // Set up scrolling if content overflows the visible area.
+    const contentH = y - startY;
+    const visibleH = this.scale.height - startY - 80;
+
+    if (contentH > visibleH) {
+      const maskGfx = this.make.graphics({});
+      maskGfx.fillRect(0, startY, this.scale.width, visibleH);
+      container.setMask(maskGfx.createGeometryMask());
+
+      const maxScroll = contentH - visibleH;
+      let scrollOffset = 0;
+
+      const applyScroll = (delta: number): void => {
+        scrollOffset = Phaser.Math.Clamp(scrollOffset + delta, 0, maxScroll);
+        container.y = -scrollOffset;
+      };
+
+      // Mouse wheel
+      this.input.on('wheel', (
+        _pointer: Phaser.Input.Pointer,
+        _over: Phaser.GameObjects.GameObject[],
+        _dx: number,
+        deltaY: number,
+      ) => {
+        applyScroll(deltaY * 0.5);
+      });
+
+      // Touch-friendly scroll arrows
+      const arrowX = cx + PANEL_W / 2 + 24;
+
+      const upArrow = this.add.text(arrowX, startY + 8, '▲', {
+        fontSize: '20px', color: '#335533', fontFamily: 'monospace',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      upArrow.on('pointerup', () => applyScroll(-(NODE_H_COMPACT + NODE_GAP)));
+      upArrow.on('pointerover', () => upArrow.setColor('#55aa55'));
+      upArrow.on('pointerout',  () => upArrow.setColor('#335533'));
+
+      const downArrow = this.add.text(arrowX, startY + visibleH - 8, '▼', {
+        fontSize: '20px', color: '#335533', fontFamily: 'monospace',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      downArrow.on('pointerup', () => applyScroll(NODE_H_COMPACT + NODE_GAP));
+      downArrow.on('pointerover', () => downArrow.setColor('#55aa55'));
+      downArrow.on('pointerout',  () => downArrow.setColor('#335533'));
     }
   }
 
@@ -267,12 +332,12 @@ export class MetaMenuScene extends Phaser.Scene {
     save: SaveManager,
     balanceText: Phaser.GameObjects.Text,
     nodeHeight: number = NODE_H,
+    container?: Phaser.GameObjects.Container,
   ): void {
     const owned      = save.isUnlocked(node.id);
-    const affordable = !owned && save.getCurrency() >= node.cost;
-    const canBuy     = affordable;
-
     const prereqsMet = node.prereqs.every(id => save.isUnlocked(id));
+    const affordable = !owned && prereqsMet && save.getCurrency() >= node.cost;
+    const canBuy     = affordable;
     const locked     = !owned && !prereqsMet;
 
     let bgColor: number;
@@ -299,52 +364,60 @@ export class MetaMenuScene extends Phaser.Scene {
 
     const panel = this.add.rectangle(cx, y + nodeHeight / 2, PANEL_W, nodeHeight, bgColor)
       .setStrokeStyle(2, borderColor);
+    if (container) container.add(panel);
 
     // Label
-    this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 10, node.label, {
+    const label = this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 10, node.label, {
       fontSize:   '16px',
       color:      labelColor,
       fontFamily: 'monospace',
       fontStyle:  'bold',
     });
+    if (container) container.add(label);
 
     // Description
-    this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, node.description, {
-      fontSize:    '12px',
+    const desc = this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, node.description, {
+      fontSize:    '11px',
       color:       '#888888',
       fontFamily:  'monospace',
       wordWrap:    { width: PANEL_W - NODE_PAD_X * 2 - 100 },
     });
+    if (container) container.add(desc);
 
     // Cost / status badge on the right
     const badgeX = cx + PANEL_W / 2 - NODE_PAD_X - 50;
     const badgeY = y + nodeHeight / 2;
 
     if (owned) {
-      this.add.text(badgeX, badgeY, 'OWNED', {
+      const badge = this.add.text(badgeX, badgeY, 'OWNED', {
         fontSize:   '14px',
         color:      '#00ff44',
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }).setOrigin(0.5);
+      if (container) container.add(badge);
     } else if (locked) {
-      this.add.text(badgeX, badgeY, 'LOCKED', {
+      const badge = this.add.text(badgeX, badgeY, 'LOCKED', {
         fontSize:   '13px',
         color:      '#555555',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
+      if (container) container.add(badge);
     } else {
-      this.add.text(badgeX, badgeY, `${node.cost}`, {
+      const costText = this.add.text(badgeX, badgeY, `${node.cost}`, {
         fontSize:   '18px',
         color:      affordable ? '#88ccff' : '#666666',
         fontFamily: 'monospace',
         fontStyle:  'bold',
       }).setOrigin(0.5);
-      this.add.text(badgeX, badgeY + 16, 'crystals', {
+      if (container) container.add(costText);
+
+      const crystalsLabel = this.add.text(badgeX, badgeY + 16, 'crystals', {
         fontSize:   '10px',
         color:      '#557799',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
+      if (container) container.add(crystalsLabel);
     }
 
     // Make clickable when purchasable
