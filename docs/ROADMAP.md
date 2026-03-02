@@ -1650,6 +1650,49 @@ follow-up items.
 
 ---
 
+### TASK-086 Review Findings (non-blocking)
+
+Surfaced during code review of the crystal-sink expansion (2026-03-02).
+
+1. **Auto-save does not persist `_rerollTokens`**: `_doAutoSave()` in GameScene
+   serialises gold, lives, towers, and offers but does not include the run-scoped
+   `_rerollTokens` count. If a session is restored mid-run, any remaining reroll
+   tokens paid for with crystals are lost. Fix: add `rerollTokens` to the
+   `AutoSave` interface and serialise/restore it alongside other run state.
+
+2. **Shop tab: no cap-reached feedback**: When a consumable token is at its cap
+   (99), the shop panel still renders as affordable (blue/interactive). Clicking
+   triggers `purchaseConsumable()` which returns false, but the player sees no
+   visual feedback. Fix: check `pending[item.key] >= 99` and render a "MAX" badge
+   instead of the cost, disabling interaction.
+
+---
+
+### TASK-090 Review Findings (non-blocking)
+
+Surfaced during Opus code review of Audio Settings UI (2026-03-02).
+
+1. **HUD gear button overlaps GIVE UP button in endless mode**: The audio settings
+   gear button (⚙) in the HUD strip is positioned immediately after the mute button.
+   In endless mode, the GIVE UP button occupies x=400 (desktop) / x=440 (mobile) with
+   width 100/110. On desktop the gear's right edge (363) overlaps the GIVE UP left
+   edge (350) by ~13px. Fix: either hide the gear during endless mode, shift it to a
+   different row, or compact the HUD layout.
+
+2. **`setAudioSettings` has 6 positional parameters**: The SaveManager method now
+   accepts `(master, sfx, music, muted, musicMuted, sfxMuted)` — all numbers/booleans
+   in sequence. Consider refactoring to accept an options object
+   `{ master, sfx, music, muted, musicMuted, sfxMuted }` for clarity and to prevent
+   parameter-order bugs as more audio settings are added.
+
+3. **AudioSettingsPanel rebuilds all objects on every show/hide cycle**: Each time the
+   panel is opened, it creates ~20 Phaser GameObjects; on close, all are destroyed.
+   This is correct and leak-free, but if the panel is toggled rapidly it incurs
+   unnecessary GC pressure. Consider keeping objects alive (just toggling visibility)
+   if this becomes a UX concern.
+
+---
+
 *Populated automatically by `scripts/health-check.sh`. Do not edit this section manually.*
 
 <!-- HEALTH_CHECK_START -->

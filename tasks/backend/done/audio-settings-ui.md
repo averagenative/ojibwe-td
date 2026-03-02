@@ -1,7 +1,7 @@
 ---
 id: TASK-090
 title: Audio Settings UI — Independent Music/SFX Volume & Toggle
-status: pending
+status: done
 priority: high
 phase: feature
 ---

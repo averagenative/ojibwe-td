@@ -1048,4 +1048,20 @@ TASK-082 shipped the Arrow tower mechanically but left it with a placeholder col
 
 **Audio slot.** `BootScene` preloads `sfx-arrow` from `assets/audio/sfx/arrow-fire.mp3` alongside the other tower fire sounds, ready for the audio asset task to fill.
 
+### TASK-090 — Audio Settings UI: Independent Music/SFX Volume & Toggle (2026-03-02)
+
+The single mute button was the entire audio UI — no way to silence the music while keeping sound effects on, or to adjust volumes independently. This task replaces that limitation with a full per-channel audio settings panel accessible from both the in-game HUD and the main menu.
+
+**SaveManager additions.** Two new boolean fields, `audioMusicMuted` and `audioSfxMuted`, were added to `SaveData` alongside the existing `audioMuted` master flag. `getAudioSettings()` now returns both per-channel mute states. `setAudioSettings()` accepts optional `musicMuted` and `sfxMuted` parameters (default false) for backwards-compatible saves. `_sanitize()` coerces missing fields to `false` so older save files load cleanly.
+
+**AudioManager per-channel mute.** Private fields `_musicMuted` and `_sfxMuted` track independent mute state. `setMusicMuted(bool)` and `setSfxMuted(bool)` update the respective Web Audio gain node directly (0 or the stored volume) and call `_persist()`. The existing `setMusicVolume()` and `setSfxVolume()` methods were updated to respect their per-channel mute flag when applying gain, so adjusting a slider while the channel is muted does not briefly unmute it. On `init()` the new mute states are restored from the save before the AudioContext resumes. Three new getters — `isMusicMuted()`, `isSfxMuted()`, `isMuted()` — expose the full mute state to the UI layer.
+
+**AudioSettingsPanel.** New file `src/ui/AudioSettingsPanel.ts` implements a Phaser-container overlay that renders two rows (Music / SFX) each with a labelled toggle button and a +/− volume step pair. A "✕ Close" button dismisses the panel. The panel uses the existing `PAL` palette constants and `_IS_MOBILE` sizing so tap targets are at least 44 px on mobile. It is created lazily on first open and toggled on repeated gear taps. `destroy()` removes the container and nulls the reference.
+
+**HUD gear button.** `HUD.createAudioSettingsButton(onOpen)` places a ⚙ icon button immediately to the right of the existing mute button. The position adjusts for mobile (cx = 343) vs desktop (cx = 327) so it fits within the HUD strip. `GameScene.create()` calls this method after wiring the mute button and passes a closure that lazily constructs and shows/hides the panel. `GameScene.shutdown()` calls `audioSettingsPanel?.destroy()` for clean teardown.
+
+**Main menu gear button.** `MainMenuScene.createAudioButton()` places a ⚙ icon in the bottom-right corner of the main menu canvas (padded 12 px from the edge). Tapping it lazily creates and toggles the same `AudioSettingsPanel`. `_audioPanel` is nulled at the top of `create()` so a scene restart always starts clean.
+
+**Test coverage.** `AudioManager.test.ts` gained 26 new tests: per-channel mute toggles, gain-respecting volume adjustments while muted, master mute independence, and round-trip persistence through `_persist()` / `init()`. Total: 1 473 tests passing, 0 type errors.
+
 **Test coverage.** `attackVisuals.test.ts` was extended with 7 new tests covering the arrow trail colour registration, `impactArrowStick` tween creation and cleanup, and in-flight rotation-tracking; `wireAssets.test.ts` confirms `icon-arrow` appears in the preload manifest; `gearSystem.test.ts` confirms the new gear type resolves to the `arrow` tower key. Total: 1 458 tests passing, 0 type errors.

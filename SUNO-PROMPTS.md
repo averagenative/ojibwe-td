@@ -2,29 +2,34 @@
 
 ## How to Generate
 
-### Music Tracks (Song mode)
-1. Go to [suno.com](https://suno.com) → **Create**
-2. Use **Custom** mode
-3. Paste the **Prompt** into the lyrics/description field
-4. Set the **Style of Music** tags listed for each track
-5. Generate, pick the best of the two options
-6. Download as **.wav** (Pro account: click download → select WAV)
+### Music Tracks (Song tab → Custom → Instrumental)
+1. Open **Create** (left sidebar)
+2. Click **Song** tab (top of create panel)
+3. Switch to **Custom** mode (toggle near top)
+4. Turn **Instrumental** ON (no vocals — these are game BGM tracks)
+5. Paste the **Style of Music** tags into the "Style of Music" field
+6. Paste the **Prompt** into the **Lyrics** field (even though instrumental,
+   the description here guides the composition)
+7. Click **Create** — generates two options
+8. Listen, pick the best one
+9. Download as **.wav**: click the track → download icon → select WAV format
 
-### Sound Effects (Sounds mode)
-1. Go to [suno.com](https://suno.com) → **Create**
-2. Click the **dropdown** at the top of Custom mode → select **Sounds**
+### Sound Effects (Sounds tab → One Shot)
+1. Open **Create** (left sidebar)
+2. Click the **Sounds** tab (next to "Song" at the top of the create panel)
 3. Paste the **Prompt** into the description field
-4. Set **Type** to **One Shot** (not Loop) for all SFX
-5. Leave BPM and Key blank for pure sound effects
-6. Generate, pick the best of the two options
+4. Set **Type** to **One Shot** (not Loop) — all our SFX are single hits
+5. Leave **BPM** and **Key** blank for pure sound effects
+6. Click **Create** — generates two options
 7. Download as **.wav**
 
-### Tips for Suno Sounds
+### Tips
 - Use specific vocabulary: "whoosh", "thunk", "crack", "sizzle", "rumble"
 - Specify duration explicitly (e.g., "0.3 seconds")
-- If results are too musical, add "no melody, no rhythm, pure sound effect"
+- If SFX results sound too musical, add "no melody, no rhythm, pure sound effect"
 - Very short SFX (<0.2s) may be hard — try [jsfxr.app](https://sfxr.me) as backup
 - You get two options per generation — try 2-3 generations per sound to find the best
+- For music tracks: try generating 2-3 times and keep the best version
 
 ---
 

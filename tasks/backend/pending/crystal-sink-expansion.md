@@ -1,7 +1,7 @@
 ---
 id: TASK-086
 title: Crystal Sink Expansion — More Things to Buy with Crystals
-status: pending
+status: in-progress
 priority: high
 phase: feature
 ---
