@@ -120,14 +120,14 @@ export class HUD extends Phaser.GameObjects.Container {
     const startX = _IS_MOBILE ? 135 : 155; // left edge of first button
     const cy     = HUD_HEIGHT / 2;
 
-    const defs: Array<{ mult: number; label: string }> = [
-      { mult: 0, label: '⏸' },
-      { mult: 1, label: '1×' },
-      { mult: 2, label: '2×' },
+    const defs: Array<{ mult: number; label: string; hint: string }> = [
+      { mult: 0, label: '⏸', hint: 'Spc' },
+      { mult: 1, label: '1×', hint: 'F'   },
+      { mult: 2, label: '2×', hint: 'F'   },
     ];
 
     for (let i = 0; i < defs.length; i++) {
-      const { mult, label } = defs[i];
+      const { mult, label, hint } = defs[i];
       const cx = startX + i * (btnW + gap) + btnW / 2;
       const isActive = mult === 1; // 1× is default
 
@@ -145,6 +145,15 @@ export class HUD extends Phaser.GameObjects.Container {
         fontFamily: PAL.fontBody,
         fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
+
+      // Keyboard shortcut hint — desktop only (top-right corner of button)
+      if (!_IS_MOBILE) {
+        this.scene.add.text(cx + btnW / 2 - 2, cy - btnH / 2 + 2, hint, {
+          fontSize: '8px',
+          color: PAL.textDim,
+          fontFamily: PAL.fontBody,
+        }).setOrigin(1, 0).setDepth(DEPTH + 4);
+      }
 
       btnBg.on('pointerover', () => {
         if (this.activeSpeed !== mult) btnBg.setFillStyle(PAL.bgBtnHover);
