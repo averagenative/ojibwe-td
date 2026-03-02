@@ -82,28 +82,38 @@ export class VignetteOverlay {
     // Intercept clicks on the panel.
     bg.on('pointerup', () => this.handleClick());
 
-    // ── Portrait placeholder (coloured tile) ────────────────────────────
+    // ── Portrait: real image when available, coloured placeholder otherwise ──
     const portraitSize = 64;
     const portraitX = 48 + portraitSize / 2;
     const portraitY = panelY + panelH / 2;
-    const portraitColor = vignette.portrait ? PAL.borderInactive : PAL.borderPanel;
 
-    const portrait = this.scene.add.rectangle(
-      portraitX, portraitY,
-      portraitSize, portraitSize,
-      portraitColor,
-    ).setStrokeStyle(2, PAL.borderInactive).setDepth(DEPTH + 1);
-    this.objects.push(portrait);
+    const portraitKey = vignette.portrait ?? '';
+    const hasPortrait = portraitKey !== '' && this.scene.textures.exists(portraitKey);
 
-    // Portrait icon letter (first char of speaker, or "?").
-    const iconChar = vignette.speaker?.[0] ?? '?';
-    const iconText = this.scene.add.text(portraitX, portraitY, iconChar, {
-      fontSize:   '28px',
-      color:      PAL.textPrimary,
-      fontFamily: PAL.fontBody,
-      fontStyle:  'bold',
-    }).setOrigin(0.5).setDepth(DEPTH + 2);
-    this.objects.push(iconText);
+    if (hasPortrait) {
+      const portraitImg = this.scene.add.image(portraitX, portraitY, portraitKey)
+        .setDisplaySize(portraitSize, portraitSize)
+        .setDepth(DEPTH + 1);
+      this.objects.push(portraitImg);
+    } else {
+      // Fallback: coloured rectangle + first-letter icon.
+      const portraitColor = vignette.portrait ? PAL.borderInactive : PAL.borderPanel;
+      const portrait = this.scene.add.rectangle(
+        portraitX, portraitY,
+        portraitSize, portraitSize,
+        portraitColor,
+      ).setStrokeStyle(2, PAL.borderInactive).setDepth(DEPTH + 1);
+      this.objects.push(portrait);
+
+      const iconChar = vignette.speaker?.[0] ?? '?';
+      const iconText = this.scene.add.text(portraitX, portraitY, iconChar, {
+        fontSize:   '28px',
+        color:      PAL.textPrimary,
+        fontFamily: PAL.fontBody,
+        fontStyle:  'bold',
+      }).setOrigin(0.5).setDepth(DEPTH + 2);
+      this.objects.push(iconText);
+    }
 
     // ── Speaker name ────────────────────────────────────────────────────
     const textX = portraitX + portraitSize / 2 + 24;

@@ -15,6 +15,16 @@ interface CreepTypeDef {
   reward: number;
 }
 
+/** Maps creep-type keys (from creep-types.json) to sprite texture keys. */
+export const CREEP_SPRITE_KEYS: Record<string, string> = {
+  grunt:  'creep-normal',
+  runner: 'creep-fast',
+  brute:  'creep-armored',
+  swarm:  'creep-normal',
+  scout:  'creep-flying',
+  flier:  'creep-flying',
+};
+
 interface WaveDef {
   count:      number;
   intervalMs: number;
@@ -234,10 +244,11 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       if (!base) continue;
 
       queue.push({
-        hp:     Math.round(base.hp     * waveDef.hpMult),
-        speed:  Math.round(base.speed  * waveDef.speedMult),
-        type:   base.type,
-        reward: base.reward,
+        hp:        Math.round(base.hp     * waveDef.hpMult),
+        speed:     Math.round(base.speed  * waveDef.speedMult),
+        type:      base.type,
+        reward:    base.reward,
+        spriteKey: CREEP_SPRITE_KEYS[base.key],
       });
     }
 
@@ -274,6 +285,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       bossRewardOffer:    bossDef.rewardOffer,
       bossKey:            bossDef.key,
       bossName:           bossDef.name,
+      spriteKey:          'creep-boss',
     };
 
     const creep = new Creep(this.scene, this.waypoints, config);
@@ -320,12 +332,13 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         ];
 
         const miniConfig: CreepConfig = {
-          hp:     splitCfg.hp,
-          speed:  splitCfg.speed,
-          type:   'ground',
-          reward: splitCfg.reward,
+          hp:        splitCfg.hp,
+          speed:     splitCfg.speed,
+          type:      'ground',
+          reward:    splitCfg.reward,
           // Mini-copies are NOT bosses — they cost 1 life on escape.
-          isBoss: false,
+          isBoss:    false,
+          spriteKey: 'creep-boss-mini',
         };
 
         for (let i = 0; i < splitCount; i++) {

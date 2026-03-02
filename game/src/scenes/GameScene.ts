@@ -227,6 +227,7 @@ export class GameScene extends Phaser.Scene {
       this.hud.createCommanderDisplay(
         this.commanderDef.name,
         this.commanderDef.aura.name,
+        `portrait-${this.commanderDef.id}`,
       );
       this.hud.createAbilityButton(
         this.commanderDef.ability.name,
@@ -577,6 +578,10 @@ export class GameScene extends Phaser.Scene {
     const { tileSize, cols, rows, tiles } = this.mapData;
     const gfx = this.add.graphics();
 
+    // Tile image keys in rotation order; assigned deterministically per position.
+    const TILE_KEYS = ['tile-tree', 'tile-brush', 'tile-rock', 'tile-water'];
+    const tilesLoaded = TILE_KEYS.every(k => this.textures.exists(k));
+
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const x    = col * tileSize;
@@ -588,7 +593,14 @@ export class GameScene extends Phaser.Scene {
           gfx.fillRect(x, y, tileSize, tileSize);
           gfx.lineStyle(1, 0x3a3020, 0.5);
           gfx.strokeRect(x, y, tileSize, tileSize);
+        } else if (tilesLoaded) {
+          // Pick a tile variant deterministically from position.
+          const tileKey = TILE_KEYS[(row * cols + col) % TILE_KEYS.length];
+          this.add.image(x + tileSize / 2, y + tileSize / 2, tileKey)
+            .setDisplaySize(tileSize, tileSize)
+            .setDepth(0);
         } else {
+          // Fallback: solid coloured rectangle.
           gfx.fillStyle(PAL.bgCard, 1);
           gfx.fillRect(x, y, tileSize, tileSize);
           gfx.lineStyle(1, 0x142014, 0.6);

@@ -273,12 +273,24 @@ export class HUD extends Phaser.GameObjects.Container {
 
   /**
    * Show the active commander's name and aura name beside the lives text.
+   * If `portraitKey` is supplied and the texture is loaded, a small portrait
+   * thumbnail is shown at the left edge of the display area.
    * Called once during GameScene create() if a commander is active.
    */
-  createCommanderDisplay(commanderName: string, auraName: string): void {
+  createCommanderDisplay(commanderName: string, auraName: string, portraitKey?: string): void {
     const cy = HUD_HEIGHT / 2;
-    // Position after lives text (approx x=100)
-    this.scene.add.text(100, cy, `${commanderName} · ${auraName}`, {
+    let textX = 100;
+
+    if (portraitKey && this.scene.textures.exists(portraitKey)) {
+      // 32×32 portrait thumbnail fits comfortably in the 48px HUD strip.
+      const portraitSize = 32;
+      this.scene.add.image(textX + portraitSize / 2, cy, portraitKey)
+        .setDisplaySize(portraitSize, portraitSize)
+        .setDepth(DEPTH + 1);
+      textX += portraitSize + 6;
+    }
+
+    this.scene.add.text(textX, cy, `${commanderName} · ${auraName}`, {
       fontSize: '11px',
       color: PAL.textSecondary,
       fontFamily: PAL.fontBody,
