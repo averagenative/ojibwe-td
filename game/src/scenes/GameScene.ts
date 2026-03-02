@@ -314,12 +314,12 @@ export class GameScene extends Phaser.Scene {
       return amForMute.isMuted();
     });
 
-    // Commander HUD elements (name, portrait, ability button)
+    // Commander HUD elements (portrait with tooltip, ability button)
     if (this.commanderDef && this.commanderState) {
-      this.hud.createCommanderDisplay(
-        this.commanderDef.name,
-        this.commanderDef.aura.name,
-        `portrait-${this.commanderDef.id}`,
+      this.hud.createCommanderPortrait(
+        this.commanderDef,
+        this.commanderState,
+        () => this.activateCommanderAbility(),
       );
       this.hud.createAbilityButton(
         this.commanderDef.ability.name,
@@ -470,6 +470,8 @@ export class GameScene extends Phaser.Scene {
       this.hud.showBossWarning(data.bossName);
       // Refresh wave display to show boss indicator (★).
       this.hud.setWave(this.currentWave, this.totalWaves, this.isEndlessMode);
+      // Commander portrait reacts to boss wave (brief shake).
+      this.hud.getCommanderPortrait()?.reactBossWave();
     });
 
     // ── Boss killed: award bonus gold, visual effects, offer ─────────────
@@ -1236,6 +1238,7 @@ export class GameScene extends Phaser.Scene {
       if (stageVignette) {
         // Show the vignette before transitioning to the victory screen.
         AudioManager.getInstance().playVictory();
+        this.hud.getCommanderPortrait()?.reactVictory();
         this.gameState = 'between';
         this.vignetteOverlay.show(stageVignette.vignette, stageVignette.seenBefore, () => {
           this.gameState = 'over';
@@ -1260,6 +1263,7 @@ export class GameScene extends Phaser.Scene {
       // No vignette — go straight to victory screen.
       this.gameState = 'over';
       AudioManager.getInstance().playVictory();
+      this.hud.getCommanderPortrait()?.reactVictory();
       const maxLivesNoVig = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
       this.scene.start('GameOverScene', {
         wavesCompleted: this.totalWaves,
@@ -1708,6 +1712,7 @@ export class GameScene extends Phaser.Scene {
     // Clear auto-save — run is finished (defeat or give-up).
     SessionManager.getInstance().clear();
     AudioManager.getInstance().playGameOver();
+    this.hud.getCommanderPortrait()?.reactGameOver();
     this.waveManager.cleanup();
 
     let runCurrency: number;
@@ -1742,6 +1747,7 @@ export class GameScene extends Phaser.Scene {
 
     this.commanderState.abilityUsed = true;
     this.hud.disableAbilityButton();
+    this.hud.getCommanderPortrait()?.markAbilityUsed();
 
     const ctx: AbilityContext = {
       currentWave:    this.currentWave,

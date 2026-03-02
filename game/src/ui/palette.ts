@@ -101,7 +101,29 @@ export const PAL = {
   waveWarningN:       0xc0701e,
   lockedPipN:         0x441111,   // locked upgrade tier pip
 
+  // ── Commander role border colours (numeric, for portrait ring) ─────────────
+  cmdSustain:         0x4a8848,   // Nokomis — leafy green
+  cmdPrecision:       0x4a7fa5,   // Bizhiw — lake blue
+  cmdBurst:           0xc0881e,   // Animikiikaa — lightning amber
+  cmdDamage:          0xb84c2a,   // Makoons — ember red
+  cmdEconomy:         0xc8952a,   // Oshkaabewis — autumn gold
+  cmdResilience:      0x9a6eb0,   // Waabizii — swan lavender
+  cmdDefault:         0x4a6e28,   // fallback — marsh green
+
   // ── Typography ──────────────────────────────────────────────────────────────
   fontTitle:  'Cinzel, Georgia, serif',   // display headers (OJIBWE TD, VICTORY)
   fontBody:   'Georgia, serif',            // all other UI text
 } as const;
+
+/** Map a commander role string (case-insensitive) to its PAL.cmd* border colour. */
+export function roleBorderColour(role: string): number {
+  switch (role.toLowerCase()) {
+    case 'sustain':    return PAL.cmdSustain;
+    case 'precision':  return PAL.cmdPrecision;
+    case 'burst':      return PAL.cmdBurst;
+    case 'damage':     return PAL.cmdDamage;
+    case 'economy':    return PAL.cmdEconomy;
+    case 'resilience': return PAL.cmdResilience;
+    default:           return PAL.cmdDefault;
+  }
+}
