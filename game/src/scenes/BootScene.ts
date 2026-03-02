@@ -66,15 +66,24 @@ export class BootScene extends Phaser.Scene {
     this.load.image('portrait-bizhiw',      'assets/portraits/portrait-bizhiw.png');
     this.load.image('portrait-animikiikaa', 'assets/portraits/portrait-animikiikaa.png');
 
-    // Creep sprites (48×48)
-    this.load.image('creep-normal',    'assets/sprites/creep-normal.png');
-    this.load.image('creep-fast',      'assets/sprites/creep-fast.png');
-    this.load.image('creep-armored',   'assets/sprites/creep-armored.png');
-    this.load.image('creep-immune',    'assets/sprites/creep-immune.png');
-    this.load.image('creep-regen',     'assets/sprites/creep-regen.png');
-    this.load.image('creep-flying',    'assets/sprites/creep-flying.png');
-    this.load.image('creep-boss',      'assets/sprites/creep-boss.png');
-    this.load.image('creep-boss-mini', 'assets/sprites/creep-boss-mini.png');
+    // Ground creep sprites (48×48) — refreshed animal-inspired silhouettes
+    this.load.image('creep-normal',  'assets/sprites/creep-normal.png');
+    this.load.image('creep-fast',    'assets/sprites/creep-fast.png');
+    this.load.image('creep-armored', 'assets/sprites/creep-armored.png');
+    this.load.image('creep-immune',  'assets/sprites/creep-immune.png');
+    this.load.image('creep-regen',   'assets/sprites/creep-regen.png');
+
+    // Air creep sprites — distinct bird silhouettes per subtype
+    this.load.image('creep-air-basic',   'assets/sprites/creep-air-basic.png');
+    this.load.image('creep-air-scout',   'assets/sprites/creep-air-scout.png');
+    this.load.image('creep-air-armored', 'assets/sprites/creep-air-armored.png');
+
+    // Boss sprites — unique animal portraits (Ojibwe TD bosses)
+    this.load.image('boss-makwa',        'assets/sprites/boss-makwa.png');
+    this.load.image('boss-migizi',       'assets/sprites/boss-migizi.png');
+    this.load.image('boss-waabooz',      'assets/sprites/boss-waabooz.png');
+    this.load.image('boss-animikiins',   'assets/sprites/boss-animikiins.png');
+    this.load.image('boss-waabooz-mini', 'assets/sprites/boss-waabooz-mini.png');
 
     // Map tiles (64×64)
     this.load.image('tile-tree',  'assets/tiles/tile-tree.png');

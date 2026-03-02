@@ -21,8 +21,9 @@ export const CREEP_SPRITE_KEYS: Record<string, string> = {
   runner: 'creep-fast',
   brute:  'creep-armored',
   swarm:  'creep-normal',
-  scout:  'creep-flying',
-  flier:  'creep-flying',
+  // Air creeps now have distinct sprites per subtype.
+  scout:  'creep-air-scout',   // hawk/falcon silhouette — swift air unit
+  flier:  'creep-air-basic',   // generic bird silhouette — basic air unit
 };
 
 interface WaveDef {
@@ -506,7 +507,9 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       bossRewardOffer:    bossDef.rewardOffer,
       bossKey:            bossDef.key,
       bossName:           bossDef.name,
-      spriteKey:          'creep-boss',
+      // Use the boss-specific sprite (e.g. 'boss-makwa') if defined,
+      // falling back to the derived convention 'boss-{key}'.
+      spriteKey:          bossDef.spriteKey ?? `boss-${bossDef.key}`,
     };
 
     const bossWp = config.type === 'air' ? this.airWaypoints : this.waypoints;
@@ -560,7 +563,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
           reward:    splitCfg.reward,
           // Mini-copies are NOT bosses — they cost 1 life on escape.
           isBoss:    false,
-          spriteKey: 'creep-boss-mini',
+          // Recognisable baby-hare sprite (distinct from generic mini-boss).
+          spriteKey: 'boss-waabooz-mini',
         };
 
         for (let i = 0; i < splitCount; i++) {
