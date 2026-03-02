@@ -7,6 +7,17 @@ import {
   type CreepDirection,
 } from '../data/pathing';
 import { hpBarColor } from '../systems/visualUtils';
+import {
+  EFFECT_CONFIGS,
+  ICON_BAR_OFFSET_Y,
+  ICON_RADIUS,
+  ICON_COLORS,
+  activeEffectKeys,
+  poisonParticleCount,
+  poisonOverlayAlpha,
+  frostOverlayAlpha,
+} from './StatusEffectVisuals';
+import type { StatusEffectKey, StatusEffectVisualConfig } from './StatusEffectVisuals';
 
 // Re-export so existing imports from Creep.ts still work.
 export { tickRegen };
@@ -54,6 +65,25 @@ export interface CreepConfig {
 interface Waypoint {
   x: number;
   y: number;
+}
+
+/**
+ * A single pooled particle arc used for status-effect visuals.
+ * Arcs are children of the Creep Container and use local (container-relative)
+ * coordinates.  The `phase` field drives a sine-wave alpha animation.
+ */
+interface EffectParticle {
+  arc:    Phaser.GameObjects.Arc;
+  /** Animation phase [0, 1).  0 = just born, 1 = expired → reset. */
+  phase:  number;
+  /** Phase increment per millisecond (1/particleLifeMs, staggered per slot). */
+  speed:  number;
+  /** Local X origin (re-randomised on each reset). */
+  baseX:  number;
+  /** Max upward displacement in pixels (negative Y = upward in Phaser). */
+  riseY:  number;
+  /** Total horizontal drift across the full lifetime (±). */
+  drift:  number;
 }
 
 const BODY_COLORS: Record<CreepType, number> = {
@@ -194,6 +224,25 @@ export class Creep extends Phaser.GameObjects.Container {
   private armorBaseX = 0;
   private armorBaseY = 0;
 
+  // ── Status effect visuals ─────────────────────────────────────────────────
+  /** Reference to hpBg child — used to find the insert index for overlays. */
+  private _hpBarBg!: Phaser.GameObjects.Rectangle;
+  /** Semi-transparent tint overlay per active effect (container children). */
+  private _effectOverlays  = new Map<StatusEffectKey, Phaser.GameObjects.Rectangle>();
+  /** Animated particle arcs per active effect (container children). */
+  private _effectParticles = new Map<StatusEffectKey, EffectParticle[]>();
+  /** Ice ring / frost patch drawn beneath the creep body (container child). */
+  private _frostRingGfx?: Phaser.GameObjects.Graphics;
+  /** Status icon bar drawn above the HP bar (container child). */
+  private _iconBarGfx?: Phaser.GameObjects.Graphics;
+
+  // Burn state — new effect (applicable when cannon/mortar enables burn splash)
+  private _burnActive  = false;
+  private _burnTimer?: Phaser.Time.TimerEvent;
+
+  // Tesla shock — residual static for 0.5 s after chain-lightning hit
+  private _teslaShockedMs = 0;
+
   constructor(
     scene: Phaser.Scene,
     waypoints: Waypoint[],
@@ -315,6 +364,17 @@ export class Creep extends Phaser.GameObjects.Container {
     if (dist > 0) {
       this.x += (dx / dist) * stepDist;
       this.y += (dy / dist) * stepDist;
+    }
+
+    // ── Animate status-effect particles ──────────────────────────────────────
+    this._stepParticles(delta);
+
+    // ── Tesla shock countdown ─────────────────────────────────────────────────
+    if (this._teslaShockedMs > 0) {
+      this._teslaShockedMs = Math.max(0, this._teslaShockedMs - delta);
+      if (this._teslaShockedMs === 0) {
+        this.refreshStatusVisual();
+      }
     }
   }
 
@@ -531,14 +591,72 @@ export class Creep extends Phaser.GameObjects.Container {
     if (pct < this.damageAmpPct) return;
     this.damageAmpPct = pct;
 
+    // Brief flash: show the overlay at high alpha then settle to normal.
+    const overlay = this._effectOverlays.get('armorShred');
+    if (overlay) {
+      overlay.setAlpha(0.7);
+      overlay.setVisible(true);
+      this.scene.time.delayedCall(150, () => {
+        if (!this.active) return;
+        overlay.setAlpha(EFFECT_CONFIGS.armorShred.tintAlpha);
+      });
+    } else {
+      // Overlay not yet allocated — refreshStatusVisual will create it,
+      // then we flash it and schedule the settle.
+      this.refreshStatusVisual();
+      const newOv = this._effectOverlays.get('armorShred');
+      if (newOv) {
+        newOv.setAlpha(0.7);
+        this.scene.time.delayedCall(150, () => {
+          if (!this.active) return;
+          newOv.setAlpha(EFFECT_CONFIGS.armorShred.tintAlpha);
+        });
+      }
+    }
+
     this.shredTimer?.destroy();
     this.shredTimer = this.scene.time.addEvent({
       delay: durationMs,
       callback: () => {
         if (!this.active) return;
         this.damageAmpPct = 0;
+        this.refreshStatusVisual();
       },
     });
+  }
+
+  /**
+   * Apply a burn DoT visual effect.  Burn is triggered by cannon / mortar
+   * splash towers when the burn-splash mechanic is active.
+   * Re-application replaces the existing timer (extends the duration).
+   */
+  applyBurn(durationMs: number): void {
+    if (!this.active) return;
+    this._burnActive = true;
+    this.refreshStatusVisual();
+    this._burnTimer?.destroy();
+    this._burnTimer = this.scene.time.addEvent({
+      delay: durationMs,
+      callback: () => {
+        if (!this.active) return;
+        this._burnActive = false;
+        this.refreshStatusVisual();
+      },
+    });
+  }
+
+  /**
+   * Apply a brief tesla-shock state that shows residual static sparks.
+   * Duration is typically 500 ms (per TASK-047 spec).
+   * Multiple hits extend the duration (takes the max of current and new).
+   */
+  applyTeslaShock(durationMs: number): void {
+    if (!this.active) return;
+    const wasShocked = this._teslaShockedMs > 0;
+    this._teslaShockedMs = Math.max(this._teslaShockedMs, durationMs);
+    if (!wasShocked) {
+      this.refreshStatusVisual();
+    }
   }
 
   /**
@@ -557,8 +675,19 @@ export class Creep extends Phaser.GameObjects.Container {
   destroy(fromScene?: boolean): void {
     this.slowTimer?.destroy();
     this.shredTimer?.destroy();
+    this._burnTimer?.destroy();
     for (const t of this.dotTimers) t.destroy();
     this.dotTimers = [];
+    // Explicitly destroy dynamically-added visual children so they're not
+    // orphaned in the container's child list after the container is destroyed.
+    for (const overlay of this._effectOverlays.values()) overlay.destroy();
+    this._effectOverlays.clear();
+    for (const particles of this._effectParticles.values()) {
+      for (const p of particles) p.arc.destroy();
+    }
+    this._effectParticles.clear();
+    this._frostRingGfx?.destroy();
+    this._iconBarGfx?.destroy();
     super.destroy(fromScene);
   }
 
@@ -598,6 +727,7 @@ export class Creep extends Phaser.GameObjects.Container {
     const hpBg = new Phaser.GameObjects.Rectangle(
       this.scene, 0, barOffY, barW, barH, 0x333333,
     );
+    this._hpBarBg = hpBg;
 
     this.hpBarFill = new Phaser.GameObjects.Rectangle(
       this.scene,
@@ -730,17 +860,21 @@ export class Creep extends Phaser.GameObjects.Container {
   private refreshStatusVisual(): void {
     const slowed   = this.slowFactor < 1.0;
     const poisoned = this.dotStacks > 0;
+    const burning  = this._burnActive;
+    const shocked  = this._teslaShockedMs > 0;
+    const shredded = this.damageAmpPct > 0;
 
+    // ── Body base tint (backwards-compatible colour blending) ─────────────────
     if (this.bodyImage) {
-      // Image path: use setTint for status overlays, clearTint to restore.
       if (slowed && poisoned) {
         this.bodyImage.setTint(0x44aaaa);
       } else if (slowed) {
-        this.bodyImage.setTint(0x4488ff);
+        this.bodyImage.setTint(this.shatterActive ? 0xbbd8ff : 0x4488ff);
       } else if (poisoned) {
         this.bodyImage.setTint(0x44ff66);
+      } else if (burning) {
+        this.bodyImage.setTint(0xff8833);
       } else {
-        // Restore the base tint (boss colour or no tint for normal creeps).
         if (this.baseSpriteTint !== 0xffffff) {
           this.bodyImage.setTint(this.baseSpriteTint);
         } else {
@@ -748,15 +882,272 @@ export class Creep extends Phaser.GameObjects.Container {
         }
       }
     } else if (this.bodyRect) {
-      // Rectangle path: use setFillStyle as before.
       if (slowed && poisoned) {
         this.bodyRect.setFillStyle(0x44aaaa);
       } else if (slowed) {
-        this.bodyRect.setFillStyle(0x4488ff);
+        this.bodyRect.setFillStyle(this.shatterActive ? 0xbbd8ff : 0x4488ff);
       } else if (poisoned) {
         this.bodyRect.setFillStyle(0x44ff66);
+      } else if (burning) {
+        this.bodyRect.setFillStyle(0xff8833);
       } else {
         this.bodyRect.setFillStyle(this.baseBodyColor);
+      }
+    }
+
+    // ── Poison overlay + particles ────────────────────────────────────────────
+    this._syncOverlay(
+      'poison', poisoned,
+      poisonOverlayAlpha(this.dotStacks),
+      EFFECT_CONFIGS.poison.tintColor,
+    );
+    this._syncParticles(
+      'poison', poisoned,
+      poisonParticleCount(this.dotStacks),
+      EFFECT_CONFIGS.poison,
+    );
+
+    // ── Frost overlay + ring + particles ──────────────────────────────────────
+    this._syncOverlay(
+      'frost', slowed,
+      frostOverlayAlpha(this.shatterActive),
+      EFFECT_CONFIGS.frost.tintColor,
+    );
+    this._syncFrostRing(slowed, this.shatterActive);
+    this._syncParticles(
+      'frost', slowed,
+      slowed ? EFFECT_CONFIGS.frost.particleCount : 0,
+      EFFECT_CONFIGS.frost,
+    );
+
+    // ── Burn overlay + particles ───────────────────────────────────────────────
+    this._syncOverlay(
+      'burn', burning,
+      EFFECT_CONFIGS.burn.tintAlpha,
+      EFFECT_CONFIGS.burn.tintColor,
+    );
+    this._syncParticles(
+      'burn', burning,
+      burning ? EFFECT_CONFIGS.burn.particleCount : 0,
+      EFFECT_CONFIGS.burn,
+    );
+
+    // ── Tesla overlay + particles ─────────────────────────────────────────────
+    this._syncOverlay(
+      'tesla', shocked,
+      EFFECT_CONFIGS.tesla.tintAlpha,
+      EFFECT_CONFIGS.tesla.tintColor,
+    );
+    this._syncParticles(
+      'tesla', shocked,
+      shocked ? EFFECT_CONFIGS.tesla.particleCount : 0,
+      EFFECT_CONFIGS.tesla,
+    );
+
+    // ── Armor-shred overlay (no particles) ────────────────────────────────────
+    this._syncOverlay(
+      'armorShred', shredded,
+      EFFECT_CONFIGS.armorShred.tintAlpha,
+      EFFECT_CONFIGS.armorShred.tintColor,
+    );
+
+    // ── Status icon bar ───────────────────────────────────────────────────────
+    this._drawIconBar(poisoned, slowed, burning, shocked, shredded);
+  }
+
+  // ── Status effect visual helpers ──────────────────────────────────────────
+
+  /**
+   * Show or hide the semi-transparent tint overlay for the given effect.
+   * Overlays are inserted into the container BEFORE the HP bar so the HP bar
+   * always renders on top.
+   */
+  private _syncOverlay(
+    key:    StatusEffectKey,
+    active: boolean,
+    alpha:  number,
+    color:  number,
+  ): void {
+    let overlay = this._effectOverlays.get(key);
+
+    if (active) {
+      if (!overlay) {
+        const bodyW = this.isBossCreep ? 58 : 32;
+        const bodyH = this.isBossCreep ? 42 : 26;
+        overlay = new Phaser.GameObjects.Rectangle(
+          this.scene, 0, 0, bodyW, bodyH, color, alpha,
+        );
+        // Insert before hpBarBg so the HP bar always renders above the overlay.
+        const insertIdx = Math.max(0, this.getIndex(this._hpBarBg));
+        this.addAt(overlay, insertIdx);
+        this._effectOverlays.set(key, overlay);
+      } else {
+        overlay.setFillStyle(color);
+        overlay.setAlpha(alpha);
+        overlay.setVisible(true);
+      }
+    } else if (overlay) {
+      overlay.setVisible(false);
+      overlay.setAlpha(0);
+    }
+  }
+
+  /**
+   * Ensure the correct number of particle arcs exist for the given effect.
+   * Existing particles are kept (and re-enabled); excess ones are hidden.
+   */
+  private _syncParticles(
+    key:     StatusEffectKey,
+    active:  boolean,
+    count:   number,
+    config:  StatusEffectVisualConfig,
+  ): void {
+    if (!active || count === 0) {
+      const existing = this._effectParticles.get(key);
+      if (existing) {
+        for (const p of existing) p.arc.setVisible(false).setAlpha(0);
+      }
+      return;
+    }
+
+    let pool = this._effectParticles.get(key);
+    if (!pool) {
+      pool = [];
+      this._effectParticles.set(key, pool);
+    }
+
+    // Allocate new arcs if the pool is too small.
+    while (pool.length < count) {
+      const arc = new Phaser.GameObjects.Arc(
+        this.scene, 0, 0,
+        this.isBossCreep ? 4 : 2.5,
+        0, 360, false,
+        config.particleColor, 0,
+      );
+      this.add(arc);
+      const slot = pool.length;
+      const speed = 1 / (config.particleLifeMs * (0.7 + 0.3 * Math.random()));
+      const baseX = (Math.random() - 0.5) * (this.isBossCreep ? 44 : 22);
+      const riseY = this.isBossCreep ? -16 : -11;
+      const drift = (Math.random() - 0.5) * 8;
+      pool.push({
+        arc,
+        // Stagger phases so particles don't all flash simultaneously.
+        phase:  slot / Math.max(1, count),
+        speed,
+        baseX,
+        riseY,
+        drift,
+      });
+    }
+
+    // Show the right number; hide excess.
+    for (let i = 0; i < pool.length; i++) {
+      const p = pool[i];
+      if (i < count) {
+        p.arc.setFillStyle(config.particleColor);
+        p.arc.setVisible(true);
+      } else {
+        p.arc.setVisible(false).setAlpha(0);
+      }
+    }
+  }
+
+  /**
+   * Show or remove the frost ring beneath the creep body.
+   * The ring is inserted at index 0 of the container so it renders behind
+   * the body sprite.
+   */
+  private _syncFrostRing(active: boolean, shatter: boolean): void {
+    if (active) {
+      if (!this._frostRingGfx) {
+        this._frostRingGfx = new Phaser.GameObjects.Graphics(this.scene);
+        this.addAt(this._frostRingGfx, 0);
+      }
+      const gfx   = this._frostRingGfx;
+      const radius = this.isBossCreep ? 32 : 20;
+      const color  = shatter ? 0xddf0ff : 0x88ccff;
+      const alpha  = shatter ? 0.6 : 0.4;
+      gfx.clear();
+      gfx.setVisible(true);
+      // Outer ring
+      gfx.lineStyle(shatter ? 3 : 2, color, alpha);
+      gfx.strokeCircle(0, 0, radius);
+      // Inner translucent fill for shatter
+      if (shatter) {
+        gfx.fillStyle(color, 0.12);
+        gfx.fillCircle(0, 0, radius);
+      }
+    } else if (this._frostRingGfx) {
+      this._frostRingGfx.setVisible(false);
+    }
+  }
+
+  /**
+   * Redraw the status icon bar above the HP bar.
+   * Shows a small coloured dot for each active effect.
+   */
+  private _drawIconBar(
+    poisoned: boolean,
+    slowed:   boolean,
+    burning:  boolean,
+    shocked:  boolean,
+    shredded: boolean,
+  ): void {
+    const keys = activeEffectKeys(poisoned, slowed, burning, shocked, shredded);
+
+    if (keys.length === 0) {
+      this._iconBarGfx?.setVisible(false);
+      return;
+    }
+
+    if (!this._iconBarGfx) {
+      this._iconBarGfx = new Phaser.GameObjects.Graphics(this.scene);
+      this.add(this._iconBarGfx);
+    }
+    const gfx = this._iconBarGfx;
+    gfx.clear();
+    gfx.setVisible(true);
+
+    const spacing = ICON_RADIUS * 2 + 2;
+    const totalW  = keys.length * spacing - 2;
+    const startX  = -totalW / 2 + ICON_RADIUS;
+    const y       = ICON_BAR_OFFSET_Y;
+
+    for (let i = 0; i < keys.length; i++) {
+      const color = ICON_COLORS[keys[i]];
+      const cx = startX + i * spacing;
+      gfx.fillStyle(0x000000, 0.55);
+      gfx.fillCircle(cx, y, ICON_RADIUS + 1);
+      gfx.fillStyle(color, 1);
+      gfx.fillCircle(cx, y, ICON_RADIUS);
+    }
+  }
+
+  /**
+   * Advance all active particle animations by `delta` ms.
+   * Called every frame from step().
+   */
+  private _stepParticles(delta: number): void {
+    for (const [, pool] of this._effectParticles) {
+      for (const p of pool) {
+        if (!p.arc.visible) continue;
+
+        p.phase += p.speed * delta;
+        if (p.phase >= 1) {
+          // Reset — pick a new spawn position and stagger slightly.
+          p.phase  = p.phase - 1; // carry over fractional part
+          p.baseX  = (Math.random() - 0.5) * (this.isBossCreep ? 44 : 22);
+          p.drift  = (Math.random() - 0.5) * 8;
+        }
+
+        const t     = p.phase;
+        const alpha = Math.sin(t * Math.PI);
+        const localY = p.riseY * t;
+        const localX = p.baseX + p.drift * t;
+
+        p.arc.setPosition(localX, localY);
+        p.arc.setAlpha(alpha);
       }
     }
   }
