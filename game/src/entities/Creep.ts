@@ -61,6 +61,13 @@ const BODY_COLORS: Record<CreepType, number> = {
   air:    0x4488ff,
 };
 
+// ── Air creep visual constants ────────────────────────────────────────────────
+/** Y offset applied to body/shadow visuals for air creeps (floating effect). */
+const AIR_BODY_OFFSET_Y = -10;
+/** Wing rectangle half-width. */
+const AIR_WING_W = 10;
+const AIR_WING_H = 4;
+
 // ── Bobbing animation constants ───────────────────────────────────────────────
 /** Sine-wave amplitude in pixels (±). */
 const BOB_AMPLITUDE   = 1.5;
@@ -408,6 +415,14 @@ export class Creep extends Phaser.GameObjects.Container {
   }
 
   /**
+   * The targeting domain of this creep — matches `creepType`.
+   * Towers filter candidates by their `targetDomain` against this value.
+   */
+  get domain(): 'ground' | 'air' {
+    return this.creepType;
+  }
+
+  /**
    * Index of the next waypoint this creep is heading toward.
    * Used by WaveManager to spawn Waabooz split copies along the remaining path.
    */
@@ -430,7 +445,13 @@ export class Creep extends Phaser.GameObjects.Container {
     const cmdState = this.scene?.data?.get('commanderState') as { ignoreArmorAndImmunity?: boolean } | undefined;
     if (this.slowImmune && !(cmdState?.ignoreArmorAndImmunity)) return; // Migizi: immune to slow/freeze
 
-    this.slowFactor = Math.min(this.slowFactor, factor);
+    // Air creeps have wind resistance — Frost slow is only 50% effective.
+    // e.g. factor=0.5 (halves speed) becomes 0.75 (only 25% reduction) for air.
+    const effectiveFactor = this.creepType === 'air'
+      ? 1 - (1 - factor) * 0.5
+      : factor;
+
+    this.slowFactor = Math.min(this.slowFactor, effectiveFactor);
     this.speedMultiplier = this.slowFactor;
     this.refreshStatusVisual();
 
@@ -597,6 +618,38 @@ export class Creep extends Phaser.GameObjects.Container {
         this.isBossCreep ? 6 : 4,
         0xaaaacc,
       );
+    }
+
+    // ── Air creep visuals ─────────────────────────────────────────────────────
+    // Body floats above ground position; shadow circle below shows actual position.
+    if (config.type === 'air') {
+      bodyObj.y = AIR_BODY_OFFSET_Y;
+
+      // Shadow ellipse at the "ground" position (depth rendered before body)
+      const shadow = new Phaser.GameObjects.Ellipse(
+        this.scene, 0, 2,
+        this.isBossCreep ? 44 : 22,
+        this.isBossCreep ? 12 : 6,
+        0x000000, 0.25,
+      );
+
+      // Wing indicators — two small translucent rectangles extending from the body
+      const wingColor = 0x88bbff;
+      const wx = this.isBossCreep ? 24 : 14;
+      const wingY = AIR_BODY_OFFSET_Y;
+      const leftWing  = new Phaser.GameObjects.Rectangle(
+        this.scene, -wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
+      );
+      const rightWing = new Phaser.GameObjects.Rectangle(
+        this.scene,  wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
+      );
+
+      if (this.armorIndicator) {
+        this.add([shadow, leftWing, rightWing, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
+      } else {
+        this.add([shadow, leftWing, rightWing, bodyObj, hpBg, this.hpBarFill]);
+      }
+      return;
     }
 
     if (this.armorIndicator) {

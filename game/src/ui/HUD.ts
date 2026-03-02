@@ -25,6 +25,9 @@ export class HUD extends Phaser.GameObjects.Container {
   private nextWaveBg?:    Phaser.GameObjects.Rectangle;
   private nextWaveLabel?: Phaser.GameObjects.Text;
 
+  // Air wave warning alert (shown between waves when the next wave has air creeps)
+  private airWaveAlert?: Phaser.GameObjects.Text;
+
   constructor(scene: Phaser.Scene, lives: number, gold: number) {
     super(scene, 0, 0);
 
@@ -384,6 +387,37 @@ export class HUD extends Phaser.GameObjects.Container {
   }
 
   // ── boss warning ──────────────────────────────────────────────────────────
+
+  /**
+   * Show or hide the air wave incoming alert below the HUD strip.
+   * Pass a non-empty string to show the alert; pass '' to hide it.
+   * Called when revealing the next-wave button to warn players about air waves.
+   */
+  showAirWaveAlert(message: string): void {
+    if (!message) {
+      this.airWaveAlert?.setVisible(false);
+      return;
+    }
+
+    if (!this.airWaveAlert) {
+      const { width } = this.scene.scale;
+      this.airWaveAlert = this.scene.add.text(
+        width / 2, HUD_HEIGHT + 14,
+        message,
+        {
+          fontSize:        '11px',
+          color:           '#88ccff',
+          fontFamily:      PAL.fontBody,
+          fontStyle:       'bold',
+          backgroundColor: '#00000099',
+          padding:         { x: 8, y: 3 },
+        },
+      ).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
+      this.add(this.airWaveAlert);
+    } else {
+      this.airWaveAlert.setText(message).setVisible(true);
+    }
+  }
 
   /**
    * Display a large animated "BOSS WAVE" warning text centred on the viewport.

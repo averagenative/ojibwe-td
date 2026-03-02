@@ -84,8 +84,8 @@ describe('towerEffectiveDPS — base stats (no upgrades)', () => {
     expect(towerEffectiveDPS(POISON_DEF, noUpgrades(), 1)).toBeCloseTo(48, 1);
   });
 
-  it('Tesla: 35 dmg / 1.5s ≈ 23.3 DPS', () => {
-    expect(towerEffectiveDPS(TESLA_DEF, noUpgrades(), 1)).toBeCloseTo(23.3, 1);
+  it('Tesla: 42 dmg / 1.5s ≈ 28.0 DPS', () => {
+    expect(towerEffectiveDPS(TESLA_DEF, noUpgrades(), 1)).toBeCloseTo(28.0, 1);
   });
 
   it('Aura: 0 DPS (support-only tower)', () => {

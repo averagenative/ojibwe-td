@@ -21,6 +21,12 @@ export interface MapData {
   tiles: number[][];
   /** Ordered path waypoints in tile coords. First = spawn, last = exit. */
   waypoints: MapWaypoint[];
+  /**
+   * Optional custom air route waypoints in tile coords.
+   * If absent, air creeps fly directly from spawn to exit (first → last ground waypoint).
+   * Map designers can define a gentle arc or specific air lane here.
+   */
+  airWaypoints?: MapWaypoint[];
   startingLives: number;
   startingGold: number;
 }

@@ -72,8 +72,10 @@ export interface CreepKilledData {
 const ENDLESS_BOSS_ROTATION = ['makwa', 'migizi', 'waabooz', 'animikiins'] as const;
 
 export class WaveManager extends Phaser.Events.EventEmitter {
-  private scene:       Phaser.Scene;
-  private waypoints:   Waypoint[];
+  private scene:        Phaser.Scene;
+  private waypoints:    Waypoint[];
+  /** Simplified route for air creeps (spawn → exit or custom air lane). */
+  private airWaypoints: Waypoint[];
   private activeCreeps: Set<Creep>;
 
   private creepTypeDefs: CreepTypeDef[] = [];
@@ -102,6 +104,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     activeCreeps: Set<Creep>,
     creepTypeDefs: CreepTypeDef[],
     waveDefs:      WaveDef[],
+    airWaypoints?: Waypoint[],
   ) {
     super();
     this.scene         = scene;
@@ -109,10 +112,41 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     this.activeCreeps  = activeCreeps;
     this.creepTypeDefs = creepTypeDefs;
     this.waveDefs      = waveDefs;
+
+    // Default air path: direct line from spawn to exit (first and last waypoints).
+    // A custom air lane can be supplied via the optional parameter (from map JSON).
+    this.airWaypoints = (airWaypoints && airWaypoints.length >= 2)
+      ? airWaypoints
+      : [waypoints[0], waypoints[waypoints.length - 1]];
   }
 
   isActive():      boolean { return this.waveActive; }
   getWaveNumber(): number  { return this.currentWave; }
+
+  /**
+   * Returns true if the wave at `waveNum` contains any air-type creeps.
+   * Used by GameScene to show an "Air wave incoming" HUD warning before the wave.
+   */
+  hasAirCreepsInWave(waveNum: number): boolean {
+    const waveDef = this.waveDefs[waveNum - 1]
+      ?? (this.isEndless ? this.generateEndlessWave(waveNum) : undefined);
+    if (!waveDef) return false;
+
+    // Check pool for any air-type creep key.
+    const hasAirInPool = waveDef.pool.some(typeKey => {
+      const def = this.creepTypeDefs.find(t => t.key === typeKey);
+      return def?.type === 'air';
+    });
+    if (hasAirInPool) return true;
+
+    // Check boss type.
+    if (waveDef.boss) {
+      const bossDef = this.endlessBossOverrides.get(waveDef.boss) ?? BOSS_DEFS[waveDef.boss];
+      if (bossDef?.type === 'air') return true;
+    }
+
+    return false;
+  }
 
   /**
    * Enable endless mode.  Once enabled, calling startWave() with a wave number
@@ -371,7 +405,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       spriteKey:          'creep-boss',
     };
 
-    const creep = new Creep(this.scene, this.waypoints, config);
+    const bossWp = config.type === 'air' ? this.airWaypoints : this.waypoints;
+    const creep = new Creep(this.scene, bossWp, config);
     this.activeCreeps.add(creep);
 
     creep.once('reached-exit', () => {
@@ -457,7 +492,9 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   private spawnOne(config: CreepConfig): void {
     this.spawned++;
-    const creep = new Creep(this.scene, this.waypoints, config);
+    // Air creeps fly a simplified direct route; ground creeps follow the ground path.
+    const wp = config.type === 'air' ? this.airWaypoints : this.waypoints;
+    const creep = new Creep(this.scene, wp, config);
     this.activeCreeps.add(creep);
 
     creep.once('reached-exit', () => {

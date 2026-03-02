@@ -12,6 +12,15 @@ const TOOLTIP_DEPTH = DEPTH + 20;
 const TOOLTIP_W = 190;
 const TOOLTIP_PAD = 8;
 
+/** Human-readable targeting domain label shown in the tower tooltip. */
+function domainLabel(domain: 'ground' | 'air' | 'both'): string {
+  switch (domain) {
+    case 'ground': return '▼ Ground only';
+    case 'air':    return '▲ Air only';
+    case 'both':   return '◆ Air & Ground';
+  }
+}
+
 /**
  * Bottom HUD strip for selecting towers to place.
  * Buttons are disabled (visually) when the player can't afford the tower.
@@ -24,6 +33,7 @@ export class TowerPanel {
   private _tooltipCost: Phaser.GameObjects.Text;
   private _tooltipDmg: Phaser.GameObjects.Text;
   private _tooltipRange: Phaser.GameObjects.Text;
+  private _tooltipDomain: Phaser.GameObjects.Text;
   private _tooltipDesc: Phaser.GameObjects.Text;
 
   constructor(
@@ -66,6 +76,12 @@ export class TowerPanel {
     }).setDepth(TOOLTIP_DEPTH + 1).setVisible(false);
 
     this._tooltipRange = scene.add.text(0, 0, '', {
+      fontSize: '11px',
+      color: PAL.textSecondary,
+      fontFamily: PAL.fontBody,
+    }).setDepth(TOOLTIP_DEPTH + 1).setVisible(false);
+
+    this._tooltipDomain = scene.add.text(0, 0, '', {
       fontSize: '11px',
       color: PAL.textSecondary,
       fontFamily: PAL.fontBody,
@@ -129,8 +145,9 @@ export class TowerPanel {
     const panelTop = panelY - PANEL_HEIGHT / 2;
     const bottomY = panelTop - 6;
 
-    const dmgLine = formatDmgLine(def);
-    const rangeLine = `range ${def.range}`;
+    const dmgLine    = formatDmgLine(def);
+    const rangeLine  = `range ${def.range}`;
+    const dLabel     = domainLabel(def.targetDomain);
 
     // Measure description height (may wrap)
     this._tooltipDesc.setText(def.description);
@@ -142,6 +159,7 @@ export class TowerPanel {
       + 12 + LINE_GAP                // cost (11px)
       + 12 + LINE_GAP                // dmg/interval (11px)
       + 12 + LINE_GAP                // range (11px)
+      + 12 + LINE_GAP                // domain (11px)
       + descHeight;                  // description (may wrap)
     const tooltipH = TOOLTIP_PAD + contentH + TOOLTIP_PAD;
 
@@ -184,6 +202,15 @@ export class TowerPanel {
       .setVisible(true);
     cursor += 12 + LINE_GAP;
 
+    // Domain indicator — colour-coded: air=blue, ground=neutral, both=neutral
+    const domainColor = def.targetDomain === 'air' ? '#88ccff' : PAL.textSecondary;
+    this._tooltipDomain
+      .setPosition(textX, cursor)
+      .setText(dLabel)
+      .setColor(domainColor)
+      .setVisible(true);
+    cursor += 12 + LINE_GAP;
+
     this._tooltipDesc
       .setPosition(textX, cursor)
       .setVisible(true);
@@ -196,6 +223,7 @@ export class TowerPanel {
     this._tooltipCost.setVisible(false);
     this._tooltipDmg.setVisible(false);
     this._tooltipRange.setVisible(false);
+    this._tooltipDomain.setVisible(false);
     this._tooltipDesc.setVisible(false);
   }
 }
