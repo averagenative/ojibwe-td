@@ -641,6 +641,9 @@ export class GameScene extends Phaser.Scene {
       this.triggerBossDeathScreenFlash();
       this.triggerBossDeathParticles(data.x, data.y, data.tint);
 
+      // Persist boss defeat so the meta-screen trophy system can display it.
+      SaveManager.getInstance().markBossDefeated(data.bossKey);
+
       // Defer boss loot panel until ALL creeps from the wave are dead.
       // The post-wave queue (built in onWaveComplete) shows it first,
       // preventing overlap with the elder dialog and upgrade offers.
