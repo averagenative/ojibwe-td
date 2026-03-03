@@ -248,6 +248,10 @@ export class GameScene extends Phaser.Scene {
    */
   private _rubbleSprites: Map<string, Phaser.GameObjects.Image> = new Map();
 
+  // ── resume-from-menu flag ─────────────────────────────────────────────────
+  /** When true, skip the YES/NO resume prompt and restore immediately. */
+  private _autoResume = false;
+
   // ── ascension ─────────────────────────────────────────────────────────────
   /** Ascension level chosen at the pre-run screen (0 = standard run). */
   private _ascensionLevel = 0;
@@ -269,12 +273,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Called by Phaser before preload() — captures scene-start data and resets state. */
-  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean; isChallenge?: boolean; challengeId?: string; ascensionLevel?: number }): void {
+  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean; isChallenge?: boolean; challengeId?: string; ascensionLevel?: number; autoResume?: boolean }): void {
     this.selectedCommanderId = data?.commanderId ?? 'nokomis';
     this.isEndlessMode       = data?.isEndless   ?? false;
     this.isChallengeRun      = data?.isChallenge ?? false;
     this.bossesKilled        = 0;
     this._ascensionLevel     = data?.ascensionLevel ?? 0;
+    this._autoResume         = data?.autoResume     ?? false;
 
     // Resolve challenge modifier if applicable.
     if (this.isChallengeRun && data?.challengeId) {
@@ -1024,7 +1029,12 @@ export class GameScene extends Phaser.Scene {
         && existingSave.commanderId === this.selectedCommanderId
         && existingSave.currentWave > 0) {
       // Defer slightly so all Phaser scene objects are fully initialised.
-      this.time.delayedCall(100, () => this._showResumePrompt(existingSave));
+      if (this._autoResume) {
+        // Player already confirmed resume from the main menu — restore directly.
+        this.time.delayedCall(100, () => this._restoreFromAutoSave(existingSave));
+      } else {
+        this.time.delayedCall(100, () => this._showResumePrompt(existingSave));
+      }
     }
 
     // ── Pre-game cutscenes — deferred so all UI is built ────────────────────

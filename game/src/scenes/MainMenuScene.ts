@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
 import { MobileManager } from '../systems/MobileManager';
+import { SessionManager } from '../systems/SessionManager';
+import type { AutoSave } from '../systems/SessionManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
 import { AudioSettingsPanel } from '../ui/AudioSettingsPanel';
 import { ALL_CODEX_ENTRIES } from '../data/codexDefs';
@@ -127,6 +129,8 @@ export class MainMenuScene extends Phaser.Scene {
   private stageTiles:   Phaser.GameObjects.GameObject[] = [];
 
   private _audioPanel: AudioSettingsPanel | null = null;
+  /** Detected autosave on enter — drives Resume Game button visibility. */
+  private _autoSave: AutoSave | null = null;
 
   private regionRowY = 0;
   private stageRowY  = 0;
@@ -208,6 +212,9 @@ export class MainMenuScene extends Phaser.Scene {
     const logoTitleY = hasLogo ? TOP_PAD + logoAreaH / 2 : labelY - 14;
 
     this._audioPanel = null;
+
+    // Detect mid-run autosave so Resume button can be shown.
+    this._autoSave = SessionManager.getInstance().load();
 
     this.createBackground();
     this._buildParallaxLayers();
@@ -751,16 +758,67 @@ export class MainMenuScene extends Phaser.Scene {
 
   private createButtons(cx: number, height: number): void {
     const stageBottom = this.stageRowY + this._stageH / 2 + 36;
-    // On mobile the stage cards are taller, so ensure the button fits.
-    const btnY = Math.min(stageBottom + 44, height - (this._isMobile ? 130 : 110));
     const btnW = this._isMobile ? 280 : 240;
     const btnH = this._isMobile ? 60  : 48;
 
+    // ── Resume Game button (only shown when a save exists) ──────────────────
+    const hasResume   = !!this._autoSave && this._autoSave.currentWave > 0;
+    const resumeBtnH  = this._isMobile ? 52 : 44;  // meets 44 px touch target
+    const resumeGap   = 10;
+
+    // Calculate vertical positions — when a resume button is present the
+    // two-button block is positioned together so neither overlaps stage cards.
+    let startY: number;
+    let resumeY = 0;
+
+    if (hasResume) {
+      const blockTopGap = this._isMobile ? 20 : 28; // gap from stageBottom to top of first button
+      const blockTopY   = stageBottom + blockTopGap;
+      resumeY = blockTopY + resumeBtnH / 2;
+      startY  = resumeY + resumeBtnH / 2 + resumeGap + btnH / 2;
+      // Cap to ensure bottom rows still fit.
+      const maxStartY = height - (this._isMobile ? 158 : 134);
+      if (startY > maxStartY) {
+        startY  = maxStartY;
+        resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2;
+      }
+    } else {
+      // Original single-button position.
+      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 130 : 110));
+    }
+
+    if (hasResume && this._autoSave) {
+      const save = this._autoSave;
+      const resumeW = this._isMobile ? 280 : 240;
+      const resumeP = makePanel(this, cx, resumeY, resumeW, resumeBtnH, DEPTH_BUTTONS);
+      fillPanel(resumeP, R, 0x0a2a10, PAL.borderActive, 2);
+
+      this.add.text(cx, resumeY - 8, 'RESUME GAME', {
+        fontSize: this._fs(18), color: '#aee86c', fontFamily: PAL.fontBody, fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+      this.add.text(cx, resumeY + 10, `Wave ${save.currentWave + 1}  ·  ${save.towers.length} towers`, {
+        fontSize: this._fs(10), color: PAL.textMuted, fontFamily: PAL.fontBody,
+      }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+      resumeP.zone.on('pointerover', () => fillPanel(resumeP, R, 0x143a18, PAL.borderActive, 2));
+      resumeP.zone.on('pointerout',  () => fillPanel(resumeP, R, 0x0a2a10, PAL.borderActive, 2));
+      resumeP.zone.on('pointerdown', () => fillPanel(resumeP, R, 0x061a0a, PAL.borderActive, 2));
+      resumeP.zone.on('pointerup',   () => {
+        this._go('GameScene', {
+          stageId:     save.stageId,
+          commanderId: save.commanderId,
+          mapId:       save.mapId,
+          autoResume:  true,
+        });
+      });
+    }
+
     // START GAME
-    const startP = makePanel(this, cx, btnY, btnW, btnH, DEPTH_BUTTONS);
+    const startP = makePanel(this, cx, startY, btnW, btnH, DEPTH_BUTTONS);
     fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
-    const startLabel = this.add.text(cx, btnY, 'START GAME', {
-      fontSize: this._fs(22), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    const startLabel = this.add.text(cx, startY, hasResume ? 'START NEW RUN' : 'START GAME', {
+      fontSize: this._fs(hasResume ? 18 : 22), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     startP.zone.on('pointerover',  () => {
@@ -775,13 +833,17 @@ export class MainMenuScene extends Phaser.Scene {
     });
     startP.zone.on('pointerdown',  () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
     startP.zone.on('pointerup',    () => {
-      this._go('CommanderSelectScene', { stageId: this.selectedStageId });
+      if (hasResume) {
+        this._showOverwriteConfirm(() => this._go('CommanderSelectScene', { stageId: this.selectedStageId }));
+      } else {
+        this._go('CommanderSelectScene', { stageId: this.selectedStageId });
+      }
     });
 
     // Bottom row: UPGRADES | CHALLENGES | CODEX
     const bottomBtnW = this._isMobile ? 120 : 100;
     const bottomBtnH = this._isMobile ? 48  : 38;
-    const bottomBtnY = btnY + btnH / 2 + (this._isMobile ? 32 : 26);
+    const bottomBtnY = startY + btnH / 2 + (this._isMobile ? 32 : 26);
     const bottomGap  = 8;
 
     // UPGRADES
@@ -871,6 +933,80 @@ export class MainMenuScene extends Phaser.Scene {
       this.tweens.add({ targets: achLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
     });
     achP.zone.on('pointerup',   () => this._go('AchievementsScene', { returnTo: 'MainMenuScene' }));
+  }
+
+  // ── Overwrite confirmation dialog ──────────────────────────────────────────
+
+  /**
+   * Show a brief modal asking the player to confirm starting a new run when
+   * a previous autosave exists. onConfirm is called if they choose to proceed.
+   */
+  private _showOverwriteConfirm(onConfirm: () => void): void {
+    const { width, height } = this.scale;
+    const cx = width  / 2;
+    const cy = height / 2;
+
+    const container = this.add.container(0, 0).setDepth(200);
+
+    // Dark backdrop — clicking it dismisses.
+    const backdrop = this.add.rectangle(cx, cy, width, height, 0x000000, 0.65)
+      .setInteractive();
+    container.add(backdrop);
+
+    // Card.
+    const cardW = this._isMobile ? 340 : 360;
+    const cardH = this._isMobile ? 170 : 160;
+    const card  = this.add.rectangle(cx, cy, cardW, cardH, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderDanger);
+    container.add(card);
+
+    // Title.
+    const title = this.add.text(cx, cy - cardH / 2 + 28, 'Start a new run?', {
+      fontSize: this._fs(18), color: '#ffffff',
+      fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5);
+    container.add(title);
+
+    // Sub-text.
+    const sub = this.add.text(cx, cy - 8, 'Your saved run will be lost.', {
+      fontSize: this._fs(12), color: PAL.textMuted, fontFamily: PAL.fontBody,
+    }).setOrigin(0.5);
+    container.add(sub);
+
+    // CONTINUE button.
+    const contBtnH = this._isMobile ? 48 : 40;
+    const contBg = this.add.rectangle(cx - 70, cy + cardH / 2 - contBtnH / 2 - 10, 120, contBtnH, PAL.bgGiveUp)
+      .setStrokeStyle(1, PAL.dangerN)
+      .setInteractive({ useHandCursor: true });
+    const contLabel = this.add.text(contBg.x, contBg.y, 'START FRESH', {
+      fontSize: this._fs(11), color: PAL.danger, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5);
+    container.add(contBg);
+    container.add(contLabel);
+
+    contBg.on('pointerover', () => contBg.setFillStyle(PAL.bgGiveUpHover));
+    contBg.on('pointerout',  () => contBg.setFillStyle(PAL.bgGiveUp));
+    contBg.on('pointerup',   () => {
+      container.destroy();
+      SessionManager.getInstance().clear();
+      onConfirm();
+    });
+
+    // CANCEL button.
+    const cancelBtnH = this._isMobile ? 48 : 40;
+    const cancelBg = this.add.rectangle(cx + 70, cy + cardH / 2 - cancelBtnH / 2 - 10, 120, cancelBtnH, PAL.bgPanel)
+      .setStrokeStyle(1, PAL.borderNeutral)
+      .setInteractive({ useHandCursor: true });
+    const cancelLabel = this.add.text(cancelBg.x, cancelBg.y, 'CANCEL', {
+      fontSize: this._fs(13), color: PAL.textSecondary, fontFamily: PAL.fontBody,
+    }).setOrigin(0.5);
+    container.add(cancelBg);
+    container.add(cancelLabel);
+
+    cancelBg.on('pointerover', () => cancelBg.setFillStyle(0x1a1a1a));
+    cancelBg.on('pointerout',  () => cancelBg.setFillStyle(PAL.bgPanel));
+    cancelBg.on('pointerup',   () => container.destroy());
+    backdrop.on('pointerup',   () => container.destroy());
   }
 
   private createAudioButton(width: number, height: number): void {
