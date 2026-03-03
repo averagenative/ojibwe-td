@@ -20,9 +20,13 @@ import {
 import type { StatusEffectKey, StatusEffectVisualConfig } from './StatusEffectVisuals';
 import { getCreepAnimDef } from '../data/creepAnimDefs';
 import type { CreepAnimDef } from '../data/creepAnimDefs';
+import { SLOW_FACTOR_CAP, SLOW_IMMUNE_COOLDOWN_MS } from '../data/creepBalanceDefs';
 
 // Re-export so existing imports from Creep.ts still work.
 export { tickRegen };
+// Re-export balance constants so callers can import from Creep.ts without
+// knowing about the internal data module.
+export { SLOW_FACTOR_CAP, SLOW_IMMUNE_COOLDOWN_MS } from '../data/creepBalanceDefs';
 
 export type CreepType = 'ground' | 'air';
 
@@ -198,6 +202,8 @@ export class Creep extends Phaser.GameObjects.Container {
   // ── status effects ────────────────────────────────────────────────────────
   private slowFactor  = 1.0; // 1 = full speed
   private slowTimer?: Phaser.Time.TimerEvent;
+  /** Remaining ms of post-slow immunity cooldown. Decremented each frame in step(). */
+  private _slowImmuneCooldownMs = 0;
   private dotStacks   = 0;
   private dotTimers: Phaser.Time.TimerEvent[] = [];
 
@@ -410,6 +416,11 @@ export class Creep extends Phaser.GameObjects.Container {
         this.refreshStatusVisual();
       }
     }
+
+    // ── Post-slow immunity cooldown ───────────────────────────────────────────
+    if (this._slowImmuneCooldownMs > 0) {
+      this._slowImmuneCooldownMs = Math.max(0, this._slowImmuneCooldownMs - delta);
+    }
   }
 
   // ── combat ────────────────────────────────────────────────────────────────
@@ -528,8 +539,16 @@ export class Creep extends Phaser.GameObjects.Container {
 
   /**
    * Apply a slow that reduces movement speed.
-   * No-op if this creep is slow-immune (Migizi).
-   * Multiple calls take the strongest slow (lowest factor).
+   *
+   * Balance constraints (TASK-130):
+   * - Factor is clamped to SLOW_FACTOR_CAP (0.40 = 60% reduction max).
+   * - Slow only overrides when the new effective factor is STRONGER (lower)
+   *   than the currently active slow, preventing timer refreshes at equal
+   *   strength and stopping perma-slow from stacked frost towers.
+   * - After the slow expires, _slowImmuneCooldownMs is set so the creep
+   *   briefly resists re-slow (prevents one tower from perma-slowing alone).
+   *
+   * No-op if this creep is slow-immune (Migizi) or in post-slow immunity.
    * @param factor     0–1 speed multiplier (e.g. 0.5 = half speed)
    * @param durationMs How long the slow lasts
    */
@@ -539,13 +558,27 @@ export class Creep extends Phaser.GameObjects.Container {
     const cmdState = this.scene?.data?.get('commanderState') as { ignoreArmorAndImmunity?: boolean } | undefined;
     if (this.slowImmune && !(cmdState?.ignoreArmorAndImmunity)) return; // Migizi: immune to slow/freeze
 
-    // Air creeps have wind resistance — Frost slow is only 50% effective.
-    // e.g. factor=0.5 (halves speed) becomes 0.75 (only 25% reduction) for air.
-    const effectiveFactor = this.creepType === 'air'
-      ? 1 - (1 - factor) * 0.5
-      : factor;
+    // Post-slow immunity cooldown: creep resists re-slow for SLOW_IMMUNE_COOLDOWN_MS
+    // after the previous slow expires. Prevents perma-slow from frost spam.
+    if (this._slowImmuneCooldownMs > 0) return;
 
-    this.slowFactor = Math.min(this.slowFactor, effectiveFactor);
+    // Hard cap: no slow may reduce movement below SLOW_FACTOR_CAP (60% reduction).
+    // Applied to the raw factor BEFORE the air-resistance halving so the cap is
+    // consistent regardless of creep domain.
+    const cappedFactor = Math.max(factor, SLOW_FACTOR_CAP);
+
+    // Air creeps have wind resistance — Frost slow is only 50% effective.
+    // e.g. cappedFactor=0.40 (60% slow) becomes 0.70 (only 30% reduction) for air.
+    const effectiveFactor = this.creepType === 'air'
+      ? 1 - (1 - cappedFactor) * 0.5
+      : cappedFactor;
+
+    // Only apply (and start a new timer) when this slow is STRONGER than the
+    // current one. Equal or weaker slows are silently ignored — this prevents
+    // the same-strength frost tower from refreshing the timer indefinitely.
+    if (effectiveFactor >= this.slowFactor) return;
+
+    this.slowFactor      = effectiveFactor;
     this.speedMultiplier = this.slowFactor;
     this.refreshStatusVisual();
 
@@ -554,9 +587,10 @@ export class Creep extends Phaser.GameObjects.Container {
       delay: durationMs,
       callback: () => {
         if (!this.active) return;
-        this.slowFactor      = 1.0;
-        this.speedMultiplier = 1.0;
-        this.shatterActive   = false; // shatter clears when the slow expires
+        this.slowFactor               = 1.0;
+        this.speedMultiplier          = 1.0;
+        this.shatterActive            = false; // shatter clears when the slow expires
+        this._slowImmuneCooldownMs    = SLOW_IMMUNE_COOLDOWN_MS;
         this.refreshStatusVisual();
       },
     });

@@ -82,7 +82,7 @@ describe('TASK-121: No stat changes — regression guard', () => {
     const expectedCosts: Record<string, number> = {
       arrow: 75,
       'rock-hurler': 150,
-      frost: 125,
+      frost: 150,
       poison: 125,
       tesla: 200,
       aura: 150,

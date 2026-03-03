@@ -85,7 +85,7 @@ describe('TowerDef.description', () => {
   it('descriptions match the task specification', () => {
     expect(ROCK_HURLER_DEF.description).toBe('Heavy rock: direct hit + AoE splash. Bonus dmg vs armored.');
     expect(ARROW_DEF.description).toBe('Fast, long-range. Weak vs armor — use Rock Hurler for armored foes.');
-    expect(FROST_DEF.description).toBe('Slows targets. Chills stack for a freeze bonus.');
+    expect(FROST_DEF.description).toBe('Slows targets up to 60%. After slow expires, targets resist re-slow briefly.');
     expect(TESLA_DEF.description).toBe('Chains lightning to up to 3 air targets. Air-only specialist.');
     expect(POISON_DEF.description).toBe('Applies damage-over-time. Spreads on creep death.');
     expect(AURA_DEF.description).toBe('Boosts nearby tower attack speed and damage.');

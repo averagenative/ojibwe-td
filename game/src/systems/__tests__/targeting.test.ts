@@ -633,13 +633,21 @@ describe('Frost slow effect — correct application', () => {
     expect(baseStats.slowDurationMs).toBe(2500);
   });
 
-  it('Frost A upgrades reduce the slow factor (stronger slow)', () => {
+  it('Frost A upgrades reduce the slow factor (stronger slow, capped at 0.40 by TASK-130)', () => {
     const pathA = frostUpg.paths.A.tiers.map(t => t.effects?.slowFactor).filter(
       (v): v is number => v !== undefined,
     );
     expect(pathA.length).toBe(5);
-    const isDescending = pathA.every((v, i) => i === 0 || v < pathA[i - 1]);
-    expect(isDescending).toBe(true);
+    // Tiers 1-2 are strictly descending; tiers 3-5 all sit at the 0.40 cap.
+    const isNonIncreasing = pathA.every((v, i) => i === 0 || v <= pathA[i - 1]);
+    expect(isNonIncreasing).toBe(true);
+    // First two tiers are strictly above the cap.
+    expect(pathA[0]).toBeGreaterThan(0.40);
+    expect(pathA[1]).toBeGreaterThan(0.40);
+    // Tiers 3-5 are at the cap.
+    expect(pathA[2]).toBe(0.40);
+    expect(pathA[3]).toBe(0.40);
+    expect(pathA[4]).toBe(0.40);
   });
 
   it('Frost B upgrades increase slow duration', () => {
