@@ -4,6 +4,7 @@ import type { ConsumablePending } from '../meta/SaveManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
 import type { UnlockNode } from '../meta/unlockDefs';
 import { MobileManager } from '../systems/MobileManager';
+import { AchievementManager } from '../systems/AchievementManager';
 import { PAL } from '../ui/palette';
 
 const PANEL_W     = 420;
@@ -333,6 +334,7 @@ export class MetaMenuScene extends Phaser.Scene {
         panel.on('pointerup', () => {
           const ok = save.purchaseConsumable(item.key);
           if (ok) {
+            AchievementManager.getInstance().addCrystalsSpent(CONSUMABLE_COSTS[item.key]);
             balanceText.setText(`Crystals: ${save.getCurrency()}`);
             this.scene.restart({ tab: 'shop' } as MetaMenuData);
           }
@@ -462,7 +464,8 @@ export class MetaMenuScene extends Phaser.Scene {
       panel.on('pointerup', () => {
         const purchased = save.purchaseUnlock(node.id, node.cost);
         if (purchased) {
-          // Refresh the scene to reflect new state
+          AchievementManager.getInstance().addCrystalsSpent(node.cost);
+          AchievementManager.getInstance().onMetaUnlockPurchased();
           balanceText.setText(`Crystals: ${save.getCurrency()}`);
           this.scene.restart({ tab: 'unlocks' } as MetaMenuData);
         }

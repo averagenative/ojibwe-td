@@ -7,6 +7,8 @@ import { InventoryManager } from '../meta/InventoryManager';
 import { calculateRunXp, levelFromXp } from '../data/enhancementDefs';
 import { MobileManager } from '../systems/MobileManager';
 import { AudioManager } from '../systems/AudioManager';
+import { AchievementManager } from '../systems/AchievementManager';
+import { AchievementToast } from '../ui/AchievementToast';
 
 interface GameOverData {
   wavesCompleted: number;
@@ -75,6 +77,16 @@ export class GameOverScene extends Phaser.Scene {
     // Persist run currency to meta-progression save.
     if (currency > 0) {
       SaveManager.getInstance().addCurrency(currency);
+      // Currency balance may now trigger the crystal-hoard achievement.
+      AchievementManager.getInstance().onCurrencyChanged(SaveManager.getInstance().getCurrency());
+    }
+
+    // Show any achievement toasts that were queued by the GameScene commit
+    // (e.g. currency accumulation). Drain happens here after the currency add.
+    {
+      const toast = new AchievementToast(this);
+      const newIds = AchievementManager.getInstance().drainNewlyUnlocked();
+      if (newIds.length > 0) toast.showBatch(newIds);
     }
 
     // ── Commander XP ────────────────────────────────────────────────────────
