@@ -50,6 +50,14 @@ export class CodexScene extends Phaser.Scene {
   private tabLabels: Map<string, Phaser.GameObjects.Text> = new Map();
   private entryObjects: Phaser.GameObjects.GameObject[] = [];
   private detailObjects: Phaser.GameObjects.GameObject[] = [];
+  private _escHandler: (() => void) | null = null;
+  private _wheelHandler: ((
+    pointer: Phaser.Input.Pointer,
+    currentlyOver: Phaser.GameObjects.GameObject[],
+    dx: number,
+    dy: number,
+  ) => void) | null = null;
+  private _detailMaskGfx: Phaser.GameObjects.Graphics | null = null;
 
   private returnTo = 'MainMenuScene';
   private returnData: Record<string, unknown> = {};
@@ -298,6 +306,10 @@ export class CodexScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
 
+    // ── Escape key dismiss ────────────────────────────────────────────────
+    this._escHandler = () => this.clearDetail();
+    this.input.keyboard?.on('keydown-ESC', this._escHandler);
+
     if (this._isMobile) {
       // ── Mobile: full-screen overlay ──────────────────────────────────────
       // Dim the whole screen and render detail centred.
@@ -350,6 +362,39 @@ export class CodexScene extends Phaser.Scene {
       ).setDepth(DEPTH_DETAIL + 2);
       this.detailObjects.push(loreDisplay);
 
+      // ── Text containment (mobile) ──────────────────────────────────────
+      const loreTextY = illusY + illusSize / 2 + 20;
+      const closeRegionH = 52; // 44px button + 8px padding
+      const maxLoreH = (startY + panelH - closeRegionH) - loreTextY - 8;
+      if (maxLoreH > 0 && loreDisplay.height > maxLoreH) {
+        const maskGfx = this.add.graphics().setVisible(false);
+        maskGfx.fillRect(cx - panelW / 2, loreTextY, panelW, maxLoreH);
+        loreDisplay.setMask(maskGfx.createGeometryMask());
+        this._detailMaskGfx = maskGfx;
+
+        const moreHint = this.add.text(
+          cx, loreTextY + maxLoreH + 2, '⋯ more below',
+          { fontSize: this._fs(11), color: '#446644', fontFamily: 'monospace' },
+        ).setOrigin(0.5, 0).setDepth(DEPTH_DETAIL + 2);
+        this.detailObjects.push(moreHint);
+
+        const maxScroll = loreDisplay.height - maxLoreH;
+        let scrollAmt = 0;
+        const origLoreY = loreDisplay.y;
+        const handler = (
+          _p: Phaser.Input.Pointer,
+          _go: Phaser.GameObjects.GameObject[],
+          _dx: number,
+          deltaY: number,
+        ) => {
+          scrollAmt = Phaser.Math.Clamp(scrollAmt + deltaY * 0.5, 0, maxScroll);
+          loreDisplay.y = origLoreY - scrollAmt;
+          moreHint.setVisible(scrollAmt < maxScroll - 2);
+        };
+        this._wheelHandler = handler;
+        this.input.on('wheel', handler);
+      }
+
       // Close button — 44px minimum height, centred at bottom
       const closeH = 44;
       const closeBg = this.add.rectangle(cx, startY + panelH - closeH / 2 - 8, 160, closeH, 0x1a0000)
@@ -368,6 +413,14 @@ export class CodexScene extends Phaser.Scene {
       this.detailObjects.push(closeBg, closeLabel);
     } else {
       // ── Desktop: side panel ───────────────────────────────────────────────
+
+      // Click-away overlay — dismiss detail when clicking outside the panel
+      const clickAway = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
+        .setInteractive()
+        .setDepth(DEPTH_DETAIL - 1);
+      clickAway.on('pointerup', () => this.clearDetail());
+      this.detailObjects.push(clickAway);
+
       const cx = width / 2 + 120;
       const startY = 140;
 
@@ -415,6 +468,38 @@ export class CodexScene extends Phaser.Scene {
       ).setDepth(DEPTH_DETAIL + 1);
       this.detailObjects.push(loreDisplay);
 
+      // ── Text containment & scroll ──────────────────────────────────────
+      const loreTextY = illusY + illusSize / 2 + 24;
+      const maxLoreH = (startY + panelH - 36) - loreTextY;
+      if (maxLoreH > 0 && loreDisplay.height > maxLoreH) {
+        const maskGfx = this.add.graphics().setVisible(false);
+        maskGfx.fillRect(cx - panelW / 2, loreTextY, panelW, maxLoreH);
+        loreDisplay.setMask(maskGfx.createGeometryMask());
+        this._detailMaskGfx = maskGfx;
+
+        const scrollHint = this.add.text(
+          cx, startY + panelH - 32, '▼ scroll for more',
+          { fontSize: this._fs(11), color: '#446644', fontFamily: 'monospace' },
+        ).setOrigin(0.5).setDepth(DEPTH_DETAIL + 2);
+        this.detailObjects.push(scrollHint);
+
+        const maxScroll = loreDisplay.height - maxLoreH;
+        let scrollAmt = 0;
+        const origLoreY = loreDisplay.y;
+        const handler = (
+          _p: Phaser.Input.Pointer,
+          _go: Phaser.GameObjects.GameObject[],
+          _dx: number,
+          deltaY: number,
+        ) => {
+          scrollAmt = Phaser.Math.Clamp(scrollAmt + deltaY * 0.5, 0, maxScroll);
+          loreDisplay.y = origLoreY - scrollAmt;
+          scrollHint.setVisible(scrollAmt < maxScroll - 2);
+        };
+        this._wheelHandler = handler;
+        this.input.on('wheel', handler);
+      }
+
       // Section badge — minimum 11px
       const sectionLabel = CODEX_SECTION_LABELS[entry.section];
       const badge = this.add.text(
@@ -429,6 +514,18 @@ export class CodexScene extends Phaser.Scene {
   }
 
   private clearDetail(): void {
+    if (this._escHandler) {
+      this.input.keyboard?.off('keydown-ESC', this._escHandler);
+      this._escHandler = null;
+    }
+    if (this._wheelHandler) {
+      this.input.off('wheel', this._wheelHandler);
+      this._wheelHandler = null;
+    }
+    if (this._detailMaskGfx) {
+      this._detailMaskGfx.destroy();
+      this._detailMaskGfx = null;
+    }
     for (const obj of this.detailObjects) {
       if (obj?.active) obj.destroy();
     }
