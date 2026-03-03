@@ -2,7 +2,7 @@
 id: TASK-128
 title: Resume Game Button on Main Menu with New Run Option
 priority: high
-status: pending
+status: done
 type: feature
 ---
 
