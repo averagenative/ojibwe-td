@@ -1,7 +1,7 @@
 ---
 id: TASK-035
 title: Expanded Roguelike Offer Pool
-status: in-progress
+status: done
 priority: high
 category: frontend
 phase: 14
