@@ -2347,10 +2347,17 @@ Non-blocking items surfaced during code review:
 - **Multi-select sell rubble**: When selling multiple towers via region-select (`for (const t of toSell) this.sellTower(t)`), rubble is placed for each individually. No issue — each gets its own sprite at its own tile.
 
 ### TASK-072 — Ambient Wildlife Critters (non-blocking observations)
-- **Procedural Graphics vs. sprite textures**: The task spec requests sprite PNGs in `public/assets/critters/` with 2-3 frame spritesheet animations and BootScene preloading. The implementation uses procedural `Phaser.GameObjects.Graphics` drawing instead — lighter weight (no asset loading, no texture memory) but redraws 4 fill calls per critter per frame. For 6 critters this is negligible. If critter count ever grows, consider caching the procedural drawing to a `RenderTexture` or generating textures at boot.
-- **`_drawCritter` called every frame**: Each critter's Graphics is `clear()`+redrawn every frame even when idle and nothing has changed. A `_dirty` flag could skip redraws when position/bob haven't changed meaningfully, but the cost for 6 tiny sprites is trivial.
-- **`_pickWanderTarget` scans all buildable tiles**: O(n) linear scan over `_buildableTiles` to find nearby candidates within 3-tile radius. Fine for current map sizes (~200 tiles) and frequency (once per 1-3s idle expiry), but worth noting if maps grow significantly larger.
-- **Water-edge heuristic**: `_waterEdgeTiles` identifies buildable tiles adjacent to PATH tiles, not actual water tiles. This is a proxy that works for lakeside/marsh maps where paths run near water, but may place "water-preferring" critters in unexpected spots on maps where paths don't follow water edges. Low priority since the visual effect is still charming.
+- **Flying critter behaviour (optional)**: Loons and owls share the same walk/idle/flee state machine as ground critters. The task lists "Optional: flying critters move in gentle arcs above ground" — implementing this would add charm but is not required.
+- **Creep proximity array allocation**: `GameScene.update` allocates a temporary `positions[]` array + objects every 500ms for `notifyCreepsNear`. Negligible at current scale (3-6 critters, checked twice per second) but could be eliminated by passing an iterable of creeps directly if perf becomes a concern.
+- **`_pickTarget` scans buildable tiles**: O(n) linear scan with up to 8 random probes. Fine for current map sizes (~200 tiles) and frequency (once per 1-3s idle expiry), but worth noting if maps grow significantly larger.
+- **Region species coverage**: 12 of the ~20 species listed in the task are implemented (enough for all 5 regions with 2-3 per pool). Missing species (chipmunk, muskrat, deer mice, porcupine, pine marten, skunk, woodpecker) can be added later by extending `REGION_CRITTER_POOL` and generating additional spritesheets.
+
+### TASK-034 — Ascension System (non-blocking observations)
+- **Poison-death-cloud visual**: Level 8 (Miigaazid) slows nearby towers when a creep dies from poison, but has no visual particle effect for the toxic cloud. Adding a brief green/purple particle burst at the death location would improve feedback. The mechanical effect (tower debuff) works correctly.
+- **Ascension picker keyboard navigation**: The ascension level picker on CommanderSelectScene uses pointer events only. Adding left/right arrow key navigation would improve desktop UX.
+- **Ascension badge mobile positioning**: The HUD badge is placed at `width * 0.75` which works for 1280px layout but could overlap the wave counter on very narrow viewports. Consider gating position via `_IS_MOBILE`.
+- **Boss waves and ascension modifiers**: Boss creeps receive HP/speed ascension multipliers but not the regen modifier (level 4). This is likely intentional (boss regen is independently defined in bossDefs) but worth confirming.
+- **GameSceneShutdown.test.ts event list**: The existing shutdown event cleanup test (`GAME_EVENTS` array) does not include the two new ascension events (`ascension-lightning-strike`, `ascension-lightning-warning`). These are cleaned up correctly in `shutdown()` but the test doesn't cover them since they're conditionally registered.
 
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
