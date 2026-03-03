@@ -2,7 +2,7 @@
 id: TASK-127
 title: Rush Wave Should Send Next Wave Immediately Without Waiting
 priority: critical
-status: in-progress
+status: done
 type: bug
 ---
 

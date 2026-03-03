@@ -2549,3 +2549,13 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 - **Concussion shell's brief slow (0.85, 600ms) triggers the full 2s immunity window** — the 2s cooldown is over 3× the slow duration. This may feel disproportionate. If concussion feels underpowered, consider exempting very short slows (< 1s) from triggering the full cooldown.
 - **Frost cost now matches Rock Hurler (both 150g)** — originally distinct at 125/150. This may confuse new players about tower tiers. Consider whether the cost parity is intentional or if 140g would preserve differentiation.
 - **Economy Review update**: Frost cost is now 150 (up from 125). The economy review comment above references the old 125 cost.
+
+### TASK-129 Review Findings (Rush During Boss Wave)
+
+- **Rush path skips post-boss cutscene and boss-killed vignette** — when a player rushes during a boss wave, only the boss loot panel is shown. The post-boss cutscene (`getPostBossCutsceneId`) and boss-killed vignette (`TriggerType.BOSS_KILLED`) are silently skipped because `pendingBossKillKey` is cleared before either can fire. The cutscene is not marked as seen so it may reappear in future runs, but the boss-killed vignette opportunity is lost for that run. Consider queuing the cutscene/vignette after the boss loot panel in the rush path if narrative continuity matters more than rush speed.
+
+### TASK-127 Review Findings (Rush Wave Immediate Send)
+
+- **Between-wave state updates fire once per batch, not per wave** — with concurrent wave stacking, `onWaveComplete` returns early while other waves are active, so `offerManager.setWavesCompleted()`, `resetWavePlacements()`, interest/jackpot bonuses, and Waabizii absorb-escapes reset only fire once after ALL concurrent waves settle. This is acceptable since rushing intentionally skips between-wave UI, but means intermediate per-wave state updates are skipped. If any future offer depends on per-wave-completion triggers rather than a threshold check, this will need revisiting.
+- **`rushNextWave()` has no code-level boss/final-wave guard** — the boss-wave and final-wave restrictions are enforced entirely via `_updateRushButton()` (UI visibility). If a caller bypasses the button (e.g., console, modding), they could rush into a boss wave or beyond the final wave. Low risk for a client-side game, but adding a redundant guard in `rushNextWave()` would be defensive.
+- **TASK-129 superseded** — the old rush path's boss-loot handling in `onWaveComplete` (added by TASK-129) is now unnecessary. The concurrent wave design lets the normal post-wave UI queue handle boss loot after all waves settle, which is simpler and more correct. The TASK-129 finding about skipped cutscenes may also be resolved — verify in playtesting.
