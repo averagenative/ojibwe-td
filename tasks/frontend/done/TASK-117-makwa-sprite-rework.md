@@ -2,7 +2,7 @@
 id: TASK-117
 title: Rework Makwa (Bear) Boss Sprite — Pacific Northwest Art Style
 priority: medium
-status: in-progress
+status: done
 type: asset
 creative: true
 ---
