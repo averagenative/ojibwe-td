@@ -6,6 +6,10 @@ import type { UnlockNode } from '../meta/unlockDefs';
 import { MobileManager } from '../systems/MobileManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { PAL } from '../ui/palette';
+import { MetaAmbiance } from '../systems/MetaAmbiance';
+import type { MetaAmbianceConfig } from '../systems/MetaAmbiance';
+import { ALL_STAGES, ALL_REGIONS } from '../data/stageDefs';
+import type { SeasonalTheme } from '../data/stageDefs';
 
 const PANEL_W     = 420;
 const NODE_H          = 90;
@@ -49,6 +53,9 @@ export class MetaMenuScene extends Phaser.Scene {
   /** True when running on a mobile/touch device. Set once in create(). */
   private _isMobile = false;
 
+  /** Living background ambiance system. Nulled at scene start; created in create(). */
+  private _ambiance: MetaAmbiance | null = null;
+
   /**
    * Returns a CSS font-size string scaled up by 1.35× on mobile.
    */
@@ -62,16 +69,26 @@ export class MetaMenuScene extends Phaser.Scene {
   }
 
   create(data?: object): void {
+    this._ambiance = null;  // clear any previous reference (Phaser has already destroyed old objects)
     this._isMobile = MobileManager.getInstance().isMobile();
 
     const { tab = 'unlocks' } = (data ?? {}) as MetaMenuData;
     const { width, height } = this.scale;
     const cx = width / 2;
 
-    // Background
-    this.createBackground();
-
+    // ── Ambient living background (must be first so it renders behind all UI) ─
     const save = SaveManager.getInstance();
+    const ambianceConfig: MetaAmbianceConfig = {
+      width:            width,
+      height:           height,
+      season:           this._getSeason(save.getLastPlayedStage()),
+      defeatedBossKeys: save.getDefeatedBossKeys(),
+      isMobile:         this._isMobile,
+    };
+    this._ambiance = new MetaAmbiance(this, ambianceConfig);
+
+    // Background (grid overlay rendered after ambiance so it's on top of nature)
+    this.createBackground();
 
     // Title
     this.add.text(cx, 36, 'META UPGRADES', {
@@ -115,17 +132,46 @@ export class MetaMenuScene extends Phaser.Scene {
       this.renderShopTab(cx, contentY, save, balanceText);
     }
 
-    // Navigation buttons
+    // Navigation buttons — use _navigateTo() so the ambiance fades out smoothly
     const btnY = height - (this._isMobile ? 54 : 50);
     this.makeButton(cx - 220, btnY, 'BACK', () => {
-      this.scene.start('MainMenuScene');
+      this._navigateTo('MainMenuScene');
     });
     this.makeButton(cx, btnY, 'GEAR', () => {
-      this.scene.start('InventoryScene');
+      this._navigateTo('InventoryScene');
     });
     this.makeButton(cx + 220, btnY, 'CHALLENGES', () => {
-      this.scene.start('ChallengeSelectScene');
+      this._navigateTo('ChallengeSelectScene');
     });
+  }
+
+  /**
+   * Fade out the ambiance layer then start the target scene.
+   * Falls back to an immediate switch when no ambiance is active.
+   */
+  private _navigateTo(targetScene: string): void {
+    if (this._ambiance) {
+      this._ambiance.startFadeOut(() => {
+        this.scene.start(targetScene);
+      });
+    } else {
+      this.scene.start(targetScene);
+    }
+  }
+
+  /**
+   * Look up the seasonal theme of the player's last-played stage.
+   * Defaults to 'summer' when the stage is unknown.
+   */
+  private _getSeason(lastStageId: string): SeasonalTheme {
+    const stage = ALL_STAGES.find(s => s.id === lastStageId);
+    if (!stage) return 'summer';
+    const region = ALL_REGIONS.find(r => r.id === stage.regionId);
+    return region?.seasonalTheme ?? 'summer';
+  }
+
+  override update(_time: number, delta: number): void {
+    this._ambiance?.update(delta);
   }
 
   // ── Background ─────────────────────────────────────────────────────────────
@@ -394,6 +440,38 @@ export class MetaMenuScene extends Phaser.Scene {
       bgColor = 0x1a1a1a;
       borderColor = 0x444444;
       labelColor = '#888888';
+    }
+
+    // ── Subtle glow layer behind the panel ──────────────────────────────────
+    if (owned) {
+      // Owned nodes: pulsing green glow
+      const ownedGlow = this.add.rectangle(
+        cx, y + nodeHeight / 2, PANEL_W + 6, nodeHeight + 6, 0x00cc44, 0,
+      );
+      if (container) container.add(ownedGlow);
+      this.tweens.add({
+        targets:  ownedGlow,
+        alpha:    { from: 0, to: 0.10 },
+        duration: 1200,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
+    } else if (affordable) {
+      // Available-to-purchase nodes: "come hither" shimmer
+      const shimmerGlow = this.add.rectangle(
+        cx, y + nodeHeight / 2, PANEL_W + 6, nodeHeight + 6, 0x0088cc, 0,
+      );
+      if (container) container.add(shimmerGlow);
+      this.tweens.add({
+        targets:  shimmerGlow,
+        alpha:    { from: 0, to: 0.08 },
+        duration: 700,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+        delay:    Math.floor(Math.random() * 600),
+      });
     }
 
     const panel = this.add.rectangle(cx, y + nodeHeight / 2, PANEL_W, nodeHeight, bgColor)

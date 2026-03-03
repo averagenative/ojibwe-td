@@ -142,6 +142,13 @@ interface SaveData {
   achievements: AchievementSaveData;
 
   /**
+   * Boss keys that the player has defeated at least once across all runs.
+   * Used by the meta-screen ambiance system to display boss trophies.
+   * Known keys: 'makwa', 'migizi', 'waabooz', 'animikiins'.
+   */
+  defeatedBosses: string[];
+
+  /**
    * djb2 checksum of the serialised save data (excluding this field).
    * Used to detect casual manual tampering via browser DevTools.
    * Optional so old saves without the field still load gracefully.
@@ -172,6 +179,7 @@ function defaultSaveData(): SaveData {
     pendingConsumables: { rerollTokens: 0, goldBoostTokens: 0, extraLifeTokens: 0 },
     colorblindMode:     false,
     achievements:       { unlocked: [], progress: {}, stats: {} },
+    defeatedBosses:     [],
   };
 }
 
@@ -589,6 +597,24 @@ export class SaveManager {
     return next;
   }
 
+  // ── Boss defeat tracking ────────────────────────────────────────────────────
+
+  /**
+   * Record that a boss has been defeated.  Idempotent — re-marking a boss
+   * already in the list is a no-op.
+   */
+  markBossDefeated(bossKey: string): void {
+    if (!this.data.defeatedBosses) this.data.defeatedBosses = [];
+    if (this.data.defeatedBosses.includes(bossKey)) return;
+    this.data.defeatedBosses.push(bossKey);
+    this._save();
+  }
+
+  /** Return the list of boss keys the player has defeated at least once. */
+  getDefeatedBossKeys(): string[] {
+    return this.data.defeatedBosses ?? [];
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private _load(): void {
@@ -755,6 +781,11 @@ export class SaveManager {
     }
     const achievements: AchievementSaveData = { unlocked: achUnlocked, progress: achProgress, stats: achStats };
 
+    // Defeated bosses: filter to strings only.
+    const defeatedBosses = Array.isArray(d.defeatedBosses)
+      ? (d.defeatedBosses as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+
     return {
       ...d,
       currency,
@@ -775,6 +806,7 @@ export class SaveManager {
       pendingConsumables,
       colorblindMode,
       achievements,
+      defeatedBosses,
     };
   }
 
