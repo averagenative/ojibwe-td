@@ -1,7 +1,7 @@
 ---
 id: TASK-032
 title: Health Check Triage — Fix Real Issues
-status: in-progress
+status: done
 priority: high
 category: backend
 phase: 13
