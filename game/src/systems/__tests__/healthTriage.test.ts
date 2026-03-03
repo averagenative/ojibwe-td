@@ -70,8 +70,8 @@ describe('Tower — getSellValue() removed', () => {
 
 describe('GameScene — WaveManager.cleanup() on victory', () => {
   it('calls waveManager.cleanup() in onWaveComplete victory branch', () => {
-    // The victory branch starts with the final-wave check
-    const victoryIdx = gameSceneSrc.indexOf('waveNum >= this.totalWaves && !this.isEndlessMode');
+    // The victory branch starts with the final-wave check (uses currentWave, not waveNum)
+    const victoryIdx = gameSceneSrc.indexOf('this.currentWave >= this.totalWaves && !this.isEndlessMode');
     expect(victoryIdx).toBeGreaterThan(-1);
 
     // cleanup() should appear within ~500 chars after the victory guard
@@ -101,8 +101,8 @@ describe('WaveManager — dead methods removed', () => {
     expect(waveManagerSrc).toContain('isActive(): boolean');
   });
 
-  it('isActive() returns waveActive', () => {
-    expect(waveManagerSrc).toContain('return this.waveActive');
+  it('isActive() checks _activeWaves.length', () => {
+    expect(waveManagerSrc).toContain('return this._activeWaves.length > 0');
   });
 });
 

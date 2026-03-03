@@ -155,14 +155,6 @@ export class GameScene extends Phaser.Scene {
   /** Dismiss callback captured by the BetweenWaveScene queue entry. */
   private _betweenWaveDismiss: (() => void) | null = null;
 
-  // ── wave rush ─────────────────────────────────────────────────────────────
-  /**
-   * True after the player has clicked the rush button for the current wave.
-   * Cleared in onWaveComplete() when the rush path fires.
-   * Prevents stacking multiple rushes (one-ahead limit).
-   */
-  private _nextWaveRushed = false;
-
   // ── endless mode ──────────────────────────────────────────────────────────
   /** True when the player chose endless mode for this run. */
   private isEndlessMode = false;
@@ -337,7 +329,6 @@ export class GameScene extends Phaser.Scene {
     this._pendingBossName        = null;
     this._pendingBossRewardOffer = false;
     this._betweenWaveDismiss     = null;
-    this._nextWaveRushed         = false;
     this.firstAirWaveSeen    = false;
     this.debugOverlay        = null;
     this.debugVisible        = false;
@@ -2064,39 +2055,38 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Player-triggered: rush the next wave while the current wave is active.
-   * Awards bonus gold immediately and marks the rush flag so onWaveComplete
-   * skips the between-wave UI and starts the next wave automatically.
+   * Awards bonus gold immediately and starts the next wave at once, stacking
+   * it on top of any currently alive creeps.  Multiple consecutive rushes are
+   * allowed — each call starts another wave concurrently.
    *
    * Guards:
    *   - Only valid while a wave is in progress (gameState === 'wave').
-   *   - One-ahead limit: cannot rush if `_nextWaveRushed` is already true.
+   *   - Cannot rush into a boss wave (every 5th) or the final wave.
    */
   private rushNextWave(): void {
     if (this.gameState !== 'wave') return;
-    if (this._nextWaveRushed) return;
 
     // Award bonus gold immediately.
     this.gold += RUSH_GOLD_AMOUNT;
     this.hud.setGold(this.gold);
     this.upgradePanel?.refresh();
 
-    // Mark the rush; disable button to enforce one-ahead limit.
-    this._nextWaveRushed = true;
-    this.hud.setRushWaveVisible(true, false);
-
     // Visual feedback: floating "+N RUSH BONUS" near gold counter.
     this._showRushBonusFeedback(RUSH_GOLD_AMOUNT);
+
+    // Immediately start the next wave, stacked on top of any current waves.
+    this._doStartWave();
   }
 
   /**
    * Show or hide the rush-wave button based on current game state.
-   * Called at the start of each wave (from startNextWave()).
+   * Called at the start of each wave (from _doStartWave()).
    *
    * Hidden when:
    *   - Not in 'wave' state.
    *   - The current wave is the final wave (no next wave to rush into).
    *   - The next wave is a boss wave (every 5th).
-   * Shown (greyed out) when the player has already rushed this wave.
+   * Always shown enabled — multiple consecutive rushes are allowed.
    */
   private _updateRushButton(): void {
     if (this.gameState !== 'wave') {
@@ -2109,8 +2099,8 @@ export class GameScene extends Phaser.Scene {
       this.hud.setRushWaveVisible(false);
       return;
     }
-    // Show enabled or disabled based on whether the player has already rushed.
-    this.hud.setRushWaveVisible(true, !this._nextWaveRushed);
+    // Always show enabled — no one-ahead limit with concurrent wave stacking.
+    this.hud.setRushWaveVisible(true, true);
   }
 
   /**
@@ -2145,10 +2135,14 @@ export class GameScene extends Phaser.Scene {
   private onWaveComplete(waveNum: number): void {
     if (this.gameState === 'over') return;
 
-    // Hide the rush button as soon as the wave ends (it only belongs in 'wave' state).
+    // Other waves are still running — wait until all concurrent waves complete
+    // before showing any between-wave UI or triggering victory.
+    if (this.waveManager.isActive()) return;
+
+    // All waves done — hide the rush button (it belongs only in 'wave' state).
     this.hud.setRushWaveVisible(false);
 
-    if (waveNum >= this.totalWaves && !this.isEndlessMode) {
+    if (this.currentWave >= this.totalWaves && !this.isEndlessMode) {
       // Cancel any remaining spawn timers (boss escorts may still be queued).
       this.waveManager.cleanup();
 
@@ -2235,7 +2229,7 @@ export class GameScene extends Phaser.Scene {
 
     // Achievement tracking: endless wave milestone.
     if (this.isEndlessMode) {
-      AchievementManager.getInstance().onEndlessWaveReached(waveNum);
+      AchievementManager.getInstance().onEndlessWaveReached(this.currentWave);
       this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
     }
 
@@ -2245,7 +2239,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Update OfferManager wave state.
-    this.offerManager.setWavesCompleted(waveNum);
+    this.offerManager.setWavesCompleted(this.currentWave);
     this.offerManager.resetWavePlacements();
 
     // Interest: bonus gold = 2% of current gold each wave.
@@ -2272,16 +2266,6 @@ export class GameScene extends Phaser.Scene {
     // ── Auto-save checkpoint — wave complete, between-wave state ────────────
     // This is the cleanest save point: no active creeps, tower state is stable.
     this._doAutoSave();
-
-    // ── Rush path — skip between-wave UI and start the next wave immediately ──
-    // If the player rushed this wave, hide the rush button and jump straight
-    // to the next wave without showing the offer/upgrade between-wave screens.
-    if (this._nextWaveRushed) {
-      this._nextWaveRushed = false;
-      this.hud.setRushWaveVisible(false);
-      this.startNextWave();
-      return;
-    }
 
     // ── Post-wave UI queue — show panels in strict priority order ────────────
     // 1) Boss loot/gear reward → 2) Elder dialog → 3) Between-wave upgrade offers
