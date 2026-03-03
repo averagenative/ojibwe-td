@@ -2,7 +2,7 @@
 id: TASK-123
 title: Poison Tower Icon Rework — Spider Theme
 priority: medium
-status: in-progress
+status: done
 type: asset
 creative: true
 ---
