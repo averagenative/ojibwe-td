@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Spirit Totem — Aura gear: carved totem pole section -->
+  <!-- Base -->
+  <rect x="22" y="50" width="20" height="8" rx="2" fill="#775522"/>
+  <!-- Totem body -->
+  <rect x="24" y="14" width="16" height="38" rx="3" fill="#bb9922"/>
+  <!-- Face area -->
+  <rect x="24" y="18" width="16" height="16" rx="2" fill="#aa8811"/>
+  <!-- Eyes -->
+  <circle cx="29" cy="24" r="3" fill="#221100"/>
+  <circle cx="35" cy="24" r="3" fill="#221100"/>
+  <circle cx="29" cy="23" r="1.2" fill="#ffcc44" opacity="0.8"/>
+  <circle cx="35" cy="23" r="1.2" fill="#ffcc44" opacity="0.8"/>
+  <!-- Mouth -->
+  <rect x="28" y="30" width="8" height="3" rx="1" fill="#553311"/>
+  <!-- Carved bands -->
+  <rect x="24" y="36" width="16" height="2" fill="#997711"/>
+  <rect x="24" y="42" width="16" height="2" fill="#997711"/>
+  <!-- Wings/feathers -->
+  <polygon points="24,20 16,16 14,22 22,24" fill="#cc8833"/>
+  <polygon points="40,20 48,16 50,22 42,24" fill="#cc8833"/>
+  <!-- Feather tips -->
+  <polygon points="14,22 10,18 12,24" fill="#aa7722" opacity="0.7"/>
+  <polygon points="50,22 54,18 52,24" fill="#aa7722" opacity="0.7"/>
+  <!-- Spirit glow at top -->
+  <circle cx="32" cy="12" r="4" fill="#ffdd66" opacity="0.4"/>
+  <circle cx="32" cy="12" r="2" fill="#ffeeaa" opacity="0.6"/>
+</svg>

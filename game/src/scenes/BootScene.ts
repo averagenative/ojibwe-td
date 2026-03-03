@@ -181,8 +181,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('logo', 'assets/ui/logo.png');
 
     // Tower icons
-    // icon-rock-hurler reuses icon-cannon.png as placeholder until a custom asset ships.
-    this.load.image('icon-rock-hurler', 'assets/icons/icon-cannon.png');
+    this.load.image('icon-rock-hurler', 'assets/icons/icon-rock-hurler.svg');
     this.load.image('icon-frost',       'assets/icons/icon-frost.png');
     this.load.image('icon-poison',      'assets/icons/icon-poison.png');
     this.load.image('icon-tesla',       'assets/icons/icon-tesla.png');
@@ -192,6 +191,16 @@ export class BootScene extends Phaser.Scene {
     // Misc UI icons
     this.load.image('icon-dice',    'assets/icons/icon-dice.png');
     this.load.image('icon-mystery', 'assets/icons/icon-mystery.png');
+
+    // Gear type icons (64×64 SVG — one per gear slot)
+    this.load.image('gear-barrel-mod',      'assets/icons/gear-barrel-mod.svg');
+    this.load.image('gear-crystal-core',    'assets/icons/gear-crystal-core.svg');
+    this.load.image('gear-coil-amplifier',  'assets/icons/gear-coil-amplifier.svg');
+    this.load.image('gear-shell-casing',    'assets/icons/gear-shell-casing.svg');
+    this.load.image('gear-venom-gland',     'assets/icons/gear-venom-gland.svg');
+    this.load.image('gear-spirit-totem',    'assets/icons/gear-spirit-totem.svg');
+    this.load.image('gear-arrow-fletching', 'assets/icons/gear-arrow-fletching.svg');
+    this.load.image('gear-universal-charm', 'assets/icons/gear-universal-charm.svg');
 
     // Commander portraits (96x96)
     this.load.image('portrait-nokomis',     'assets/portraits/portrait-nokomis.png');

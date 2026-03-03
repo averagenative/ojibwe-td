@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Venom Gland — Poison gear: venom sac / teardrop -->
+  <!-- Main sac body -->
+  <path d="M32,8 C32,8 50,28 50,40 C50,50 42,56 32,56 C22,56 14,50 14,40 C14,28 32,8 32,8 Z" fill="#44aa66"/>
+  <!-- Inner highlight -->
+  <path d="M32,16 C32,16 44,30 44,40 C44,47 39,52 32,52 C25,52 20,47 20,40 C20,30 32,16 32,16 Z" fill="#55cc77" opacity="0.5"/>
+  <!-- Vein lines -->
+  <path d="M32,20 C28,30 26,38 28,48" fill="none" stroke="#338844" stroke-width="1" opacity="0.6"/>
+  <path d="M32,20 C36,30 38,38 36,48" fill="none" stroke="#338844" stroke-width="1" opacity="0.6"/>
+  <!-- Bubbles -->
+  <circle cx="26" cy="38" r="3" fill="#66dd88" opacity="0.4"/>
+  <circle cx="36" cy="44" r="2.5" fill="#66dd88" opacity="0.3"/>
+  <circle cx="30" cy="46" r="1.8" fill="#88eebb" opacity="0.4"/>
+  <!-- Drip at bottom -->
+  <ellipse cx="32" cy="58" rx="3" ry="2" fill="#44aa66" opacity="0.6"/>
+  <!-- Top stem -->
+  <rect x="30" y="4" width="4" height="6" rx="1" fill="#338844"/>
+</svg>

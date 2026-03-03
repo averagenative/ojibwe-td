@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Coil Amplifier — Tesla gear: coil with lightning arc -->
+  <!-- Coil base -->
+  <rect x="26" y="38" width="12" height="20" rx="2" fill="#887744"/>
+  <rect x="24" y="54" width="16" height="4" rx="1" fill="#665533"/>
+  <!-- Coil rings -->
+  <ellipse cx="32" cy="38" rx="14" ry="4" fill="none" stroke="#ccaa44" stroke-width="2.5"/>
+  <ellipse cx="32" cy="32" rx="12" ry="3.5" fill="none" stroke="#ccaa44" stroke-width="2.5"/>
+  <ellipse cx="32" cy="26" rx="10" ry="3" fill="none" stroke="#ddbb55" stroke-width="2"/>
+  <!-- Top sphere -->
+  <circle cx="32" cy="18" r="7" fill="#ccaa44"/>
+  <circle cx="32" cy="18" r="5" fill="#ddcc66"/>
+  <circle cx="30" cy="16" r="2" fill="#eedd88" opacity="0.7"/>
+  <!-- Lightning arcs -->
+  <polyline points="22,14 18,8 20,10 14,4" fill="none" stroke="#ffff66" stroke-width="1.5" stroke-linecap="round"/>
+  <polyline points="42,14 46,8 44,10 50,4" fill="none" stroke="#ffff66" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Glow dot -->
+  <circle cx="32" cy="18" r="3" fill="#ffff88" opacity="0.4"/>
+</svg>

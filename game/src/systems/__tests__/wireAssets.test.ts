@@ -367,6 +367,9 @@ describe('BootScene expected texture keys', () => {
     'icon-rock-hurler', 'icon-frost', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow',
     // Misc UI
     'icon-dice', 'icon-mystery',
+    // Gear type icons (one per gear slot)
+    'gear-barrel-mod', 'gear-crystal-core', 'gear-coil-amplifier', 'gear-shell-casing',
+    'gear-venom-gland', 'gear-spirit-totem', 'gear-arrow-fletching', 'gear-universal-charm',
     // Commander portraits
     'portrait-nokomis', 'portrait-makoons', 'portrait-waabizii',
     'portrait-bizhiw', 'portrait-animikiikaa',
@@ -386,8 +389,8 @@ describe('BootScene expected texture keys', () => {
     'logo',
   ];
 
-  it('expects 37 total texture keys (logo + 8 icons + 5 commander portraits + 6 elder portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
-    expect(EXPECTED_KEYS).toHaveLength(37);
+  it('expects 45 total texture keys (logo + 8 tower icons + 8 gear icons + 5 commander portraits + 6 elder portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
+    expect(EXPECTED_KEYS).toHaveLength(45);
   });
 
   it('all keys are unique', () => {
@@ -395,7 +398,7 @@ describe('BootScene expected texture keys', () => {
   });
 
   it('every key follows a known prefix pattern', () => {
-    const validPrefixes = ['icon-', 'portrait-', 'elder-', 'creep-', 'boss-', 'tile-', 'logo'];
+    const validPrefixes = ['icon-', 'gear-', 'portrait-', 'elder-', 'creep-', 'boss-', 'tile-', 'logo'];
     for (const key of EXPECTED_KEYS) {
       const matchesPrefix = validPrefixes.some(p => key.startsWith(p));
       expect(matchesPrefix).toBe(true);
