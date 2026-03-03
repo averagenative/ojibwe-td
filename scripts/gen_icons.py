@@ -119,28 +119,43 @@ icon('icon-mortar', f"""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. POISON — toxic green teardrop / drop
+# 4. POISON — venomous spider (top-down view, green palette)
 # ─────────────────────────────────────────────────────────────────────────────
 icon('icon-poison', """
-  <!-- Drop shadow -->
-  <path d="M33,52 C33,52 14,36 14,27 A18,18 0 0,1 50,27 C50,36 33,52 33,52 Z"
-        fill="#001a00" opacity="0.4" transform="translate(1,2)"/>
-  <!-- Drop body -->
-  <path d="M32,51 C32,51 13,35 13,26 A19,19 0 0,1 51,26 C51,35 32,51 32,51 Z"
-        fill="#22bb44"/>
-  <!-- Inner sheen -->
-  <path d="M32,43 C32,43 19,32 19,26 A13,13 0 0,1 42,24 C44,32 32,43 32,43 Z"
-        fill="#44dd66" opacity="0.6"/>
-  <!-- Bubble highlight -->
-  <ellipse cx="26" cy="22" rx="4" ry="2.5" fill="white" opacity="0.45"
-           transform="rotate(-20 26 22)"/>
-  <!-- Skull dots (eyes) -->
-  <circle cx="27" cy="29" r="2.5" fill="#003300"/>
-  <circle cx="37" cy="29" r="2.5" fill="#003300"/>
-  <!-- Skull mouth (3 small lines) -->
-  <rect x="26" y="34" width="3" height="3" rx="1" fill="#003300"/>
-  <rect x="30.5" y="34" width="3" height="3" rx="1" fill="#003300"/>
-  <rect x="35" y="34" width="3" height="3" rx="1" fill="#003300"/>
+  <!-- Legs (behind body) — 4 pairs with knee bends -->
+  <g stroke="#22aa44" stroke-width="2.8" stroke-linecap="round" fill="none">
+    <!-- Right legs (front to back) -->
+    <path d="M37,20 Q46,8 53,10"/>
+    <path d="M39,25 Q52,14 57,20"/>
+    <path d="M39,31 Q52,40 56,48"/>
+    <path d="M37,36 Q44,50 50,56"/>
+    <!-- Left legs (front to back) -->
+    <path d="M27,20 Q18,8 11,10"/>
+    <path d="M25,25 Q12,14 7,20"/>
+    <path d="M25,31 Q12,40 8,48"/>
+    <path d="M27,36 Q20,50 14,56"/>
+  </g>
+  <!-- Abdomen (rear, larger) -->
+  <ellipse cx="32" cy="39" rx="11" ry="12" fill="#22bb44"/>
+  <ellipse cx="30" cy="36" rx="6" ry="6" fill="#44dd66" opacity="0.35"/>
+  <!-- Hourglass marking -->
+  <path d="M32,33 L29,37 L32,42 L35,37 Z" fill="#cc2222" opacity="0.75"/>
+  <!-- Waist connector -->
+  <ellipse cx="32" cy="29" rx="4" ry="3" fill="#1a8833"/>
+  <!-- Cephalothorax (front, smaller) -->
+  <ellipse cx="32" cy="22" rx="8" ry="7" fill="#22bb44"/>
+  <ellipse cx="30" cy="20" rx="4" ry="3.5" fill="#44dd66" opacity="0.4"/>
+  <!-- Eyes (main pair — bright) -->
+  <circle cx="29" cy="19" r="2" fill="#88ff44"/>
+  <circle cx="35" cy="19" r="2" fill="#88ff44"/>
+  <circle cx="29" cy="19" r="0.8" fill="white" opacity="0.7"/>
+  <circle cx="35" cy="19" r="0.8" fill="white" opacity="0.7"/>
+  <!-- Fangs (small venom drips) -->
+  <line x1="30" y1="26" x2="28" y2="29" stroke="#55ff99" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="34" y1="26" x2="36" y2="29" stroke="#55ff99" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Venom droplets -->
+  <circle cx="28" cy="30" r="1.2" fill="#55ff99" opacity="0.7"/>
+  <circle cx="36" cy="30" r="1.2" fill="#55ff99" opacity="0.7"/>
 """)
 
 
