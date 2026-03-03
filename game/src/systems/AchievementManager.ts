@@ -142,9 +142,11 @@ export class AchievementManager {
   addKills(runKills: number): void {
     if (runKills <= 0) return;
     const total = this._addStat('kills', runKills);
-    this._setProgress('kill-500-creeps',   total);
-    this._setProgress('kill-5000-creeps',  total);
-    this._setProgress('kill-25000-creeps', total);
+    this._setProgress('kill-100-creeps',    total);
+    this._setProgress('kill-500-creeps',    total);
+    this._setProgress('kill-2000-creeps',   total);
+    this._setProgress('kill-5000-creeps',   total);
+    this._setProgress('kill-25000-creeps',  total);
     this._setProgress('kill-100000-creeps', total);
   }
 
@@ -182,6 +184,9 @@ export class AchievementManager {
     this._setProgress('build-50-towers-run', runTotal);
     this._setProgress('build-500-towers-total',  lifeTotal);
     this._setProgress('build-2000-towers-total', lifeTotal);
+    this._setProgress('place-50-towers-total',   lifeTotal);
+    this._setProgress('place-200-towers-total',  lifeTotal);
+    this._setProgress('place-1000-towers-total', lifeTotal);
   }
 
   /**
@@ -245,6 +250,7 @@ export class AchievementManager {
     if (amount <= 0) return;
     const total = this._addStat('crystalsSpent', amount);
     this._setProgress('spend-250-crystals',  total);
+    this._setProgress('spend-500-crystals',  total);
     this._setProgress('spend-1000-crystals', total);
   }
 
@@ -358,4 +364,75 @@ export class AchievementManager {
   onCodexAllRead(allRead: boolean): void {
     if (allRead) this._unlock('codex-scholar');
   }
+
+  // ── New lifetime-stat methods (TASK-131) ─────────────────────────────────
+
+  /**
+   * Called at end of run to record air-creep kills.
+   * @param runAirKills  Air creeps killed during the run (added to lifetime total).
+   */
+  addAirKills(runAirKills: number): void {
+    if (runAirKills <= 0) return;
+    const total = this._addStat('airKills', runAirKills);
+    this._setProgress('kill-50-air-creeps',  total);
+    this._setProgress('kill-200-air-creeps', total);
+  }
+
+  /**
+   * Called at end of run to record towers sold.
+   * @param runSells  Towers sold during the run (added to lifetime total).
+   */
+  addTowersSold(runSells: number): void {
+    if (runSells <= 0) return;
+    const total = this._addStat('towersSold', runSells);
+    this._setProgress('sell-10-towers',  total);
+    this._setProgress('sell-50-towers',  total);
+    this._setProgress('sell-200-towers', total);
+  }
+
+  /**
+   * Called at end of run to record waves rushed.
+   * @param runRushes  Waves rushed during the run (added to lifetime total).
+   */
+  addRushes(runRushes: number): void {
+    if (runRushes <= 0) return;
+    const total = this._addStat('rushesTotal', runRushes);
+    this._setProgress('rush-10-waves',  total);
+    this._setProgress('rush-50-waves',  total);
+    this._setProgress('rush-200-waves', total);
+  }
+
+  /**
+   * Called at end of run to record gold earned.
+   * @param runGold  Gold earned during the run (added to lifetime total).
+   */
+  addLifetimeGold(runGold: number): void {
+    if (runGold <= 0) return;
+    const total = this._addStat('goldEarnedTotal', runGold);
+    this._setProgress('earn-gold-5000-total',  total);
+    this._setProgress('earn-gold-25000-total', total);
+  }
+
+  /**
+   * Called at end of a winning run (normal mode only).
+   * Increments the lifetime wins counter and checks run-milestone achievements.
+   */
+  addWins(count: number): void {
+    if (count <= 0) return;
+    const total = this._addStat('winsTotal', count);
+    this._setProgress('win-5-runs',   total);
+    this._setProgress('win-20-runs',  total);
+    this._setProgress('win-50-runs',  total);
+    this._setProgress('win-100-runs', total);
+  }
+
+  /**
+   * Called whenever a tower is placed. Checks if 6 or more distinct tower
+   * types are simultaneously present on the field.
+   * @param typeCount  Number of distinct tower-type keys currently on the field.
+   */
+  checkAllTypesSimultaneous(typeCount: number): void {
+    if (typeCount >= 6) this._unlock('all-6-types-simultaneous');
+  }
+
 }
