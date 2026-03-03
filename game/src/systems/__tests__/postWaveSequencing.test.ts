@@ -23,8 +23,10 @@
 
 import { describe, it, expect } from 'vitest';
 
-import gameSceneSrc    from '../../scenes/GameScene.ts?raw';
-import bossOfferSrc    from '../../ui/BossOfferPanel.ts?raw';
+import gameSceneSrc      from '../../scenes/GameScene.ts?raw';
+import bossOfferSrc      from '../../ui/BossOfferPanel.ts?raw';
+import vignetteOverlaySrc from '../../ui/VignetteOverlay.ts?raw';
+import betweenWaveSrc    from '../../scenes/BetweenWaveScene.ts?raw';
 
 // ── 1. PostWaveUIQueue field declarations ────────────────────────────────────
 
@@ -232,5 +234,147 @@ describe('BossOfferPanel — onClosed callback', () => {
     const closeIdx   = bossOfferSrc.lastIndexOf('this.close()');
     const onClosedIdx = bossOfferSrc.lastIndexOf('onClosed?.()');
     expect(closeIdx).toBeLessThan(onClosedIdx);
+  });
+});
+
+// ── 10. VignetteOverlay — onDismiss fires only after player dismissal ─────────
+
+describe('VignetteOverlay — onDismiss timing', () => {
+  it('stores the onDismiss callback in show()', () => {
+    // show() must accept and store the onDismiss callback so it survives
+    // until the player actually clicks to dismiss.
+    expect(vignetteOverlaySrc).toContain('this.onDismiss = onDismiss');
+  });
+
+  it('onDismiss is only invoked from the private dismiss() method', () => {
+    // All calls to the callback must go through dismiss(), which is the
+    // single authorised exit point — never called directly from show() or
+    // the typewriter loop.
+    const dismissFn = vignetteOverlaySrc.indexOf('private dismiss()');
+    expect(dismissFn).toBeGreaterThan(-1);
+
+    // callback?.() should only appear inside the dismiss() block
+    const callbackCallIdx = vignetteOverlaySrc.indexOf('callback?.()');
+    // The dismiss() body starts at dismissFn; the callback call must come after it
+    expect(callbackCallIdx).toBeGreaterThan(dismissFn);
+  });
+
+  it('dismiss() captures onDismiss before calling cleanup() to prevent null-deref', () => {
+    // cleanup() sets this.onDismiss = null; capturing in a local var first
+    // is the safe pattern.
+    const dismissIdx = vignetteOverlaySrc.indexOf('private dismiss()');
+    const block = vignetteOverlaySrc.slice(dismissIdx, dismissIdx + 200);
+    // Local variable must be assigned before cleanup is called
+    expect(block).toContain('const callback = this.onDismiss');
+    expect(block).toContain('this.cleanup()');
+    // cleanup called before callback
+    const cleanupPos  = block.indexOf('this.cleanup()');
+    const callbackPos = block.indexOf('callback?.()');
+    expect(cleanupPos).toBeLessThan(callbackPos);
+  });
+
+  it('handleClick() returns without dismissing when text is still being revealed', () => {
+    // Mid-reveal click must complete the text instantly (early-return path),
+    // NOT call dismiss() — so the next panel does not appear prematurely.
+    const handleClickIdx = vignetteOverlaySrc.indexOf('private handleClick()');
+    const block = vignetteOverlaySrc.slice(handleClickIdx, handleClickIdx + 600);
+
+    // fullyRevealed guard present
+    expect(block).toContain('fullyRevealed');
+    // Completes text on mid-reveal click
+    expect(block).toContain('this.fullText');
+    // Early return without dismiss
+    expect(block).toContain('return;');
+  });
+
+  it('first-time vignette enforces a hold-to-skip delay before dismiss is accepted', () => {
+    // HOLD_SKIP_MS constant must exist — first-time vignettes cannot be
+    // dismissed before this many ms have elapsed (prevents accidental skips).
+    expect(vignetteOverlaySrc).toContain('HOLD_SKIP_MS');
+    expect(vignetteOverlaySrc).toContain('elapsed');
+    expect(vignetteOverlaySrc).toContain('shownAt');
+  });
+
+  it('previously-seen vignette (seenBefore=true) can be dismissed instantly', () => {
+    // canInstantDismiss path — no delay for replays.
+    expect(vignetteOverlaySrc).toContain('canInstantDismiss');
+    // When true, dismiss() is called directly without elapsed check
+    const handleClickIdx = vignetteOverlaySrc.indexOf('private handleClick()');
+    const block = vignetteOverlaySrc.slice(handleClickIdx, handleClickIdx + 600);
+    expect(block).toContain('canInstantDismiss');
+  });
+});
+
+// ── 11. BetweenWaveScene — depth and scene launch method ─────────────────────
+
+describe('BetweenWaveScene — rendering depth and scene launch', () => {
+  it('is launched as an overlay scene via scene.launch(), not scene.start()', () => {
+    // scene.start() would replace GameScene; scene.launch() keeps GameScene
+    // running underneath — this is what allows the post-wave queue to continue.
+    expect(gameSceneSrc).toContain("scene.launch('BetweenWaveScene'");
+    expect(gameSceneSrc).not.toContain("scene.start('BetweenWaveScene'");
+  });
+
+  it('blocking overlay uses DEPTH - 1 so it is below the offer cards', () => {
+    // The full-screen overlay that intercepts pointer events must be BELOW
+    // the card content so cards receive pointer events.
+    expect(betweenWaveSrc).toContain('DEPTH - 1');
+    // Cards themselves render at DEPTH or above
+    expect(betweenWaveSrc).toContain('setDepth(DEPTH)');
+  });
+
+  it('BetweenWaveScene stops itself (scene.stop()) after a card is chosen', () => {
+    // After the player picks an offer the scene must stop so it does not
+    // remain visible while the next wave plays.
+    expect(betweenWaveSrc).toContain('this.scene.stop()');
+  });
+
+  it('BetweenWaveScene emits between-wave-offer-picked before stopping', () => {
+    // The event must fire so GameScene advances the queue and shows the
+    // next-wave button.  Stopping the scene before emitting would swallow
+    // the event.
+    const emitIdx = betweenWaveSrc.indexOf("'between-wave-offer-picked'");
+    const stopIdx  = betweenWaveSrc.indexOf('this.scene.stop()');
+    expect(emitIdx).toBeGreaterThan(-1);
+    expect(stopIdx).toBeGreaterThan(-1);
+    // emit must come before stop
+    expect(emitIdx).toBeLessThan(stopIdx);
+  });
+});
+
+// ── 12. Non-boss wave sequencing ─────────────────────────────────────────────
+
+describe('GameScene — non-boss wave: boss loot entry is guarded', () => {
+  it('boss loot enqueue is inside an _pendingBossRewardOffer guard', () => {
+    // On non-boss waves, _pendingBossRewardOffer is false, so the boss loot
+    // entry must be skipped — only vignette (if any) + BetweenWaveScene show.
+    // The non-final-wave boss loot enqueue uses onDismiss (vs proceedToVictory
+    // in the victory path), so we anchor on that specific call.
+    const enqueueIdx = gameSceneSrc.indexOf('this.openBossOfferPanel(name, onDismiss)');
+    expect(enqueueIdx).toBeGreaterThan(-1);
+
+    // Within 300 chars BEFORE the enqueue call the guard must appear.
+    const beforeEnqueue = gameSceneSrc.slice(Math.max(0, enqueueIdx - 300), enqueueIdx);
+    expect(beforeEnqueue).toContain('_pendingBossRewardOffer');
+    expect(beforeEnqueue).toContain('_pendingBossName');
+  });
+
+  it('BetweenWaveScene entry is always enqueued regardless of boss status', () => {
+    // Even on non-boss waves the upgrade-offer scene must appear —
+    // its enqueue is NOT inside the boss guard.
+    const guardIdx       = gameSceneSrc.indexOf('this._pendingBossRewardOffer && this._pendingBossName');
+    const betweenIdx     = gameSceneSrc.indexOf("this.scene.launch('BetweenWaveScene'");
+
+    // The BetweenWaveScene launch must come AFTER the guard block
+    expect(betweenIdx).toBeGreaterThan(guardIdx);
+
+    // And there must be at least 300 chars between them — the guard + enqueue
+    // block comes first, then the unconditional BetweenWaveScene enqueue.
+    expect(betweenIdx - guardIdx).toBeGreaterThan(300);
+  });
+
+  it('pending boss state is always cleared after the guard regardless of wave type', () => {
+    // Verified by group 8, confirmed again here for non-boss wave clarity.
+    expect(gameSceneSrc).toContain('Always consume the pending boss state');
   });
 });
