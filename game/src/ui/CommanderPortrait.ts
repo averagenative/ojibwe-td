@@ -45,6 +45,11 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
   private readonly commanderState: CommanderRunState;
   private readonly onActivateAbility: () => void;
 
+  /** Mobile long-press timer handle. */
+  private _longPressTimer?: ReturnType<typeof setTimeout>;
+  /** True when the tooltip was shown via long-press (prevents tap-activate). */
+  private _longPressTriggered = false;
+
   constructor(config: CommanderPortraitConfig) {
     super(config.scene, config.x, config.y);
 
@@ -95,14 +100,40 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       .setInteractive({ useHandCursor: true });
     this.add(hitZone);
 
-    hitZone.on('pointerup', () => {
-      if (!this.abilityUsed && !this.commanderState.abilityUsed) {
-        this.onActivateAbility();
-      }
-    });
-
-    hitZone.on('pointerover', () => this.showTooltip());
-    hitZone.on('pointerout', () => this.hideTooltip());
+    if (_IS_MOBILE) {
+      // Mobile: long-press (400ms) shows tooltip; tap activates ability
+      hitZone.on('pointerdown', () => {
+        this._longPressTriggered = false;
+        this._longPressTimer = setTimeout(() => {
+          this._longPressTriggered = true;
+          this.showTooltip();
+        }, 400);
+      });
+      hitZone.on('pointerup', () => {
+        clearTimeout(this._longPressTimer);
+        if (this._longPressTriggered) {
+          // Long-press just showed tooltip — hide it, don't activate
+          this.hideTooltip();
+          this._longPressTriggered = false;
+        } else if (!this.abilityUsed && !this.commanderState.abilityUsed) {
+          this.onActivateAbility();
+        }
+      });
+      hitZone.on('pointerout', () => {
+        clearTimeout(this._longPressTimer);
+        this.hideTooltip();
+        this._longPressTriggered = false;
+      });
+    } else {
+      // Desktop: hover shows tooltip; click activates ability
+      hitZone.on('pointerup', () => {
+        if (!this.abilityUsed && !this.commanderState.abilityUsed) {
+          this.onActivateAbility();
+        }
+      });
+      hitZone.on('pointerover', () => this.showTooltip());
+      hitZone.on('pointerout', () => this.hideTooltip());
+    }
 
     // ── Idle border glow pulse ───────────────────────────────────────────────
     this.startReadyGlow();
@@ -167,11 +198,12 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     const pad = 8;
 
     // Build tooltip lines
-    const lines: Array<{ text: string; color: string; bold?: boolean }> = [
+    const lines: Array<{ text: string; color: string; bold?: boolean; italic?: boolean }> = [
       { text: def.name, color: PAL.textPrimary, bold: true },
       { text: `${def.role} · ${def.clan}`, color: PAL.textMuted },
       { text: '', color: '' }, // spacer
       { text: `Aura: ${def.aura.name}`, color: PAL.accentGreen, bold: true },
+      { text: `"${def.aura.nameEnglish}"`, color: PAL.textMuted, italic: true },
       { text: def.aura.description, color: PAL.textSecondary },
     ];
 
@@ -180,6 +212,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       lines.push({ text: '', color: '' }); // spacer
       const usedLabel = this.abilityUsed ? ' (USED)' : ' (READY)';
       lines.push({ text: `${def.ability.name}${usedLabel}`, color: PAL.textAbility, bold: true });
+      lines.push({ text: `"${def.ability.nameEnglish}"`, color: PAL.textMuted, italic: true });
       lines.push({ text: def.ability.description, color: PAL.textSecondary });
     }
 
@@ -198,7 +231,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
         fontSize: line.bold ? '12px' : '11px',
         color: line.color,
         fontFamily: PAL.fontBody,
-        fontStyle: line.bold ? 'bold' : 'normal',
+        fontStyle: line.bold ? 'bold' : (line.italic ? 'italic' : 'normal'),
         wordWrap: { width: tipW - pad * 2 },
       });
       textObjects.push(t);
@@ -274,6 +307,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
 
   destroy(fromScene?: boolean): void {
     this.glowTween?.destroy();
+    clearTimeout(this._longPressTimer);
     this.hideTooltip();
     super.destroy(fromScene);
   }

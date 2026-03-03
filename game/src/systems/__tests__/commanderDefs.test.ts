@@ -51,11 +51,15 @@ describe('CommanderDef schema', () => {
 
     // Aura
     expect(typeof def.aura.name).toBe('string');
+    expect(typeof def.aura.nameEnglish).toBe('string');
+    expect(def.aura.nameEnglish.length).toBeGreaterThan(0);
     expect(typeof def.aura.description).toBe('string');
     expect(typeof def.aura.apply).toBe('function');
 
     // Ability
     expect(typeof def.ability.name).toBe('string');
+    expect(typeof def.ability.nameEnglish).toBe('string');
+    expect(def.ability.nameEnglish.length).toBeGreaterThan(0);
     expect(typeof def.ability.description).toBe('string');
     expect(def.ability.cooldown).toBe('once-per-run');
     expect(typeof def.ability.uiIcon).toBe('string');

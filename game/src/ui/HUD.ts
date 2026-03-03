@@ -3,7 +3,7 @@ import { MobileManager } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { PANEL_HEIGHT as TOWER_PANEL_H } from './TowerPanel';
 import { CommanderPortrait } from './CommanderPortrait';
-import type { CommanderDef, CommanderRunState } from '../data/commanderDefs';
+import type { AbilityDef, CommanderDef, CommanderRunState } from '../data/commanderDefs';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
 const HUD_HEIGHT = _IS_MOBILE ? 64 : 48;
@@ -409,22 +409,28 @@ export class HUD extends Phaser.GameObjects.Container {
 
   private abilityBtnBg?: Phaser.GameObjects.Rectangle;
   private abilityBtnLabel?: Phaser.GameObjects.Text;
+  private abilityTooltip?: Phaser.GameObjects.Container;
+  private _abilityDef?: AbilityDef;
+  private _abilityLongPressTimer?: ReturnType<typeof setTimeout>;
+  private _abilityLongPressTriggered = false;
 
   /**
    * Create a one-shot ability button in the HUD strip (left of gold text).
-   * Greys out after activation.
+   * Greys out after activation. Shows tooltip on hover (desktop) or
+   * long-press (mobile) with the English translation of the Ojibwe name.
    */
-  createAbilityButton(abilityName: string, onActivate: () => void): void {
+  createAbilityButton(ability: AbilityDef, onActivate: () => void): void {
     const cy = HUD_HEIGHT / 2;
     const btnX = this.scene.scale.width / 2 - 140;
     const btnW = 120;
+    this._abilityDef = ability;
 
     this.abilityBtnBg = this.scene.add.rectangle(btnX, cy, btnW, 30, PAL.bgAbilityBtn)
       .setStrokeStyle(1, PAL.borderAbility)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 2);
 
-    this.abilityBtnLabel = this.scene.add.text(btnX, cy, abilityName, {
+    this.abilityBtnLabel = this.scene.add.text(btnX, cy, ability.name, {
       fontSize: '10px',
       color: PAL.textAbility,
       fontFamily: PAL.fontBody,
@@ -433,19 +439,103 @@ export class HUD extends Phaser.GameObjects.Container {
       align: 'center',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
 
-    this.abilityBtnBg.on('pointerover', () => {
-      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(PAL.bgAbilityBtnHover);
-    });
-    this.abilityBtnBg.on('pointerout', () => {
-      if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(PAL.bgAbilityBtn);
-    });
-    this.abilityBtnBg.on('pointerup', () => {
-      onActivate();
-    });
+    if (_IS_MOBILE) {
+      // Mobile: long-press (400ms) shows tooltip; tap activates ability
+      this.abilityBtnBg.on('pointerdown', () => {
+        this._abilityLongPressTriggered = false;
+        this._abilityLongPressTimer = setTimeout(() => {
+          this._abilityLongPressTriggered = true;
+          this._showAbilityTooltip(btnX, cy);
+        }, 400);
+      });
+      this.abilityBtnBg.on('pointerup', () => {
+        clearTimeout(this._abilityLongPressTimer);
+        if (this._abilityLongPressTriggered) {
+          this._hideAbilityTooltip();
+          this._abilityLongPressTriggered = false;
+        } else {
+          onActivate();
+        }
+      });
+      this.abilityBtnBg.on('pointerout', () => {
+        clearTimeout(this._abilityLongPressTimer);
+        this._hideAbilityTooltip();
+        this._abilityLongPressTriggered = false;
+      });
+    } else {
+      // Desktop: hover shows tooltip; click activates ability
+      this.abilityBtnBg.on('pointerover', () => {
+        if (this.abilityBtnBg?.input?.enabled) {
+          this.abilityBtnBg.setFillStyle(PAL.bgAbilityBtnHover);
+          this._showAbilityTooltip(btnX, cy);
+        }
+      });
+      this.abilityBtnBg.on('pointerout', () => {
+        if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(PAL.bgAbilityBtn);
+        this._hideAbilityTooltip();
+      });
+      this.abilityBtnBg.on('pointerup', () => {
+        onActivate();
+      });
+    }
+  }
+
+  // ── ability tooltip ────────────────────────────────────────────────────
+
+  private _showAbilityTooltip(btnX: number, btnY: number): void {
+    if (this.abilityTooltip || !this._abilityDef) return;
+
+    const ab = this._abilityDef;
+    const tipW = 210;
+    const pad = 8;
+
+    const lines: Array<{ text: string; color: string; bold?: boolean; italic?: boolean }> = [
+      { text: ab.name, color: PAL.textAbility, bold: true },
+      { text: `"${ab.nameEnglish}"`, color: PAL.textMuted, italic: true },
+      { text: '', color: '' }, // spacer
+      { text: ab.description, color: PAL.textSecondary },
+      { text: '', color: '' }, // spacer
+      { text: 'Once per run', color: PAL.textDim },
+    ];
+
+    this.abilityTooltip = this.scene.add.container(0, 0).setDepth(DEPTH + 20);
+    let curY = pad;
+
+    for (const line of lines) {
+      if (!line.text) { curY += 6; continue; }
+      const t = this.scene.add.text(pad, curY, line.text, {
+        fontSize: line.bold ? '12px' : '11px',
+        color: line.color,
+        fontFamily: PAL.fontBody,
+        fontStyle: line.bold ? 'bold' : (line.italic ? 'italic' : 'normal'),
+        wordWrap: { width: tipW - pad * 2 },
+      });
+      this.abilityTooltip.add(t);
+      curY += t.height + 2;
+    }
+
+    const tipH = curY + pad;
+
+    // Position below the button, clamped to screen edges
+    const tipX = Math.max(4, Math.min(btnX - tipW / 2, this.scene.scale.width - tipW - 4));
+    const tipY = btnY + 15 + 4; // half button height + gap
+
+    const bg = this.scene.add.rectangle(0, 0, tipW, tipH, PAL.bgPanel, 0.95)
+      .setStrokeStyle(1, PAL.borderAbility)
+      .setOrigin(0);
+    this.abilityTooltip.addAt(bg, 0);
+    this.abilityTooltip.setPosition(tipX, tipY);
+  }
+
+  private _hideAbilityTooltip(): void {
+    this.abilityTooltip?.destroy();
+    this.abilityTooltip = undefined;
   }
 
   /** Grey out the ability button after it's been used. */
   disableAbilityButton(): void {
+    clearTimeout(this._abilityLongPressTimer);
+    this._hideAbilityTooltip();
     if (this.abilityBtnBg) {
       this.abilityBtnBg.disableInteractive();
       this.abilityBtnBg.setFillStyle(PAL.bgPanelDark);
@@ -597,5 +687,11 @@ export class HUD extends Phaser.GameObjects.Container {
       hold:     1500,
       onComplete: () => warning.destroy(),
     });
+  }
+
+  destroy(fromScene?: boolean): void {
+    clearTimeout(this._abilityLongPressTimer);
+    this._hideAbilityTooltip();
+    super.destroy(fromScene);
   }
 }

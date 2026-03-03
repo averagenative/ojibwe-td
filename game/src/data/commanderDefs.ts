@@ -116,6 +116,8 @@ export interface AbilityContext {
 
 export interface AuraDef {
   name: string;
+  /** English translation of the Ojibwe aura name. */
+  nameEnglish: string;
   description: string;
   /** Called once at run start; mutates state to set persistent aura effects. */
   apply(state: CommanderRunState): void;
@@ -123,6 +125,8 @@ export interface AuraDef {
 
 export interface AbilityDef {
   name: string;
+  /** English translation of the Ojibwe ability name. */
+  nameEnglish: string;
   description: string;
   cooldown: 'once-per-run';
   uiIcon: string;
@@ -157,6 +161,7 @@ const NOKOMIS: CommanderDef = {
   portraitIcon: 'commander-nokomis',
   aura: {
     name: 'Gitigaan',
+    nameEnglish: 'Garden',
     description: 'All towers regenerate 1 life collectively per 40 creep kills.',
     apply(state) {
       state.healEveryNKills = 40;
@@ -164,6 +169,7 @@ const NOKOMIS: CommanderDef = {
   },
   ability: {
     name: 'Mashkiki Biindaakoojiigan',
+    nameEnglish: 'Medicine Bundle',
     description: 'Fully restore lives to their wave-start value.',
     cooldown: 'once-per-run',
     uiIcon: 'ability-medicine-bundle',
@@ -185,6 +191,7 @@ const BIZHIW: CommanderDef = {
   portraitIcon: 'commander-bizhiw',
   aura: {
     name: 'Bimaadiziwin',
+    nameEnglish: 'The Good Life',
     description: 'Rock Hurler and Frost tower attack speed +20%; projectile travel speed +25%.',
     apply(state) {
       state.attackSpeedMultByKey['rock-hurler'] = 0.80;
@@ -194,6 +201,7 @@ const BIZHIW: CommanderDef = {
   },
   ability: {
     name: 'Wiigiwaam Wiindamaagewin',
+    nameEnglish: "Scout's Eye",
     description: "Reveals the next wave's creep composition and count 15 seconds early.",
     cooldown: 'once-per-run',
     uiIcon: 'ability-scouts-eye',
@@ -221,6 +229,7 @@ const ANIMIKIIKAA: CommanderDef = {
   portraitIcon: 'commander-animikiikaa',
   aura: {
     name: 'Animiki-bimaadiziwin',
+    nameEnglish: 'Thunder Life',
     description: 'Tesla chain count +1 globally; chain jumps emit a 1-tile AoE on impact.',
     apply(state) {
       state.teslaChainBonus = 1;
@@ -229,6 +238,7 @@ const ANIMIKIIKAA: CommanderDef = {
   },
   ability: {
     name: 'Gichi-animikiikaa',
+    nameEnglish: 'Great Thunder',
     description: 'For 8 seconds all Tesla towers fire at 3x speed and chains ignore target limits.',
     cooldown: 'once-per-run',
     uiIcon: 'ability-great-thunder',
@@ -255,6 +265,7 @@ const MAKOONS: CommanderDef = {
   portraitIcon: 'commander-makoons',
   aura: {
     name: 'Makwa-zoongide\'e',
+    nameEnglish: 'Bear Courage',
     description: 'All tower base damage +12%; towers do not lose target on creep speed burst.',
     apply(state) {
       state.globalDamageMult = 1.12;
@@ -263,6 +274,7 @@ const MAKOONS: CommanderDef = {
   },
   ability: {
     name: 'Makwa-ojiins',
+    nameEnglish: "Bear's Charge",
     description: 'For 6 seconds all towers ignore armor and immunity flags.',
     cooldown: 'once-per-run',
     uiIcon: 'ability-bears-charge',
@@ -287,6 +299,7 @@ const OSHKAABEWIS: CommanderDef = {
   portraitIcon: 'commander-oshkaabewis',
   aura: {
     name: 'Bimosewin',
+    nameEnglish: 'The Walk',
     description: '+1 gold per creep kill; between-wave offer draws show 4 cards instead of 3.',
     apply(state) {
       state.killGoldBonus = 1;
@@ -295,6 +308,7 @@ const OSHKAABEWIS: CommanderDef = {
   },
   ability: {
     name: 'Giizhibaa-bimosewin',
+    nameEnglish: 'Swift Walk',
     description: 'Immediately receive gold equal to 30% of current wave\'s total creep kill gold.',
     cooldown: 'once-per-run',
     uiIcon: 'ability-swift-walk',
@@ -320,6 +334,7 @@ const WAABIZII: CommanderDef = {
   portraitIcon: 'commander-waabizii',
   aura: {
     name: "Zaagi'idiwin",
+    nameEnglish: 'Unconditional Love',
     description: 'Poison DoT kills have a 25% chance to heal 1 life; starting life count +2.',
     apply(state) {
       state.poisonKillHealChance = 0.25;
@@ -328,6 +343,7 @@ const WAABIZII: CommanderDef = {
   },
   ability: {
     name: 'Wiisagenimad',
+    nameEnglish: 'Tenderness',
     description: 'For the next wave, any creep that escapes costs 0 lives.',
     cooldown: 'once-per-run',
     uiIcon: 'ability-tenderness',
