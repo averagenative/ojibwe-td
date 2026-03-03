@@ -2366,6 +2366,15 @@ Non-blocking items surfaced during code review:
 - **AchievementsScene title text lacks `wordWrap`**: The title text in `_renderCategory()` (line 204) has no `wordWrap` property. Current achievement titles (max 22 chars) fit within the available ~362px at all font sizes, but future longer titles could overflow horizontally. Adding `wordWrap: { width: PANEL_W - ROW_PAD_X * 2 - 80 }` and `maxLines: 1` (matching the description pattern) would be defensive.
 - **ChallengeSelectScene description text lacks `maxLines`**: The challenge description text (line 333) has `wordWrap` but no `maxLines` cap. Current descriptions fit within 2 lines, but an uncapped description could push into the modifier text area. Adding `maxLines: 2` would prevent future regression.
 
+### TASK-114 — Dialog Character Portraits Quality Pass (non-blocking observations)
+- **`portraitIcon` field on `CommanderDef` is dead code**: Every commander defines `portraitIcon: 'commander-<id>'` but no runtime code reads this property. `CommanderSelectScene` and `CommanderPortrait` both construct the key as `` `portrait-${def.id}` `` directly. The field could be removed or updated to match the actual naming convention (`portrait-<id>`) to prevent confusion.
+- **No intro cutscene for Oshkaabewis**: All 5 other commanders have a `cutscene-commander-<id>` entry in `cutsceneDefs.ts` with portrait dialog, but Oshkaabewis has none. The portrait asset is now loaded and the codex entry has its iconKey, but players selecting Oshkaabewis won't see an intro cutscene.
+- **`generate_portraits.py` script in `game/scripts/`**: An untracked Python script was left behind from portrait generation. Consider adding it to `.gitignore` or moving it to the repo-level `scripts/` directory to keep the game directory clean.
+
+### TASK-115 review observations (2026-03-03)
+- **VignetteOverlay skip button bypasses hold-to-skip delay for first-time vignettes**: The "Skip ▶" button calls `dismiss()` directly, skipping the 1.5s `HOLD_SKIP_MS` delay that `handleClick()` enforces for never-before-seen vignettes. This is intentional per the task spec ("immediately closes the dialog"), but may warrant a brief confirmation prompt if playtesting reveals players accidentally skipping important story beats.
+- **CutsceneScene and VignetteOverlay skip buttons have inconsistent styling**: CutsceneScene uses "SKIP" (bold, top-right, 80×32/90×44), VignetteOverlay uses "Skip ▶" (normal weight, bottom-right, 70×28/80×44). Consider unifying label text, position, and styling across both overlay types for visual consistency.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

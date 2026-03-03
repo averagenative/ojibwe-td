@@ -2,7 +2,7 @@
 id: TASK-114
 title: Dialog Character Portraits — Quality Pass & Missing Assets
 priority: high
-status: pending
+status: done
 type: asset
 creative: true
 ---
