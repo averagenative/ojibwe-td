@@ -2,7 +2,7 @@
 id: TASK-129
 title: Rush During Boss Wave May Break Completion Bonus or Loot
 priority: critical
-status: in-progress
+status: done
 type: bug
 ---
 

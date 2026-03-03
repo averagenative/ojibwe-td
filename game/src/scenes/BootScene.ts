@@ -115,8 +115,16 @@ export class BootScene extends Phaser.Scene {
       this.add.image(cx, logoY, 'logo').setScale(logoScale);
     }
 
-    // Subtitle below logo
-    this.add.text(cx, logoY + 125, 'A Tower Defense Game', {
+    // Title text below logo
+    this.add.text(cx, logoY + 115, 'Ojibwe TD', {
+      fontSize: '32px',
+      color: PAL.textPrimary,
+      fontFamily: PAL.fontTitle,
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    // Subtitle below title
+    this.add.text(cx, logoY + 145, 'A Tower Defense Game', {
       fontSize: '14px',
       color: PAL.textDim,
       fontFamily: PAL.fontBody,
@@ -125,7 +133,7 @@ export class BootScene extends Phaser.Scene {
     // PLAY button — below the subtitle
     const btnW = 180;
     const btnH = 50;
-    const btnY = logoY + 175;
+    const btnY = logoY + 200;
 
     const btnBg = this.add.rectangle(cx, btnY, btnW, btnH, PAL.bgStartBtn)
       .setStrokeStyle(2, PAL.borderActive)
