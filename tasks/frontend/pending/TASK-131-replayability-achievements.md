@@ -2,7 +2,7 @@
 id: TASK-131
 title: Replayability Achievements — Lifetime Stats & Milestones
 priority: medium
-status: pending
+status: in-progress
 type: feature
 ---
 

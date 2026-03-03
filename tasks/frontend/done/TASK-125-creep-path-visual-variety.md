@@ -2,7 +2,7 @@
 id: TASK-125
 title: Creep Path Visual Variety — Less Monotonous Pathing
 priority: medium
-status: pending
+status: done
 type: feature
 creative: true
 ---
