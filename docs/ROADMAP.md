@@ -2057,6 +2057,19 @@ Non-blocking items surfaced during code review:
   This creates drift risk (fixed once in this review: 160 → 176). Consider extracting
   layout constants into a Phaser-free module that both UI code and tests can import.
 
+### TASK-109 — Aura & Upgrade Impact Audit (non-blocking)
+
+- **`buildStatsLine` covers only 5 tower keys + default**: If new tower types are added,
+  `statsLine.ts` needs a new `case` branch or they'll fall through to the generic
+  `DMG / RNG / atk` default. Consider a data-driven approach where each tower def
+  declares its own stats-line template to avoid forgetting to update the switch.
+
+- **Aura `computeAuraBuffs` logic duplicated between test and `GameScene`**: The audit
+  test file (`auraUpgradeAudit.test.ts`) re-implements the aura application algorithm in
+  `computeAuraBuffs()` to test in isolation. If the algorithm in `GameScene.updateAuras()`
+  changes, the test helper must be updated manually. Consider extracting the core aura math
+  into a Phaser-free module that both `GameScene` and tests import.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)

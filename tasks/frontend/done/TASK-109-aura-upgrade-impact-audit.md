@@ -2,7 +2,7 @@
 id: TASK-109
 title: Aura & Upgrade Impact Audit — Verify All Upgrades Have Noticeable Effect
 priority: high
-status: pending
+status: done
 type: balance
 ---
 
