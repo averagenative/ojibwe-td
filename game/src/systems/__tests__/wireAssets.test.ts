@@ -68,7 +68,7 @@ describe('CREEP_SPRITE_KEYS', () => {
 
 describe('portrait texture key format', () => {
   // Commander IDs from commanderDefs.ts
-  const COMMANDER_IDS = ['nokomis', 'bizhiw', 'animikiikaa', 'makoons', 'waabizii'];
+  const COMMANDER_IDS = ['nokomis', 'bizhiw', 'animikiikaa', 'makoons', 'oshkaabewis', 'waabizii'];
 
   // Portrait assets that exist on disk
   const PORTRAIT_ASSETS = [
@@ -77,6 +77,7 @@ describe('portrait texture key format', () => {
     'portrait-waabizii',
     'portrait-bizhiw',
     'portrait-animikiikaa',
+    'portrait-oshkaabewis',
   ];
 
   it('portrait-${id} format produces keys matching loaded assets', () => {
@@ -372,7 +373,7 @@ describe('BootScene expected texture keys', () => {
     'gear-venom-gland', 'gear-spirit-totem', 'gear-arrow-fletching', 'gear-universal-charm',
     // Commander portraits
     'portrait-nokomis', 'portrait-makoons', 'portrait-waabizii',
-    'portrait-bizhiw', 'portrait-animikiikaa',
+    'portrait-bizhiw', 'portrait-animikiikaa', 'portrait-oshkaabewis',
     // Elder portraits — narrative speakers in vignettes (3 elders × 2 expressions each)
     'elder-mishoomis', 'elder-mishoomis-proud',
     'elder-nokomis', 'elder-nokomis-teaching',
@@ -389,8 +390,8 @@ describe('BootScene expected texture keys', () => {
     'logo',
   ];
 
-  it('expects 45 total texture keys (logo + 8 tower icons + 8 gear icons + 5 commander portraits + 6 elder portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
-    expect(EXPECTED_KEYS).toHaveLength(45);
+  it('expects 46 total texture keys (logo + 8 tower icons + 8 gear icons + 6 commander portraits + 6 elder portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
+    expect(EXPECTED_KEYS).toHaveLength(46);
   });
 
   it('all keys are unique', () => {

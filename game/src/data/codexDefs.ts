@@ -274,6 +274,7 @@ const COMMANDERS: CodexEntryDef[] = [
     section:   CodexSection.COMMANDERS,
     title:     'Oshkaabewis — The Messenger',
     tileColor: 0xaaaa44,
+    iconKey:   'portrait-oshkaabewis',
     lines: [
       'Oshkaabewis of the Loon Clan carries the deer totem.',
       'The messenger runs between worlds,',
