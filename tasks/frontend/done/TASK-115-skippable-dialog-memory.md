@@ -2,7 +2,7 @@
 id: TASK-115
 title: Skippable Mishoomis Dialog & Story Memory on Resume
 priority: high
-status: in-progress
+status: done
 type: feature
 creative: true
 ---
