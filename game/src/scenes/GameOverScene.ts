@@ -10,6 +10,7 @@ import { MobileManager } from '../systems/MobileManager';
 import { AudioManager } from '../systems/AudioManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { AchievementToast } from '../ui/AchievementToast';
+import { ASCENSION_DEFS } from '../data/ascensionDefs';
 
 interface GameOverData {
   wavesCompleted: number;
@@ -27,9 +28,13 @@ interface GameOverData {
   /** Maximum lives the run started with (used for moon rating). */
   maxLives?:      number;
   /** True when the run was a challenge map. */
-  isChallenge?:   boolean;
+  isChallenge?:       boolean;
   /** Number of bosses killed in this run. */
-  bossesKilled?:  number;
+  bossesKilled?:      number;
+  /** Ascension level the run was played at (0 = standard). */
+  ascensionLevel?:    number;
+  /** True when this victory first unlocks the next ascension level. */
+  ascensionNewUnlock?: boolean;
 }
 
 export class GameOverScene extends Phaser.Scene {
@@ -78,7 +83,9 @@ export class GameOverScene extends Phaser.Scene {
     const livesLeft   = data?.livesLeft     ?? 0;
     const maxLives    = data?.maxLives      ?? 20;
     const isChallenge = data?.isChallenge   ?? false;
-    const bossesKilled = data?.bossesKilled ?? 0;
+    const bossesKilled      = data?.bossesKilled      ?? 0;
+    const ascensionLevel    = data?.ascensionLevel    ?? 0;
+    const ascensionNewUnlock = data?.ascensionNewUnlock ?? false;
 
     // Persist run currency to meta-progression save.
     if (currency > 0) {
@@ -240,8 +247,38 @@ export class GameOverScene extends Phaser.Scene {
       moonSectionBottom = cy + 16;
     }
 
+    // ── Ascension unlock banner (won ascension runs only) ─────────────────────
+    let bannerBottom = moonSectionBottom;
+    if (won && ascensionLevel > 0) {
+      const ascDef = ASCENSION_DEFS[ascensionLevel - 1];
+      bannerBottom += 18;
+      this.add.text(cx, bannerBottom, `Ascension ${ascensionLevel} Complete — ${ascDef.name}`, {
+        fontSize: this._fs(15),
+        color: '#ff9944',
+        fontFamily: PAL.fontBody,
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+      bannerBottom += 18;
+      if (ascensionNewUnlock && ascensionLevel < ASCENSION_DEFS.length) {
+        const nextDef = ASCENSION_DEFS[ascensionLevel]; // index = level (0-based for next)
+        this.add.text(cx, bannerBottom, `Ascension ${ascensionLevel + 1} Unlocked: ${nextDef.name}`, {
+          fontSize: this._fs(12),
+          color: '#ffcc88',
+          fontFamily: PAL.fontBody,
+          fontStyle: 'bold',
+        }).setOrigin(0.5);
+        bannerBottom += 16;
+        this.add.text(cx, bannerBottom, nextDef.description, {
+          fontSize: this._fs(11),
+          color: '#887766',
+          fontFamily: PAL.fontBody,
+        }).setOrigin(0.5);
+        bannerBottom += 16;
+      }
+    }
+
     // ── Loot display ──────────────────────────────────────────────────────────
-    const lootY = moonSectionBottom + 18;
+    const lootY = bannerBottom + 18;
     if (lootDrops.length > 0) {
       this.add.text(cx, lootY, 'LOOT DROPS', {
         fontSize: this._fs(16),

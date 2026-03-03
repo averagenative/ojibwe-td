@@ -84,6 +84,10 @@ export class Tower extends Phaser.GameObjects.Container {
   private bloodlustMult  = 1.0;
   private bloodlustTimer?: Phaser.Time.TimerEvent;
 
+  // Ascension disable (levels 6 and 9): tower is silenced and visually greyed.
+  private _ascensionDisabled  = false;
+  private _ascensionDisableTimer?: Phaser.Time.TimerEvent;
+
   // Reference to the run's OfferManager — undefined in unit tests and pre-offer runs.
   private offerManager?: OfferManager;
 
@@ -190,6 +194,12 @@ export class Tower extends Phaser.GameObjects.Container {
       return;
     }
 
+    // Ascension disable — tower cannot attack while silenced.
+    if (this._ascensionDisabled) {
+      this._stepIdleAnim(delta);
+      return;
+    }
+
     this.attackElapsed += delta;
     // Blitz Protocol: permanent +15% faster attack (mult = 0.85).
     const blitzMult = this.offerManager?.getBlitzProtocolAttackSpeedMult() ?? 1.0;
@@ -285,6 +295,38 @@ export class Tower extends Phaser.GameObjects.Container {
     });
   }
 
+  /**
+   * Disable (silence) this tower for `durationMs` milliseconds.
+   * Used by the Ascension 6 and Ascension 9 modifiers.
+   * The tower is tweened to low alpha and cannot fire until restored.
+   * Calling while already disabled simply extends/resets the timer.
+   */
+  disableForAscension(durationMs: number): void {
+    this._ascensionDisabled = true;
+    this._ascensionDisableTimer?.destroy();
+
+    // Visual: tween alpha to a grey-out value.
+    this.scene.tweens.add({
+      targets:  this,
+      alpha:    0.35,
+      duration: 200,
+      ease:     'Linear',
+    });
+
+    this._ascensionDisableTimer = this.scene.time.addEvent({
+      delay:    durationMs,
+      callback: () => {
+        this._ascensionDisabled = false;
+        this.scene.tweens.add({
+          targets:  this,
+          alpha:    1,
+          duration: 300,
+          ease:     'Linear',
+        });
+      },
+    });
+  }
+
   setRangeVisible(visible: boolean): void {
     this.rangeVisible = visible;
     this.rangeGfx.setVisible(visible);
@@ -318,6 +360,7 @@ export class Tower extends Phaser.GameObjects.Container {
     this.auraPulseGfx?.destroy();
     this.debuffTimer?.destroy();
     this.bloodlustTimer?.destroy();
+    this._ascensionDisableTimer?.destroy();
     // Clean up animation resources to prevent orphaned tweens / graphics.
     this._fireAnimTween?.stop();
     this._fireAnimTween = undefined;

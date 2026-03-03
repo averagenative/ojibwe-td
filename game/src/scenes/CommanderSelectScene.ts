@@ -10,6 +10,7 @@ import {
 import type { CommanderAnimDef, CommanderElement } from '../data/commanderAnimDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { getCommanderUnlockNode } from '../meta/unlockDefs';
+import { ASCENSION_DEFS } from '../data/ascensionDefs';
 import { MobileManager } from '../systems/MobileManager';
 import { getStageDef, getRegionDef, SEASON_PALETTE } from '../data/stageDefs';
 import { getCommanderIntroCutsceneId, getCutsceneDef } from '../data/cutsceneDefs';
@@ -88,6 +89,12 @@ export class CommanderSelectScene extends Phaser.Scene {
   private selectedStageId: string | undefined;
   /** Endless mode flag — passed from MainMenuScene, forwarded to GameScene. */
   private isEndless       = false;
+  /** Selected ascension level for this run (0 = standard, max = player's highest cleared + 1). */
+  private _selectedAscension = 0;
+  /** UI: level number display text for the ascension picker. */
+  private _ascLevelText?: Phaser.GameObjects.Text;
+  /** UI: modifier preview text for the ascension picker. */
+  private _ascDescText?: Phaser.GameObjects.Text;
   private cardBgs: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private confirmBtn!:   Phaser.GameObjects.Rectangle;
   private confirmLabel!: Phaser.GameObjects.Text;
@@ -197,10 +204,11 @@ export class CommanderSelectScene extends Phaser.Scene {
     });
     this.confirmBtn.on('pointerup', () => {
       const gameData = {
-        commanderId: this.selectedId,
-        stageId:     this.selectedStageId,
-        mapId:       this.selectedMapId,
-        isEndless:   this.isEndless,
+        commanderId:    this.selectedId,
+        stageId:        this.selectedStageId,
+        mapId:          this.selectedMapId,
+        isEndless:      this.isEndless,
+        ascensionLevel: this._selectedAscension,
       };
 
       // Commander intro cutscene — plays once per commander.
@@ -237,6 +245,91 @@ export class CommanderSelectScene extends Phaser.Scene {
     backBg.on('pointerover', () => backLabel.setColor('#cccccc'));
     backBg.on('pointerout', () => backLabel.setColor('#888888'));
     backBg.on('pointerup', () => this._go('MainMenuScene'));
+
+    // ── Ascension picker ─────────────────────────────────────────────────────
+    // Only shown once the campaign has been cleared at least once.
+    const ascSave = SaveManager.getInstance();
+    const maxAvailable = ascSave.getMaxAvailableAscension();
+    this._selectedAscension = Math.min(ascSave.getCurrentAscension(), maxAvailable);
+
+    if (maxAvailable >= 1) {
+      const pickerY = btnY - 76;
+
+      // Background row
+      this.add.rectangle(cx, pickerY, 480, 50, 0x110a00)
+        .setStrokeStyle(1, 0x553300)
+        .setDepth(DEPTH_BASE);
+
+      // Level/name text (upper line, updated on change)
+      this._ascLevelText = this.add.text(cx, pickerY - 6, '', {
+        fontSize: this._fs(13),
+        color: '#ffaa44',
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+      }).setOrigin(0.5, 1).setDepth(DEPTH_BASE + 1);
+
+      // Modifier description text (lower line, updated on change)
+      this._ascDescText = this.add.text(cx, pickerY + 8, '', {
+        fontSize: this._fs(11),
+        color: '#887766',
+        fontFamily: 'monospace',
+      }).setOrigin(0.5, 0).setDepth(DEPTH_BASE + 1);
+
+      // Left arrow button
+      const leftBg = this.add.rectangle(cx - 204, pickerY, 28, 28, 0x221100)
+        .setStrokeStyle(1, 0x553300)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(DEPTH_BASE + 1);
+      const leftLabel = this.add.text(cx - 204, pickerY, '◀', {
+        fontSize: this._fs(13),
+        color: '#886644',
+        fontFamily: 'monospace',
+      }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
+
+      // Right arrow button
+      const rightBg = this.add.rectangle(cx + 204, pickerY, 28, 28, 0x221100)
+        .setStrokeStyle(1, 0x553300)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(DEPTH_BASE + 1);
+      const rightLabel = this.add.text(cx + 204, pickerY, '▶', {
+        fontSize: this._fs(13),
+        color: '#886644',
+        fontFamily: 'monospace',
+      }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
+
+      const refreshPickerUI = (): void => {
+        if (this._selectedAscension === 0) {
+          this._ascLevelText!.setText('Standard Run');
+          this._ascLevelText!.setColor('#888888');
+          this._ascDescText!.setText('No ascension modifiers active.');
+        } else {
+          const def = ASCENSION_DEFS[this._selectedAscension - 1];
+          this._ascLevelText!.setText(`ASCENSION ${this._selectedAscension}: ${def.name}`);
+          this._ascLevelText!.setColor('#ffaa44');
+          this._ascDescText!.setText(def.description);
+        }
+        leftBg.setAlpha(this._selectedAscension <= 0 ? 0.3 : 1);
+        leftLabel.setAlpha(this._selectedAscension <= 0 ? 0.3 : 1);
+        rightBg.setAlpha(this._selectedAscension >= maxAvailable ? 0.3 : 1);
+        rightLabel.setAlpha(this._selectedAscension >= maxAvailable ? 0.3 : 1);
+      };
+
+      refreshPickerUI();
+
+      leftBg.on('pointerup', () => {
+        if (this._selectedAscension <= 0) return;
+        this._selectedAscension--;
+        SaveManager.getInstance().setCurrentAscension(this._selectedAscension);
+        refreshPickerUI();
+      });
+
+      rightBg.on('pointerup', () => {
+        if (this._selectedAscension >= maxAvailable) return;
+        this._selectedAscension++;
+        SaveManager.getInstance().setCurrentAscension(this._selectedAscension);
+        refreshPickerUI();
+      });
+    }
 
     // Select default
     this.highlightCard(this.selectedId);
