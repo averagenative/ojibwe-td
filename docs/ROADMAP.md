@@ -2359,6 +2359,13 @@ Non-blocking items surfaced during code review:
 - **Boss waves and ascension modifiers**: Boss creeps receive HP/speed ascension multipliers but not the regen modifier (level 4). This is likely intentional (boss regen is independently defined in bossDefs) but worth confirming.
 - **GameSceneShutdown.test.ts event list**: The existing shutdown event cleanup test (`GAME_EVENTS` array) does not include the two new ascension events (`ascension-lightning-strike`, `ascension-lightning-warning`). These are cleaned up correctly in `shutdown()` but the test doesn't cover them since they're conditionally registered.
 
+### TASK-116 — Frost Projectile Bubble Bug (non-blocking observations)
+- **`splashVisual()` has the same Graphics-origin bug**: `Projectile.ts:splashVisual()` creates a `Graphics` at `(0, 0)` and draws `strokeCircle(cx, cy, 8)`, then applies a `scaleX/scaleY: 1.3` tween. The ring center drifts by `0.3 × (cx, cy)` pixels from the impact point during the scale-up — same root cause as the frost bug but smaller magnitude (1.3× vs 3.5×). Fix by positioning the Graphics at `{ x: cx, y: cy }` and drawing at `(0, 0, 8)`, matching the frost fix pattern. Affects Rock Hurler AoE splash only.
+
+### TASK-113 — Achievements & Challenges Box Text Overflow (non-blocking observations)
+- **AchievementsScene title text lacks `wordWrap`**: The title text in `_renderCategory()` (line 204) has no `wordWrap` property. Current achievement titles (max 22 chars) fit within the available ~362px at all font sizes, but future longer titles could overflow horizontally. Adding `wordWrap: { width: PANEL_W - ROW_PAD_X * 2 - 80 }` and `maxLines: 1` (matching the description pattern) would be defensive.
+- **ChallengeSelectScene description text lacks `maxLines`**: The challenge description text (line 333) has `wordWrap` but no `maxLines` cap. Current descriptions fit within 2 lines, but an uncapped description could push into the modifier text area. Adding `maxLines: 2` would prevent future regression.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

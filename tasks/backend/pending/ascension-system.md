@@ -1,7 +1,7 @@
 ---
 id: TASK-034
 title: Ascension System
-status: in-progress
+status: pending
 category: backend
 phase: 14
 openspec_ref: ""

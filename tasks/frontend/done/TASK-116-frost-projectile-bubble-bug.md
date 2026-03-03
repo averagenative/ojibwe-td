@@ -2,7 +2,7 @@
 id: TASK-116
 title: Frost Tower Projectile Bug — Stray Bubble Flies Across Screen
 priority: critical
-status: pending
+status: done
 type: bug
 ---
 
