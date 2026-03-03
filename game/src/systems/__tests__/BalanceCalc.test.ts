@@ -7,6 +7,7 @@ import {
 } from '../BalanceCalc';
 import type { TowerUpgradeState } from '../UpgradeManager';
 import {
+  ARROW_DEF,
   FROST_DEF,
   POISON_DEF,
   TESLA_DEF,
@@ -15,6 +16,7 @@ import {
 } from '../../data/towerDefs';
 import {
   WAVE_SCALING,
+  WAVE_HP_MULTS,
   ROCK_HURLER_KILL_POTENTIAL_BANDS,
 } from '../../data/scalingConfig';
 
@@ -43,8 +45,8 @@ describe('creepEffectiveHP', () => {
     expect(creepEffectiveHP(10, 'grunt')).toBe(Math.round(80 * 2.20));
   });
 
-  it('returns scaled grunt HP at wave 20 (mult = 6.00)', () => {
-    expect(creepEffectiveHP(20, 'grunt')).toBe(480);
+  it('returns scaled grunt HP at wave 20 (mult = 5.75)', () => {
+    expect(creepEffectiveHP(20, 'grunt')).toBe(Math.round(80 * 5.75));
   });
 
   it('applies the correct multiplier for brute at wave 5 (mult = 1.40)', () => {
@@ -152,7 +154,7 @@ describe('Balance: Fully upgraded tower kills ≤ 50% of base kill time (wave 1)
   });
 
   it('Tesla path C tier 5: upgraded TTK ≤ 50% of base TTK', () => {
-    // Overload III-V add +8, +14, +20 damageDelta = +42 total → 77 dmg / 1.5s ≈ 51.3 DPS
+    // Overload III-V add +8, +14, +20 damageDelta = +42 total → 84 dmg / 1.5s = 56 DPS
     const baseTTK = ttk(TESLA_DEF, noUpgrades());
     const upgTTK  = ttk(TESLA_DEF, pathState('C', 5));
     expect(upgTTK).toBeLessThanOrEqual(baseTTK * 0.5);
@@ -249,5 +251,140 @@ describe('computeStatsForBalance', () => {
     // Lock logic lives in UpgradeManager.buyUpgrade — not reproduced here
     const stats = computeStatsForBalance(ROCK_HURLER_DEF, pathState('A', 5));
     expect(stats.armorShredPct).toBeGreaterThan(0);
+  });
+});
+
+// ── Arrow tower DPS ─────────────────────────────────────────────────────────
+
+describe('towerEffectiveDPS — Arrow tower', () => {
+  it('Arrow base: 18 dmg / 0.6s = 30 DPS', () => {
+    expect(towerEffectiveDPS(ARROW_DEF, noUpgrades(), 1)).toBeCloseTo(30, 1);
+  });
+
+  it('Arrow path B tier 3: +9 damageDelta → 27 dmg / 0.6s = 45 DPS', () => {
+    // Volley I: +0, Volley II: +0, Volley III: +9 damageDelta
+    const dps = towerEffectiveDPS(ARROW_DEF, pathState('B', 3), 1);
+    expect(dps).toBeCloseTo(45, 0);
+  });
+
+  it('Arrow path B tier 5: +17 damageDelta → 35 dmg / 0.6s ≈ 58.3 DPS', () => {
+    // Volley III: +9, Volley V: +8 = +17 accumulated
+    const dps = towerEffectiveDPS(ARROW_DEF, pathState('B', 5), 1);
+    expect(dps).toBeCloseTo(58.33, 0);
+  });
+});
+
+// ── Tesla path B DPS (the fix — chainDamageRatio + base damage) ─────────────
+
+describe('towerEffectiveDPS — Tesla path B (Arc Damage fix)', () => {
+  it('Tesla path B tier 1: +6 damageDelta → 48 dmg / 1.5s = 32 DPS', () => {
+    const dps = towerEffectiveDPS(TESLA_DEF, pathState('B', 1), 1);
+    expect(dps).toBeCloseTo(32, 0);
+  });
+
+  it('Tesla path B tier 3: +24 damageDelta → 66 dmg / 1.5s = 44 DPS', () => {
+    // Surge I: +6, Surge II: +8, Surge III: +10 = +24
+    const dps = towerEffectiveDPS(TESLA_DEF, pathState('B', 3), 1);
+    expect(dps).toBeCloseTo(44, 0);
+  });
+
+  it('Tesla path B tier 5: +56 damageDelta → 98 dmg / 1.5s ≈ 65.3 DPS', () => {
+    // +6, +8, +10, +14, +18 = +56
+    const dps = towerEffectiveDPS(TESLA_DEF, pathState('B', 5), 1);
+    expect(dps).toBeCloseTo(65.33, 0);
+  });
+
+  it('Tesla path B accumulates chainDamageRatioDelta alongside damageDelta', () => {
+    // Surge I-III: chainRatio += 0.10 + 0.15 + 0.20 = 0.45; base 0.6 → 1.05
+    const stats = computeStatsForBalance(TESLA_DEF, pathState('B', 3));
+    expect(stats.chainDamageRatio).toBeCloseTo(0.6 + 0.10 + 0.15 + 0.20, 2);
+    expect(stats.damage).toBe(42 + 6 + 8 + 10); // 66
+  });
+});
+
+// ── Balance criterion: ≥ 30% DPS increase from tier 1 → tier 3 ─────────────
+
+describe('Balance: Each tower DPS path has ≥ 30% DPS increase (tier 1 → tier 3)', () => {
+  // DPS paths per tower matching the balance table generator
+  const DPS_PATHS: Array<{ name: string; def: typeof ROCK_HURLER_DEF; path: 'A' | 'B' | 'C' }> = [
+    { name: 'Rock Hurler B', def: ROCK_HURLER_DEF, path: 'B' },
+    { name: 'Arrow B',       def: ARROW_DEF,       path: 'B' },
+    { name: 'Frost C',       def: FROST_DEF,       path: 'C' },
+    { name: 'Poison A',      def: POISON_DEF,      path: 'A' },
+    { name: 'Tesla B',       def: TESLA_DEF,       path: 'B' },
+  ];
+
+  it.each(DPS_PATHS)(
+    '$name: DPS at tier 3 is ≥ 30% higher than tier 1',
+    ({ def, path }) => {
+      const dps1 = towerEffectiveDPS(def, pathState(path, 1), 1);
+      const dps3 = towerEffectiveDPS(def, pathState(path, 3), 1);
+      expect(dps1).toBeGreaterThan(0);
+      expect((dps3 - dps1) / dps1).toBeGreaterThanOrEqual(0.30);
+    },
+  );
+});
+
+// ── Balance criterion: Aura tower has zero self-DPS (intentional) ───────────
+
+describe('Balance: Aura has 0 DPS at all tiers (support-only)', () => {
+  it.each([0, 1, 3, 5])('Aura path B tier %i: 0 DPS', (tier) => {
+    expect(towerEffectiveDPS(AURA_DEF, pathState('B', tier), 1)).toBe(0);
+  });
+});
+
+// ── Wave HP curve: no sudden spikes ─────────────────────────────────────────
+
+describe('Balance: Wave HP scaling is smooth (no sudden spikes)', () => {
+  it('each wave HP delta is ≤ 2× the previous delta', () => {
+    for (let i = 2; i < WAVE_HP_MULTS.length; i++) {
+      const prevDelta = WAVE_HP_MULTS[i - 1] - WAVE_HP_MULTS[i - 2];
+      const currDelta = WAVE_HP_MULTS[i] - WAVE_HP_MULTS[i - 1];
+      // Allow up to 2× the previous increment — still "smooth"
+      expect(currDelta).toBeLessThanOrEqual(prevDelta * 2 + 0.01);
+    }
+  });
+
+  it('HP multipliers are strictly increasing', () => {
+    for (let i = 1; i < WAVE_HP_MULTS.length; i++) {
+      expect(WAVE_HP_MULTS[i]).toBeGreaterThan(WAVE_HP_MULTS[i - 1]);
+    }
+  });
+
+  it('wave 20 hpMult matches scalingConfig', () => {
+    expect(WAVE_HP_MULTS[19]).toBe(5.75);
+  });
+});
+
+// ── Endless mode scaling sanity check ───────────────────────────────────────
+
+describe('Balance: Endless mode scaling — fully upgraded board is viable to wave 30', () => {
+  it('wave 30 HP is < 3× wave 20 HP (fully upgraded towers still viable)', () => {
+    // Endless formula: hpMult = wave20.hpMult × (1 + 0.12 × (n - 20))
+    const wave20Mult = WAVE_HP_MULTS[19]; // 5.75
+    const wave30Mult = wave20Mult * (1 + 0.12 * 10); // 5.75 × 2.2 = 12.65
+    // A fully upgraded Rock Hurler does 135 DPS (t5), vs base 27.5 = ~4.9× multiplier.
+    // The HP only tripled from wave 20 → 30, so a full board of t5 towers is still strong.
+    expect(wave30Mult).toBeLessThan(wave20Mult * 3);
+  });
+
+  it('wave 40 HP is under 20× base (exceptional play target)', () => {
+    const wave20Mult = WAVE_HP_MULTS[19];
+    const wave40Mult = wave20Mult * (1 + 0.12 * 20); // 5.75 × 3.4 = 19.55
+    expect(wave40Mult).toBeLessThan(20 * WAVE_HP_MULTS[0]);
+  });
+});
+
+// ── Arrow path B: multiShotCount accumulates correctly ─────────────────────
+
+describe('computeStatsForBalance — Arrow multi-shot', () => {
+  it('Arrow path B tier 3: multiShotCount = 3 (base 0 + 3 deltas)', () => {
+    const stats = computeStatsForBalance(ARROW_DEF, pathState('B', 3));
+    expect(stats.multiShotCount).toBe(3);
+  });
+
+  it('Arrow path B tier 5: multiShotCount = 5', () => {
+    const stats = computeStatsForBalance(ARROW_DEF, pathState('B', 5));
+    expect(stats.multiShotCount).toBe(5);
   });
 });

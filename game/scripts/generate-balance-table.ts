@@ -25,12 +25,12 @@ import type { TowerUpgradeState } from '../src/systems/UpgradeManager';
  * Tier 0-5 on this path are used as the column set in the table.
  */
 const DPS_PATH: Record<string, 'A' | 'B' | 'C'> = {
-  cannon: 'B',   // Execute + raw damage bonuses
-  frost:  'C',   // Shatter + direct damage bonuses
-  mortar: 'B',   // Raw damage bonuses
-  poison: 'A',   // DoT damage bonus per tick
-  tesla:  'B',   // Chain damage ratio (best measurable single-path improvement)
-  aura:   'B',   // Damage aura (buffs others, no self-DPS)
+  'rock-hurler': 'B',  // Impact Payload — direct damage bonuses
+  arrow:         'B',  // Multi-Shot — multi-target + damage bonuses at T3/T5
+  frost:         'C',  // Shatter + direct damage bonuses
+  poison:        'A',  // DoT damage bonus per tick
+  tesla:         'B',  // Arc Damage — chain ratio + base damage
+  aura:          'B',  // Damage aura (buffs others, no self-DPS)
 };
 
 const MAX_WAVE  = 20;
