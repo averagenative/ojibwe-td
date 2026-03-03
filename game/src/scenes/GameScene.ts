@@ -220,6 +220,8 @@ export class GameScene extends Phaser.Scene {
   private _totalKills = 0;
   /** Gold earned from kills/waves/bosses this run — serialised to auto-save. */
   private _goldEarned = 0;
+  /** Cutscene + vignette IDs shown this run — persisted to auto-save so they don't replay on resume. */
+  private _seenDialogIds: Set<string> = new Set();
   /**
    * Reroll tokens remaining this run (consumed from pending consumables at run
    * start). Each token lets the player reroll their between-wave offer cards once.
@@ -335,6 +337,7 @@ export class GameScene extends Phaser.Scene {
     this.decoVisible            = true;
     this._totalKills         = 0;
     this._goldEarned         = 0;
+    this._seenDialogIds      = new Set();
     this._rerollTokens       = 0;
     this._webglOverlay       = null;
     this._achTowersBuiltRun    = 0;
@@ -996,10 +999,11 @@ export class GameScene extends Phaser.Scene {
       const save = SaveManager.getInstance();
 
       // 1. Intro cutscene (game's first launch).
-      if (!save.hasSeenCutscene('cutscene-intro')) {
+      if (!save.hasSeenCutscene('cutscene-intro') && !this._seenDialogIds.has('cutscene-intro')) {
         const introDef = getCutsceneDef('cutscene-intro');
         if (introDef) {
           save.markCutsceneSeen(introDef.id);
+          this._seenDialogIds.add(introDef.id);
           this.scene.launch('CutsceneScene', { cutscene: introDef });
           return;
         }
@@ -1009,10 +1013,11 @@ export class GameScene extends Phaser.Scene {
       const regionId = this.activeStageDef?.regionId;
       if (regionId) {
         const regionCutsceneId = getRegionIntroCutsceneId(regionId);
-        if (regionCutsceneId && !save.hasSeenCutscene(regionCutsceneId)) {
+        if (regionCutsceneId && !save.hasSeenCutscene(regionCutsceneId) && !this._seenDialogIds.has(regionCutsceneId)) {
           const regionDef = getCutsceneDef(regionCutsceneId);
           if (regionDef) {
             save.markCutsceneSeen(regionDef.id);
+            this._seenDialogIds.add(regionDef.id);
             this.scene.launch('CutsceneScene', { cutscene: regionDef });
             return;
           }
@@ -1020,7 +1025,8 @@ export class GameScene extends Phaser.Scene {
       }
 
       // 3. Fallback: FIRST_PLAY vignette (existing system).
-      if (firstPlayResult) {
+      if (firstPlayResult && !this._seenDialogIds.has(firstPlayResult.vignette.id)) {
+        this._seenDialogIds.add(firstPlayResult.vignette.id);
         this.vignetteOverlay.show(firstPlayResult.vignette, firstPlayResult.seenBefore, () => {
           // Vignette dismissed — no further action needed.
         });
@@ -1939,10 +1945,11 @@ export class GameScene extends Phaser.Scene {
     const waveInfo = this.waveManager.getWaveAnnouncementInfo(nextWaveNum);
     if (waveInfo?.isBoss && waveInfo.bossKey) {
       const cutsceneId = getPreBossCutsceneId(waveInfo.bossKey);
-      if (cutsceneId && !SaveManager.getInstance().hasSeenCutscene(cutsceneId)) {
+      if (cutsceneId && !SaveManager.getInstance().hasSeenCutscene(cutsceneId) && !this._seenDialogIds.has(cutsceneId)) {
         const cutsceneDef = getCutsceneDef(cutsceneId);
         if (cutsceneDef) {
           SaveManager.getInstance().markCutsceneSeen(cutsceneId);
+          this._seenDialogIds.add(cutsceneId);
           this.scene.launch('CutsceneScene', {
             cutscene: cutsceneDef,
             onComplete: () => this._doStartWave(),
@@ -2096,6 +2103,7 @@ export class GameScene extends Phaser.Scene {
         this._commitRunAchievements(true);
         const stageVignette = this.vignetteManager.check(TriggerType.STAGE_COMPLETE);
         if (stageVignette) {
+          this._seenDialogIds.add(stageVignette.vignette.id);
           AudioManager.getInstance().playVictory();
           this.hud.getCommanderPortrait()?.reactVictory();
           this.gameState = 'between';
@@ -2220,10 +2228,11 @@ export class GameScene extends Phaser.Scene {
     // 1b. Post-boss victory cutscene (after boss loot panel).
     if (this.pendingBossKillKey) {
       const postBossCutsceneId = getPostBossCutsceneId(this.pendingBossKillKey);
-      if (postBossCutsceneId && !SaveManager.getInstance().hasSeenCutscene(postBossCutsceneId)) {
+      if (postBossCutsceneId && !SaveManager.getInstance().hasSeenCutscene(postBossCutsceneId) && !this._seenDialogIds.has(postBossCutsceneId)) {
         const postBossDef = getCutsceneDef(postBossCutsceneId);
         if (postBossDef) {
           SaveManager.getInstance().markCutsceneSeen(postBossCutsceneId);
+          this._seenDialogIds.add(postBossCutsceneId);
           this._postWaveQueue.enqueue({
             show: (onDismiss) => {
               this.scene.launch('CutsceneScene', {
@@ -2299,6 +2308,7 @@ export class GameScene extends Phaser.Scene {
 
     if (!result) return null;
 
+    this._seenDialogIds.add(result.vignette.id);
     const capturedResult = result;
     return {
       show: (onDismiss) => {
@@ -2803,6 +2813,7 @@ export class GameScene extends Phaser.Scene {
       offers:          this.offerManager.getActiveIds(),
       consumedOffers:  this.offerManager.getConsumedOneTimeOfferIds(),
       metaStatBonuses: {},
+      seenDialogs:     Array.from(this._seenDialogIds),
     });
   }
 
@@ -2894,6 +2905,14 @@ export class GameScene extends Phaser.Scene {
     this._totalKills = autoSave.totalKills;
     this._goldEarned = autoSave.goldEarned;
     this.gameState   = 'between';
+
+    // ── Restore seen-dialog memory (prevents replaying already-shown dialogs) ──
+    if (autoSave.seenDialogs) {
+      for (const id of autoSave.seenDialogs) {
+        this._seenDialogIds.add(id);
+      }
+      this.vignetteManager.restoreFiredIds(autoSave.seenDialogs);
+    }
 
     this.hud.setGold(this.gold);
     this.hud.setLives(this.lives);

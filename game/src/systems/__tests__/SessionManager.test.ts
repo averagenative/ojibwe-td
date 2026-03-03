@@ -47,6 +47,7 @@ function makeSave(overrides: Partial<AutoSave> = {}): Omit<AutoSave, 'version' |
     offers:          ['gold-rush', 'veteran-arms'],
     consumedOffers:  [],
     metaStatBonuses: {},
+    seenDialogs:     [],
     ...overrides,
   };
 }
@@ -313,6 +314,7 @@ describe('SessionManager', () => {
       offers:          [],
       consumedOffers:  [],
       metaStatBonuses: {},
+      seenDialogs:     [],
     };
     storageMock.setItem('ojibwe-td-autosave', JSON.stringify(raw));
 
@@ -342,6 +344,7 @@ describe('SessionManager', () => {
       offers:          [],
       consumedOffers:  [],
       metaStatBonuses: {},
+      seenDialogs:     [],
     };
     storageMock.setItem('ojibwe-td-autosave', JSON.stringify(raw));
 

@@ -48,6 +48,16 @@ export class VignetteManager {
   }
 
   /**
+   * Pre-populate firedThisRun from a list of IDs (e.g. restored from auto-save).
+   * Prevents already-shown vignettes from replaying on session resume.
+   */
+  restoreFiredIds(ids: readonly string[]): void {
+    for (const id of ids) {
+      this.firedThisRun.add(id);
+    }
+  }
+
+  /**
    * Check for vignettes matching a trigger.
    * Returns at most one vignette result (the first matching, unshown one),
    * or null if nothing should fire.
