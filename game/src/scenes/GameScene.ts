@@ -509,6 +509,9 @@ export class GameScene extends Phaser.Scene {
       this.hud.createAscensionBadge(this._ascensionLevel);
     }
 
+    // Active-offers button (★ BUFFS) — shows all offers active in this run.
+    this.hud.createOffersButton(() => this.offerManager.getActiveOffers());
+
     // Commander HUD elements (portrait with tooltip, ability button)
     if (this.commanderDef && this.commanderState) {
       this.hud.createCommanderPortrait(
@@ -859,6 +862,9 @@ export class GameScene extends Phaser.Scene {
       if (data.rerollsUsed && data.rerollsUsed > 0) {
         this._rerollTokens = Math.max(0, this._rerollTokens - data.rerollsUsed);
       }
+
+      // Update BUFFS count badge on the HUD offers button.
+      this.hud.updateOffersCount(this.offerManager.getActiveOffers().length);
 
       // Advance the post-wave queue (the BetweenWaveScene entry is done).
       const dismiss = this._betweenWaveDismiss;
@@ -2344,6 +2350,7 @@ export class GameScene extends Phaser.Scene {
           nextWave:          this.currentWave + 1,
           nextWaveInfo:      nextWaveInfo ?? undefined,
           rerollTokens:      this._rerollTokens,
+          placedTowerKeys:   this.towers.map(t => t.def.key),
         });
       },
     });
