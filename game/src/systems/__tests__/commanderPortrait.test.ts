@@ -171,63 +171,73 @@ describe('portrait position calculation', () => {
 describe('tooltip line generation', () => {
   /** Simulates the tooltip line-building logic from CommanderPortrait.showTooltip(). */
   function buildTooltipLines(
-    def: { name: string; role: string; clan: string; aura: { name: string; description: string }; ability?: { name: string; description: string } },
+    def: {
+      name: string; role: string; clan: string;
+      aura: { name: string; nameEnglish: string; description: string };
+      ability?: { name: string; nameEnglish: string; description: string };
+    },
     abilityUsed: boolean,
   ) {
-    const lines: Array<{ text: string; color: string; bold?: boolean }> = [
+    const lines: Array<{ text: string; color: string; bold?: boolean; italic?: boolean }> = [
       { text: def.name, color: PAL.textPrimary, bold: true },
       { text: `${def.role} · ${def.clan}`, color: PAL.textMuted },
       { text: '', color: '' },
       { text: `Aura: ${def.aura.name}`, color: PAL.accentGreen, bold: true },
+      { text: `"${def.aura.nameEnglish}"`, color: PAL.textMuted, italic: true },
       { text: def.aura.description, color: PAL.textSecondary },
     ];
     if (def.ability) {
       lines.push({ text: '', color: '' });
       const usedLabel = abilityUsed ? ' (USED)' : ' (READY)';
       lines.push({ text: `${def.ability.name}${usedLabel}`, color: PAL.textAbility, bold: true });
+      lines.push({ text: `"${def.ability.nameEnglish}"`, color: PAL.textMuted, italic: true });
       lines.push({ text: def.ability.description, color: PAL.textSecondary });
     }
     return lines;
   }
 
-  it('builds 8 lines for a commander with an ability (not used)', () => {
+  it('builds 10 lines for a commander with an ability (not used)', () => {
     const lines = buildTooltipLines({
       name: 'Nokomis',
       role: 'Sustain',
       clan: 'Marten Clan',
-      aura: { name: 'Gitigaan', description: 'Heal from kills.' },
-      ability: { name: 'Medicine Bundle', description: 'Restore lives.' },
+      aura: { name: 'Gitigaan', nameEnglish: 'Garden', description: 'Heal from kills.' },
+      ability: { name: 'Medicine Bundle', nameEnglish: 'Medicine Bundle', description: 'Restore lives.' },
     }, false);
 
-    expect(lines).toHaveLength(8);
+    expect(lines).toHaveLength(10);
     expect(lines[0].text).toBe('Nokomis');
     expect(lines[0].bold).toBe(true);
     expect(lines[1].text).toBe('Sustain · Marten Clan');
-    expect(lines[6].text).toContain('(READY)');
+    expect(lines[4].text).toBe('"Garden"');
+    expect(lines[4].italic).toBe(true);
+    expect(lines[7].text).toContain('(READY)');
+    expect(lines[8].text).toBe('"Medicine Bundle"');
+    expect(lines[8].italic).toBe(true);
   });
 
-  it('builds 8 lines for a commander with ability used', () => {
+  it('builds 10 lines for a commander with ability used', () => {
     const lines = buildTooltipLines({
       name: 'Makoons',
       role: 'Damage',
       clan: 'Bear Clan',
-      aura: { name: 'Bear Strength', description: '+12% damage.' },
-      ability: { name: 'Charge', description: 'Ignore armor.' },
+      aura: { name: 'Bear Strength', nameEnglish: 'Bear Courage', description: '+12% damage.' },
+      ability: { name: 'Charge', nameEnglish: "Bear's Charge", description: 'Ignore armor.' },
     }, true);
 
-    expect(lines[6].text).toContain('(USED)');
-    expect(lines[6].text).not.toContain('(READY)');
+    expect(lines[7].text).toContain('(USED)');
+    expect(lines[7].text).not.toContain('(READY)');
   });
 
-  it('builds 5 lines for a commander without ability', () => {
+  it('builds 6 lines for a commander without ability', () => {
     const lines = buildTooltipLines({
       name: 'TestCdr',
       role: 'Economy',
       clan: 'Test Clan',
-      aura: { name: 'Aura', description: 'Desc.' },
+      aura: { name: 'Aura', nameEnglish: 'Aura English', description: 'Desc.' },
     }, false);
 
-    expect(lines).toHaveLength(5);
+    expect(lines).toHaveLength(6);
   });
 
   it('spacer lines have empty text and colour', () => {
@@ -235,13 +245,33 @@ describe('tooltip line generation', () => {
       name: 'X',
       role: 'R',
       clan: 'C',
-      aura: { name: 'A', description: 'D' },
-      ability: { name: 'Ab', description: 'Ad' },
+      aura: { name: 'A', nameEnglish: 'AE', description: 'D' },
+      ability: { name: 'Ab', nameEnglish: 'AbE', description: 'Ad' },
     }, false);
 
     const spacers = lines.filter(l => l.text === '');
     expect(spacers.length).toBe(2);
     spacers.forEach(s => expect(s.color).toBe(''));
+  });
+
+  it('English translation lines are wrapped in quotes', () => {
+    const lines = buildTooltipLines({
+      name: 'Nokomis',
+      role: 'Sustain',
+      clan: 'Marten Clan',
+      aura: { name: 'Gitigaan', nameEnglish: 'Garden', description: 'Desc.' },
+      ability: { name: 'Mashkiki', nameEnglish: 'Medicine Bundle', description: 'Desc.' },
+    }, false);
+
+    // Aura English translation
+    expect(lines[4].text).toBe('"Garden"');
+    expect(lines[4].color).toBe(PAL.textMuted);
+    expect(lines[4].italic).toBe(true);
+
+    // Ability English translation
+    expect(lines[8].text).toBe('"Medicine Bundle"');
+    expect(lines[8].color).toBe(PAL.textMuted);
+    expect(lines[8].italic).toBe(true);
   });
 });
 

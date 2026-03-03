@@ -320,21 +320,35 @@ export class CommanderSelectScene extends Phaser.Scene {
         fontFamily: 'monospace',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
     } else {
-      // Aura name (below portrait)
-      this.add.text(bx, by + 50, def.aura.name, {
+      // Aura name (below portrait) with English translation
+      this.add.text(bx, by + 46, def.aura.name, {
         fontSize: this._fs(11),
         color: '#88cc88',
         fontFamily: 'monospace',
         fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
-      // Ability name
-      this.add.text(bx, by + CARD_H / 2 - 30, def.ability.name, {
+      this.add.text(bx, by + 58, `"${def.aura.nameEnglish}"`, {
+        fontSize: this._fs(11),
+        color: '#7a9a70',
+        fontFamily: 'monospace',
+        fontStyle: 'italic',
+      }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+
+      // Ability name with English translation
+      this.add.text(bx, by + CARD_H / 2 - 34, def.ability.name, {
         fontSize: this._fs(11),
         color: '#aaaacc',
         fontFamily: 'monospace',
         wordWrap: { width: CARD_W - 16 },
         align: 'center',
+      }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+
+      this.add.text(bx, by + CARD_H / 2 - 22, `"${def.ability.nameEnglish}"`, {
+        fontSize: this._fs(11),
+        color: '#7a9a70',
+        fontFamily: 'monospace',
+        fontStyle: 'italic',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
       // "tap/click for details" hint — minimum 11px on mobile
@@ -496,7 +510,16 @@ export class CommanderSelectScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(auraTitle);
-    yOff += 20;
+    yOff += 18;
+
+    const auraEnglish = this.add.text(leftX, yOff, `"${def.aura.nameEnglish}"`, {
+      fontSize: this._fs(11),
+      color: '#7a9a70',
+      fontFamily: 'monospace',
+      fontStyle: 'italic',
+    }).setDepth(SHEET_DEPTH + 1);
+    this.sheetContainer.add(auraEnglish);
+    yOff += 16;
 
     const auraDesc = this.add.text(leftX, yOff, def.aura.description, {
       fontSize: this._fs(12),
@@ -515,7 +538,16 @@ export class CommanderSelectScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(abilTitle);
-    yOff += 20;
+    yOff += 18;
+
+    const abilEnglish = this.add.text(leftX, yOff, `"${def.ability.nameEnglish}"`, {
+      fontSize: this._fs(11),
+      color: '#7a9a70',
+      fontFamily: 'monospace',
+      fontStyle: 'italic',
+    }).setDepth(SHEET_DEPTH + 1);
+    this.sheetContainer.add(abilEnglish);
+    yOff += 16;
 
     const abilDesc = this.add.text(leftX, yOff, def.ability.description, {
       fontSize: this._fs(12),

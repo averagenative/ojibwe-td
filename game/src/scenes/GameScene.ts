@@ -381,7 +381,7 @@ export class GameScene extends Phaser.Scene {
         () => this.activateCommanderAbility(),
       );
       this.hud.createAbilityButton(
-        this.commanderDef.ability.name,
+        this.commanderDef.ability,
         () => this.activateCommanderAbility(),
       );
     }
