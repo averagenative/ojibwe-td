@@ -2,7 +2,7 @@
 id: TASK-112
 title: Post-Wave Panel Ordering Bug — Elder Dialog, Boss Loot & Offers Overlap
 priority: high
-status: in-progress
+status: done
 type: bug
 ---
 
