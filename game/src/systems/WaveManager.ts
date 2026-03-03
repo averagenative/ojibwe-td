@@ -4,6 +4,7 @@ import type { CreepConfig, CreepType, BossKilledData } from '../entities/Creep';
 import { calculateWaveBonus } from './EconomyManager';
 import { BOSS_DEFS, computeWaaboozSplitConfig } from '../data/bossDefs';
 import type { BossDef } from '../data/bossDefs';
+import type { RegionDifficulty } from '../data/regionDifficulty';
 
 interface Waypoint { x: number; y: number; }
 
@@ -125,6 +126,9 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   /** Scaled boss defs generated for endless boss waves, keyed by their unique key. */
   private endlessBossOverrides: Map<string, BossDef> = new Map();
 
+  /** Per-region difficulty config (null = baseline / Region 1). */
+  private regionDifficulty: RegionDifficulty | null = null;
+
   constructor(
     scene:        Phaser.Scene,
     /**
@@ -137,12 +141,14 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     creepTypeDefs: CreepTypeDef[],
     waveDefs:      WaveDef[],
     airWaypoints?: Waypoint[],
+    regionDifficulty?: RegionDifficulty,
   ) {
     super();
-    this.scene         = scene;
-    this.activeCreeps  = activeCreeps;
-    this.creepTypeDefs = creepTypeDefs;
-    this.waveDefs      = waveDefs;
+    this.scene            = scene;
+    this.activeCreeps     = activeCreeps;
+    this.creepTypeDefs    = creepTypeDefs;
+    this.waveDefs         = waveDefs;
+    this.regionDifficulty = regionDifficulty ?? null;
 
     // Normalise waypoints to array-of-paths.
     if (waypoints.length > 0 && Array.isArray(waypoints[0])) {
@@ -284,7 +290,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     // ── Boss wave ────────────────────────────────────────────────────────────
     if (waveDef.boss) {
-      const bossDef = this.endlessBossOverrides.get(waveDef.boss) ?? BOSS_DEFS[waveDef.boss];
+      const rawBoss = this.endlessBossOverrides.get(waveDef.boss) ?? BOSS_DEFS[waveDef.boss];
+      const bossDef = rawBoss ? this.resolveBossDef(rawBoss) : undefined;
       const traits: string[] = [];
       if (bossDef) {
         if (bossDef.physicalResistPct > 0)       traits.push('Armoured');
@@ -351,7 +358,9 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     if (waveDef.boss) {
       // ── Boss wave ────────────────────────────────────────────────────────
       // Check endless overrides first (scaled versions), then global registry.
-      const bossDef = this.endlessBossOverrides.get(waveDef.boss) ?? BOSS_DEFS[waveDef.boss];
+      // Apply region-specific boss overrides (extra armor, immunities, etc.).
+      const rawBossDef = this.endlessBossOverrides.get(waveDef.boss) ?? BOSS_DEFS[waveDef.boss];
+      const bossDef    = rawBossDef ? this.resolveBossDef(rawBossDef) : undefined;
       if (!bossDef) {
         console.warn(`[WaveManager] Unknown boss key: "${waveDef.boss}"`);
         this.waveActive = false;
@@ -429,6 +438,59 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   // ── private ───────────────────────────────────────────────────────────────
 
+  /**
+   * Apply per-creep regional traits (armor, slow/poison immunity) to a
+   * freshly-built CreepConfig.  Uses random rolls against the region's
+   * configured fractions.  Skips bosses and already-armored brutes.
+   */
+  private applyRegionTraits(config: CreepConfig, typeKey: string): void {
+    const rd = this.regionDifficulty;
+    if (!rd) return;
+
+    // Armor: apply to non-brute ground creeps that aren't already armored.
+    if (!config.isArmored && config.type === 'ground' && typeKey !== 'brute') {
+      if (rd.armoredFraction > 0 && Math.random() < rd.armoredFraction) {
+        config.isArmored        = true;
+        config.physicalResistPct = rd.armorResistPct;
+      }
+    }
+
+    // Slow immunity.
+    if (rd.slowImmuneFraction > 0 && Math.random() < rd.slowImmuneFraction) {
+      config.isSlowImmune = true;
+    }
+
+    // Poison immunity.
+    if (rd.poisonImmuneFraction > 0 && Math.random() < rd.poisonImmuneFraction) {
+      config.isPoisonImmune = true;
+    }
+  }
+
+  /**
+   * Resolve a BossDef with regional overrides applied.
+   * Returns a new object — does NOT mutate the original.
+   */
+  private resolveBossDef(baseDef: BossDef): BossDef {
+    const rd = this.regionDifficulty;
+    if (!rd) return baseDef;
+
+    // Strip endless-wave suffix (e.g. 'makwa-ew25' → 'makwa') to match override keys.
+    const baseKey  = baseDef.key.replace(/-ew\d+$/, '');
+    const override = rd.bossOverrides[baseKey];
+    if (!override) return baseDef;
+
+    return {
+      ...baseDef,
+      hp:                 Math.round(baseDef.hp    * (override.hpMult    ?? 1)),
+      speed:              Math.round(baseDef.speed  * (override.speedMult ?? 1)),
+      physicalResistPct:  override.physicalResistPct  ?? baseDef.physicalResistPct,
+      isSlowImmune:       override.isSlowImmune       ?? baseDef.isSlowImmune,
+      isPoisonImmune:     override.isPoisonImmune     ?? baseDef.isPoisonImmune,
+      regenPercentPerSec: override.regenPercentPerSec ?? baseDef.regenPercentPerSec,
+      splitCount:         override.splitCount          ?? baseDef.splitCount,
+    };
+  }
+
   private buildSpawnQueue(waveDef: WaveDef): CreepConfig[] {
     const queue: CreepConfig[] = [];
 
@@ -437,14 +499,16 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       const base    = this.creepTypeDefs.find(t => t.key === typeKey);
       if (!base) continue;
 
-      queue.push({
+      const cfg: CreepConfig = {
         hp:        Math.round(base.hp     * waveDef.hpMult),
         speed:     Math.round(base.speed  * waveDef.speedMult),
         type:      base.type,
         reward:    base.reward,
         isArmored: typeKey === 'brute',
         spriteKey: CREEP_SPRITE_KEYS[base.key],
-      });
+      };
+      this.applyRegionTraits(cfg, typeKey);
+      queue.push(cfg);
     }
 
     return queue;
@@ -466,14 +530,16 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       const base    = this.creepTypeDefs.find(t => t.key === typeKey);
       if (!base) continue;
 
-      queue.push({
+      const cfg: CreepConfig = {
         hp:        Math.round(base.hp    * waveDef.hpMult),
         speed:     Math.round(base.speed * waveDef.speedMult),
         type:      base.type,
         reward:    base.reward,
         isArmored: typeKey === 'brute',
         spriteKey: CREEP_SPRITE_KEYS[base.key],
-      });
+      };
+      this.applyRegionTraits(cfg, typeKey);
+      queue.push(cfg);
     }
 
     return queue;
