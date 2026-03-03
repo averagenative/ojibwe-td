@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MobileManager } from '../systems/MobileManager';
 import { PAL } from './palette';
+import { PANEL_HEIGHT as TOWER_PANEL_H } from './TowerPanel';
 import { CommanderPortrait } from './CommanderPortrait';
 import type { CommanderDef, CommanderRunState } from '../data/commanderDefs';
 
@@ -268,15 +269,18 @@ export class HUD extends Phaser.GameObjects.Container {
   // ── give up button (endless mode) ─────────────────────────────────────────
 
   /**
-   * Create a "GIVE UP" button for endless mode.  Placed between the speed
-   * controls and the gold text so it doesn't overlap other HUD elements.
-   * Clicking it immediately triggers the provided callback (ends the run).
+   * Create a "GIVE UP" button for endless mode.  Positioned in the
+   * bottom-right corner of the game area, above the tower panel, so it
+   * cannot be accidentally clicked while managing towers or triggering
+   * the next wave.  Clicking shows a confirmation dialog before invoking
+   * the callback.
    */
   createGiveUpButton(onClick: () => void): void {
+    const { width, height } = this.scene.scale;
     const btnW  = _IS_MOBILE ? 110 : 100;
     const btnH  = _IS_MOBILE ? 44  : 30;
-    const btnX  = _IS_MOBILE ? 440 : 400;
-    const btnY  = HUD_HEIGHT / 2;
+    const btnX  = width  - PADDING - btnW / 2;
+    const btnY  = height - TOWER_PANEL_H - PADDING - btnH / 2;
 
     const bg = this.scene.add.rectangle(btnX, btnY, btnW, btnH, PAL.bgGiveUp)
       .setStrokeStyle(1, PAL.borderGiveUp)
@@ -292,7 +296,79 @@ export class HUD extends Phaser.GameObjects.Container {
 
     bg.on('pointerover', () => { bg.setFillStyle(PAL.bgGiveUpHover); label.setColor(PAL.dangerLight); });
     bg.on('pointerout',  () => { bg.setFillStyle(PAL.bgGiveUp); label.setColor(PAL.danger); });
-    bg.on('pointerup',   onClick);
+    bg.on('pointerup',   () => this._showGiveUpConfirm(onClick));
+  }
+
+  /**
+   * Show a modal confirmation dialog before giving up.
+   * Creates a darkened overlay, a dialog box with YES / CANCEL buttons,
+   * and destroys them all when either button is pressed.
+   */
+  private _showGiveUpConfirm(onConfirm: () => void): void {
+    const { width, height } = this.scene.scale;
+    const cx = width  / 2;
+    const cy = height / 2;
+    const CONFIRM_DEPTH = DEPTH + 50;
+
+    // Darken the whole screen and swallow pointer input.
+    const overlay = this.scene.add.rectangle(cx, cy, width, height, 0x000000, 0.6)
+      .setDepth(CONFIRM_DEPTH)
+      .setInteractive();
+
+    const dialogBg = this.scene.add.rectangle(cx, cy, 280, 140, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderGiveUp)
+      .setDepth(CONFIRM_DEPTH + 1);
+
+    const title = this.scene.add.text(cx, cy - 36, 'Give up this run?', {
+      fontSize:   '16px',
+      color:      PAL.textNeutral,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 2);
+
+    const confirmBtnH = _IS_MOBILE ? 44 : 36;
+
+    // YES — confirm give-up (danger styling)
+    const yesBg = this.scene.add.rectangle(cx - 65, cy + 24, 100, confirmBtnH, PAL.bgGiveUp)
+      .setStrokeStyle(1, PAL.borderGiveUp)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(CONFIRM_DEPTH + 2);
+    const yesLabel = this.scene.add.text(cx - 65, cy + 24, 'YES', {
+      fontSize:   '14px',
+      color:      PAL.danger,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 3);
+
+    // CANCEL — neutral styling
+    const noBg = this.scene.add.rectangle(cx + 65, cy + 24, 100, confirmBtnH, 0x222222)
+      .setStrokeStyle(1, PAL.borderNeutral)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(CONFIRM_DEPTH + 2);
+    const noLabel = this.scene.add.text(cx + 65, cy + 24, 'CANCEL', {
+      fontSize:   '13px',
+      color:      PAL.textNeutral,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 3);
+
+    const cleanup = (): void => {
+      overlay.destroy();
+      dialogBg.destroy();
+      title.destroy();
+      yesBg.destroy();
+      yesLabel.destroy();
+      noBg.destroy();
+      noLabel.destroy();
+    };
+
+    yesBg.on('pointerover', () => yesBg.setFillStyle(PAL.bgGiveUpHover));
+    yesBg.on('pointerout',  () => yesBg.setFillStyle(PAL.bgGiveUp));
+    yesBg.on('pointerup',   () => { cleanup(); onConfirm(); });
+
+    noBg.on('pointerover', () => noBg.setFillStyle(0x333333));
+    noBg.on('pointerout',  () => noBg.setFillStyle(0x222222));
+    noBg.on('pointerup',   () => cleanup());
   }
 
   // ── commander portrait ──────────────────────────────────────────────────
