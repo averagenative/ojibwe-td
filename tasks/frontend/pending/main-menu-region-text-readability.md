@@ -1,7 +1,7 @@
 ---
 id: TASK-093
 title: Main Menu Region Text Readability
-status: pending
+status: in-progress
 category: frontend
 priority: high
 depends_on: []

@@ -1,7 +1,7 @@
 ---
 id: TASK-102
 title: Codex UX — Click-Away Dismiss & Text Overlap Fix
-status: pending
+status: done
 category: frontend
 priority: high
 depends_on: []

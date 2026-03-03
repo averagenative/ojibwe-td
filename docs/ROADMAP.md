@@ -2070,6 +2070,34 @@ Non-blocking items surfaced during code review:
   changes, the test helper must be updated manually. Consider extracting the core aura math
   into a Phaser-free module that both `GameScene` and tests import.
 
+### Non-blocking findings from TASK-093 review (2026-03-03)
+
+- **Shadow config duplication in MainMenuScene.ts**: The text shadow
+  `{ offsetX: 1, offsetY: 1, color: '#000000', blur: 2, fill: true, stroke: false }`
+  is repeated 4 times in `buildRegionTile()`. Consider extracting a
+  `const TEXT_SHADOW` constant at module level.
+- **Flattened visual hierarchy in region tiles**: Stage count and season theme
+  now both use `PAL.textMuted`. Previously they used distinct tiers (`textDim`
+  and `textFaint`). Consider giving the season theme a slightly dimmer token
+  (e.g. a new `textSubtle` between `textMuted` and `textFaint`) to restore
+  the 4-level hierarchy while keeping readability.
+- **Hardcoded `'9px'` in `buildAffinityDots`**: The "best:" affinity label at
+  line ~452 uses a raw `'9px'` string instead of `_fs(9)`. This pre-dates
+  TASK-093 but bypasses mobile scaling.
+
+### TASK-102 review findings (non-blocking)
+
+- **Codex detail scroll on mobile touch devices**: The lore text scroll is driven
+  by `input.on('wheel')`, which only fires for mouse-wheel events. On mobile
+  touch devices, users cannot swipe/drag to scroll long codex entries. A touch-
+  drag scroll (using pointerdown/pointermove/pointerup delta) would be needed
+  for full mobile support. The "more below" hint mitigates this — users know
+  content is there, but can't reach it on touch-only devices.
+- **Duplicated scroll logic**: The mask + wheel-scroll + hint pattern is repeated
+  nearly identically in the mobile and desktop branches of `showDetail()`.
+  Extracting a `_setupTextScroll(loreDisplay, loreTextY, maxLoreH, cx, hintText)`
+  helper would remove ~30 lines of duplication.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)
