@@ -15,6 +15,7 @@
 
 import Phaser from 'phaser';
 import type { VignetteDef } from '../data/vignetteDefs';
+import { MobileManager } from '../systems/MobileManager';
 import { PAL } from './palette';
 
 const DEPTH          = 400;
@@ -210,18 +211,29 @@ export class VignetteOverlay {
     ).setDepth(DEPTH + 2);
     this.objects.push(this.bodyText);
 
-    // ── Skip hint ───────────────────────────────────────────────────────
-    const skipHint = seenBefore ? 'click to dismiss' : 'click to advance';
-    const hint = this.scene.add.text(
-      width - 24, panelY + panelH - 16,
-      skipHint,
-      {
-        fontSize:   '10px',
-        color:      PAL.textDim,
-        fontFamily: PAL.fontBody,
-      },
-    ).setOrigin(1, 1).setDepth(DEPTH + 2);
-    this.objects.push(hint);
+    // ── Skip button (bottom-right) ─────────────────────────────────────
+    const isMobile = MobileManager.getInstance().isMobile();
+    const skipW = isMobile ? 80 : 70;
+    const skipH = isMobile ? 44 : 28;
+    const skipX = width - skipW / 2 - 12;
+    const skipY = panelY + panelH - skipH / 2 - 8;
+
+    const skipBg = this.scene.add.rectangle(skipX, skipY, skipW, skipH, 0x000000, 0.5)
+      .setStrokeStyle(1, 0x555555)
+      .setDepth(DEPTH + 3)
+      .setInteractive({ useHandCursor: true });
+    this.objects.push(skipBg);
+
+    const skipLabel = this.scene.add.text(skipX, skipY, 'Skip \u25B6', {
+      fontSize:   isMobile ? '14px' : '11px',
+      color:      '#999999',
+      fontFamily: PAL.fontBody,
+    }).setOrigin(0.5).setDepth(DEPTH + 4);
+    this.objects.push(skipLabel);
+
+    skipBg.on('pointerover', () => skipLabel.setColor('#ffffff'));
+    skipBg.on('pointerout',  () => skipLabel.setColor('#999999'));
+    skipBg.on('pointerup',   () => this.dismiss());
 
     // ── Start typewriter ────────────────────────────────────────────────
     this.typeTimer = this.scene.time.addEvent({

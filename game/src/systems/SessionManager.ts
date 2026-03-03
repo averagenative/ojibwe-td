@@ -40,6 +40,7 @@ export interface AutoSave {
   offers:          string[];   // IDs of taken (active) offers
   consumedOffers:  string[];   // one-time offer IDs already consumed (e.g. 'salvage')
   metaStatBonuses: object;     // pre-computed stat bonuses snapshot (informational)
+  seenDialogs:     string[];   // cutscene + vignette IDs shown during this run
 }
 
 // ── SessionManager ─────────────────────────────────────────────────────────────

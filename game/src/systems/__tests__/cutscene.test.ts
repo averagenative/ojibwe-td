@@ -411,7 +411,7 @@ describe('GameScene cutscene triggers (structural)', () => {
   });
 
   it('falls back to FIRST_PLAY vignette when no cutscenes needed', () => {
-    expect(gameSceneSrc).toContain('if (firstPlayResult)');
+    expect(gameSceneSrc).toContain('if (firstPlayResult && !this._seenDialogIds.has(firstPlayResult.vignette.id))');
     expect(gameSceneSrc).toContain('vignetteOverlay.show(firstPlayResult.vignette');
   });
 
