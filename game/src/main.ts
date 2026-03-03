@@ -11,6 +11,7 @@ import { CodexScene } from './scenes/CodexScene';
 import { InventoryScene } from './scenes/InventoryScene';
 import { ChallengeSelectScene } from './scenes/ChallengeSelectScene';
 import { TowerEquipScene } from './scenes/TowerEquipScene';
+import { AchievementsScene } from './scenes/AchievementsScene';
 
 // Initialise mobile detection early — sets window.__OJIBWE_MOBILE and
 // toggles the 'mobile' body class used by CSS.
@@ -34,6 +35,7 @@ const config: Phaser.Types.Core.GameConfig = {
     InventoryScene,          // 8. Gear inventory browser
     ChallengeSelectScene,    // 9. Challenge map selection
     TowerEquipScene,         // 10. Tower gear equip screen
+    AchievementsScene,       // 11. Achievement gallery
   ],
   scale: {
     mode: Phaser.Scale.FIT,

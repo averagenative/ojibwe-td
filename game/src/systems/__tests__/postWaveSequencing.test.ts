@@ -122,27 +122,27 @@ describe('GameScene — between-wave-offer-picked advances queue', () => {
 describe('GameScene — queue cleanup on game-over and shutdown', () => {
   it('triggerGameOver clears _postWaveQueue', () => {
     const idx   = gameSceneSrc.indexOf('private triggerGameOver()');
-    const block = gameSceneSrc.slice(idx, idx + 500);
+    const block = gameSceneSrc.slice(idx, idx + 700);
     expect(block).toContain('_postWaveQueue.clear()');
   });
 
   it('triggerGameOver clears _betweenWaveDismiss', () => {
     const idx   = gameSceneSrc.indexOf('private triggerGameOver()');
-    const block = gameSceneSrc.slice(idx, idx + 500);
+    const block = gameSceneSrc.slice(idx, idx + 700);
     expect(block).toContain('_betweenWaveDismiss');
     expect(block).toContain('= null');
   });
 
   it('triggerGameOver clears _pendingBossName', () => {
     const idx   = gameSceneSrc.indexOf('private triggerGameOver()');
-    const block = gameSceneSrc.slice(idx, idx + 500);
+    const block = gameSceneSrc.slice(idx, idx + 700);
     expect(block).toContain('this._pendingBossName');
     expect(block).toContain('= null');
   });
 
   it('triggerGameOver clears _pendingBossRewardOffer', () => {
     const idx   = gameSceneSrc.indexOf('private triggerGameOver()');
-    const block = gameSceneSrc.slice(idx, idx + 500);
+    const block = gameSceneSrc.slice(idx, idx + 700);
     expect(block).toContain('this._pendingBossRewardOffer');
     expect(block).toContain('= false');
   });

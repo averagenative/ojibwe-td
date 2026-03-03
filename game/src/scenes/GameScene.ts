@@ -48,6 +48,9 @@ import { AudioSettingsPanel } from '../ui/AudioSettingsPanel';
 import { PostWaveUIQueue } from '../systems/PostWaveUIQueue';
 import type { PostWaveEntry } from '../systems/PostWaveUIQueue';
 import { MultiTowerPanel } from '../ui/MultiTowerPanel';
+import { AchievementManager } from '../systems/AchievementManager';
+import type { VictoryData } from '../systems/AchievementManager';
+import { AchievementToast } from '../ui/AchievementToast';
 
 const DEFAULT_TOTAL_WAVES = 20;
 
@@ -214,6 +217,18 @@ export class GameScene extends Phaser.Scene {
   private _webglLostHandler?: (e: Event) => void;
   private _webglRestoredHandler?: () => void;
 
+  // ── achievement tracking ───────────────────────────────────────────────────
+  /** Towers built this run — used for run-scoped achievement checks. */
+  private _achTowersBuiltRun = 0;
+  /** Distinct tower type keys placed this run. */
+  private _achTowerTypesRun: Set<string> = new Set();
+  /** Consumable type keys applied at the start of this run. */
+  private _achConsumablesUsedRun: string[] = [];
+  /** Reroll tokens granted at run start (before any were spent). */
+  private _achInitialRerolls = 0;
+  /** Achievement toast notification component (created in create()). */
+  private _achToast: AchievementToast | null = null;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -287,6 +302,10 @@ export class GameScene extends Phaser.Scene {
     this._goldEarned         = 0;
     this._rerollTokens       = 0;
     this._webglOverlay       = null;
+    this._achTowersBuiltRun    = 0;
+    this._achTowerTypesRun     = new Set();
+    this._achConsumablesUsedRun = [];
+    this._achInitialRerolls    = 0;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -326,17 +345,26 @@ export class GameScene extends Phaser.Scene {
       this.commanderState.waveStartLives = this.lives;
     }
 
+    // ── Achievement tracking: game started ────────────────────────────────────
+    AchievementManager.getInstance().onGameStarted();
+
     // ── Apply pending crystal-sink consumables ────────────────────────────────
     // Consume once per run; clears the save-side stock.
     {
       const c = SaveManager.getInstance().consumeAndClearRunConsumables();
       if (c.goldBoostTokens > 0) {
         this.gold += c.goldBoostTokens * GOLD_BOOST_AMOUNT;
+        this._achConsumablesUsedRun.push('goldBoostTokens');
       }
       if (c.extraLifeTokens > 0) {
         this.lives += c.extraLifeTokens;
+        this._achConsumablesUsedRun.push('extraLifeTokens');
+      }
+      if (c.rerollTokens > 0) {
+        this._achConsumablesUsedRun.push('rerollTokens');
       }
       this._rerollTokens = c.rerollTokens;
+      this._achInitialRerolls = c.rerollTokens;
     }
 
     // Expose commander state and tile size on scene.data for entity-level reads
@@ -359,6 +387,9 @@ export class GameScene extends Phaser.Scene {
     // Audio system — initialise (or resume) the singleton for this run.
     this.audioManager = AudioManager.getInstance(this);
     this.audioManager.startMusic();
+
+    // Achievement toast notification overlay.
+    this._achToast = new AchievementToast(this);
 
     // Wave announcement banner (shown before each wave start).
     this.waveBanner = new WaveBanner(this);
@@ -512,6 +543,8 @@ export class GameScene extends Phaser.Scene {
       if (this.offerManager.hasAfterburn()) {
         this.triggerAfterburn(data.x, data.y);
       }
+
+      // Achievement: show any newly unlocked toasts (kills are committed on run end, not per-kill)
     });
 
     // liveCost is 1 for normal creeps; boss escape emits 3.
@@ -652,6 +685,17 @@ export class GameScene extends Phaser.Scene {
     this.upgradePanel.onBuy = (cost) => {
       this.gold -= cost;
       this.hud.setGold(this.gold);
+      // Check if the selected tower has any path at max tier (tier 5).
+      if (this.selectedTower) {
+        const upgState = this.upgradeManager.getState(this.selectedTower);
+        if (upgState) {
+          const maxTier = Math.max(upgState.tiers.A, upgState.tiers.B, upgState.tiers.C);
+          if (maxTier >= 5) {
+            AchievementManager.getInstance().onTowerPathMaxed(this.selectedTower.def.key);
+            this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
+          }
+        }
+      }
     };
     this.upgradePanel.onRespec = (refund: number, fee: number) => {
       // Resourceful offer: respec is free — add back the normally-lost fee.
@@ -983,6 +1027,10 @@ export class GameScene extends Phaser.Scene {
     // Cancel any pending mobile long-press timer.
     this._mobileHoldTimer?.remove();
     this._mobileHoldTimer = null;
+
+    // Destroy achievement toast overlay.
+    this._achToast?.destroy();
+    this._achToast = null;
 
     // Performance systems cleanup.
     this.trailPool?.destroy();
@@ -1446,6 +1494,13 @@ export class GameScene extends Phaser.Scene {
       }
     });
     this.towers.push(tower);
+
+    // Achievement tracking: tower placed
+    this._achTowersBuiltRun++;
+    this._achTowerTypesRun.add(tower.def.key);
+    AchievementManager.getInstance().addTowerBuilt(this._achTowersBuiltRun, tower.def.key);
+    this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
+
     this.exitPlacementMode();
   }
 
@@ -1758,6 +1813,7 @@ export class GameScene extends Phaser.Scene {
 
       // Victory transition: vignette (if any) → GameOverScene.
       const proceedToVictory = () => {
+        this._commitRunAchievements(true);
         const stageVignette = this.vignetteManager.check(TriggerType.STAGE_COMPLETE);
         if (stageVignette) {
           AudioManager.getInstance().playVictory();
@@ -1818,6 +1874,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     // Endless mode: ignore the totalWaves limit and continue generating waves.
+
+    // Achievement tracking: endless wave milestone.
+    if (this.isEndlessMode) {
+      AchievementManager.getInstance().onEndlessWaveReached(waveNum);
+      this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
+    }
 
     // Clear Waabizii's absorb-escapes at wave end (one-wave duration).
     if (this.commanderState) {
@@ -2281,6 +2343,8 @@ export class GameScene extends Phaser.Scene {
     this.gameState = 'over';
     // Clear auto-save — run is finished (defeat or give-up).
     SessionManager.getInstance().clear();
+    // Commit per-run achievement stats (kills, bosses, rerolls) even on defeat.
+    this._commitRunAchievements(false);
     // Stop any pending post-wave panels from appearing after game-over.
     this._postWaveQueue.clear();
     this._betweenWaveDismiss     = null;
@@ -2628,5 +2692,47 @@ export class GameScene extends Phaser.Scene {
   private _hideWebGlOverlay(): void {
     this._webglOverlay?.destroy();
     this._webglOverlay = null;
+  }
+
+  // ── Achievement helpers ────────────────────────────────────────────────────
+
+  /**
+   * Called at end of run (victory or defeat) to commit per-run achievement
+   * stats (kills, bosses, rerolls) to the lifetime counters in SaveManager,
+   * and to check victory-specific achievements.
+   *
+   * @param won  True for a normal-mode victory; false for defeat/give-up/endless.
+   */
+  private _commitRunAchievements(won: boolean): void {
+    const am = AchievementManager.getInstance();
+
+    // Commit lifetime stats.
+    am.addKills(this._totalKills);
+    am.addBosses(this.bossesKilled);
+
+    // Rerolls used = tokens granted at run start minus tokens remaining.
+    const rerollsUsed = Math.max(0, this._achInitialRerolls - this._rerollTokens);
+    am.addRerolls(rerollsUsed);
+
+    if (won && !this.isEndlessMode) {
+      // Compute all-towers-upgraded check: every on-field tower has totalSpent > 0.
+      const allUpgraded = this.towers.length > 0 &&
+        this.towers.every(t => (this.upgradeManager.getState(t)?.totalSpent ?? 0) > 0);
+
+      const victoryData: VictoryData = {
+        stageId:           this.selectedStageId,
+        commanderId:       this.selectedCommanderId,
+        livesLeft:         this.lives,
+        maxLives:          this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0),
+        towerTypesUsed:    Array.from(this._achTowerTypesRun),
+        allTowersUpgraded: allUpgraded,
+        goldEarned:        this._goldEarned,
+        consumablesUsed:   this._achConsumablesUsedRun,
+      };
+      am.onVictory(victoryData);
+    }
+
+    // Show toasts for any newly unlocked achievements.
+    this._achToast?.showBatch(am.drainNewlyUnlocked());
   }
 }

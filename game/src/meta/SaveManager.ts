@@ -16,6 +16,35 @@ const SCHEMA_VER   = 1;
 /** Maximum plausible currency a legitimate playthrough can accumulate. */
 export const MAX_CURRENCY = 999_999;
 
+// ── Achievements ─────────────────────────────────────────────────────────────
+
+/** Persisted achievement state. */
+export interface AchievementSaveData {
+  /** IDs of achievements that have been fully unlocked. */
+  unlocked: string[];
+  /**
+   * Partial progress counters, keyed by achievement ID.
+   * Only stored when the value is > 0.
+   * The final unlock writes the achievement to `unlocked` and removes it here.
+   */
+  progress: Record<string, number>;
+  /**
+   * Raw lifetime stat counters (e.g. total kills, games played).
+   * These are incremented independently of achievement progress so the data
+   * is always available, even after the corresponding achievement is unlocked.
+   *
+   * Known keys:
+   *   'kills'            — total creeps killed across all runs
+   *   'bosses'           — total bosses killed across all runs
+   *   'towersBuilt'      — total towers placed across all runs
+   *   'gamesPlayed'      — total game runs started
+   *   'crystalsSpent'    — total crystals spent in the meta shop
+   *   'rerollsTotal'     — total rerolls used across all runs
+   *   'maxUpgradedTypes' — count of distinct tower types ever fully upgraded (a path at tier 5)
+   */
+  stats: Record<string, number>;
+}
+
 // ── Crystal sink consumables ────────────────────────────────────────────────
 
 /** Counts of pending consumable items waiting to be applied at run start. */
@@ -109,6 +138,9 @@ interface SaveData {
   /** When true the UI switches to a colorblind-friendly palette (red→orange, green→blue). */
   colorblindMode: boolean;
 
+  /** Achievement unlock state and progress counters. */
+  achievements: AchievementSaveData;
+
   /**
    * djb2 checksum of the serialised save data (excluding this field).
    * Used to detect casual manual tampering via browser DevTools.
@@ -139,6 +171,7 @@ function defaultSaveData(): SaveData {
     challengeWeek:      '',
     pendingConsumables: { rerollTokens: 0, goldBoostTokens: 0, extraLifeTokens: 0 },
     colorblindMode:     false,
+    achievements:       { unlocked: [], progress: {}, stats: {} },
   };
 }
 
@@ -486,6 +519,76 @@ export class SaveManager {
     return snapshot;
   }
 
+  // ── Achievements ────────────────────────────────────────────────────────────
+
+  /** Return the full achievement save data. */
+  getAchievements(): AchievementSaveData {
+    if (!this.data.achievements) {
+      this.data.achievements = { unlocked: [], progress: {}, stats: {} };
+    }
+    return this.data.achievements;
+  }
+
+  /** Returns true if an achievement has been fully unlocked. */
+  isAchievementUnlocked(id: string): boolean {
+    return this.data.achievements?.unlocked?.includes(id) ?? false;
+  }
+
+  /** Return the stored progress for an achievement (0 if not started). */
+  getAchievementProgress(id: string): number {
+    return this.data.achievements?.progress?.[id] ?? 0;
+  }
+
+  /**
+   * Mark an achievement as fully unlocked.
+   * Idempotent — re-unlocking a completed achievement is a no-op.
+   * Returns true if this was a NEW unlock (caller can trigger toast).
+   */
+  unlockAchievement(id: string): boolean {
+    if (!this.data.achievements) this.data.achievements = { unlocked: [], progress: {}, stats: {} };
+    if (this.data.achievements.unlocked.includes(id)) return false;
+    this.data.achievements.unlocked.push(id);
+    // Remove from progress once fully unlocked.
+    delete this.data.achievements.progress[id];
+    this._save();
+    return true;
+  }
+
+  /**
+   * Update the progress counter for an achievement.
+   * Clamps to non-negative. Does nothing if already unlocked.
+   * Returns the new value.
+   */
+  setAchievementProgress(id: string, value: number): number {
+    if (!this.data.achievements) this.data.achievements = { unlocked: [], progress: {}, stats: {} };
+    if (this.data.achievements.unlocked.includes(id)) return value;
+    const clamped = Math.max(0, Math.floor(value));
+    this.data.achievements.progress[id] = clamped;
+    this._save();
+    return clamped;
+  }
+
+  // ── Lifetime stats ─────────────────────────────────────────────────────────
+
+  /** Return the current value of a raw lifetime stat (0 if not set). */
+  getLifetimeStat(key: string): number {
+    return this.data.achievements?.stats?.[key] ?? 0;
+  }
+
+  /**
+   * Add `delta` to a lifetime stat and persist. Returns the new value.
+   * A delta of 0 or negative is ignored.
+   */
+  addLifetimeStat(key: string, delta: number): number {
+    if (delta <= 0) return this.getLifetimeStat(key);
+    if (!this.data.achievements) this.data.achievements = { unlocked: [], progress: {}, stats: {} };
+    if (!this.data.achievements.stats) this.data.achievements.stats = {};
+    const next = (this.data.achievements.stats[key] ?? 0) + Math.floor(delta);
+    this.data.achievements.stats[key] = next;
+    this._save();
+    return next;
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private _load(): void {
@@ -627,6 +730,31 @@ export class SaveManager {
 
     const colorblindMode = typeof d.colorblindMode === 'boolean' ? d.colorblindMode : false;
 
+    // Achievements: unlocked must be string[], progress must be Record<string, number>.
+    const rawAch = (d.achievements as unknown) as Record<string, unknown> | undefined;
+    const achUnlocked = Array.isArray(rawAch?.unlocked)
+      ? (rawAch!.unlocked as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+    const achProgressRaw = (rawAch?.progress as unknown) as Record<string, unknown> | undefined;
+    const achProgress: Record<string, number> = {};
+    if (achProgressRaw && typeof achProgressRaw === 'object') {
+      for (const [k, v] of Object.entries(achProgressRaw)) {
+        if (typeof v === 'number' && Number.isFinite(v) && v >= 0) {
+          achProgress[k] = Math.floor(v);
+        }
+      }
+    }
+    const achStatsRaw = (rawAch?.stats as unknown) as Record<string, unknown> | undefined;
+    const achStats: Record<string, number> = {};
+    if (achStatsRaw && typeof achStatsRaw === 'object') {
+      for (const [k, v] of Object.entries(achStatsRaw)) {
+        if (typeof v === 'number' && Number.isFinite(v) && v >= 0) {
+          achStats[k] = Math.floor(v);
+        }
+      }
+    }
+    const achievements: AchievementSaveData = { unlocked: achUnlocked, progress: achProgress, stats: achStats };
+
     return {
       ...d,
       currency,
@@ -646,6 +774,7 @@ export class SaveManager {
       challengeWeek,
       pendingConsumables,
       colorblindMode,
+      achievements,
     };
   }
 

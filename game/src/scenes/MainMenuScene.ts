@@ -554,6 +554,20 @@ export class MainMenuScene extends Phaser.Scene {
         fontSize: '10px', color: '#ffffff', fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
     }
+
+    // ACHIEVEMENTS — third row, centered
+    const achBtnY = bottomBtnY + bottomBtnH / 2 + (this._isMobile ? 24 : 18);
+    const achBtnW = this._isMobile ? 140 : 120;
+    const achBtnH = bottomBtnH;
+    const achP = makePanel(this, cx, achBtnY, achBtnW, achBtnH, DEPTH_BUTTONS);
+    fillPanel(achP, R, 0x001a00, 0x336633, 2);
+    const achLabel = this.add.text(cx, achBtnY, '🏆 ACHIEVEMENTS', {
+      fontSize: this._fs(13), color: '#55aa55', fontFamily: PAL.fontBody,
+    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+    achP.zone.on('pointerover', () => { achLabel.setColor('#00ff44'); achP.gfx.setAlpha(1.2); });
+    achP.zone.on('pointerout',  () => { achLabel.setColor('#55aa55'); achP.gfx.setAlpha(1); });
+    achP.zone.on('pointerup',   () => this.scene.start('AchievementsScene', { returnTo: 'MainMenuScene' }));
   }
 
   private createAudioButton(width: number, height: number): void {
