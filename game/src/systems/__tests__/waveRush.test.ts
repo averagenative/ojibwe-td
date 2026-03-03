@@ -6,13 +6,13 @@
  * critical structural patterns are present in the implementation.
  *
  * Additional pure-logic tests verify the arithmetic guard conditions
- * (boss-wave detection, final-wave guard, one-ahead limit) without any
- * Phaser dependency.
+ * (boss-wave detection, final-wave guard) without any Phaser dependency.
  */
 import { describe, it, expect } from 'vitest';
 
 import gameSceneSrc from '../../scenes/GameScene.ts?raw';
 import hudSrc       from '../../ui/HUD.ts?raw';
+import waveManagerSrc from '../WaveManager.ts?raw';
 
 // ── RUSH_GOLD_AMOUNT constant ─────────────────────────────────────────────────
 
@@ -26,15 +26,11 @@ describe('GameScene — RUSH_GOLD_AMOUNT constant', () => {
   });
 });
 
-// ── _nextWaveRushed field ─────────────────────────────────────────────────────
+// ── No _nextWaveRushed flag (replaced by concurrent wave tracking) ────────────
 
-describe('GameScene — _nextWaveRushed field', () => {
-  it('declares _nextWaveRushed field', () => {
-    expect(gameSceneSrc).toContain('_nextWaveRushed');
-  });
-
-  it('resets _nextWaveRushed to false in init()', () => {
-    expect(gameSceneSrc).toContain('this._nextWaveRushed         = false;');
+describe('GameScene — no one-ahead limit (concurrent waves)', () => {
+  it('does not declare a _nextWaveRushed field', () => {
+    expect(gameSceneSrc).not.toContain('_nextWaveRushed');
   });
 });
 
@@ -49,10 +45,6 @@ describe('GameScene — rushNextWave()', () => {
     expect(gameSceneSrc).toContain("if (this.gameState !== 'wave') return;");
   });
 
-  it('guards against double-rush (one-ahead limit)', () => {
-    expect(gameSceneSrc).toContain('if (this._nextWaveRushed) return;');
-  });
-
   it('awards RUSH_GOLD_AMOUNT gold to the player', () => {
     expect(gameSceneSrc).toContain('this.gold += RUSH_GOLD_AMOUNT;');
   });
@@ -61,16 +53,25 @@ describe('GameScene — rushNextWave()', () => {
     expect(gameSceneSrc).toContain('this.hud.setGold(this.gold);');
   });
 
-  it('sets _nextWaveRushed to true after rush', () => {
-    expect(gameSceneSrc).toContain('this._nextWaveRushed = true;');
-  });
-
-  it('disables the rush button after clicking (enabled=false)', () => {
-    expect(gameSceneSrc).toContain('this.hud.setRushWaveVisible(true, false);');
-  });
-
   it('calls _showRushBonusFeedback with the bonus amount', () => {
     expect(gameSceneSrc).toContain('this._showRushBonusFeedback(RUSH_GOLD_AMOUNT)');
+  });
+
+  it('immediately calls _doStartWave() to stack the next wave', () => {
+    // Find the rushNextWave method and verify _doStartWave is called inside it.
+    const rushMethod = gameSceneSrc.match(
+      /private rushNextWave\(\)[^}]*(?:\{[^}]*\}[^}]*)*\}/s
+    );
+    expect(rushMethod).not.toBeNull();
+    expect(rushMethod![0]).toContain('this._doStartWave()');
+  });
+
+  it('does not set a _nextWaveRushed flag (multiple rushes allowed)', () => {
+    const rushMethod = gameSceneSrc.match(
+      /private rushNextWave\(\)[^}]*(?:\{[^}]*\}[^}]*)*\}/s
+    );
+    expect(rushMethod).not.toBeNull();
+    expect(rushMethod![0]).not.toContain('_nextWaveRushed');
   });
 });
 
@@ -93,11 +94,11 @@ describe('GameScene — _updateRushButton()', () => {
     expect(gameSceneSrc).toContain('nextWave % 5 === 0');
   });
 
-  it('shows button enabled when player has not yet rushed', () => {
-    expect(gameSceneSrc).toContain('this.hud.setRushWaveVisible(true, !this._nextWaveRushed)');
+  it('always shows button enabled — no one-ahead limit', () => {
+    expect(gameSceneSrc).toContain('this.hud.setRushWaveVisible(true, true)');
   });
 
-  it('is called from startNextWave()', () => {
+  it('is called from _doStartWave()', () => {
     expect(gameSceneSrc).toContain('this._updateRushButton()');
   });
 });
@@ -122,37 +123,24 @@ describe('GameScene — _showRushBonusFeedback()', () => {
   });
 });
 
-// ── onWaveComplete rush path ──────────────────────────────────────────────────
+// ── onWaveComplete concurrent wave handling ───────────────────────────────────
 
-describe('GameScene — onWaveComplete rush path', () => {
-  it('hides rush button at the start of onWaveComplete', () => {
+describe('GameScene — onWaveComplete concurrent wave handling', () => {
+  it('hides rush button when all waves complete', () => {
     expect(gameSceneSrc).toContain('this.hud.setRushWaveVisible(false)');
   });
 
-  it('checks _nextWaveRushed inside onWaveComplete', () => {
-    expect(gameSceneSrc).toContain('if (this._nextWaveRushed)');
+  it('returns early when other waves are still active (concurrent wave support)', () => {
+    expect(gameSceneSrc).toContain('if (this.waveManager.isActive()) return;');
   });
 
-  it('clears _nextWaveRushed in the rush path', () => {
-    expect(gameSceneSrc).toContain('this._nextWaveRushed = false;');
+  it('uses this.currentWave for the final-wave check (not waveNum from event)', () => {
+    expect(gameSceneSrc).toContain('this.currentWave >= this.totalWaves');
   });
 
-  it('calls startNextWave() in the rush path', () => {
-    // The rush path calls startNextWave() and returns early.
-    // We verify both appear in the rush block context.
-    const rushBlock = gameSceneSrc.match(
-      /if \(this\._nextWaveRushed\) \{[\s\S]*?return;\s*\}/
-    );
-    expect(rushBlock).not.toBeNull();
-    expect(rushBlock![0]).toContain('this.startNextWave()');
-  });
-
-  it('returns early in the rush path (skips between-wave queue)', () => {
-    const rushBlock = gameSceneSrc.match(
-      /if \(this\._nextWaveRushed\) \{[\s\S]*?return;\s*\}/
-    );
-    expect(rushBlock).not.toBeNull();
-    expect(rushBlock![0]).toContain('return;');
+  it('does not have a _nextWaveRushed rush path inside onWaveComplete', () => {
+    // onWaveComplete should not reference the old flag
+    expect(gameSceneSrc).not.toContain('_nextWaveRushed');
   });
 });
 
@@ -228,6 +216,67 @@ describe('GameScene — wires rush button in create()', () => {
     expect(gameSceneSrc).toContain(
       'this.hud.createRushWaveButton(() => this.rushNextWave(), RUSH_GOLD_AMOUNT)'
     );
+  });
+});
+
+// ── WaveManager concurrent wave structure ─────────────────────────────────────
+
+describe('WaveManager — concurrent wave support (ActiveWave interface)', () => {
+  it('defines the ActiveWave interface', () => {
+    expect(waveManagerSrc).toContain('interface ActiveWave');
+  });
+
+  it('ActiveWave has waveNumber field', () => {
+    expect(waveManagerSrc).toContain('waveNumber:');
+  });
+
+  it('ActiveWave has cancelled field', () => {
+    expect(waveManagerSrc).toContain('cancelled:');
+  });
+
+  it('uses _activeWaves array (not a single waveActive boolean)', () => {
+    expect(waveManagerSrc).toContain('_activeWaves: ActiveWave[]');
+    expect(waveManagerSrc).not.toContain('private waveActive');
+  });
+
+  it('isActive() checks _activeWaves.length', () => {
+    expect(waveManagerSrc).toContain('_activeWaves.length > 0');
+  });
+
+  it('startWave() pushes a new ActiveWave onto _activeWaves', () => {
+    expect(waveManagerSrc).toContain('this._activeWaves.push(wave)');
+  });
+
+  it('cleanup() sets cancelled = true for all active waves', () => {
+    expect(waveManagerSrc).toContain('wave.cancelled = true');
+  });
+
+  it('cleanup() clears _activeWaves', () => {
+    expect(waveManagerSrc).toContain('this._activeWaves = []');
+  });
+
+  it('_onSettledForWave splices the wave from _activeWaves when done', () => {
+    expect(waveManagerSrc).toContain('this._activeWaves.splice(idx, 1)');
+  });
+
+  it('uses _spawnOneForWave instead of spawnOne', () => {
+    expect(waveManagerSrc).toContain('_spawnOneForWave(');
+    expect(waveManagerSrc).not.toContain('private spawnOne(');
+  });
+
+  it('uses _spawnBossForWave instead of spawnBoss', () => {
+    expect(waveManagerSrc).toContain('_spawnBossForWave(');
+    expect(waveManagerSrc).not.toContain('private spawnBoss(');
+  });
+
+  it('uses _spawnMiniForWave instead of spawnMini', () => {
+    expect(waveManagerSrc).toContain('_spawnMiniForWave(');
+    expect(waveManagerSrc).not.toContain('private spawnMini(');
+  });
+
+  it('uses _onSettledForWave instead of onSettled', () => {
+    expect(waveManagerSrc).toContain('_onSettledForWave(');
+    expect(waveManagerSrc).not.toContain('private onSettled(');
   });
 });
 
@@ -345,5 +394,19 @@ describe('Endless-mode guard arithmetic', () => {
 describe('GameScene — _updateRushButton endless mode guard', () => {
   it('uses isEndlessMode to gate the totalWaves check', () => {
     expect(gameSceneSrc).toContain('!this.isEndlessMode && nextWave > this.totalWaves');
+  });
+});
+
+// ── Concurrent rushes (multiple consecutive rushes allowed) ───────────────────
+
+describe('Rush wave — multiple consecutive rushes allowed', () => {
+  it('_updateRushButton always calls setRushWaveVisible(true, true) when enabled', () => {
+    // After each rush, _doStartWave increments currentWave and calls _updateRushButton.
+    // The button must show enabled for the next rush (no flag-gating).
+    expect(gameSceneSrc).toContain('this.hud.setRushWaveVisible(true, true)');
+  });
+
+  it('rushNextWave calls _doStartWave directly to start the wave immediately', () => {
+    expect(gameSceneSrc).toContain('this._doStartWave()');
   });
 });

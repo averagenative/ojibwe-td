@@ -435,3 +435,197 @@ describe('wave completion flow (end-to-end)', () => {
     expect(state3.lives).toBe(0); // clamped at 0, not -1
   });
 });
+
+// ── Concurrent wave tests (rush wave stacking) ────────────────────────────────
+//
+// These tests verify that startWave() can be called while a previous wave is
+// still active, creating independently tracked concurrent waves.  Each wave
+// emits its own wave-complete event when ALL of its own creeps have settled.
+
+describe('concurrent waves (rush wave stacking)', () => {
+  let scene:        Phaser.Scene;
+  let activeCreeps: Set<MockCreepLike>;
+  let waveManager:  WaveManager;
+  let state:        GameState;
+
+  beforeEach(() => {
+    scene        = makeScene();
+    activeCreeps = new Set<MockCreepLike>();
+    state        = { gold: 0, lives: 20 };
+    wireGameEvents(scene, state);
+    waveManager = new WaveManager(
+      scene,
+      WAYPOINTS,
+      activeCreeps as unknown as Set<import('../../entities/Creep').Creep>,
+      CREEP_TYPE_DEFS,
+      // 4 wave defs so we can stack waves 1+2, 2+3, etc.
+      [makeWaveDef(2), makeWaveDef(2), makeWaveDef(2), makeWaveDef(2)],
+    );
+  });
+
+  it('isActive() returns true when startWave(2) is called before wave-1 creeps die', () => {
+    waveManager.startWave(1);
+    // Wave 1 creeps are now alive (timer fires synchronously)
+    const wave1Creeps = [...activeCreeps];
+
+    waveManager.startWave(2);
+    // Both waves are now running; kill only one wave-1 creep
+    wave1Creeps[0].emit('died');
+
+    expect(waveManager.isActive()).toBe(true);
+  });
+
+  it('activeCreeps contains creeps from both concurrent waves', () => {
+    waveManager.startWave(1); // spawns 2 creeps
+    const countAfterWave1 = activeCreeps.size;
+    waveManager.startWave(2); // spawns 2 more creeps
+
+    expect(countAfterWave1).toBe(2);
+    expect(activeCreeps.size).toBe(4); // 2 + 2 concurrent
+  });
+
+  it('wave-complete fires for wave 1 independently when all its creeps settle', () => {
+    const completedWaves: number[] = [];
+    waveManager.on('wave-complete', (n: unknown) => completedWaves.push(n as number));
+
+    waveManager.startWave(1);
+    const wave1Creeps = [...activeCreeps];
+
+    waveManager.startWave(2);
+    const wave2Creeps = [...activeCreeps].filter(c => !wave1Creeps.includes(c));
+
+    // Kill all wave-1 creeps — wave-complete(1) should fire
+    wave1Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+
+    expect(completedWaves).toEqual([1]);
+    // Wave 2 still active
+    expect(waveManager.isActive()).toBe(true);
+    expect(wave2Creeps.length).toBe(2);
+  });
+
+  it('wave-complete fires for wave 2 independently when all its creeps settle', () => {
+    const completedWaves: number[] = [];
+    waveManager.on('wave-complete', (n: unknown) => completedWaves.push(n as number));
+
+    waveManager.startWave(1);
+    const wave1Creeps = [...activeCreeps];
+
+    waveManager.startWave(2);
+    const wave2Creeps = [...activeCreeps].filter(c => !wave1Creeps.includes(c));
+
+    // Kill wave 2 first — wave-complete(2) fires
+    wave2Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    expect(completedWaves).toEqual([2]);
+
+    // Kill wave 1 — wave-complete(1) fires
+    wave1Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    expect(completedWaves).toEqual([2, 1]);
+  });
+
+  it('isActive() returns false only after ALL concurrent waves complete', () => {
+    waveManager.startWave(1);
+    const wave1Creeps = [...activeCreeps];
+
+    waveManager.startWave(2);
+    const wave2Creeps = [...activeCreeps].filter(c => !wave1Creeps.includes(c));
+
+    // Kill wave 1 — still active (wave 2 alive)
+    wave1Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    expect(waveManager.isActive()).toBe(true);
+
+    // Kill wave 2 — now inactive
+    wave2Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    expect(waveManager.isActive()).toBe(false);
+  });
+
+  it('wave-complete fires exactly once per wave across 3 concurrent waves', () => {
+    const completedWaves: number[] = [];
+    waveManager.on('wave-complete', (n: unknown) => completedWaves.push(n as number));
+
+    waveManager.startWave(1);
+    const after1 = [...activeCreeps];
+
+    waveManager.startWave(2);
+    const after2 = [...activeCreeps];
+    const wave2Creeps = after2.filter(c => !after1.includes(c));
+
+    waveManager.startWave(3);
+    const after3 = [...activeCreeps];
+    const wave3Creeps = after3.filter(c => !after2.includes(c));
+    const wave1Creeps = after1;
+
+    // Settle all three in reverse order: 3, 2, 1
+    wave3Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    wave2Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    wave1Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+
+    expect(completedWaves.sort()).toEqual([1, 2, 3]);
+    expect(waveManager.isActive()).toBe(false);
+  });
+
+  it('gold from wave-bonus events is separate per wave', () => {
+    const bonuses: number[] = [];
+    (scene as unknown as { events: SceneEmitter }).events.on(
+      'wave-bonus',
+      (b: unknown) => bonuses.push(b as number),
+    );
+
+    waveManager.startWave(1);
+    const wave1Creeps = [...activeCreeps];
+
+    waveManager.startWave(2);
+    const wave2Creeps = [...activeCreeps].filter(c => !wave1Creeps.includes(c));
+
+    wave1Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    wave2Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+
+    // Each wave fires its own wave-bonus — two separate events
+    expect(bonuses.length).toBe(2);
+    expect(bonuses[0]).toBe(calculateWaveBonus(1));
+    expect(bonuses[1]).toBe(calculateWaveBonus(2));
+  });
+
+  it('cleanup() cancels all active concurrent waves', () => {
+    let completeCount = 0;
+    waveManager.on('wave-complete', () => { completeCount++; });
+
+    waveManager.startWave(1);
+    const wave1Creeps = [...activeCreeps];
+
+    waveManager.startWave(2);
+    const wave2Creeps = [...activeCreeps].filter(c => !wave1Creeps.includes(c));
+
+    // Cancel both waves before creeps settle
+    waveManager.cleanup();
+    expect(waveManager.isActive()).toBe(false);
+
+    // Killing creeps after cleanup must NOT fire wave-complete
+    wave1Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    wave2Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+    expect(completeCount).toBe(0);
+  });
+
+  it('partial settlement: wave fires complete only once all its own creeps settle', () => {
+    let completeCount = 0;
+    waveManager.on('wave-complete', () => { completeCount++; });
+
+    waveManager.startWave(1); // 2 creeps
+    const wave1Creeps = [...activeCreeps];
+
+    waveManager.startWave(2); // 2 more creeps
+    const wave2Creeps = [...activeCreeps].filter(c => !wave1Creeps.includes(c));
+
+    // Kill one wave-1 creep and both wave-2 creeps
+    wave1Creeps[0].emit('died');
+    wave2Creeps.forEach((c: MockCreepLike) => c.emit('died'));
+
+    // Wave 2 complete, wave 1 still has 1 creep alive
+    expect(completeCount).toBe(1);
+    expect(waveManager.isActive()).toBe(true);
+
+    // Kill the last wave-1 creep
+    wave1Creeps[1].emit('died');
+    expect(completeCount).toBe(2);
+    expect(waveManager.isActive()).toBe(false);
+  });
+});

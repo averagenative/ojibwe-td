@@ -96,6 +96,25 @@ export interface CreepKilledData {
 /** Boss rotation for endless waves (cycled from wave 25 onward). */
 const ENDLESS_BOSS_ROTATION = ['makwa', 'migizi', 'waabooz', 'animikiins'] as const;
 
+/**
+ * Per-wave tracking record used to support multiple concurrent active waves.
+ * Each call to startWave() creates one ActiveWave pushed onto _activeWaves[].
+ */
+interface ActiveWave {
+  waveNumber:        number;
+  totalToSpawn:      number;
+  spawned:           number;
+  settled:           number;
+  /** Alternates between ground paths for multi-path maps. Starts at 0 each wave. */
+  spawnPathIndex:    number;
+  spawnQueue:        CreepConfig[];
+  spawnTimer?:       Phaser.Time.TimerEvent;
+  escortDelayTimer?: Phaser.Time.TimerEvent;
+  escortTimer?:      Phaser.Time.TimerEvent;
+  /** Set by cleanup() to prevent settled creeps from completing a cancelled wave. */
+  cancelled:         boolean;
+}
+
 export class WaveManager extends Phaser.Events.EventEmitter {
   private scene:        Phaser.Scene;
   /** Primary ground path (path A / path index 0). Used by Waabooz split and single-path maps. */
@@ -109,19 +128,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   private creepTypeDefs: CreepTypeDef[] = [];
   private waveDefs:      WaveDef[]      = [];
 
-  private currentWave  = 0;
-  private totalToSpawn = 0;
-  private spawned      = 0;
-  private settled      = 0;
-  private waveActive   = false;
-  private spawnQueue:  CreepConfig[] = [];
-  private spawnTimer?: Phaser.Time.TimerEvent;
-  /** Increments with each ground/air creep spawned; used to alternate between paths. */
-  private spawnPathIndex = 0;
-  /** Timer for the initial delay before escort spawning begins. */
-  private escortDelayTimer?: Phaser.Time.TimerEvent;
-  /** Timer for the repeat-interval escort spawning after the first escort. */
-  private escortTimer?: Phaser.Time.TimerEvent;
+  /** All currently-running waves. Supports concurrent wave stacking via rush. */
+  private _activeWaves: ActiveWave[] = [];
 
   /** When true, waves beyond waveDefs.length are generated procedurally. */
   private isEndless = false;
@@ -190,7 +198,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       : [this.waypoints[0], this.waypoints[this.waypoints.length - 1]];
   }
 
-  isActive(): boolean { return this.waveActive; }
+  /** Returns true if one or more waves are currently active (creeps spawning or alive). */
+  isActive(): boolean { return this._activeWaves.length > 0; }
 
   /**
    * Returns true if the wave at `waveNum` contains any air-type creeps.
@@ -369,16 +378,26 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     };
   }
 
+  /**
+   * Start spawning wave `waveNumber`.  Can be called while other waves are still
+   * active — each call creates an independent ActiveWave tracked in _activeWaves[].
+   * wave-complete fires per wave when ALL its creeps have died or escaped.
+   */
   startWave(waveNumber: number): void {
     const waveDef: WaveDef | undefined = this.waveDefs[waveNumber - 1]
       ?? (this.isEndless ? this.generateEndlessWave(waveNumber) : undefined);
     if (!waveDef) return;
 
-    this.currentWave   = waveNumber;
-    this.spawned       = 0;
-    this.settled       = 0;
-    this.waveActive    = true;
-    this.spawnPathIndex = 0; // reset alternation each wave
+    const wave: ActiveWave = {
+      waveNumber,
+      totalToSpawn:   0,
+      spawned:        0,
+      settled:        0,
+      spawnPathIndex: 0,
+      spawnQueue:     [],
+      cancelled:      false,
+    };
+    this._activeWaves.push(wave);
 
     if (waveDef.boss) {
       // ── Boss wave ────────────────────────────────────────────────────────
@@ -388,7 +407,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       const bossDef    = rawBossDef ? this.resolveBossDef(rawBossDef) : undefined;
       if (!bossDef) {
         console.warn(`[WaveManager] Unknown boss key: "${waveDef.boss}"`);
-        this.waveActive = false;
+        this._activeWaves.pop();
         return;
       }
 
@@ -397,7 +416,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         ? this.buildEscortQueue(waveDef, waveDef.escorts)
         : [];
 
-      this.totalToSpawn = 1 + escortQueue.length;
+      wave.totalToSpawn = 1 + escortQueue.length;
 
       // Announce the boss wave immediately.
       this.scene.events.emit('boss-wave-start', {
@@ -409,8 +428,8 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       this.scene.time.addEvent({
         delay:    800,
         callback: () => {
-          if (!this.waveActive) return;
-          this.spawnBoss(bossDef);
+          if (wave.cancelled) return;
+          this._spawnBossForWave(bossDef, wave);
         },
       });
 
@@ -421,17 +440,17 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         let   escortIdx  = 0;
 
         const spawnNextEscort = (): void => {
-          if (!this.waveActive || escortIdx >= escortQueue.length) return;
-          this.spawnOne(escortQueue[escortIdx++]);
+          if (wave.cancelled || escortIdx >= escortQueue.length) return;
+          this._spawnOneForWave(escortQueue[escortIdx++], wave);
         };
 
-        this.escortDelayTimer = this.scene.time.addEvent({
+        wave.escortDelayTimer = this.scene.time.addEvent({
           delay:    delayMs,
           callback: () => {
             spawnNextEscort(); // First escort
             const remaining = escortQueue.length - 1;
             if (remaining > 0) {
-              this.escortTimer = this.scene.time.addEvent({
+              wave.escortTimer = this.scene.time.addEvent({
                 delay:    intervalMs,
                 callback: spawnNextEscort,
                 repeat:   remaining - 1, // fires `remaining` times total
@@ -443,22 +462,29 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     } else {
       // ── Normal wave ──────────────────────────────────────────────────────
-      this.totalToSpawn = waveDef.count;
-      this.spawnQueue   = this.buildSpawnQueue(waveDef);
+      wave.totalToSpawn = waveDef.count;
+      wave.spawnQueue   = this.buildSpawnQueue(waveDef);
 
-      this.spawnTimer = this.scene.time.addEvent({
-        delay:         waveDef.intervalMs,
-        callback:      this.spawnNext,
-        callbackScope: this,
-        repeat:        waveDef.count - 1,
+      wave.spawnTimer = this.scene.time.addEvent({
+        delay:    waveDef.intervalMs,
+        callback: () => this._spawnNextForWave(wave),
+        repeat:   waveDef.count - 1,
       });
     }
   }
 
+  /**
+   * Cancel all active waves and destroy their spawn timers.
+   * Called when the scene shuts down or game over occurs.
+   */
   cleanup(): void {
-    this.spawnTimer?.destroy();
-    this.escortTimer?.destroy();
-    this.escortDelayTimer?.destroy();
+    for (const wave of this._activeWaves) {
+      wave.cancelled = true;
+      wave.spawnTimer?.destroy();
+      wave.escortTimer?.destroy();
+      wave.escortDelayTimer?.destroy();
+    }
+    this._activeWaves = [];
   }
 
   // ── private ───────────────────────────────────────────────────────────────
@@ -602,19 +628,19 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     return queue;
   }
 
-  private spawnNext(): void {
-    const config = this.spawnQueue[this.spawned];
+  private _spawnNextForWave(wave: ActiveWave): void {
+    const config = wave.spawnQueue[wave.spawned];
     if (!config) return;
-    this.spawnOne(config);
+    this._spawnOneForWave(config, wave);
   }
 
   /**
    * Spawn the boss creep for a boss wave.
    * Sets up a special 'died' handler that emits 'boss-killed' and — for
-   * Waabooz — handles the split-on-death mechanic before calling onSettled().
+   * Waabooz — handles the split-on-death mechanic before calling _onSettledForWave().
    */
-  private spawnBoss(bossDef: BossDef): void {
-    this.spawned++;
+  private _spawnBossForWave(bossDef: BossDef, wave: ActiveWave): void {
+    wave.spawned++;
 
     const config: CreepConfig = {
       hp:                 Math.round(bossDef.hp * this.ascensionHpMult),
@@ -645,7 +671,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       this.activeCreeps.delete(creep);
       // Boss escape costs 3 lives; reward passed for Tax Collector.
       this.scene.events.emit('creep-escaped', { liveCost: 3, reward: creep.reward });
-      this.onSettled();
+      this._onSettledForWave(wave);
     });
 
     if (bossDef.bossAbility === 'split') {
@@ -669,10 +695,10 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         const splitCfg  = computeWaaboozSplitConfig(bossDef);
         const splitCount = splitCfg.count;
 
-        // Pre-account for split copies BEFORE calling onSettled, so the
+        // Pre-account for split copies BEFORE calling _onSettledForWave, so the
         // wave-complete check doesn't fire prematurely.
-        this.totalToSpawn += splitCount;
-        this.spawned      += splitCount;
+        wave.totalToSpawn += splitCount;
+        wave.spawned      += splitCount;
 
         // Build waypoints starting at the boss's current position.
         const parentWpIdx  = creep.getCurrentWaypointIndex();
@@ -693,12 +719,12 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         };
 
         for (let i = 0; i < splitCount; i++) {
-          this.spawnMini(miniConfig, remainingWps);
+          this._spawnMiniForWave(miniConfig, remainingWps, wave);
         }
 
         // Now settle the boss itself (settled goes from 0 → 1, but
         // totalToSpawn is now 1 + splitCount, so wave won't complete yet).
-        this.onSettled();
+        this._onSettledForWave(wave);
       });
 
     } else {
@@ -718,21 +744,21 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         };
         this.scene.events.emit('boss-killed', bossKilledData);
 
-        this.onSettled();
+        this._onSettledForWave(wave);
       });
     }
   }
 
-  private spawnOne(config: CreepConfig): void {
-    this.spawned++;
+  private _spawnOneForWave(config: CreepConfig, wave: ActiveWave): void {
+    wave.spawned++;
     // Air creeps fly a simplified direct route (always path A for single or multi-path).
     // Ground creeps alternate between paths on multi-path maps.
     let wp: Waypoint[];
     if (config.type === 'air') {
       wp = this.airWaypoints;
     } else if (this.waypointPaths.length > 1) {
-      wp = this.waypointPaths[this.spawnPathIndex % this.waypointPaths.length];
-      this.spawnPathIndex++;
+      wp = this.waypointPaths[wave.spawnPathIndex % this.waypointPaths.length];
+      wave.spawnPathIndex++;
     } else {
       wp = this.waypoints;
     }
@@ -743,49 +769,55 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       this.activeCreeps.delete(creep);
       // Normal creeps cost 1 life on escape; also pass reward for Tax Collector.
       this.scene.events.emit('creep-escaped', { liveCost: 1, reward: creep.reward });
-      this.onSettled();
+      this._onSettledForWave(wave);
     });
 
     creep.once('died', () => {
       this.activeCreeps.delete(creep);
       this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
-      this.onSettled();
+      this._onSettledForWave(wave);
     });
   }
 
   /**
    * Spawn a mini-Waabooz copy at a specific position along the path.
-   * Does NOT increment `spawned` — the caller pre-accounts for split copies.
+   * Does NOT increment `wave.spawned` — the caller pre-accounts for split copies.
    * Mini-copies cost only 1 life on escape (they are not bosses).
    */
-  private spawnMini(config: CreepConfig, waypoints: Waypoint[]): void {
+  private _spawnMiniForWave(config: CreepConfig, waypoints: Waypoint[], wave: ActiveWave): void {
     const creep = new Creep(this.scene, waypoints, config);
     this.activeCreeps.add(creep);
 
     creep.once('reached-exit', () => {
       this.activeCreeps.delete(creep);
       this.scene.events.emit('creep-escaped', { liveCost: 1, reward: creep.reward });
-      this.onSettled();
+      this._onSettledForWave(wave);
     });
 
     creep.once('died', () => {
       this.activeCreeps.delete(creep);
       this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
-      this.onSettled();
+      this._onSettledForWave(wave);
     });
   }
 
-  private onSettled(): void {
-    this.settled++;
+  /**
+   * Called when a single creep from `wave` dies or escapes.
+   * Removes the wave from _activeWaves and fires wave-bonus + wave-complete
+   * once all of that wave's creeps have settled.
+   */
+  private _onSettledForWave(wave: ActiveWave): void {
+    wave.settled++;
     if (
-      this.waveActive &&
-      this.spawned  >= this.totalToSpawn &&
-      this.settled  >= this.totalToSpawn
+      !wave.cancelled &&
+      wave.spawned  >= wave.totalToSpawn &&
+      wave.settled  >= wave.totalToSpawn
     ) {
-      this.waveActive = false;
-      const bonus = calculateWaveBonus(this.currentWave);
+      const idx = this._activeWaves.indexOf(wave);
+      if (idx !== -1) this._activeWaves.splice(idx, 1);
+      const bonus = calculateWaveBonus(wave.waveNumber);
       this.scene.events.emit('wave-bonus', bonus);
-      this.emit('wave-complete', this.currentWave);
+      this.emit('wave-complete', wave.waveNumber);
     }
   }
 }
