@@ -2098,6 +2098,39 @@ Non-blocking items surfaced during code review:
   Extracting a `_setupTextScroll(loreDisplay, loreTextY, maxLoreH, cx, hintText)`
   helper would remove ~30 lines of duplication.
 
+### TASK-094: Rename Tesla → Thunder — Non-blocking findings (2026-03-03)
+
+- **Internal code comments still say "Tesla"**: ~40 code comments across
+  `commanderDefs.ts`, `towerDefs.ts`, `upgradeDefs.ts`, `gearDefs.ts`,
+  `towerAnimDefs.ts`, `UpgradeManager.ts`, `OfferManager.ts`, `BalanceCalc.ts`,
+  and `targeting.ts` reference "Tesla" in JSDoc or inline comments. These are
+  developer-facing only and have no player impact, but could be updated for
+  consistency in a follow-up pass.
+- **Internal variable/method names**: `teslaChainBonus`, `teslaChainAoE`,
+  `teslaSpeedBoostDivisor`, `teslaUnlimitedChains`, `fireTesla()`,
+  `_stepTeslaLean()`, `_playTeslaFlash()`, `_sfxTesla()`, `applyTeslaShock()`,
+  `_teslaShockedMs` all retain the "tesla" prefix. Renaming these would be a
+  larger refactor with save-data migration concerns — low priority.
+- **Asset keys**: `icon-tesla`, `sfx-tesla` file references remain. Renaming
+  these requires updating file names on disk and all load references — cosmetic,
+  no player impact.
+
+### TASK-095 review findings (non-blocking)
+
+- **Shared `createBackground()` helper**: `MainMenuScene.createBackground()` and
+  `MetaMenuScene.createBackground()` are now nearly identical (PAL.bgDark + 40px
+  grid). Consider extracting to a shared utility (e.g. `ui/drawMenuBackground.ts`)
+  if more scenes adopt this pattern. Two call-sites don't warrant it yet.
+- **Scroll arrow step size**: `renderUnlocksTab` scroll arrows still use
+  `NODE_H_COMPACT + NODE_GAP` (70px) as the step size, but actual nodes are now
+  `NODE_H + NODE_GAP` (100px). Scrolling still works but each arrow click scrolls
+  less than one full node. Consider updating to `NODE_H + NODE_GAP` for exact
+  node-by-node scrolling.
+- **Ellipsis truncation**: Phaser 3's `maxLines` clips text silently — it does not
+  append "..." when text is truncated. If visible truncation indication is desired,
+  a post-render check on `Text.height` could append an ellipsis character. Low
+  priority — current descriptions fit within 3 lines at desktop sizes.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)

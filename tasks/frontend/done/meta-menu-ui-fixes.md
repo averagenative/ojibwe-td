@@ -1,7 +1,7 @@
 ---
 id: TASK-095
 title: Meta Upgrades Menu — Text Overflow & Background Mismatch
-status: pending
+status: done
 category: frontend
 priority: high
 depends_on: []
