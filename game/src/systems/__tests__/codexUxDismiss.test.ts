@@ -35,7 +35,7 @@ function desktopBranch(): string {
 /** Extract the mobile branch within showDetail (before the desktop branch). */
 function mobileBranch(): string {
   const body = showDetailBody();
-  const end = body.indexOf('} else {');
+  const end = body.indexOf('// ── Desktop: side panel');
   return body.slice(0, end);
 }
 

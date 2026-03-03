@@ -36,6 +36,8 @@ export interface CodexEntryDef {
   title:    string;
   /** Hex colour for the placeholder illustration tile. */
   tileColor: number;
+  /** Texture key for the entry icon (portrait, boss sprite, tile, etc.). Falls back to tileColor tile when missing or not loaded. */
+  iconKey?:  string;
   /** 2–6 lines of lore text. */
   lines:    string[];
   /** Whether the creator has reviewed this entry. */
@@ -52,6 +54,7 @@ const BEINGS: CodexEntryDef[] = [
     section:   CodexSection.BEINGS,
     title:     'Displaced Spirits',
     tileColor: 0x667788,
+    iconKey:   'creep-normal',
     lines: [
       'The creatures that swarm across the land are not invaders.',
       'They are spirits of animals and small beings, driven from their homes',
@@ -66,6 +69,7 @@ const BEINGS: CodexEntryDef[] = [
     section:   CodexSection.BEINGS,
     title:     'Makwa — The Bear',
     tileColor: 0xcc6600,
+    iconKey:   'boss-makwa',
     lines: [
       'Makwa is the great bear, keeper of medicine knowledge.',
       'Thick-furred and slow to anger, the bear walks alone',
@@ -80,6 +84,7 @@ const BEINGS: CodexEntryDef[] = [
     section:   CodexSection.BEINGS,
     title:     'Migizi — The Eagle',
     tileColor: 0xffd700,
+    iconKey:   'boss-migizi',
     lines: [
       'Migizi flies above the world, seeing all.',
       'The golden eagle is a messenger between the earth and the sky.',
@@ -94,6 +99,7 @@ const BEINGS: CodexEntryDef[] = [
     section:   CodexSection.BEINGS,
     title:     'Waabooz — The Hare',
     tileColor: 0xaaddff,
+    iconKey:   'boss-waabooz',
     lines: [
       'Waabooz, the hare, is the trickster\'s companion.',
       'Quick and elusive, it splits into copies when cornered —',
@@ -108,6 +114,7 @@ const BEINGS: CodexEntryDef[] = [
     section:   CodexSection.BEINGS,
     title:     'Animikiins — Little Thunderbird',
     tileColor: 0x4466ff,
+    iconKey:   'boss-animikiins',
     lines: [
       'Animikiins is the youngest of the thunder beings.',
       'Its wings crackle with lightning; its body heals as fast as it is wounded.',
@@ -122,6 +129,7 @@ const BEINGS: CodexEntryDef[] = [
     section:   CodexSection.BEINGS,
     title:     'The Swarm',
     tileColor: 0x556655,
+    iconKey:   'creep-fast',
     lines: [
       'Small spirits travel in groups — strength in numbers.',
       'Individually fragile, collectively overwhelming.',
@@ -141,6 +149,7 @@ const PLACES: CodexEntryDef[] = [
     section:   CodexSection.PLACES,
     title:     'Zaaga\'iganing — Lake Country',
     tileColor: 0x0a6a3a,
+    iconKey:   'tile-tree',
     lines: [
       'Zaaga\'iganing, the lake country, lies at the heart of the homeland.',
       'Its shores have been gathering places since time before memory.',
@@ -155,6 +164,7 @@ const PLACES: CodexEntryDef[] = [
     section:   CodexSection.PLACES,
     title:     'Mashkiig — The Wetlands',
     tileColor: 0x1188bb,
+    iconKey:   'tile-water',
     lines: [
       'Mashkiig is a place of hidden paths and abundant life.',
       'The twisting waterways slow all who pass through,',
@@ -169,6 +179,7 @@ const PLACES: CodexEntryDef[] = [
     section:   CodexSection.PLACES,
     title:     'Mitigomizh — Oak Savanna',
     tileColor: 0xbb6600,
+    iconKey:   'tile-brush',
     lines: [
       'Mitigomizh stretches wide and golden under the autumn sky.',
       'The oaks here are ancient — they have survived a hundred fires.',
@@ -183,6 +194,7 @@ const PLACES: CodexEntryDef[] = [
     section:   CodexSection.PLACES,
     title:     'Biboon-aki — Winter Lands',
     tileColor: 0x3377bb,
+    iconKey:   'tile-rock',
     lines: [
       'In Biboon-aki, the world holds its breath.',
       'The cold is not cruelty — it is the earth\'s rest.',
@@ -202,6 +214,7 @@ const COMMANDERS: CodexEntryDef[] = [
     section:   CodexSection.COMMANDERS,
     title:     'Nokomis — Grandmother',
     tileColor: 0x44aa44,
+    iconKey:   'portrait-nokomis',
     lines: [
       'Nokomis of the Marten Clan carries the turtle totem.',
       'A keeper of medicine knowledge and oral tradition,',
@@ -217,6 +230,7 @@ const COMMANDERS: CodexEntryDef[] = [
     section:   CodexSection.COMMANDERS,
     title:     'Bizhiw — The Lynx',
     tileColor: 0x888866,
+    iconKey:   'portrait-bizhiw',
     lines: [
       'Bizhiw of the Crane Clan carries the lynx totem.',
       'The lynx sees what others cannot.',
@@ -231,6 +245,7 @@ const COMMANDERS: CodexEntryDef[] = [
     section:   CodexSection.COMMANDERS,
     title:     'Animikiikaa — Thunder Voice',
     tileColor: 0x6644cc,
+    iconKey:   'portrait-animikiikaa',
     lines: [
       'Animikiikaa of the Eagle Clan carries the eagle totem.',
       'When they speak, the sky splits open and the earth trembles.',
@@ -245,6 +260,7 @@ const COMMANDERS: CodexEntryDef[] = [
     section:   CodexSection.COMMANDERS,
     title:     'Makoons — Bear Cub',
     tileColor: 0xaa5533,
+    iconKey:   'portrait-makoons',
     lines: [
       'Makoons of the Bear Clan carries the bear totem.',
       'The bear cub grows into the warrior.',
@@ -272,6 +288,7 @@ const COMMANDERS: CodexEntryDef[] = [
     section:   CodexSection.COMMANDERS,
     title:     'Waabizii — The Swan',
     tileColor: 0xeeddff,
+    iconKey:   'portrait-waabizii',
     lines: [
       'Waabizii of the Fish Clan carries the swan totem.',
       'The swan glides above the chaos, serene and untouchable.',
@@ -378,6 +395,14 @@ export const ALL_CODEX_ENTRIES: readonly CodexEntryDef[] = [
   ...COMMANDERS,
   ...TEACHINGS,
 ];
+
+/** Representative icon texture key for each codex section tab. */
+export const CODEX_SECTION_ICONS: Record<CodexSection, string> = {
+  [CodexSection.BEINGS]:     'boss-makwa',
+  [CodexSection.PLACES]:     'tile-tree',
+  [CodexSection.COMMANDERS]: 'portrait-nokomis',
+  [CodexSection.TEACHINGS]:  'icon-mystery',
+};
 
 /** Ordered sections for display. */
 export const CODEX_SECTIONS: readonly CodexSection[] = [
