@@ -208,6 +208,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('portrait-waabizii',    'assets/portraits/portrait-waabizii.png');
     this.load.image('portrait-bizhiw',      'assets/portraits/portrait-bizhiw.png');
     this.load.image('portrait-animikiikaa', 'assets/portraits/portrait-animikiikaa.png');
+    this.load.image('portrait-oshkaabewis', 'assets/portraits/portrait-oshkaabewis.png');
 
     // Elder portraits (96x96) — narrative speakers in vignettes
     this.load.image('elder-mishoomis',         'assets/portraits/elder-mishoomis.png');
