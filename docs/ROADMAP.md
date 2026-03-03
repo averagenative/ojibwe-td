@@ -2011,6 +2011,26 @@ Non-blocking items surfaced during code review:
   automated tests.** Manual playtest recommended before shipping to confirm the
   difficulty curve feels smooth and no brick walls exist between regions.
 
+### TASK-106 — Orchestrator Token Optimization (non-blocking observations)
+
+- **`orchestrator.sh` Agent 3 (ship stage) is still a full LLM call.**
+  Steps 1/2/4/6 (npm check, mv task file, git add, git push) are pure bash but
+  run inside a Sonnet agent call. Converting to a hybrid bash+minimal-LLM call
+  (like `parallel-orchestrator.sh`'s `ship_task()`) would save ~80% of ship-stage
+  tokens. Filed as TASK-107.
+
+- **Health-check Phase 2 runs nightly on the full source tree.**
+  Even at Sonnet pricing (~$3/M vs $15/M for Opus), the nightly full-source scan
+  is the single largest recurring token cost. A `--deep` flag that makes Phase 2
+  opt-in (with Phase 1 bash-only grep as the default nightly) would eliminate this
+  cost on non-manual runs. Filed as TASK-108.
+
+- **No trivial-task auto-applier exists.**
+  Simple tasks (rename a constant, fix an unused import) still flow through the
+  full implement+review pipeline (~100–200 K tokens). A bash script that detects
+  and auto-applies trivial regex-based fixes would bypass LLM calls entirely for
+  these patterns. Filed as TASK-109.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)

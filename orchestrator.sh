@@ -279,23 +279,35 @@ done_path_for() {
   echo "$1" | sed 's|/pending/|/done/|'
 }
 
-# ── Pre-validate: bash typecheck gate before expensive Opus review ─────────────
+# ── Pre-validate: bash gates before expensive Opus review ─────────────────────
 #
-# Runs `npm run typecheck` in $GAME_DIR as pure bash.
-# Returns 0 on success, 1 on failure.  Saves ~10,000–25,000 Opus tokens per
+# Gate 1: `npm run typecheck` — catches compilation errors.
+# Gate 2: `npm run test`      — catches test regressions.
+# Returns 0 on success, 1 on failure.  Saves ~60–120 K Opus tokens per
 # broken implementation by short-circuiting before the review agent is invoked.
 
 pre_validate() {
+  # Gate 1: TypeScript compilation
   log "Pre-validate: running typecheck (bash gate — no LLM)…"
   local out
-  out=$(cd "$GAME_DIR" && npm run typecheck 2>&1) && {
-    log "Pre-validate: typecheck passed ✓  (Opus review will proceed)"
-    return 0
+  out=$(cd "$GAME_DIR" && npm run typecheck 2>&1) || {
+    echo "$out" | sed 's/^/[typecheck] /'
+    log "Pre-validate: typecheck FAILED — skipping Opus review to save tokens"
+    log "  Fix TypeScript errors in implement agent, then re-run with --resume"
+    return 1
   }
-  echo "$out" | sed 's/^/[typecheck] /'
-  log "Pre-validate: typecheck FAILED — skipping Opus review to save tokens"
-  log "  Fix TypeScript errors in implement agent, then re-run with --resume"
-  return 1
+  log "Pre-validate: typecheck passed ✓"
+
+  # Gate 2: Existing test suite — catch regressions before paying Opus
+  log "Pre-validate: running test suite (bash gate — no LLM)…"
+  out=$(cd "$GAME_DIR" && npm run test 2>&1) || {
+    echo "$out" | sed 's/^/[test] /'
+    log "Pre-validate: tests FAILED — skipping Opus review to save tokens"
+    log "  Fix test failures in implement agent, then re-run with --resume"
+    return 1
+  }
+  log "Pre-validate: tests passed ✓  (Opus review will proceed)"
+  return 0
 }
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
