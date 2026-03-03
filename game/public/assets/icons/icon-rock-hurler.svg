@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Rock Hurler tower icon: catapult arm hurling a boulder -->
+  <!-- Base platform -->
+  <rect x="12" y="48" width="40" height="8" rx="2" fill="#665533"/>
+  <rect x="16" y="44" width="32" height="6" rx="2" fill="#886644"/>
+  <!-- Support frame -->
+  <polygon points="22,44 18,44 24,24 28,24" fill="#775533"/>
+  <polygon points="42,44 46,44 40,24 36,24" fill="#775533"/>
+  <!-- Cross beam -->
+  <rect x="22" y="24" width="20" height="4" rx="1" fill="#886644"/>
+  <!-- Throwing arm -->
+  <line x1="32" y1="26" x2="18" y2="10" stroke="#997744" stroke-width="4" stroke-linecap="round"/>
+  <!-- Sling -->
+  <path d="M18,10 C14,8 12,12 16,14" fill="none" stroke="#665544" stroke-width="1.5"/>
+  <!-- Boulder -->
+  <circle cx="14" cy="10" r="8" fill="#888877"/>
+  <circle cx="12" cy="8" r="3" fill="#999988" opacity="0.5"/>
+  <circle cx="16" cy="12" r="2" fill="#777766" opacity="0.5"/>
+  <!-- Motion lines -->
+  <line x1="24" y1="8" x2="28" y2="12" stroke="#aa9977" stroke-width="1" opacity="0.5"/>
+  <line x1="22" y1="12" x2="26" y2="16" stroke="#aa9977" stroke-width="1" opacity="0.5"/>
+  <!-- Pivot point -->
+  <circle cx="32" cy="26" r="3" fill="#554433"/>
+</svg>

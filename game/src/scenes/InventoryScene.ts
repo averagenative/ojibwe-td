@@ -211,9 +211,18 @@ export class InventoryScene extends Phaser.Scene {
       // Rarity stripe at top
       const stripe = this.add.rectangle(x, y - CELL_SIZE / 2 + 3, CELL_SIZE - 4, 4, rarityCol.num);
 
+      // Gear type icon
+      const gearIconKey = `gear-${def.gearType}`;
+      let gearIcon: Phaser.GameObjects.Image | undefined;
+      if (this.textures.exists(gearIconKey)) {
+        gearIcon = this.add.image(x, y - 12, gearIconKey)
+          .setDisplaySize(28, 28)
+          .setTint(rarityCol.num);
+      }
+
       // Item name (truncated)
       const nameStr = def.name.length > 10 ? def.name.slice(0, 9) + '...' : def.name;
-      const name = this.add.text(x, y - 6, nameStr, {
+      const name = this.add.text(x, y + 12, nameStr, {
         fontSize:   '11px',
         color:      rarityCol.hex,
         fontFamily: PAL.fontBody,
@@ -246,7 +255,7 @@ export class InventoryScene extends Phaser.Scene {
       // Tower type label
       const towerKey = GEAR_TYPE_TOWER[def.gearType];
       const typeLabel = towerKey ? towerKey.charAt(0).toUpperCase() + towerKey.slice(1) : 'Uni';
-      const typeText = this.add.text(x, y + 16, typeLabel, {
+      const typeText = this.add.text(x, y + 26, typeLabel, {
         fontSize:   '9px',
         color:      PAL.textDim,
         fontFamily: PAL.fontBody,
@@ -263,6 +272,7 @@ export class InventoryScene extends Phaser.Scene {
       bg.on('pointerout',  () => { if (!isSelected) bg.setFillStyle(PAL.bgPanel); });
 
       this.gridObjects.push(bg, stripe, name, typeText);
+      if (gearIcon) this.gridObjects.push(gearIcon);
       if (badge) this.gridObjects.push(badge);
       if (equippedDot) this.gridObjects.push(equippedDot);
       if (runeDot) this.gridObjects.push(runeDot);
@@ -308,13 +318,24 @@ export class InventoryScene extends Phaser.Scene {
     let y = panelY + 16;
     const leftX = panelX - DETAIL_W / 2 + DETAIL_X_PAD;
 
-    // Name
-    const nameText = this.add.text(leftX, y, def.name, {
+    // Gear type icon (top of detail panel)
+    const detailGearIconKey = `gear-${def.gearType}`;
+    const hasDetailGearIcon = this.textures.exists(detailGearIconKey);
+    if (hasDetailGearIcon) {
+      const gearImg = this.add.image(leftX + 18, y + 18, detailGearIconKey)
+        .setDisplaySize(36, 36)
+        .setTint(RARITY_COLORS[def.rarity].num);
+      this.detailObjects.push(gearImg);
+    }
+
+    // Name (offset right to sit beside gear icon)
+    const iconInset = hasDetailGearIcon ? 42 : 0;
+    const nameText = this.add.text(leftX + iconInset, y, def.name, {
       fontSize:   '18px',
       color:      RARITY_COLORS[def.rarity].hex,
       fontFamily: PAL.fontTitle,
       fontStyle:  'bold',
-      wordWrap:   { width: DETAIL_W - DETAIL_X_PAD * 2 },
+      wordWrap:   { width: DETAIL_W - DETAIL_X_PAD * 2 - iconInset },
     });
     this.detailObjects.push(nameText);
     y += 28;
@@ -330,10 +351,18 @@ export class InventoryScene extends Phaser.Scene {
     this.detailObjects.push(rarityText);
     y += 22;
 
-    // Tower type
+    // Tower type with tower icon
     const towerKey = GEAR_TYPE_TOWER[def.gearType];
     const towerLabel = towerKey ? towerKey.charAt(0).toUpperCase() + towerKey.slice(1) : 'Universal';
-    const typeText = this.add.text(leftX, y, `Type: ${towerLabel}`, {
+    const towerIconKey = towerKey ? `icon-${towerKey}` : null;
+    let towerTextOffsetX = leftX;
+    if (towerIconKey && this.textures.exists(towerIconKey)) {
+      const towerImg = this.add.image(leftX + 10, y + 6, towerIconKey)
+        .setDisplaySize(20, 20);
+      this.detailObjects.push(towerImg);
+      towerTextOffsetX = leftX + 24;
+    }
+    const typeText = this.add.text(towerTextOffsetX, y, `Type: ${towerLabel}`, {
       fontSize:   '12px',
       color:      PAL.textSecondary,
       fontFamily: PAL.fontBody,

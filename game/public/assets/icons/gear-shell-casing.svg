@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Shell Casing — Rock Hurler AoE gear: artillery shell / bomb -->
+  <!-- Shell body -->
+  <ellipse cx="32" cy="34" rx="16" ry="20" fill="#8b6633"/>
+  <!-- Shell highlight -->
+  <ellipse cx="28" cy="28" rx="8" ry="12" fill="#aa8844" opacity="0.5"/>
+  <!-- Metal band -->
+  <ellipse cx="32" cy="24" rx="16" ry="3" fill="#666655"/>
+  <ellipse cx="32" cy="24" rx="16" ry="1.5" fill="#888877" opacity="0.5"/>
+  <!-- Nose cone -->
+  <ellipse cx="32" cy="14" rx="8" ry="6" fill="#997744"/>
+  <ellipse cx="32" cy="12" rx="4" ry="3" fill="#aa8855" opacity="0.6"/>
+  <!-- Fuse -->
+  <rect x="30" y="6" width="4" height="6" rx="1" fill="#555544"/>
+  <circle cx="32" cy="5" r="2.5" fill="#ff6622"/>
+  <circle cx="32" cy="5" r="1.5" fill="#ffaa44" opacity="0.8"/>
+  <!-- Base ring -->
+  <ellipse cx="32" cy="52" rx="12" ry="3" fill="#665533"/>
+  <!-- Rivets -->
+  <circle cx="22" cy="34" r="1.5" fill="#555544"/>
+  <circle cx="42" cy="34" r="1.5" fill="#555544"/>
+</svg>

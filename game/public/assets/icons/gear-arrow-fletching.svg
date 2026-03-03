@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Arrow Fletching — Arrow gear: arrow with feathered fletching -->
+  <!-- Arrow shaft (diagonal) -->
+  <line x1="14" y1="50" x2="50" y2="14" stroke="#8b6b3d" stroke-width="3" stroke-linecap="round"/>
+  <!-- Arrowhead -->
+  <polygon points="50,14 56,8 44,12 48,10" fill="#999999"/>
+  <polygon points="50,14 58,6 54,10" fill="#aaaaaa"/>
+  <!-- Arrowhead detail -->
+  <polygon points="48,16 56,8 52,14" fill="#777777" opacity="0.6"/>
+  <!-- Fletching feathers (at tail end) -->
+  <polygon points="16,48 6,52 10,44 14,48" fill="#c4a265"/>
+  <polygon points="18,50 12,58 16,52 14,54" fill="#c4a265"/>
+  <polygon points="14,48 4,46 8,42 12,46" fill="#b09050" opacity="0.8"/>
+  <!-- Feather barb lines -->
+  <line x1="8" y1="48" x2="14" y2="46" stroke="#8b6b3d" stroke-width="0.5" opacity="0.6"/>
+  <line x1="14" y1="54" x2="16" y2="50" stroke="#8b6b3d" stroke-width="0.5" opacity="0.6"/>
+  <!-- Nock (tail end) -->
+  <circle cx="13" cy="51" r="2" fill="#665533"/>
+  <!-- Shaft binding -->
+  <rect x="28" y="28" width="6" height="2" rx="0.5" fill="#aa8855" transform="rotate(-45, 31, 29)"/>
+</svg>

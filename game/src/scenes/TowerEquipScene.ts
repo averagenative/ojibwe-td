@@ -146,12 +146,22 @@ export class TowerEquipScene extends Phaser.Scene {
         .setStrokeStyle(isSelected ? 3 : 2, borderCol)
         .setInteractive({ useHandCursor: true });
 
-      // Tower color dot
-      const dot = this.add.rectangle(x, y - 16, 14, 14, tColor)
-        .setStrokeStyle(1, 0x000000);
+      // Tower icon (replaces color dot)
+      const towerIconKey = `icon-${towerDef.key}`;
+      if (this.textures.exists(towerIconKey)) {
+        const tIcon = this.add.image(x, y - 12, towerIconKey)
+          .setDisplaySize(32, 32);
+        if (!isSelected) tIcon.setAlpha(0.7);
+        this.towerCardObjects.push(tIcon);
+      } else {
+        // Fallback color dot if icon missing
+        const dot = this.add.rectangle(x, y - 12, 14, 14, tColor)
+          .setStrokeStyle(1, 0x000000);
+        this.towerCardObjects.push(dot);
+      }
 
       // Tower name
-      const nameText = this.add.text(x, y + 8, towerDef.name, {
+      const nameText = this.add.text(x, y + 12, towerDef.name, {
         fontSize:   '14px',
         color:      isSelected ? PAL.textPrimary : PAL.textMuted,
         fontFamily: PAL.fontBody,
@@ -161,7 +171,7 @@ export class TowerEquipScene extends Phaser.Scene {
       // Equipped count
       const equipped = this.inv.getEquipped(towerDef.key);
       const equippedCount = equipped.filter(uid => uid !== null).length;
-      const countText = this.add.text(x, y + 26, `${equippedCount}/2 equipped`, {
+      const countText = this.add.text(x, y + 28, `${equippedCount}/2 equipped`, {
         fontSize:   '10px',
         color:      equippedCount > 0 ? PAL.textSecondary : PAL.textDim,
         fontFamily: PAL.fontBody,
@@ -176,7 +186,7 @@ export class TowerEquipScene extends Phaser.Scene {
         this._buildCompatList();
       });
 
-      this.towerCardObjects.push(bg, dot, nameText, countText);
+      this.towerCardObjects.push(bg, nameText, countText);
     }
   }
 
@@ -226,6 +236,15 @@ export class TowerEquipScene extends Phaser.Scene {
 
       let itemName: Phaser.GameObjects.Text;
       if (!isEmpty) {
+        // Gear type icon in slot
+        const slotGearIconKey = `gear-${def!.gearType}`;
+        if (this.textures.exists(slotGearIconKey)) {
+          const gearImg = this.add.image(leftX + SLOT_W - 36, slotY + SLOT_H / 2, slotGearIconKey)
+            .setDisplaySize(28, 28)
+            .setTint(RARITY_COLORS[def!.rarity].num);
+          this.slotObjects.push(gearImg);
+        }
+
         const enhStr = item!.enhanceLevel > 0 ? ` +${item!.enhanceLevel}` : '';
         itemName = this.add.text(leftX + 8, slotY + 20, `${def!.name}${enhStr}`, {
           fontSize:   '13px',
@@ -348,9 +367,19 @@ export class TowerEquipScene extends Phaser.Scene {
         });
       }
 
+      // Gear type icon
+      const listGearIconKey = `gear-${def.gearType}`;
+      const iconOffset = this.textures.exists(listGearIconKey) ? 36 : 0;
+      if (this.textures.exists(listGearIconKey)) {
+        const gearImg = this.add.image(leftX + 22, y + COMPAT_ITEM_H / 2, listGearIconKey)
+          .setDisplaySize(26, 26)
+          .setTint(rarityCol.num);
+        this.listObjects.push(gearImg);
+      }
+
       // Item name
       const enhStr = item.enhanceLevel > 0 ? ` +${item.enhanceLevel}` : '';
-      const nameText = this.add.text(leftX + 10, y + 6, `${def.name}${enhStr}`, {
+      const nameText = this.add.text(leftX + 10 + iconOffset, y + 6, `${def.name}${enhStr}`, {
         fontSize:   '12px',
         color:      rarityCol.hex,
         fontFamily: PAL.fontBody,
@@ -361,7 +390,7 @@ export class TowerEquipScene extends Phaser.Scene {
       const towerKey = GEAR_TYPE_TOWER[def.gearType];
       const typeStr = towerKey ? towerKey.charAt(0).toUpperCase() + towerKey.slice(1) : 'Universal';
       const rarStr = def.rarity.charAt(0).toUpperCase() + def.rarity.slice(1);
-      const metaText = this.add.text(leftX + 10, y + 24, `${rarStr} ${typeStr}`, {
+      const metaText = this.add.text(leftX + 10 + iconOffset, y + 24, `${rarStr} ${typeStr}`, {
         fontSize:   '10px',
         color:      PAL.textDim,
         fontFamily: PAL.fontBody,
