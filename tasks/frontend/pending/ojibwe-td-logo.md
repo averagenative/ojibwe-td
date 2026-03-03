@@ -1,7 +1,7 @@
 ---
 id: TASK-040
 title: Generate & Integrate Ojibwe TD Logo
-status: pending
+status: in-progress
 priority: low
 phase: polish
 ---

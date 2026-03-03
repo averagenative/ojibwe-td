@@ -1,7 +1,7 @@
 ---
 id: TASK-074
 title: Story Cutscene System — Illustrated Dialog & Narrative Moments
-status: pending
+status: done
 priority: medium
 phase: content
 ---

@@ -2330,6 +2330,17 @@ Non-blocking items surfaced during code review:
   `total` is ever changed from 5, the glow would be mispositioned. Currently acceptable since
   all callers pass `total=5`.
 
+### TASK-040 — Logo Integration (non-blocking observations)
+
+- **BootScene stale comment**: Line 111 comment reads `// Logo — upper-center, scaled to fit nicely (logo is 661x467)` but the current logo is 661×377. Cosmetic — no runtime impact.
+- **Logo aspect ratio**: The task spec suggested 1:2 ratio (e.g. 512×256) but the actual logo is ~1.75:1 (661×377). The code adapts correctly via aspect-ratio calculation, and the task notes explicitly say "does not need to match a specific pixel dimension". No issue.
+
+### TASK-074 — Story Cutscene System (review findings)
+
+- **Portrait slide-out animation**: The acceptance criteria says "portrait slides out on exit or speaker change". The current implementation destroys the old portrait and slides in the new one — there is no explicit slide-out tween. Visually acceptable (cross-fade effect) but could be polished with an explicit fade-out/slide-out animation for the departing portrait.
+- **CutsceneDef field naming**: The task spec used `scenes: CutsceneFrame[]` in the sample interface; the implementation uses `frames: CutsceneFrame[]`. The implementation naming is clearer and internally consistent. No action needed — just a spec vs. implementation note.
+- **Cutscene lookup performance**: `getCutsceneDef()` uses `ALL_CUTSCENES.find()` (linear scan). With 18 cutscenes this is fast, but if content grows significantly, consider a `Map<string, CutsceneDef>` for O(1) lookups.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)
