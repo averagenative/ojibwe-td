@@ -148,6 +148,9 @@ interface SaveData {
    */
   defeatedBosses: string[];
 
+  /** Cutscene IDs that have been seen across all sessions. */
+  seenCutsceneIds: string[];
+
   /**
    * djb2 checksum of the serialised save data (excluding this field).
    * Used to detect casual manual tampering via browser DevTools.
@@ -180,6 +183,7 @@ function defaultSaveData(): SaveData {
     colorblindMode:     false,
     achievements:       { unlocked: [], progress: {}, stats: {} },
     defeatedBosses:     [],
+    seenCutsceneIds:    [],
   };
 }
 
@@ -615,6 +619,26 @@ export class SaveManager {
     return this.data.defeatedBosses ?? [];
   }
 
+  // ── Cutscene tracking ─────────────────────────────────────────────────────
+
+  /** Returns true if this cutscene ID has been seen in any previous session. */
+  hasSeenCutscene(id: string): boolean {
+    return this.data.seenCutsceneIds?.includes(id) ?? false;
+  }
+
+  /** Return the full list of seen cutscene IDs. */
+  getSeenCutsceneIds(): string[] {
+    return this.data.seenCutsceneIds ?? [];
+  }
+
+  /** Mark a cutscene as seen. Idempotent. */
+  markCutsceneSeen(id: string): void {
+    if (!this.data.seenCutsceneIds) this.data.seenCutsceneIds = [];
+    if (this.data.seenCutsceneIds.includes(id)) return;
+    this.data.seenCutsceneIds.push(id);
+    this._save();
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private _load(): void {
@@ -786,6 +810,11 @@ export class SaveManager {
       ? (d.defeatedBosses as unknown[]).filter((v): v is string => typeof v === 'string')
       : [];
 
+    // Seen cutscene IDs: filter to strings only.
+    const seenCutsceneIds = Array.isArray(d.seenCutsceneIds)
+      ? (d.seenCutsceneIds as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+
     return {
       ...d,
       currency,
@@ -807,6 +836,7 @@ export class SaveManager {
       colorblindMode,
       achievements,
       defeatedBosses,
+      seenCutsceneIds,
     };
   }
 

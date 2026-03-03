@@ -12,6 +12,7 @@ import { SaveManager } from '../meta/SaveManager';
 import { getCommanderUnlockNode } from '../meta/unlockDefs';
 import { MobileManager } from '../systems/MobileManager';
 import { getStageDef, getRegionDef, SEASON_PALETTE } from '../data/stageDefs';
+import { getCommanderIntroCutsceneId, getCutsceneDef } from '../data/cutsceneDefs';
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -195,12 +196,28 @@ export class CommanderSelectScene extends Phaser.Scene {
       this.confirmLabel.setColor('#00ff44');
     });
     this.confirmBtn.on('pointerup', () => {
-      this._go('GameScene', {
+      const gameData = {
         commanderId: this.selectedId,
         stageId:     this.selectedStageId,
         mapId:       this.selectedMapId,
         isEndless:   this.isEndless,
-      });
+      };
+
+      // Commander intro cutscene — plays once per commander.
+      const cutsceneId = getCommanderIntroCutsceneId(this.selectedId);
+      if (cutsceneId && !SaveManager.getInstance().hasSeenCutscene(cutsceneId)) {
+        const cutsceneDef = getCutsceneDef(cutsceneId);
+        if (cutsceneDef) {
+          SaveManager.getInstance().markCutsceneSeen(cutsceneId);
+          this.scene.launch('CutsceneScene', {
+            cutscene: cutsceneDef,
+            onComplete: () => this._go('GameScene', gameData),
+          });
+          return;
+        }
+      }
+
+      this._go('GameScene', gameData);
     });
 
     // Back button — minimum 44px height for mobile tap target
