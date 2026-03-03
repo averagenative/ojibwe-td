@@ -119,6 +119,8 @@ export class Tower extends Phaser.GameObjects.Container {
   private _bubbleTimer   = 0;
   /** Persistent Graphics object for Tesla idle arc sparks (cleaned up on sell). */
   private _sparkGfx?:    Phaser.GameObjects.Graphics;
+  /** Amber ring drawn around the tower body when part of a multi-select group. */
+  private _multiSelGfx?: Phaser.GameObjects.Graphics;
   /** Handle to the currently running fire-animation tween (kill to interrupt). */
   private _fireAnimTween?: Phaser.Tweens.Tween;
   /** Direct reference to the tower body Rectangle (stored in buildBody). */
@@ -288,6 +290,25 @@ export class Tower extends Phaser.GameObjects.Container {
     this.rangeGfx.setVisible(visible);
   }
 
+  /**
+   * Show or hide the amber selection ring used for multi-tower selection.
+   * A ring is drawn around the tower body (distinct from the green range circle).
+   */
+  setMultiSelected(on: boolean): void {
+    if (on) {
+      if (!this._multiSelGfx) {
+        this._multiSelGfx = this.scene.add.graphics();
+        this._multiSelGfx.lineStyle(3, 0xc8952a, 1.0); // amber
+        const r = BODY_SIZE / 2 + 4;
+        this._multiSelGfx.strokeRect(-r, -r, r * 2, r * 2);
+        this.add(this._multiSelGfx);
+      }
+      this._multiSelGfx.setVisible(true);
+    } else {
+      this._multiSelGfx?.setVisible(false);
+    }
+  }
+
   getSellValue(): number {
     return Math.floor(this.def.cost * 0.7);
   }
@@ -302,6 +323,8 @@ export class Tower extends Phaser.GameObjects.Container {
     this._fireAnimTween = undefined;
     this._sparkGfx?.destroy();
     this._sparkGfx = undefined;
+    this._multiSelGfx?.destroy();
+    this._multiSelGfx = undefined;
     this.destroy();
   }
 
