@@ -194,19 +194,18 @@ export class MainMenuScene extends Phaser.Scene {
     this._embers = [];
     this._cardParticles = [];
 
-    // Vertical flow: [logo] → icons → label → regions → label → stage → buttons → footer
+    // Vertical flow: [logo] → label → regions → label → stage → buttons → footer
     // Reserve extra vertical space at top when logo image is available.
     const hasLogo   = this.textures.exists('logo');
     const logoMaxH  = this._isMobile ? 70 : 120;
     const logoAreaH = hasLogo ? logoMaxH + (this._isMobile ? 10 : 15) : 0;
 
-    const iconY  = TOP_PAD + logoAreaH;
-    const labelY = iconY + 28;
+    const labelY = TOP_PAD + logoAreaH;
     this.regionRowY = labelY + 16 + this._regionH / 2;
     this.stageRowY  = this.regionRowY + this._regionH / 2 + 28 + this._stageH / 2;
 
     // Logo centre y: middle of logo area, or original text position when no logo.
-    const logoTitleY = hasLogo ? TOP_PAD + logoAreaH / 2 : iconY - 14;
+    const logoTitleY = hasLogo ? TOP_PAD + logoAreaH / 2 : labelY - 14;
 
     this._audioPanel = null;
 
@@ -215,7 +214,7 @@ export class MainMenuScene extends Phaser.Scene {
     this._buildTimeOfDayTint();
     this._buildLogoTitle(cx, logoTitleY);
     this._buildEmbers();
-    this.createHeader(cx, iconY, labelY);
+    this.createHeader(cx, labelY);
     this.createRegionRow(cx);
     this.createStageRow(cx);
     this.createButtons(cx, height);
@@ -411,17 +410,9 @@ export class MainMenuScene extends Phaser.Scene {
     }
   }
 
-  // ── Header (icons + label) ────────────────────────────────────────────────
+  // ── Header (label) ────────────────────────────────────────────────────────
 
-  private createHeader(cx: number, iconY: number, labelY: number): void {
-    const icons = ['icon-rock-hurler', 'icon-frost', 'icon-poison', 'icon-tesla', 'icon-aura', 'icon-arrow'];
-    const iconSpacing = 52;
-    const rowW = (icons.length - 1) * iconSpacing;
-    icons.forEach((key, i) => {
-      this.add.image(cx - rowW / 2 + i * iconSpacing, iconY, key)
-        .setDisplaySize(28, 28).setAlpha(0.5).setDepth(DEPTH_BG + 2);
-    });
-
+  private createHeader(cx: number, labelY: number): void {
     this.add.text(cx, labelY, 'SELECT REGION', {
       fontSize: this._fs(12), color: PAL.textMuted, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION);
