@@ -2074,7 +2074,20 @@ export class GameScene extends Phaser.Scene {
     // Visual feedback: floating "+N RUSH BONUS" near gold counter.
     this._showRushBonusFeedback(RUSH_GOLD_AMOUNT);
 
-    // Immediately start the next wave, stacked on top of any current waves.
+    // If a boss was killed this wave and the loot offer is still pending, show
+    // the boss offer panel first — otherwise the pending state would bleed into
+    // the next wave's post-wave queue.
+    if (this._pendingBossRewardOffer && this._pendingBossName) {
+      const name                   = this._pendingBossName;
+      this._pendingBossName        = null;
+      this._pendingBossRewardOffer = false;
+      this.pendingBossKillKey      = null;
+      this.openBossOfferPanel(name, () => this.startNextWave());
+      return;
+    }
+
+    // No boss loot pending — clear any stale kill key to prevent bleed, then rush.
+    this.pendingBossKillKey = null;
     this._doStartWave();
   }
 
