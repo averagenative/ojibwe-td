@@ -358,6 +358,20 @@ const TEACHINGS: CodexEntryDef[] = [
     reviewed: false,
   },
   {
+    id:        'codex-teaching-medicine',
+    section:   CodexSection.TEACHINGS,
+    title:     'On Medicine',
+    tileColor: 0x448844,
+    lines: [
+      'Mashkiki — medicine — is more than what heals the body.',
+      'It is the relationship between the plant, the land, and the one who gathers.',
+      'Birch bark, sweetgrass, cedar — each has a purpose and a protocol.',
+      'When the land is sick, the medicines grow thin.',
+      'To restore the garden is to restore the people.',
+    ],
+    reviewed: false,
+  },
+  {
     id:        'codex-teaching-harmony',
     section:   CodexSection.TEACHINGS,
     title:     'On Harmony',

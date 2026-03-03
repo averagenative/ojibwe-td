@@ -159,9 +159,9 @@ describe('vignetteDefs', () => {
     expect(act1).toHaveLength(4);
   });
 
-  it('Act 2 has 4 vignettes with regionId mashkiig', () => {
+  it('Act 2 has 5 vignettes with regionId mashkiig', () => {
     const act2 = ALL_VIGNETTES.filter(v => v.regionId === 'mashkiig');
-    expect(act2).toHaveLength(4);
+    expect(act2).toHaveLength(5);
   });
 
   it('Act 3 has 4 vignettes with regionId mitigomizh', () => {
