@@ -13,7 +13,7 @@ import {
 } from '../data/stageDefs';
 import type { RegionDef, StageDef } from '../data/stageDefs';
 import { PAL } from '../ui/palette';
-import { moonSymbol } from '../systems/MoonRating';
+import { renderMoonRating } from '../ui/MoonRatingDisplay';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -588,12 +588,13 @@ export class MainMenuScene extends Phaser.Scene {
     if (!isLocked) {
       const bestMoons = SaveManager.getInstance().getStageMoons(stage.id);
       if (bestMoons > 0) {
-        const moonRow = Array.from({ length: 5 }, (_, i) => moonSymbol(i, bestMoons)).join('');
-        const moonText = this.add.text(bx, by - sh / 2 + 53, moonRow, {
-          fontSize: this._fs(10),
-          fontFamily: PAL.fontBody,
-        }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
-        created.push(moonText);
+        const moonR   = this._isMobile ? 6 : 5;
+        const moonGap = this._isMobile ? 16 : 13;
+        const moonContainer = renderMoonRating(
+          this, bx, by - sh / 2 + 53, bestMoons, 5,
+          { radius: moonR, gap: moonGap, depth: DEPTH_STAGE + 1 },
+        );
+        created.push(moonContainer);
       }
     }
 
