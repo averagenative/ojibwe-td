@@ -78,29 +78,31 @@ export interface TowerUpgradeDef {
 }
 
 // ── Frost ─────────────────────────────────────────────────────────────────────
-// Base: 15 dmg, 140 range, 1200ms, slow 0.5 factor, 2500ms duration
+// Base: 15 dmg, 120 range, 1200ms, slow 0.5 factor (50% speed / 50% reduction), 2500ms duration
+// Balance: max 60% slow reduction (factor cap 0.40); post-slow immunity 2s.
 
 const FROST_UPGRADES: TowerUpgradeDef = {
   towerKey: 'frost', lockThreshold: 3, respecCostPct: 0.25,
   paths: {
     A: {
       id: 'A', name: 'Slow Magnitude',
+      description: 'Increases slow strength. Max 60% reduction (cap). Pair with Path B for uptime.',
       tiers: [
-        { name: 'Chill I',   description: 'Slow factor 0.44.',             cost: 40,  effects: { slowFactor: 0.44 } },
-        { name: 'Chill II',  description: 'Slow factor 0.37.',             cost: 60,  effects: { slowFactor: 0.37 } },
-        { name: 'Chill III', description: 'Slow factor 0.28. Locks Path C.', cost: 80, effects: { slowFactor: 0.28 } },
-        { name: 'Chill IV',  description: 'Slow factor 0.20.',             cost: 120, effects: { slowFactor: 0.20 } },
-        { name: 'Chill V',   description: 'Slow factor 0.12.',             cost: 150, effects: { slowFactor: 0.12 } },
+        { name: 'Chill I',   description: 'Slows targets 56%.',                             cost: 40,  effects: { slowFactor: 0.44 } },
+        { name: 'Chill II',  description: 'Slows targets 58%.',                             cost: 60,  effects: { slowFactor: 0.42 } },
+        { name: 'Chill III', description: 'Reaches 60% slow cap. Locks Path C.',            cost: 80,  effects: { slowFactor: 0.40 } },
+        { name: 'Chill IV',  description: '60% slow cap. 6% faster attack.',               cost: 120, statDelta: { attackSpeedPct: 6  }, effects: { slowFactor: 0.40 } },
+        { name: 'Chill V',   description: '60% slow cap. 8% faster attack. +5 dmg.',       cost: 150, statDelta: { attackSpeedPct: 8, damageDelta: 5 }, effects: { slowFactor: 0.40 } },
       ],
     },
     B: {
       id: 'B', name: 'Freeze Duration',
       tiers: [
-        { name: 'Extend I',   description: 'Slow lasts 3s.',  cost: 40,  effects: { slowDurationMs: 3000 } },
-        { name: 'Extend II',  description: 'Slow lasts 3.5s.', cost: 60, effects: { slowDurationMs: 3500 } },
-        { name: 'Extend III', description: 'Slow lasts 4s.',  cost: 80,  effects: { slowDurationMs: 4000 } },
-        { name: 'Extend IV',  description: 'Slow lasts 5s.',  cost: 120, effects: { slowDurationMs: 5000 } },
-        { name: 'Extend V',   description: 'Slow lasts 6s.',  cost: 150, effects: { slowDurationMs: 6000 } },
+        { name: 'Extend I',   description: 'Slow lasts 3s.',   cost: 40,  effects: { slowDurationMs: 3000 } },
+        { name: 'Extend II',  description: 'Slow lasts 3.5s.', cost: 60,  effects: { slowDurationMs: 3500 } },
+        { name: 'Extend III', description: 'Slow lasts 4s.',   cost: 80,  effects: { slowDurationMs: 4000 } },
+        { name: 'Extend IV',  description: 'Slow lasts 5s.',   cost: 120, effects: { slowDurationMs: 5000 } },
+        { name: 'Extend V',   description: 'Slow lasts 6s.',   cost: 150, effects: { slowDurationMs: 6000 } },
       ],
     },
     C: {

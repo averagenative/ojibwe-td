@@ -177,9 +177,9 @@ export const CANNON_DEF: TowerDef = {
 };
 
 export const FROST_DEF: TowerDef = {
-  key: 'frost',  name: 'Frost',  cost: 125,
-  range: 140,  damage: 15,  attackIntervalMs: 1200,  projectileSpeed: 280,
-  description: 'Slows targets. Chills stack for a freeze bonus.',
+  key: 'frost',  name: 'Frost',  cost: 150,
+  range: 120,  damage: 15,  attackIntervalMs: 1200,  projectileSpeed: 280,
+  description: 'Slows targets up to 60%. After slow expires, targets resist re-slow briefly.',
   bodyColor: 0x3366aa,  projectileColor: 0x88ccff,  projectileRadius: 5,
   defaultPriority: TargetingPriority.STRONGEST,
   targetDomain: 'both',

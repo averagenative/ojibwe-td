@@ -227,11 +227,11 @@ describe('Upgrade stat deltas — per tower type', () => {
       mgr.registerTower(frost);
     });
 
-    it('Path A: slowFactor decreases with each tier (last-write-wins)', () => {
+    it('Path A: slowFactor decreases to the cap (0.40) at tier 3+ (TASK-130 balance)', () => {
       buyN(mgr, frost, 'A', 1);
       expect(frost.upgStats.slowFactor).toBeCloseTo(0.44);
-      buyN(mgr, frost, 'A', 4); // 5 total
-      expect(frost.upgStats.slowFactor).toBeCloseTo(0.12);
+      buyN(mgr, frost, 'A', 4); // 5 total — capped at 0.40 by TASK-130 balance rework
+      expect(frost.upgStats.slowFactor).toBeCloseTo(0.40);
     });
 
     it('Path B: slowDurationMs increases with each tier', () => {
