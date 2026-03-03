@@ -160,7 +160,7 @@ export const ALL_ENHANCEMENTS: EnhancementDef[] = [
   },
   {
     id: 'enh-thunder-focus', name: 'Thunder Focus',
-    description: '+10% Tesla chain damage.',
+    description: '+10% Thunder chain damage.',
     commanderRestriction: 'animikiikaa',
     effect: { towerDamagePct: 0.10 },
   },

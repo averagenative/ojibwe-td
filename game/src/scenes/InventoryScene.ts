@@ -36,7 +36,7 @@ const FILTER_OPTIONS: { label: string; towerKey: string | null }[] = [
   { label: 'All',          towerKey: null },
   { label: 'Rock Hurler',  towerKey: 'rock-hurler' },
   { label: 'Frost',        towerKey: 'frost' },
-  { label: 'Tesla',        towerKey: 'tesla' },
+  { label: 'Thunder',      towerKey: 'tesla' },
   { label: 'Poison',       towerKey: 'poison' },
   { label: 'Aura',         towerKey: 'aura' },
   { label: 'Arrow',        towerKey: 'arrow' },

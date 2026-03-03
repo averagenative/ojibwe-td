@@ -185,7 +185,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'static-field',
     name:        'Static Field',
-    description: 'Tesla chains deal +20% damage to slowed targets.',
+    description: 'Thunder chains deal +20% damage to slowed targets.',
     category:    'synergy',
     weight:      7,
   },
@@ -206,7 +206,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'grounded',
     name:        'Grounded',
-    description: 'Tesla chains deal +30% damage to armored creeps.',
+    description: 'Thunder chains deal +30% damage to armored creeps.',
     category:    'synergy',
     weight:      6,
   },
@@ -220,7 +220,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'lightning-rod',
     name:        'Lightning Rod',
-    description: 'Frost-slowed creeps attract 1 extra Tesla chain hit.',
+    description: 'Frost-slowed creeps attract 1 extra Thunder chain hit.',
     category:    'synergy',
     weight:      5,
   },
@@ -248,7 +248,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'overcharge',
     name:        'Overcharge',
-    description: 'Tesla deals +15% more damage per chain bounce.',
+    description: 'Thunder deals +15% more damage per chain bounce.',
     category:    'synergy',
     weight:      6,
   },
@@ -305,7 +305,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'voltaic-slime',
     name:        'Voltaic Slime',
-    description: 'Tesla chain hits deal +25% damage to Poison-stacked creeps.',
+    description: 'Thunder chain hits deal +25% damage to Poison-stacked creeps.',
     category:    'synergy',
     weight:      6,
   },
@@ -326,7 +326,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'thunder-quake',
     name:        'Thunder Quake',
-    description: 'Tesla chain hits deal 15 AoE damage in 30px to nearby creeps.',
+    description: 'Thunder chain hits deal 15 AoE damage in 30px to nearby creeps.',
     category:    'synergy',
     weight:      5,
   },

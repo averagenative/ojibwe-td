@@ -46,7 +46,7 @@ const BADGE_LABEL: Record<WaveAnnouncementInfo['waveType'], string> = {
 // ── Suggested tower hints by wave type ───────────────────────────────────────
 // Boss waves use _buildBossContent (separate branch), so no hint entry needed.
 const TOWER_HINTS: Partial<Record<WaveAnnouncementInfo['waveType'], string>> = {
-  air:   'Tesla & Frost effective',
+  air:   'Thunder & Frost effective',
   mixed: 'Multi-target towers recommended',
 };
 
@@ -191,7 +191,7 @@ export class WaveBanner {
     let subColor: string = PAL.textDim;
 
     if (firstAir && (info.waveType === 'air' || info.waveType === 'mixed')) {
-      subLine  = 'NEW: AIR WAVE — Tesla & Frost only!';
+      subLine  = 'NEW: AIR WAVE — Thunder & Frost only!';
       subColor = PAL.accentBlue;
     } else {
       const hint = TOWER_HINTS[info.waveType];
