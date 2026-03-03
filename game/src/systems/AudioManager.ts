@@ -1024,6 +1024,25 @@ export class AudioManager {
     }
   }
 
+  /**
+   * Start a file-based music track with a procedural arpeggio fallback.
+   *
+   * Unlike `startMusicTrack()` — which is a silent no-op when the buffer is
+   * absent — this method restarts the procedural arpeggio when the requested
+   * key has not been registered. Use it for screens that always need music
+   * (victory screen, game-over screen).
+   *
+   * @param key    AudioManager music key, e.g. 'music-victory'
+   * @param fadeMs Crossfade duration in milliseconds (default 800 ms)
+   */
+  startMusicTrackWithFallback(key: string, fadeMs = CROSSFADE_MS): void {
+    if (this._buffers.has(key)) {
+      this.startMusicTrack(key, fadeMs);
+    } else {
+      this._startMusic();
+    }
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private _applyGain(node: GainNode | null, value: number): void {

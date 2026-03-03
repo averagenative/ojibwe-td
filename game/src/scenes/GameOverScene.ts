@@ -57,12 +57,11 @@ export class GameOverScene extends Phaser.Scene {
     const won         = data?.won           ?? false;
 
     // Start the appropriate Suno music track for this screen.
-    // 'music-victory' / 'music-gameover' were pre-loaded by BootScene; if the
-    // buffer is absent (e.g. file missing), startMusicTrack() is a no-op and
-    // the procedural arpeggio is NOT restarted — the player hears silence on
-    // this screen, which is acceptable. The procedural arpeggio was stopped by
-    // GameScene.shutdown() → audioManager.destroy() and is not replayed here.
-    AudioManager.getInstance().startMusicTrack(won ? 'music-victory' : 'music-gameover');
+    // 'music-victory' / 'music-gameover' were pre-loaded by BootScene.
+    // startMusicTrackWithFallback() plays the file-based track when the buffer
+    // is registered, and restarts the procedural arpeggio as a fallback when
+    // the file is absent (e.g. mp3 missing, decode failure, or Safari quirk).
+    AudioManager.getInstance().startMusicTrackWithFallback(won ? 'music-victory' : 'music-gameover');
     const currency    = data?.runCurrency   ?? 0;
     const stageId     = data?.stageId       ?? undefined;
     const mapId       = data?.mapId         ?? 'map-01';
