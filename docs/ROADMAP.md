@@ -2569,3 +2569,14 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Post-boss cutscene and boss-killed vignette skipped when rushing** — the rush path clears `pendingBossKillKey = null` before starting the next wave, which means `_buildBetweenWaveVignetteEntry()` will not find a boss-killed trigger and `getPostBossCutsceneId()` will not fire for the post-boss cutscene in the post-wave queue. This is arguably correct (player chose to rush = skip story content), and the cutscene/vignette remain unfired so they'll trigger on the next natural occurrence. Worth revisiting if playtesters report missing story content after rushing boss waves.
 - **Boss offer panel shown during 'wave' gameState** — when rushing during a boss wave with pending loot, `openBossOfferPanel()` is called while `gameState === 'wave'` (the normal path calls it from the post-wave queue when `gameState === 'between'`). The panel itself is state-agnostic and works correctly, but if another rush button press arrives while the panel is visible, `rushNextWave()` could fire again (it only guards against `gameState !== 'wave'`). Practically low risk since the panel covers the rush button, but a modal guard could be added.
+
+### TASK-124 Review Findings (Stage Text Overlaps Turret Suggestion)
+
+- **Description text has no max-height clamp** — the description text at `descY = by - sh/2 + 72` grows downward with `setOrigin(0.5, 0)` and word-wrap. With the current desktop gap of 47px (155 - 108) and mobile gap of 87px (195 - 108), existing descriptions fit comfortably. However, a future stage with a very long description (>4 lines at 10px font) could still overflow into the affinity-dot row. Consider adding a `maxLines` property or a `setCrop()` to truncate long descriptions.
+- **Magic offset 72 couples description placement to star/moon row heights** — the `descY` formula uses a hardcoded `+ 72` offset from card top. If the star or moon rows change size or spacing, the 72 offset must be manually adjusted. A comment explains the intent, but a named constant (e.g., `DESC_TOP_OFFSET = 72`) would make future maintenance easier.
+
+### TASK-126 Review Findings (Makwa Boss Full-Body Sprite)
+
+- **Generation script had unused `import math`** — removed during review. The old face-only design used `math` for angle calculations; the full-body design does not. Fixed in this PR.
+- **Test comment referenced TASK-117 instead of TASK-126** — the `bossMakwaSprite.test.ts` header comment was from the prior sprite rework. Fixed in this PR.
+- **No automated regression guard for PNG / gen-script drift** — the checked-in `boss-makwa.png` is manually generated from `scripts/gen-boss-makwa.py` via Pillow. If the script is updated but the PNG is not re-generated (or vice versa), they silently diverge. Consider adding a CI step that runs the gen script and diffs the output against the checked-in PNG, or documenting a "regenerate all sprites" script.

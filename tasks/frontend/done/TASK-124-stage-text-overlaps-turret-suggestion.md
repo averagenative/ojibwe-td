@@ -2,7 +2,7 @@
 id: TASK-124
 title: Stage Description Text Overlaps Best Turret Suggestion
 priority: high
-status: pending
+status: done
 type: bug
 ---
 

@@ -2,7 +2,7 @@
 id: TASK-126
 title: Makwa Boss Sprite — Full Bear Body Instead of Face Only
 priority: high
-status: pending
+status: in-progress
 type: asset
 creative: true
 ---
