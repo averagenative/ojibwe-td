@@ -22,7 +22,7 @@ const REGION_H    = 88;
 const REGION_GAP  = 14;
 
 const STAGE_W     = 280;
-const STAGE_H     = 130;
+const STAGE_H     = 155;
 const STAGE_GAP   = 20;
 
 const R           = 8;    // corner radius for all panels
@@ -170,7 +170,7 @@ export class MainMenuScene extends Phaser.Scene {
     // Mobile layout sizing — resolved once per scene create().
     this._isMobile = MobileManager.getInstance().isMobile();
     this._regionH  = this._isMobile ? 108 : REGION_H;
-    this._stageH   = this._isMobile ? 160 : STAGE_H;
+    this._stageH   = this._isMobile ? 195 : STAGE_H;
 
     const { width, height } = this.scale;
     const cx = width / 2;
@@ -627,7 +627,10 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     const descColor = isLocked ? PAL.textLockedDim : PAL.textDesc;
-    const desc = this.add.text(bx, by - 4, stage.description, {
+    // Anchor description to a fixed distance from card top (just below stars/moons).
+    // This prevents it from growing down into the affinity-dot row.
+    const descY = by - sh / 2 + 72;
+    const desc = this.add.text(bx, descY, stage.description, {
       fontSize: this._fs(10), color: descColor, fontFamily: PAL.fontBody,
       wordWrap: { width: STAGE_W - 24 }, align: 'center',
     }).setOrigin(0.5, 0).setDepth(DEPTH_STAGE + 1);
