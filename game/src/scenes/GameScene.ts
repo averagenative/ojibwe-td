@@ -52,6 +52,7 @@ import { AchievementManager } from '../systems/AchievementManager';
 import type { VictoryData } from '../systems/AchievementManager';
 import { AchievementToast } from '../ui/AchievementToast';
 import { AmbientVFX } from '../systems/AmbientVFX';
+import { CritterManager } from '../systems/CritterManager';
 import {
   getCutsceneDef, getRegionIntroCutsceneId,
   getPreBossCutsceneId, getPostBossCutsceneId,
@@ -256,6 +257,12 @@ export class GameScene extends Phaser.Scene {
   /** Continuous ambient particle effects for the current map region. */
   private _ambientVFX: AmbientVFX | null = null;
 
+  // ── wildlife critters ────────────────────────────────────────────────────
+  /** Ambient wildlife critters wandering open tiles. */
+  private _critterManager: CritterManager | null = null;
+  /** Accumulator for periodic creep-proximity checks (ms). */
+  private _critterCreepCheckAcc = 0;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -335,6 +342,8 @@ export class GameScene extends Phaser.Scene {
     this._achConsumablesUsedRun = [];
     this._achInitialRerolls    = 0;
     this._ambientVFX           = null;
+    this._critterManager       = null;
+    this._critterCreepCheckAcc = 0;
     this._rubbleSprites        = new Map();
   }
 
@@ -404,15 +413,23 @@ export class GameScene extends Phaser.Scene {
 
     this.renderMap();
 
-    // ── Ambient VFX ───────────────────────────────────────────────────────
+    // ── Ambient VFX & wildlife critters ─────────────────────────────────
     {
       const regionId = this.activeStageDef?.regionId ?? 'zaagaiganing';
+      const mobile   = MobileManager.getInstance().isMobile();
+
       this._ambientVFX = new AmbientVFX(
         this,
         this.mapData,
         regionId,
         this.selectedStageId,
-        MobileManager.getInstance().isMobile(),
+        mobile,
+      );
+      this._critterManager = new CritterManager(
+        this,
+        this.mapData,
+        regionId,
+        mobile,
       );
     }
 
@@ -1037,6 +1054,24 @@ export class GameScene extends Phaser.Scene {
     // ── Ambient VFX update ─────────────────────────────────────────────────
     this._ambientVFX?.update(scaledDelta);
 
+    // ── Wildlife critter update ─────────────────────────────────────────
+    if (this._critterManager) {
+      this._critterManager.update(scaledDelta);
+
+      // Periodically notify critters of nearby creeps (~every 500ms).
+      this._critterCreepCheckAcc += scaledDelta;
+      if (this._critterCreepCheckAcc >= 500) {
+        this._critterCreepCheckAcc = 0;
+        const positions: Array<{ x: number; y: number }> = [];
+        for (const creep of this.activeCreeps) {
+          if (creep.active) positions.push({ x: creep.x, y: creep.y });
+        }
+        if (positions.length > 0) {
+          this._critterManager.notifyCreepsNear(positions);
+        }
+      }
+    }
+
     for (const proj of this.projectiles) {
       if (proj.active) {
         proj.step(scaledDelta);
@@ -1131,6 +1166,10 @@ export class GameScene extends Phaser.Scene {
     // Ambient VFX cleanup.
     this._ambientVFX?.destroy();
     this._ambientVFX = null;
+
+    // Wildlife critter cleanup.
+    this._critterManager?.destroy();
+    this._critterManager = null;
 
     // Rubble sprite cleanup.
     for (const sprite of this._rubbleSprites.values()) sprite.destroy();
@@ -1590,6 +1629,9 @@ export class GameScene extends Phaser.Scene {
     this._achTowerTypesRun.add(tower.def.key);
     AchievementManager.getInstance().addTowerBuilt(this._achTowersBuiltRun, tower.def.key);
     this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
+
+    // Notify wildlife critters that a tower was placed nearby — they flee.
+    this._critterManager?.notifyTowerPlaced(col, row);
 
     this.exitPlacementMode();
   }
