@@ -1,7 +1,7 @@
 ---
 id: TASK-096
 title: Makwa Boss Sprite Rework — Less Teddy Bear
-status: in-progress
+status: done
 category: frontend
 priority: medium
 depends_on: []
