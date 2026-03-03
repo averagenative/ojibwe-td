@@ -2131,6 +2131,34 @@ Non-blocking items surfaced during code review:
   a post-render check on `Text.height` could append an ellipsis character. Low
   priority — current descriptions fit within 3 lines at desktop sizes.
 
+### TASK-100 review (victory music bug) — 2026-03-03
+- **`startMusic()` can be replaced by `startMusicTrackWithFallback('music-gameplay')`**:
+  The existing `startMusic()` and the new `startMusicTrackWithFallback()` have identical
+  structure (check buffer → file track, else procedural). `startMusic()` is a hardcoded
+  alias for the gameplay key. Consider refactoring `startMusic()` to delegate to
+  `startMusicTrackWithFallback('music-gameplay')` to remove the duplication. Low priority
+  — two call-sites don't warrant it yet, but if a third "track with fallback" pattern
+  appears, this should be consolidated.
+
+### TASK-107 review findings (non-blocking)
+
+- **Mobile two-finger region select not implemented**: The task spec mentions
+  "two-finger drag or long-press+drag" for mobile region select. Only long-press+drag
+  was implemented. Two-finger drag was omitted to avoid conflicts with browser gestures.
+  This is acceptable UX for now; revisit if users report mobile region-select difficulty.
+
+- **`MULTI_TOWER_PANEL_HEIGHT` coupled to `UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT`**:
+  The multi-tower panel height is hardcoded as `176 + 64 = 240` to match the combined
+  upgrade + behavior panel height. If either constant changes, `MULTI_TOWER_PANEL_HEIGHT`
+  must be updated in sync. Consider deriving it from the source constants or adding a
+  static assertion.
+
+- **Selling a tower during multi-select deselects all, not just the sold tower**:
+  When a single tower is sold (e.g., via right-click) while part of a multi-select group,
+  `deselectTower()` clears the entire selection. A more granular approach would remove only
+  the sold tower and keep the rest selected. Low priority — current behavior is safe and
+  consistent.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)
