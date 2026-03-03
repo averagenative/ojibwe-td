@@ -53,6 +53,8 @@ import type { VictoryData } from '../systems/AchievementManager';
 import { AchievementToast } from '../ui/AchievementToast';
 
 const DEFAULT_TOTAL_WAVES = 20;
+/** Flat gold bonus awarded when the player rushes the next wave early. */
+const RUSH_GOLD_AMOUNT = 25;
 
 type GameState = 'pregame' | 'wave' | 'between' | 'over';
 
@@ -145,6 +147,14 @@ export class GameScene extends Phaser.Scene {
   private _pendingBossRewardOffer = false;
   /** Dismiss callback captured by the BetweenWaveScene queue entry. */
   private _betweenWaveDismiss: (() => void) | null = null;
+
+  // ── wave rush ─────────────────────────────────────────────────────────────
+  /**
+   * True after the player has clicked the rush button for the current wave.
+   * Cleared in onWaveComplete() when the rush path fires.
+   * Prevents stacking multiple rushes (one-ahead limit).
+   */
+  private _nextWaveRushed = false;
 
   // ── endless mode ──────────────────────────────────────────────────────────
   /** True when the player chose endless mode for this run. */
@@ -293,6 +303,7 @@ export class GameScene extends Phaser.Scene {
     this._pendingBossName        = null;
     this._pendingBossRewardOffer = false;
     this._betweenWaveDismiss     = null;
+    this._nextWaveRushed         = false;
     this.firstAirWaveSeen    = false;
     this.debugOverlay        = null;
     this.debugVisible        = false;
@@ -722,6 +733,8 @@ export class GameScene extends Phaser.Scene {
     // Next-wave button (right portion of HUD strip)
     this.hud.createNextWaveButton(() => this.startNextWave());
     this.hud.setNextWaveVisible(true, 1);
+    // Rush-wave button (shown during active waves to force-start the next wave early)
+    this.hud.createRushWaveButton(() => this.rushNextWave(), RUSH_GOLD_AMOUNT);
     // Show wave 1 announcement banner after a brief delay so all UI is built.
     this.time.delayedCall(200, () => this.showWaveBanner(1));
 
@@ -1785,6 +1798,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.waveManager.startWave(this.currentWave);
+    // Show or hide the rush button now that a new wave is active.
+    this._updateRushButton();
   }
 
   /**
@@ -1804,8 +1819,93 @@ export class GameScene extends Phaser.Scene {
     AudioManager.getInstance().playWaveIncoming(info.waveType);
   }
 
+  // ── rush-wave mechanics ──────────────────────────────────────────────────
+
+  /**
+   * Player-triggered: rush the next wave while the current wave is active.
+   * Awards bonus gold immediately and marks the rush flag so onWaveComplete
+   * skips the between-wave UI and starts the next wave automatically.
+   *
+   * Guards:
+   *   - Only valid while a wave is in progress (gameState === 'wave').
+   *   - One-ahead limit: cannot rush if `_nextWaveRushed` is already true.
+   */
+  private rushNextWave(): void {
+    if (this.gameState !== 'wave') return;
+    if (this._nextWaveRushed) return;
+
+    // Award bonus gold immediately.
+    this.gold += RUSH_GOLD_AMOUNT;
+    this.hud.setGold(this.gold);
+    this.upgradePanel?.refresh();
+
+    // Mark the rush; disable button to enforce one-ahead limit.
+    this._nextWaveRushed = true;
+    this.hud.setRushWaveVisible(true, false);
+
+    // Visual feedback: floating "+N RUSH BONUS" near gold counter.
+    this._showRushBonusFeedback(RUSH_GOLD_AMOUNT);
+  }
+
+  /**
+   * Show or hide the rush-wave button based on current game state.
+   * Called at the start of each wave (from startNextWave()).
+   *
+   * Hidden when:
+   *   - Not in 'wave' state.
+   *   - The current wave is the final wave (no next wave to rush into).
+   *   - The next wave is a boss wave (every 5th).
+   * Shown (greyed out) when the player has already rushed this wave.
+   */
+  private _updateRushButton(): void {
+    if (this.gameState !== 'wave') {
+      this.hud.setRushWaveVisible(false);
+      return;
+    }
+    const nextWave = this.currentWave + 1;
+    // Hide if there's no next wave (non-endless) or if it's a boss wave.
+    if ((!this.isEndlessMode && nextWave > this.totalWaves) || nextWave % 5 === 0) {
+      this.hud.setRushWaveVisible(false);
+      return;
+    }
+    // Show enabled or disabled based on whether the player has already rushed.
+    this.hud.setRushWaveVisible(true, !this._nextWaveRushed);
+  }
+
+  /**
+   * Show a floating "+N RUSH BONUS" text near the gold counter that fades out.
+   * Pure visual feedback — no game-state side effects.
+   */
+  private _showRushBonusFeedback(bonus: number): void {
+    const { width } = this.scale;
+    // Position near the HUD gold counter (centred at width/2, HUD_HEIGHT/2).
+    const fx = width / 2;
+    const fy = getHudHeight() / 2;
+
+    const feedbackText = this.add.text(fx, fy - 10, `+${bonus} RUSH BONUS`, {
+      fontSize:        '16px',
+      color:           '#f0c040',
+      fontFamily:      'Georgia, serif',
+      fontStyle:       'bold',
+      stroke:          '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5, 1).setDepth(200);
+
+    this.tweens.add({
+      targets:  feedbackText,
+      y:        fy - 40,
+      alpha:    0,
+      duration: 1200,
+      ease:     'Quad.easeOut',
+      onComplete: () => feedbackText.destroy(),
+    });
+  }
+
   private onWaveComplete(waveNum: number): void {
     if (this.gameState === 'over') return;
+
+    // Hide the rush button as soon as the wave ends (it only belongs in 'wave' state).
+    this.hud.setRushWaveVisible(false);
 
     if (waveNum >= this.totalWaves && !this.isEndlessMode) {
       // Run complete — clear the auto-save so the player starts fresh next time.
@@ -1914,6 +2014,16 @@ export class GameScene extends Phaser.Scene {
     // ── Auto-save checkpoint — wave complete, between-wave state ────────────
     // This is the cleanest save point: no active creeps, tower state is stable.
     this._doAutoSave();
+
+    // ── Rush path — skip between-wave UI and start the next wave immediately ──
+    // If the player rushed this wave, hide the rush button and jump straight
+    // to the next wave without showing the offer/upgrade between-wave screens.
+    if (this._nextWaveRushed) {
+      this._nextWaveRushed = false;
+      this.hud.setRushWaveVisible(false);
+      this.startNextWave();
+      return;
+    }
 
     // ── Post-wave UI queue — show panels in strict priority order ────────────
     // 1) Boss loot/gear reward → 2) Elder dialog → 3) Between-wave upgrade offers

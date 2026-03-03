@@ -39,6 +39,10 @@ export class HUD extends Phaser.GameObjects.Container {
   private nextWaveBg?:    Phaser.GameObjects.Rectangle;
   private nextWaveLabel?: Phaser.GameObjects.Text;
 
+  // Rush-wave button (shown during active waves)
+  private rushWaveBg?:    Phaser.GameObjects.Rectangle;
+  private rushWaveLabel?: Phaser.GameObjects.Text;
+
   // Air wave warning alert (shown between waves when the next wave has air creeps)
   private airWaveAlert?: Phaser.GameObjects.Text;
 
@@ -369,6 +373,64 @@ export class HUD extends Phaser.GameObjects.Container {
     noBg.on('pointerover', () => noBg.setFillStyle(0x333333));
     noBg.on('pointerout',  () => noBg.setFillStyle(0x222222));
     noBg.on('pointerup',   () => cleanup());
+  }
+
+  // ── rush-wave button ──────────────────────────────────────────────────────
+
+  /**
+   * Create the "Rush Next Wave" button in the HUD strip (centred at x=960).
+   * Visible only during active waves; clicking triggers rush while the wave
+   * is still in progress, awarding bonus gold and immediately starting the
+   * next wave once the current one ends.
+   * Must be called once during scene create().
+   */
+  createRushWaveButton(onClick: () => void, rushGold: number): void {
+    const btnW = 180;
+    const cx   = 960;
+    const btnY = HUD_HEIGHT / 2;
+    const btnH = _IS_MOBILE ? 44 : 36;
+
+    this.rushWaveBg = this.scene.add.rectangle(cx, btnY, btnW, btnH, 0x1a1200)
+      .setStrokeStyle(2, PAL.goldN)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 2)
+      .setVisible(false);
+
+    this.rushWaveLabel = this.scene.add.text(cx, btnY, `RUSH +${rushGold}⬡ ▶`, {
+      fontSize:   '13px',
+      color:      PAL.gold,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3).setVisible(false);
+
+    this.rushWaveBg.on('pointerover', () => {
+      if (this.rushWaveBg?.input?.enabled) this.rushWaveBg.setFillStyle(0x2a1e00);
+    });
+    this.rushWaveBg.on('pointerout', () => {
+      if (this.rushWaveBg?.input?.enabled) this.rushWaveBg.setFillStyle(0x1a1200);
+    });
+    this.rushWaveBg.on('pointerup', onClick);
+  }
+
+  /**
+   * Show or hide the rush-wave button.
+   * Pass `enabled=false` to keep it visible but greyed out (already rushed).
+   */
+  setRushWaveVisible(visible: boolean, enabled = true): void {
+    if (!this.rushWaveBg || !this.rushWaveLabel) return;
+    this.rushWaveBg.setVisible(visible);
+    this.rushWaveLabel.setVisible(visible);
+    if (visible) {
+      if (enabled) {
+        this.rushWaveBg.setFillStyle(0x1a1200).setStrokeStyle(2, PAL.goldN);
+        this.rushWaveBg.setInteractive({ useHandCursor: true });
+        this.rushWaveLabel.setColor(PAL.gold);
+      } else {
+        this.rushWaveBg.setFillStyle(PAL.bgSpeedBtn).setStrokeStyle(2, PAL.borderNeutral);
+        this.rushWaveBg.disableInteractive();
+        this.rushWaveLabel.setColor(PAL.textDisabled);
+      }
+    }
   }
 
   // ── commander portrait ──────────────────────────────────────────────────
