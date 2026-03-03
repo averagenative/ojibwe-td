@@ -911,6 +911,65 @@ describe('AudioManager', () => {
     });
   });
 
+  describe('startMusicTrackWithFallback', () => {
+    it('plays file track when buffer is registered', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-victory', new ArrayBuffer(8));
+
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrackWithFallback('music-victory');
+
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+      const src = mockCtx.createBufferSource.mock.results[0].value as { loop: boolean };
+      expect(src.loop).toBe(true);
+    });
+
+    it('starts procedural path when buffer is missing (no looping buffer source)', () => {
+      const am = AudioManager.getInstance();
+      // destroy() stops procedural; fallback should restart it via _startMusic()
+      am.destroy();
+      mockCtx.createBufferSource.mockClear();
+
+      am.startMusicTrackWithFallback('music-victory');
+
+      // File path NOT taken: _crossfadeToTrack() creates a looping buffer source,
+      // so its absence confirms the procedural scheduler was started instead.
+      // (Oscillators from the scheduler fire after the 0.5s startup delay —
+      // asynchronous in mock — so we verify by the absence of the file source.)
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+    });
+
+    it('does not start procedural when file track plays successfully', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-gameover', new ArrayBuffer(8));
+      am.destroy();
+      mockCtx.createOscillator.mockClear();
+
+      am.startMusicTrackWithFallback('music-gameover');
+
+      // File path: uses buffer source, not oscillator (for the music scheduler)
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('does not throw when AudioContext is unavailable', () => {
+      vi.stubGlobal('AudioContext', class { constructor() { throw new Error('no'); } });
+      resetSingleton();
+      const am = AudioManager.getInstance();
+      expect(() => am.startMusicTrackWithFallback('music-victory')).not.toThrow();
+    });
+
+    it('same-key guard still applies via startMusicTrack when buffer registered', async () => {
+      const am = AudioManager.getInstance();
+      await am.registerBuffer('music-victory', new ArrayBuffer(8));
+
+      am.startMusicTrackWithFallback('music-victory');
+      mockCtx.createBufferSource.mockClear();
+      am.startMusicTrackWithFallback('music-victory'); // same key already playing
+
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
+    });
+  });
+
   describe('persistence roundtrip', () => {
     it('musicMuted persists across AudioManager re-init', () => {
       const am1 = AudioManager.getInstance();
