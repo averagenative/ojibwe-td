@@ -2,7 +2,7 @@
 id: TASK-111
 title: Wave Rush — Force Start Next Wave Early for Bonus Gold
 priority: medium
-status: in-progress
+status: done
 type: feature
 ---
 

@@ -2185,8 +2185,40 @@ Non-blocking items surfaced during code review:
   tier 3" but the code triggers when any single path reaches tier 5. The description should
   be updated to "reach tier 5 on any upgrade path for the first time."
 
+### TASK-111 review — non-blocking findings (2026-03-03)
+
+- **Wave-complete sound during rush**: When the player rushes, `onWaveComplete` plays
+  `playWaveComplete()` before entering the rush path. The wave-complete jingle plays
+  immediately followed by the next-wave-incoming sound, which may feel jarring. Consider
+  skipping the wave-complete sound when `_nextWaveRushed` is true, or shortening its
+  duration to blend better with the rush flow.
+
+- **Rush button not added to HUD container**: `rushWaveBg` and `rushWaveLabel` are created
+  via `this.scene.add.xxx()` (scene-level objects) rather than added to the HUD container
+  via `this.add(...)`. This matches the existing pattern for `nextWaveBg`/`nextWaveLabel`
+  and other HUD buttons, so it's consistent — but it means HUD `setVisible(false)` won't
+  cascade to these objects. If a future feature needs to hide the entire HUD at once,
+  all scene-level button objects will need individual handling.
+
+- **Rush button position overlap on narrow viewports**: The rush button is hardcoded at
+  `cx=960` which may overlap the next-wave button (right-aligned) on narrow logical widths.
+  Currently the logical viewport is fixed at 1280×720 so this is not a problem, but worth
+  noting if the game ever supports variable logical widths.
+
+### TASK-096: Makwa Boss Sprite Rework (non-blocking observations)
+
+- **Boss sprite sizes are inconsistent**: boss-makwa is 64×64, boss-migizi and boss-animikiins
+  are 64×48, boss-waabooz is 48×48, boss-waabooz-mini is 32×32. While Phaser handles
+  different image sizes fine, standardising boss sprites to a consistent dimension (e.g. 64×64)
+  would simplify layout calculations and give all bosses equal visual weight. Low priority.
+
+- **No automated asset dimension validation**: The new `bossMakwaSprite.test.ts` validates this
+  specific sprite, but there is no general-purpose test that reads all PNG files under
+  `public/assets/sprites/` and verifies they have valid headers. A parametric asset-health
+  test could catch corrupted or mis-sized sprites early.
+
 <!-- HEALTH_CHECK_START -->
-Last run: 2026-03-02 02:00:04
-Findings: 90 total (79 new task files created, 11 already tracked)
+Last run: 2026-03-03 02:00:05
+Findings: 113 total (60 new task files created, 53 already tracked)
 Task files: /home/dmichael/projects/greentd/tasks/health/pending/
 <!-- HEALTH_CHECK_END -->
