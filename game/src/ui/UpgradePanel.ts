@@ -3,6 +3,7 @@ import type { Tower } from '../entities/towers/Tower';
 import type { UpgradeManager } from '../systems/UpgradeManager';
 import { calculateSellRefund } from '../systems/EconomyManager';
 import { PAL } from './palette';
+import { buildStatsLine } from './statsLine';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -283,14 +284,10 @@ export class UpgradePanel {
 
     this.nameTxt.setText(`${tower.def.name.toUpperCase()} UPGRADES`);
 
-    // Current tower stats — damage, range, attack speed from live upgStats
+    // Current tower stats — shown in the panel header, tailored per tower type.
     const us  = tower.upgStats;
     const spd = (us.attackIntervalMs / 1000).toFixed(2);
-    this.statsTxt.setText(
-      tower.def.isAura
-        ? `RNG: ${Math.round(us.range)}  ·  passive aura`
-        : `DMG: ${us.damage}  ·  RNG: ${Math.round(us.range)}  ·  ${spd}s atk`,
-    );
+    this.statsTxt.setText(buildStatsLine(tower.def.key, tower.def.isAura ?? false, us, spd));
 
     // Sell button — show refund amount
     const upgradeSpent = state?.totalSpent ?? 0;
