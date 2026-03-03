@@ -2,7 +2,7 @@
 id: TASK-122
 title: Main Menu Logo Overlaps Tower Icons — Hide Icons on Region/Stage Select
 priority: high
-status: in-progress
+status: done
 type: bug
 ---
 
