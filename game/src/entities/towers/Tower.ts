@@ -834,7 +834,6 @@ export class Tower extends Phaser.GameObjects.Container {
     const body = new Phaser.GameObjects.Rectangle(
       this.scene, 0, 0, BODY_SIZE, BODY_SIZE, this.def.bodyColor,
     );
-    body.setStrokeStyle(2, 0xffffff, 0.35);
     this._bodyRef = body;
 
     const iconKey = `icon-${this.def.key}`;
