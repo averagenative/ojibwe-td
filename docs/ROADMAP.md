@@ -2542,3 +2542,10 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 - **`ttkTargetSeconds` in `scalingConfig.ts` is defined but unused** — not consumed by any logic or test. Consider either wiring it into balance tests or removing it to avoid stale data.
 - **Arrow B balance table is misleading** — shows 0% improvement at tiers 1, 2, 4 because multiShotCount doesn't affect single-target kill time. Consider adding a "multi-target DPS" column to the balance table generator in a future pass.
 - **`CANNON_DEF` and `MORTAR_DEF` remain exported from `towerDefs.ts`** — they're no longer in `ALL_TOWER_DEFS` and have no upgrade definitions. Consider removing them if no code references them, to avoid confusion.
+
+### TASK-130 Review Findings (Frost Tower Balance)
+
+- **Post-slow immunity affects all slow sources, not just Frost** — `SLOW_IMMUNE_COOLDOWN_MS` (2s) is enforced inside `applySlow()`, which is shared by Frost, Arrow C (Hunter's Edge), explosive residue (Mortar offer), cryo cannon, and concussion shell. After *any* slow expires, *all* slow sources are blocked for 2s. This is the correct design for preventing perma-slow from frost spam, but it means Arrow C + Frost combos are slightly less effective than they'd be with frost-only immunity. Monitor in playtesting; if Arrow C feels too weak alongside Frost towers, consider a per-source immunity flag or reduced cooldown for non-Frost slows.
+- **Concussion shell's brief slow (0.85, 600ms) triggers the full 2s immunity window** — the 2s cooldown is over 3× the slow duration. This may feel disproportionate. If concussion feels underpowered, consider exempting very short slows (< 1s) from triggering the full cooldown.
+- **Frost cost now matches Rock Hurler (both 150g)** — originally distinct at 125/150. This may confuse new players about tower tiers. Consider whether the cost parity is intentional or if 140g would preserve differentiation.
+- **Economy Review update**: Frost cost is now 150 (up from 125). The economy review comment above references the old 125 cost.
