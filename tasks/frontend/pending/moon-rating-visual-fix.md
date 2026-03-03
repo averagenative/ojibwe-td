@@ -1,7 +1,7 @@
 ---
 id: TASK-079
 title: Moon Rating Visual Fix — Replace Emoji with Proper Moon Phase Graphics
-status: pending
+status: in-progress
 priority: medium
 phase: polish
 ---

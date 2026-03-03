@@ -1,7 +1,7 @@
 ---
 id: TASK-065
 title: Mobile App Publishing Plan — Android & iOS Store Readiness
-status: pending
+status: done
 priority: medium
 phase: release
 planning: true

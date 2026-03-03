@@ -2315,6 +2315,21 @@ Non-blocking items surfaced during code review:
   buttons, scale tweens can queue up. Each is very short (80-100ms) so visual impact is minimal,
   but `this.tweens.killTweensOf(label)` before each new hover tween would be more precise.
 
+- **Google Fonts CDN dependency blocks offline/Capacitor builds**: `index.html` loads Cinzel font
+  from `fonts.googleapis.com`. Before any Capacitor/native wrapper build, this must be bundled
+  locally (e.g., `npm i @fontsource/cinzel` and import weight CSS in `main.ts`). Tracked in
+  `game/docs/MOBILE-PUBLISHING.md` §1 and §8.
+
+- **`moonSymbol()` in MoonRating.ts is now dead code**: After TASK-079, no scene imports
+  `moonSymbol()` — it's only consumed by its own unit tests. The function is harmless to keep
+  (no runtime cost), but could be removed in a future cleanup pass if no external consumer
+  appears (e.g. for text-only / accessibility fallback).
+
+- **MoonRatingDisplay glow radius is hard-coded to full-moon position**: The ambient glow circle
+  at `startX + 4 * gap` assumes 5 total moons and places the glow behind the 5th slot. If
+  `total` is ever changed from 5, the glow would be mispositioned. Currently acceptable since
+  all callers pass `total=5`.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)
