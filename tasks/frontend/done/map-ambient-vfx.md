@@ -1,7 +1,7 @@
 ---
 id: TASK-073
 title: Map Ambient VFX — Glistening Vines, Snow Twinkle, Water Shimmer
-status: in-progress
+status: done
 priority: medium
 phase: polish
 ---
