@@ -144,6 +144,21 @@ const ACT2_VIGNETTES: VignetteDef[] = [
     reviewed:     false,
   },
   {
+    id:           'act2-nokomis-medicine',
+    trigger:      TriggerType.WAVE_COMPLETE,
+    triggerValue: 5,
+    regionId:     'mashkiig',
+    speaker:      'Nokomis',
+    portrait:     'elder-nokomis-teaching',
+    lines: [
+      'The wiigwaasi-mitig and mashkikiwaaboo grow thick here.',
+      'These medicines have fed and healed our people for generations.',
+      'When the land is sick, the medicines remember what we forget.',
+    ],
+    codexUnlock:  'codex-teaching-medicine',
+    reviewed:     false,
+  },
+  {
     id:           'act2-mid',
     trigger:      TriggerType.WAVE_COMPLETE,
     triggerValue: 8,
