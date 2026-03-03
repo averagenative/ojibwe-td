@@ -2,7 +2,7 @@
 id: TASK-113
 title: Achievements & Challenges Box Text Overflow on Main Menu
 priority: high
-status: in-progress
+status: done
 type: bug
 ---
 
