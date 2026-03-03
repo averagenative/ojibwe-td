@@ -194,18 +194,26 @@ export class MainMenuScene extends Phaser.Scene {
     this._embers = [];
     this._cardParticles = [];
 
-    // Vertical flow: icons → label → regions → label → stage → buttons → footer
-    const iconY  = TOP_PAD;
+    // Vertical flow: [logo] → icons → label → regions → label → stage → buttons → footer
+    // Reserve extra vertical space at top when logo image is available.
+    const hasLogo   = this.textures.exists('logo');
+    const logoMaxH  = this._isMobile ? 70 : 120;
+    const logoAreaH = hasLogo ? logoMaxH + (this._isMobile ? 10 : 15) : 0;
+
+    const iconY  = TOP_PAD + logoAreaH;
     const labelY = iconY + 28;
     this.regionRowY = labelY + 16 + this._regionH / 2;
     this.stageRowY  = this.regionRowY + this._regionH / 2 + 28 + this._stageH / 2;
+
+    // Logo centre y: middle of logo area, or original text position when no logo.
+    const logoTitleY = hasLogo ? TOP_PAD + logoAreaH / 2 : iconY - 14;
 
     this._audioPanel = null;
 
     this.createBackground();
     this._buildParallaxLayers();
     this._buildTimeOfDayTint();
-    this._buildLogoTitle(cx, iconY - 14);
+    this._buildLogoTitle(cx, logoTitleY);
     this._buildEmbers();
     this.createHeader(cx, iconY, labelY);
     this.createRegionRow(cx);
@@ -319,28 +327,57 @@ export class MainMenuScene extends Phaser.Scene {
   // ── Logo title with breathing glow ────────────────────────────────────────
 
   private _buildLogoTitle(cx: number, y: number): void {
-    // Warm glow behind the title
     const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
     glowGfx.fillStyle(0x2a1205, 0.45);
-    glowGfx.fillEllipse(cx, y, 300, 24);
 
-    // Title text
-    const logoText = this.add.text(cx, y, 'OJIBWE TD', {
-      fontSize: this._fs(14),
-      color: PAL.gold,
-      fontFamily: PAL.fontTitle,
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(DEPTH_BG + 5);
+    if (this.textures.exists('logo')) {
+      // ── Logo image ─────────────────────────────────────────────────────────
+      const logoImg = this.add.image(cx, y, 'logo')
+        .setOrigin(0.5)
+        .setDepth(DEPTH_BG + 5);
 
-    // Breathing glow pulse via alpha tween
-    this.tweens.add({
-      targets: [logoText, glowGfx],
-      alpha: { from: 0.7, to: 1.0 },
-      duration: 2800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
+      // Scale: respect Math.min(width * 0.7, 512) formula but cap height so
+      // the layout isn't disrupted.
+      const { width } = this.scale;
+      const aspect   = logoImg.width / logoImg.height;          // natural texture ratio
+      const maxH     = this._isMobile ? 70 : 120;
+      const desiredW = Math.min(width * 0.7, 512);
+      const finalH   = Math.min(desiredW / aspect, maxH);
+      const finalW   = finalH * aspect;
+      logoImg.setDisplaySize(finalW, finalH);
+
+      // Subtle warm glow behind the logo
+      glowGfx.fillEllipse(cx, y, finalW + 60, finalH * 0.45);
+
+      // Breathing pulse
+      this.tweens.add({
+        targets:  [logoImg, glowGfx],
+        alpha:    { from: 0.85, to: 1.0 },
+        duration: 2800,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
+    } else {
+      // ── Fallback: text title (shown when logo.png is missing) ──────────────
+      glowGfx.fillEllipse(cx, y, 300, 24);
+
+      const logoText = this.add.text(cx, y, 'OJIBWE TD', {
+        fontSize:   this._fs(14),
+        color:      PAL.gold,
+        fontFamily: PAL.fontTitle,
+        fontStyle:  'bold',
+      }).setOrigin(0.5).setDepth(DEPTH_BG + 5);
+
+      this.tweens.add({
+        targets:  [logoText, glowGfx],
+        alpha:    { from: 0.7, to: 1.0 },
+        duration: 2800,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
+    }
   }
 
   // ── Floating embers / fireflies ───────────────────────────────────────────
