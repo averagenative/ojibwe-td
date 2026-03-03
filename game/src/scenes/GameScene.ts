@@ -47,6 +47,7 @@ import type { AutoSave, AutoSaveTower } from '../systems/SessionManager';
 import { AudioSettingsPanel } from '../ui/AudioSettingsPanel';
 import { PostWaveUIQueue } from '../systems/PostWaveUIQueue';
 import type { PostWaveEntry } from '../systems/PostWaveUIQueue';
+import { MultiTowerPanel } from '../ui/MultiTowerPanel';
 
 const DEFAULT_TOTAL_WAVES = 20;
 
@@ -109,6 +110,24 @@ export class GameScene extends Phaser.Scene {
 
   // ── selection ─────────────────────────────────────────────────────────────
   private selectedTower: Tower | null = null;
+  /** All currently selected towers. Length 0 = nothing, 1 = single-select, ≥2 = multi-select. */
+  private _selectedTowers: Tower[] = [];
+
+  // ── region select ─────────────────────────────────────────────────────────
+  /** Rubber-band rectangle drawn while a region-drag is in progress. */
+  private _regionSelectGfx!: Phaser.GameObjects.Graphics;
+  /** World position where the current region-drag began (null when idle). */
+  private _regionSelectStart: { x: number; y: number } | null = null;
+  /** True once the pointer has moved enough to commit to a drag (vs a click). */
+  private _regionDragging = false;
+
+  // ── multi-tower UI ────────────────────────────────────────────────────────
+  private _multiTowerPanel!: MultiTowerPanel;
+
+  // ── mobile long-press region select ──────────────────────────────────────
+  private _mobileHoldTimer: Phaser.Time.TimerEvent | null = null;
+  private _mobileHoldStartX = 0;
+  private _mobileHoldStartY = 0;
 
   // ── boss offer ────────────────────────────────────────────────────────────
   /** Non-null while a boss offer panel is visible (blocks map pointer events). */
@@ -246,7 +265,11 @@ export class GameScene extends Phaser.Scene {
     this.gameState       = 'pregame';
     this.speedMultiplier = 1;
     this._prePauseSpeed  = 1;
-    this.selectedTower   = null;
+    this.selectedTower      = null;
+    this._selectedTowers    = [];
+    this._regionSelectStart = null;
+    this._regionDragging    = false;
+    this._mobileHoldTimer   = null;
     this.placementDef    = null;
     this._isDragPlacing  = false;
     this.bossOfferPanel  = null;
@@ -602,6 +625,9 @@ export class GameScene extends Phaser.Scene {
     // + ✓ checkmark (valid) / ✗ X mark (invalid). Depth 6 — above marker fill.
     this._placementIcon = this.add.graphics().setDepth(6).setVisible(false);
 
+    // Region-select rubber-band rectangle. Depth 8 — above placement preview.
+    this._regionSelectGfx = this.add.graphics().setDepth(8).setVisible(false);
+
     // Mobile placement hint — shown while in placement mode.
     if (MobileManager.getInstance().isMobile()) {
       this.placementHint = this.add.text(
@@ -637,6 +663,17 @@ export class GameScene extends Phaser.Scene {
 
     // Behavior panel (above upgrade panel — targeting priority + per-tower toggle)
     this.behaviorPanel = new BehaviorPanel(this);
+
+    // Multi-tower panel (replaces UpgradePanel + BehaviorPanel for multi-select)
+    this._multiTowerPanel = new MultiTowerPanel(this, this.upgradeManager, () => this.gold);
+    this._multiTowerPanel.onBuyBatch     = (path) => this._batchBuyUpgrade(path);
+    this._multiTowerPanel.onDeselectAll  = () => this.deselectTower();
+    this._multiTowerPanel.onSelectAllType = (key) => this._selectAllOfType(key);
+
+    // Wire "Select All Type" from UpgradePanel back to GameScene
+    this.upgradePanel.onSelectAllType = () => {
+      if (this.selectedTower) this._selectAllOfType(this.selectedTower.def.key);
+    };
 
     // Next-wave button (right portion of HUD strip)
     this.hud.createNextWaveButton(() => this.startNextWave());
@@ -730,20 +767,28 @@ export class GameScene extends Phaser.Scene {
       this.hud.syncSpeed(newMult);
     });
 
-    // Escape: exit placement mode or deselect tower (works while paused)
+    // Escape: exit placement mode, cancel region select, or deselect (works while paused)
     kb?.on('keydown-ESC', () => {
       if (isShortcutBlocked(ctx(), true)) return;
       if (this.placementDef) {
         this.exitPlacementMode();
+      } else if (this._regionDragging || this._regionSelectStart) {
+        this._cancelRegionSelect();
       } else {
         this.deselectTower();
       }
     });
 
-    // S: sell selected tower
+    // S: sell selected tower(s)
     kb?.on('keydown-S', () => {
       if (isShortcutBlocked(ctx())) return;
-      if (this.selectedTower) this.sellTower(this.selectedTower);
+      if (this._selectedTowers.length > 1) {
+        const toSell = [...this._selectedTowers];
+        this.deselectTower();
+        for (const t of toSell) this.sellTower(t);
+      } else if (this.selectedTower) {
+        this.sellTower(this.selectedTower);
+      }
     });
 
     // U: open/close upgrade panel for selected tower
@@ -935,6 +980,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Cancel any pending mobile long-press timer.
+    this._mobileHoldTimer?.remove();
+    this._mobileHoldTimer = null;
+
     // Performance systems cleanup.
     this.trailPool?.destroy();
     this.data.remove('trailPool');
@@ -1040,6 +1089,22 @@ export class GameScene extends Phaser.Scene {
   // ── input ─────────────────────────────────────────────────────────────────
 
   private onPointerMove(ptr: Phaser.Input.Pointer): void {
+    // Cancel mobile long-press if the finger moved significantly before the hold fired.
+    if (this._mobileHoldTimer && MobileManager.getInstance().isMobile()) {
+      const dx = ptr.x - this._mobileHoldStartX;
+      const dy = ptr.y - this._mobileHoldStartY;
+      if (Math.hypot(dx, dy) > 20) {
+        this._mobileHoldTimer.remove();
+        this._mobileHoldTimer = null;
+        this._regionSelectStart = null;
+      }
+    }
+
+    // Update region-select rubber-band rectangle while dragging.
+    if (this._regionSelectStart) {
+      this._updateRegionSelect(ptr.x, ptr.y);
+    }
+
     if (!this.placementDef) return;
     this.updatePlacementPreview(ptr);
   }
@@ -1049,9 +1114,9 @@ export class GameScene extends Phaser.Scene {
     if (this.bossOfferPanel && !this.bossOfferPanel.isClosed()) return;
 
     // Filter clicks in HUD strip (top) and bottom UI panels.
-    // BehaviorPanel and UpgradePanel are always open/closed together.
-    const hudHeight   = getHudHeight();
-    const panelsOpen  = this.upgradePanel.isOpen();
+    // UpgradePanel, BehaviorPanel, and MultiTowerPanel are mutually exclusive.
+    const hudHeight  = getHudHeight();
+    const panelsOpen = this.upgradePanel.isOpen() || this._multiTowerPanel.isOpen();
     const bottomLimit = this.scale.height
       - PANEL_HEIGHT
       - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
@@ -1063,58 +1128,113 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    const isMobile  = MobileManager.getInstance().isMobile();
+    const shiftHeld = !isMobile && ((ptr.event as MouseEvent)?.shiftKey ?? false);
+
     if (this.placementDef) {
       // On mobile, placement happens on pointerup (drag-to-place).
-      if (!MobileManager.getInstance().isMobile()) {
+      if (!isMobile) {
         this.tryPlaceTower(ptr.x, ptr.y);
       }
-    } else {
-      // Deselect any selected tower if clicking empty space.
-      // Tower clicks are handled via tower's own 'pointerup' listener.
-      this.deselectTower();
+      return;
+    }
+
+    // Check whether the click landed on an existing tower.
+    const towerAtPoint = this.findTowerAt(ptr.x, ptr.y);
+
+    if (towerAtPoint) {
+      // Tower click: selection is handled by the tower's 'pointerup' listener.
+      // For non-shift clicks, deselect immediately so the pointerup handler re-selects
+      // cleanly (prevents a stale single-select flash with multi-select rings still on).
+      if (!shiftHeld) {
+        // Only deselect in single-select mode; in multi-select the tower's pointerup
+        // calls selectTower() which will clear multi-select rings itself.
+        if (this._selectedTowers.length <= 1) {
+          this.deselectTower();
+        }
+      }
+      return;
+    }
+
+    // Click landed on empty ground.
+    if (shiftHeld) {
+      // Shift+click on empty ground: do nothing (don't deselect).
+      return;
+    }
+
+    // Start region-select tracking.  Deselect happens in onPointerUp if no drag.
+    this._regionSelectStart = { x: ptr.x, y: ptr.y };
+    this._regionDragging    = false;
+
+    // Mobile: start long-press timer so the player can draw a region box
+    // without conflicting with single-tap deselect.
+    if (isMobile) {
+      this._mobileHoldStartX = ptr.x;
+      this._mobileHoldStartY = ptr.y;
+      this._mobileHoldTimer  = this.time.delayedCall(500, () => {
+        this._mobileHoldTimer = null;
+        // Long press: commit to region-select mode immediately.
+        this._regionDragging = true;
+        this._regionSelectGfx.setVisible(true);
+      });
     }
   }
 
   /**
    * Place tower on pointer-lift — handles both mobile drag-to-place and
-   * desktop drag-to-place.
+   * desktop drag-to-place.  Also finalises region-select drags.
    *
    * Desktop click-to-place is handled in onPointerDown and does NOT reach
    * here (placement mode is exited before this fires, or _isDragPlacing is
    * false and we skip the handler early).
    */
   private onPointerUp(ptr: Phaser.Input.Pointer): void {
-    if (!this.placementDef) return;
-
-    // Desktop click-to-place: placement is handled in onPointerDown.
-    // Skip here to avoid double-processing or accidental cancellation.
     const isMobile = MobileManager.getInstance().isMobile();
-    if (!isMobile && !this._isDragPlacing) return;
 
-    const hudHeight   = getHudHeight();
-    const panelsOpen  = this.upgradePanel.isOpen();
-    const bottomLimit = this.scale.height
-      - PANEL_HEIGHT
-      - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
+    // Cancel any pending mobile long-press timer.
+    if (this._mobileHoldTimer) {
+      this._mobileHoldTimer.remove();
+      this._mobileHoldTimer = null;
+    }
 
-    if (ptr.y >= hudHeight && ptr.y <= bottomLimit) {
-      if (this._isDragPlacing) {
-        // Desktop drag: dropping on an invalid tile cancels placement so the
-        // player gets clear feedback that the drop did not succeed.
-        const { col, row } = this.worldToTile(ptr.x, ptr.y);
-        if (!this.isBuildable(col, row) || this.isTileOccupied(col, row)) {
-          this.exitPlacementMode();
+    if (this.placementDef) {
+      // Desktop click-to-place: handled in onPointerDown; skip here.
+      if (!isMobile && !this._isDragPlacing) return;
+
+      const hudHeight  = getHudHeight();
+      const panelsOpen = this.upgradePanel.isOpen() || this._multiTowerPanel.isOpen();
+      const bottomLimit = this.scale.height
+        - PANEL_HEIGHT
+        - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
+
+      if (ptr.y >= hudHeight && ptr.y <= bottomLimit) {
+        if (this._isDragPlacing) {
+          const { col, row } = this.worldToTile(ptr.x, ptr.y);
+          if (!this.isBuildable(col, row) || this.isTileOccupied(col, row)) {
+            this.exitPlacementMode();
+          } else {
+            this.tryPlaceTower(ptr.x, ptr.y);
+          }
         } else {
+          // Mobile: existing behaviour
           this.tryPlaceTower(ptr.x, ptr.y);
         }
       } else {
-        // Mobile: existing behaviour — silently skip if tile is invalid so
-        // the player can lift and retry without losing placement mode.
-        this.tryPlaceTower(ptr.x, ptr.y);
+        this.exitPlacementMode();
       }
-    } else {
-      // Pointer lifted over HUD or bottom panel — cancel placement.
-      this.exitPlacementMode();
+      return;
+    }
+
+    // ── Region-select finalisation ─────────────────────────────────────────
+    if (this._regionSelectStart) {
+      if (this._regionDragging) {
+        this._finalizeRegionSelect(ptr);
+      } else {
+        // Tap on empty ground (no drag): deselect all (unless shift on desktop).
+        const shiftHeld = !isMobile && ((ptr.event as MouseEvent)?.shiftKey ?? false);
+        if (!shiftHeld) this.deselectTower();
+        this._regionSelectStart = null;
+      }
     }
   }
 
@@ -1139,7 +1259,15 @@ export class GameScene extends Phaser.Scene {
     this.placementMarker.setVisible(true);
     this._placementIcon.setVisible(true);
     this.placementHint?.setVisible(true);
-    this.deselectTower();
+    // Clear selection (single + multi) when entering placement mode.
+    for (const t of this._selectedTowers) t.setMultiSelected(false);
+    this._selectedTowers = [];
+    this.selectedTower?.setRangeVisible(false);
+    this.selectedTower = null;
+    this.upgradePanel.hide();
+    this.behaviorPanel.hide();
+    this._multiTowerPanel.hide();
+    this._cancelRegionSelect();
   }
 
   private exitPlacementMode(): void {
@@ -1308,7 +1436,15 @@ export class GameScene extends Phaser.Scene {
       applyGearToStats(tower.upgStats, gearBonuses);
     }
 
-    tower.on('pointerup', () => this.selectTower(tower));
+    tower.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+      const shiftHeld = !MobileManager.getInstance().isMobile() &&
+        ((ptr.event as MouseEvent)?.shiftKey ?? false);
+      if (shiftHeld) {
+        this._toggleTowerInSelection(tower);
+      } else {
+        this.selectTower(tower);
+      }
+    });
     this.towers.push(tower);
     this.exitPlacementMode();
   }
@@ -1318,18 +1454,206 @@ export class GameScene extends Phaser.Scene {
   private selectTower(tower: Tower): void {
     if (this.placementDef) return;
     AudioManager.getInstance().playUiClick();
-    this.deselectTower();
-    this.selectedTower = tower;
+    // Clear all existing selection (single and multi).
+    for (const t of this._selectedTowers) t.setMultiSelected(false);
+    this._selectedTowers = [];
+    this.selectedTower?.setRangeVisible(false);
+    this._multiTowerPanel.hide();
+    // Set single selection.
+    this.selectedTower     = tower;
+    this._selectedTowers   = [tower];
     tower.setRangeVisible(true);
     this.upgradePanel.showForTower(tower);
     this.behaviorPanel.showForTower(tower);
   }
 
   private deselectTower(): void {
+    // Clear single selection.
+    this.selectedTower?.setRangeVisible(false);
+    this.selectedTower = null;
+    // Clear multi selection rings.
+    for (const t of this._selectedTowers) t.setMultiSelected(false);
+    this._selectedTowers = [];
+    // Hide all selection panels.
+    this.upgradePanel.hide();
+    this.behaviorPanel.hide();
+    this._multiTowerPanel.hide();
+    // Cancel any active region-select state.
+    this._cancelRegionSelect();
+  }
+
+  /**
+   * Toggle a tower in/out of the multi-select group.
+   * If a single tower is already selected, it is absorbed into the multi-group first.
+   * Reverts to single-select when the group shrinks to one tower.
+   */
+  private _toggleTowerInSelection(tower: Tower): void {
+    const idx = this._selectedTowers.indexOf(tower);
+
+    if (idx >= 0) {
+      // Remove from multi-select.
+      this._selectedTowers.splice(idx, 1);
+      tower.setMultiSelected(false);
+    } else {
+      // Absorb current single-select into multi-select if needed.
+      if (this.selectedTower && !this._selectedTowers.includes(this.selectedTower)) {
+        this._selectedTowers.push(this.selectedTower);
+        this.selectedTower.setMultiSelected(true);
+      }
+      // Clear single-select panels.
+      this.selectedTower?.setRangeVisible(false);
+      this.selectedTower = null;
+      this.upgradePanel.hide();
+      this.behaviorPanel.hide();
+      // Add the new tower.
+      this._selectedTowers.push(tower);
+      tower.setMultiSelected(true);
+    }
+
+    this._updateSelectionUI();
+  }
+
+  /** Sync visible panels to match the current _selectedTowers array. */
+  private _updateSelectionUI(): void {
+    if (this._selectedTowers.length === 0) {
+      this.selectedTower?.setRangeVisible(false);
+      this.selectedTower = null;
+      this.upgradePanel.hide();
+      this.behaviorPanel.hide();
+      this._multiTowerPanel.hide();
+      return;
+    }
+
+    if (this._selectedTowers.length === 1) {
+      // Revert to single-select.
+      const tower = this._selectedTowers[0];
+      tower.setMultiSelected(false);  // use range ring instead
+      this.selectedTower?.setRangeVisible(false);
+      this.selectedTower = tower;
+      tower.setRangeVisible(true);
+      this.upgradePanel.showForTower(tower);
+      this.behaviorPanel.showForTower(tower);
+      this._multiTowerPanel.hide();
+      return;
+    }
+
+    // Multi-select (2+ towers).
     this.selectedTower?.setRangeVisible(false);
     this.selectedTower = null;
     this.upgradePanel.hide();
     this.behaviorPanel.hide();
+    this._multiTowerPanel.show(this._selectedTowers);
+  }
+
+  /**
+   * Select all placed towers whose type key matches the given key.
+   * If only one tower of that type exists, falls back to single selection.
+   */
+  private _selectAllOfType(typeKey: string): void {
+    const matching = this.towers.filter(t => t.def.key === typeKey);
+    if (matching.length === 0) return;
+
+    // Clear existing selection.
+    this.deselectTower();
+
+    if (matching.length === 1) {
+      this.selectTower(matching[0]);
+      return;
+    }
+
+    // Multi-select all matching towers.
+    this._selectedTowers = [...matching];
+    for (const t of this._selectedTowers) t.setMultiSelected(true);
+    this.selectedTower = null;
+    this._multiTowerPanel.show(this._selectedTowers);
+  }
+
+  /**
+   * Apply the next upgrade on `path` to every selected tower that can afford it.
+   * Deducts gold greedy-order (first tower first) while the player can still afford.
+   */
+  private _batchBuyUpgrade(path: 'A' | 'B' | 'C'): void {
+    if (this._selectedTowers.length < 2) return;
+
+    let paid = false;
+    for (const tower of this._selectedTowers) {
+      const cost = this.upgradeManager.getUpgradeCost(tower, path);
+      if (cost > 0 && this.gold >= cost) {
+        const spent = this.upgradeManager.buyUpgrade(tower, path);
+        if (spent > 0) {
+          this.gold -= spent;
+          paid = true;
+        }
+      }
+    }
+
+    if (paid) {
+      AudioManager.getInstance().playUiClick();
+      this.hud.setGold(this.gold);
+      this._multiTowerPanel.refresh(this._selectedTowers);
+    }
+  }
+
+  // ── Region select ──────────────────────────────────────────────────────────
+
+  private _updateRegionSelect(x: number, y: number): void {
+    if (!this._regionSelectStart) return;
+    const dx = x - this._regionSelectStart.x;
+    const dy = y - this._regionSelectStart.y;
+
+    if (!this._regionDragging && Math.hypot(dx, dy) > 8) {
+      this._regionDragging = true;
+      this._regionSelectGfx.setVisible(true);
+    }
+
+    if (this._regionDragging) {
+      const rx = Math.min(this._regionSelectStart.x, x);
+      const ry = Math.min(this._regionSelectStart.y, y);
+      const rw = Math.abs(dx);
+      const rh = Math.abs(dy);
+      this._regionSelectGfx.clear();
+      this._regionSelectGfx.fillStyle(0xc8952a, 0.08);
+      this._regionSelectGfx.fillRect(rx, ry, rw, rh);
+      this._regionSelectGfx.lineStyle(2, 0xc8952a, 0.85);
+      this._regionSelectGfx.strokeRect(rx, ry, rw, rh);
+    }
+  }
+
+  private _finalizeRegionSelect(ptr: Phaser.Input.Pointer): void {
+    if (!this._regionSelectStart) return;
+
+    const start = this._regionSelectStart;
+    const rx = Math.min(start.x, ptr.x);
+    const ry = Math.min(start.y, ptr.y);
+    const rw = Math.abs(ptr.x - start.x);
+    const rh = Math.abs(ptr.y - start.y);
+
+    this._cancelRegionSelect();
+
+    const selected = this.towers.filter(
+      t => t.x >= rx && t.x <= rx + rw && t.y >= ry && t.y <= ry + rh,
+    );
+
+    // Clear existing selection before applying the new region result.
+    this.deselectTower();
+
+    if (selected.length === 0) return;
+
+    if (selected.length === 1) {
+      this.selectTower(selected[0]);
+      return;
+    }
+
+    this._selectedTowers = [...selected];
+    for (const t of this._selectedTowers) t.setMultiSelected(true);
+    this.selectedTower = null;
+    this._multiTowerPanel.show(this._selectedTowers);
+  }
+
+  private _cancelRegionSelect(): void {
+    this._regionSelectGfx?.clear().setVisible(false);
+    this._regionSelectStart = null;
+    this._regionDragging    = false;
   }
 
   private sellTower(tower: Tower): void {
@@ -1350,7 +1674,9 @@ export class GameScene extends Phaser.Scene {
     this.gold += refund;
     this.hud.setGold(this.gold);
 
-    if (this.selectedTower === tower) this.deselectTower();
+    if (this.selectedTower === tower || this._selectedTowers.includes(tower)) {
+      this.deselectTower();
+    }
     this.upgradeManager.removeTower(tower);
     this.towers = this.towers.filter(t => t !== tower);
     tower.sell();
@@ -2263,7 +2589,15 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    tower.on('pointerup', () => this.selectTower(tower));
+    tower.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+      const shiftHeld = !MobileManager.getInstance().isMobile() &&
+        ((ptr.event as MouseEvent)?.shiftKey ?? false);
+      if (shiftHeld) {
+        this._toggleTowerInSelection(tower);
+      } else {
+        this.selectTower(tower);
+      }
+    });
     this.towers.push(tower);
   }
 

@@ -46,20 +46,27 @@ export class UpgradePanel {
   private _open         = false;
   private currentTower: Tower | null = null;
 
-  private allObjects:  Phaser.GameObjects.GameObject[] = [];
-  private panelBg:     Phaser.GameObjects.Rectangle;
-  private nameTxt:     Phaser.GameObjects.Text;
-  private statsTxt:    Phaser.GameObjects.Text;
-  private sellBg:      Phaser.GameObjects.Rectangle;
-  private sellLabel:   Phaser.GameObjects.Text;
-  private respecBg:    Phaser.GameObjects.Rectangle;
-  private respecLabel: Phaser.GameObjects.Text;
-  private columns:     PathColumnUI[] = [];
+  private allObjects:       Phaser.GameObjects.GameObject[] = [];
+  private panelBg:          Phaser.GameObjects.Rectangle;
+  private nameTxt:          Phaser.GameObjects.Text;
+  private statsTxt:         Phaser.GameObjects.Text;
+  private sellBg:           Phaser.GameObjects.Rectangle;
+  private sellLabel:        Phaser.GameObjects.Text;
+  private respecBg:         Phaser.GameObjects.Rectangle;
+  private respecLabel:      Phaser.GameObjects.Text;
+  private _selectAllBg:     Phaser.GameObjects.Rectangle;
+  private _selectAllLabel:  Phaser.GameObjects.Text;
+  private columns:          PathColumnUI[] = [];
 
   /** GameScene sets this so selling a tower refunds gold. */
   onSell?: (tower: Tower) => void;
   /** GameScene sets this so buying deducts gold and refreshes HUD. */
   onBuy?:    (cost: number) => void;
+  /**
+   * GameScene sets this to implement "Select All of This Type" — selects all
+   * placed towers with the same tower key as the currently-shown tower.
+   */
+  onSelectAllType?: () => void;
   /**
    * GameScene sets this so respec adds back the refund gold.
    * @param refund     Gold returned to the player after the respec fee.
@@ -148,6 +155,25 @@ export class UpgradePanel {
     this.respecBg.on('pointerover', () => this.respecBg.setFillStyle(PAL.bgGiveUpHover));
     this.respecBg.on('pointerout',  () => this.respecBg.setFillStyle(PAL.bgGiveUp));
     this.respecBg.on('pointerup',   () => this.handleRespec());
+
+    // "Select All [Type]" button — placed left of Respec
+    const selectAllW = 180;
+    const selectAllX = respecX - respecW / 2 - 8 - selectAllW / 2;
+
+    this._selectAllBg = scene.add.rectangle(selectAllX, headerCY, selectAllW, HEADER_H - 4, PAL.bgStartBtn)
+      .setStrokeStyle(1, PAL.borderActive)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 1);
+    this.allObjects.push(this._selectAllBg);
+
+    this._selectAllLabel = scene.add.text(selectAllX, headerCY, 'SELECT ALL TYPE', {
+      fontSize: '10px', color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
+    this.allObjects.push(this._selectAllLabel);
+
+    this._selectAllBg.on('pointerover', () => this._selectAllBg.setFillStyle(PAL.bgStartBtnHover));
+    this._selectAllBg.on('pointerout',  () => this._selectAllBg.setFillStyle(PAL.bgStartBtn));
+    this._selectAllBg.on('pointerup',   () => this.onSelectAllType?.());
 
     // ── Three path columns ─────────────────────────────────────────────────
     const colsTop  = py + HEADER_H;
@@ -263,6 +289,7 @@ export class UpgradePanel {
   showForTower(tower: Tower): void {
     this.currentTower = tower;
     this._open        = true;
+    this._selectAllLabel.setText(`SELECT ALL ${tower.def.name.toUpperCase()}`);
     this.setVisible(true);
     this.refresh();
   }
