@@ -1,7 +1,7 @@
 ---
 id: TASK-099
 title: Regional Difficulty Scaling — Later Maps Require Tower Diversity
-status: pending
+status: done
 category: backend
 priority: high
 depends_on: [TASK-098]

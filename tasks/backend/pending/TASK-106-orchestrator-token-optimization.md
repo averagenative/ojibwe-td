@@ -2,7 +2,7 @@
 id: TASK-106
 title: Evaluate Orchestrator Pipeline for Token Cost Reduction
 priority: high
-status: in-progress
+status: pending
 type: infra
 ---
 

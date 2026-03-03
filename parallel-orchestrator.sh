@@ -390,10 +390,8 @@ Steps
   show_worker_status
 
   # Signal success — main process will handle ship
-  log "[$slug] DEBUG: wt_path=$wt_path branch=$branch task_file=$task_file status_file=$status_file"
   echo "OK:${wt_path}:${branch}:${task_file}" > "$status_file"
   log "[$slug] implement+review complete — ready to ship"
-  cat "$status_file"
 }
 
 cleanup_worker() {
@@ -437,14 +435,8 @@ EOF
     log "[$slug] No changes to commit in worktree (unexpected)"
   fi
 
-  # 2. Mark task done and move file
-  log "[$slug] Moving task to done…"
-  sed -i 's/^status: in-progress$/status: done/' "$task_file"
-  mkdir -p "$(dirname "$done_path")"
-  mv "$task_file" "$done_path"
-  log "[$slug] Task marked done ✓"
-
-  # 3. Merge worktree branch into main
+  # 2. Merge worktree branch into main (before moving task file,
+  #    so a merge conflict doesn't leave the file in the wrong place)
   log "[$slug] Merging $branch into main…"
   git -C "$REPO_DIR" checkout main 2>&1 | sed "s/^/[$slug] /"
   git -C "$REPO_DIR" merge --no-ff "$branch" -m "Merge branch '$branch'" \
@@ -457,6 +449,13 @@ EOF
     return 1
   fi
   log "[$slug] Merge complete ✓"
+
+  # 3. Mark task done and move file (only after successful merge)
+  log "[$slug] Moving task to done…"
+  sed -i 's/^status: in-progress$/status: done/' "$task_file"
+  mkdir -p "$(dirname "$done_path")"
+  mv "$task_file" "$done_path"
+  log "[$slug] Task marked done ✓"
 
   # 4. Commit metadata (task file move) on main
   git -C "$REPO_DIR" add -A

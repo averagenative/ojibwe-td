@@ -1975,6 +1975,42 @@ Non-blocking items surfaced during code review:
   (`_confirmOpen`) would be more defensive. Low priority since the overlay reliably
   captures input.
 
+### TASK-106 review — non-blocking findings (2026-03-02)
+
+- **`ship_task_bash` commit attribution.** The commit message hardcodes
+  `Co-Authored-By: Claude Sonnet 4.6` even though the ship step is now pure bash.
+  Consider using a generic attribution (e.g. "Ojibwe TD Orchestrator") or
+  dynamically using the model that performed the implement/review stages.
+
+- **`ship_task_bash` partial failure on `mv`.** If `mv "$task_file" "$done_path"`
+  fails after `sed -i` has already changed `status: done`, the task file remains
+  in `pending/` with `status: done`. A simple guard (`mv ... || { log ...; return 1; }`)
+  would make this atomic-ish.
+
+- **JOURNEY.md entries are now template-only.** Acknowledged in the analysis as an
+  acceptable trade-off. A follow-up (REFACTOR-F in `docs/token-optimization.md`)
+  suggests moving narrative writing into the review agent prompt.
+
+- **No Vitest tests for this task.** All changes are in bash scripts outside
+  `game/src/`. No TypeScript logic was added or modified, so Vitest coverage is
+  not applicable. Existing 2147 tests pass unchanged.
+
+### TASK-099 — Regional Difficulty Scaling (non-blocking observations)
+
+- **`Math.random()` in `applyRegionTraits()` is non-deterministic.** Makes exact
+  wave composition non-reproducible. Consider a seeded PRNG (e.g. based on wave
+  number + region) if deterministic replays or balance testing are needed later.
+
+- **Wave announcement traits don't reflect region-injected armor/immunities.**
+  `getWaveAnnouncementInfo()` infers traits from the pool (`brute` → Armoured)
+  but doesn't know that region scaling promoted 20% of grunts to armored. The
+  banner could under-report difficulty in Regions 2–4. Low priority — the banner
+  is a hint, not a contract.
+
+- **Acceptance criterion "Playtested across all regions" cannot be verified by
+  automated tests.** Manual playtest recommended before shipping to confirm the
+  difficulty curve feels smooth and no brick walls exist between regions.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)
