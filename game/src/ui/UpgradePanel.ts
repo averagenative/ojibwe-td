@@ -6,19 +6,21 @@ import { PAL } from './palette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-export const UPGRADE_PANEL_HEIGHT = 160;
+export const UPGRADE_PANEL_HEIGHT = 176;  // 160 base + 16 for per-column description row
 const PANEL_HEIGHT_TOWER = 72;  // must match TowerPanel.PANEL_HEIGHT
 
-const HEADER_H  = 22;
-const TIER_H    = 18;
-const BUY_BTN_H = 28;
-const DEPTH     = 110;  // above TowerPanel (100)
+const HEADER_H      = 22;   // outer panel header height (tower name / sell / respec)
+const COL_DESC_ROW_H = 16;  // per-column description row below path name
+const TIER_H        = 18;
+const BUY_BTN_H     = 28;
+const DEPTH         = 110;  // above TowerPanel (100)
 
 // ── Internal structures ───────────────────────────────────────────────────────
 
 interface PathColumnUI {
   path:        'A' | 'B' | 'C';
   headerText:  Phaser.GameObjects.Text;
+  descText:    Phaser.GameObjects.Text;
   tierPips:    Phaser.GameObjects.Arc[];
   tierNames:   Phaser.GameObjects.Text[];
   tierCosts:   Phaser.GameObjects.Text[];
@@ -46,6 +48,7 @@ export class UpgradePanel {
   private allObjects:  Phaser.GameObjects.GameObject[] = [];
   private panelBg:     Phaser.GameObjects.Rectangle;
   private nameTxt:     Phaser.GameObjects.Text;
+  private statsTxt:    Phaser.GameObjects.Text;
   private sellBg:      Phaser.GameObjects.Rectangle;
   private sellLabel:   Phaser.GameObjects.Text;
   private respecBg:    Phaser.GameObjects.Rectangle;
@@ -98,6 +101,12 @@ export class UpgradePanel {
       fontSize: '14px', color: PAL.textPrimary, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(this.nameTxt);
+
+    // Current tower stats — shown centered in the header, updates on each refresh
+    this.statsTxt = scene.add.text(width / 2, headerCY, '', {
+      fontSize: '11px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
+    this.allObjects.push(this.statsTxt);
 
     // Sell button (gold text, prominent)
     const sellW  = 120;
@@ -156,19 +165,26 @@ export class UpgradePanel {
         this.allObjects.push(sep);
       }
 
-      // Path header
-      const headerText = scene.add.text(colCx, colsTop + 10, '', {
+      // Path header — shifted up slightly to make room for the description row below
+      const headerText = scene.add.text(colCx, colsTop + 8, '', {
         fontSize: '11px', color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
       this.allObjects.push(headerText);
 
-      // Tier rows
+      // Path description — one-line summary shown below the path name
+      const descText = scene.add.text(colCx, colsTop + 20, '', {
+        fontSize: '9px', color: PAL.textDim, fontFamily: PAL.fontBody,
+        wordWrap: { width: colW - 8 },
+      }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
+      this.allObjects.push(descText);
+
+      // Tier rows — shifted down by COL_DESC_ROW_H to sit below the description row
       const tierPips:  Phaser.GameObjects.Arc[]  = [];
       const tierNames: Phaser.GameObjects.Text[] = [];
       const tierCosts: Phaser.GameObjects.Text[] = [];
 
       for (let ti = 0; ti < 5; ti++) {
-        const rowY = colsTop + HEADER_H + ti * TIER_H + TIER_H / 2;
+        const rowY = colsTop + HEADER_H + COL_DESC_ROW_H + ti * TIER_H + TIER_H / 2;
 
         const pip = scene.add.arc(colX + 14, rowY, 5, 0, 360, false, PAL.borderPanel, 1)
           .setDepth(DEPTH + 2);
@@ -189,8 +205,8 @@ export class UpgradePanel {
         tierCosts.push(costText);
       }
 
-      // Buy button
-      const buyY  = colsTop + HEADER_H + 5 * TIER_H + BUY_BTN_H / 2;
+      // Buy button — shifted down by COL_DESC_ROW_H along with tier rows
+      const buyY  = colsTop + HEADER_H + COL_DESC_ROW_H + 5 * TIER_H + BUY_BTN_H / 2;
       const buyW  = colW - 16;
 
       const buyBg = scene.add.rectangle(colCx, buyY, buyW, BUY_BTN_H - 4, PAL.bgUpgradeBuy)
@@ -224,6 +240,7 @@ export class UpgradePanel {
       this.columns.push({
         path: pathId,
         headerText,
+        descText,
         tierPips,
         tierNames,
         tierCosts,
@@ -266,6 +283,15 @@ export class UpgradePanel {
 
     this.nameTxt.setText(`${tower.def.name.toUpperCase()} UPGRADES`);
 
+    // Current tower stats — damage, range, attack speed from live upgStats
+    const us  = tower.upgStats;
+    const spd = (us.attackIntervalMs / 1000).toFixed(2);
+    this.statsTxt.setText(
+      tower.def.isAura
+        ? `RNG: ${Math.round(us.range)}  ·  passive aura`
+        : `DMG: ${us.damage}  ·  RNG: ${Math.round(us.range)}  ·  ${spd}s atk`,
+    );
+
     // Sell button — show refund amount
     const upgradeSpent = state?.totalSpent ?? 0;
     const sellRefund = calculateSellRefund(tower.def.cost + upgradeSpent, this.getSellRate());
@@ -294,6 +320,9 @@ export class UpgradePanel {
 
       // Path header
       col.headerText.setText(`PATH ${pathId}: ${pathDef.name.toUpperCase()}`);
+
+      // Path description — only shown if the path def has one
+      col.descText.setText(pathDef.description ?? '');
 
       // Tier rows
       for (let ti = 0; ti < 5; ti++) {
