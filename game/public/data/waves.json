@@ -21,6 +21,6 @@
   { "count": 24, "intervalMs":  550, "hpMult": 4.25, "speedMult": 1.50, "pool": ["brute", "swarm", "scout", "flier"] },
   { "count": 26, "intervalMs":  500, "hpMult": 4.70, "speedMult": 1.55, "pool": ["grunt", "runner", "brute", "flier"] },
   { "count": 26, "intervalMs":  500, "hpMult": 5.20, "speedMult": 1.60, "pool": ["grunt", "runner", "brute", "scout", "flier", "swarm"] },
-  { "count": 30, "intervalMs":  450, "hpMult": 6.00, "speedMult": 1.70, "pool": ["grunt", "runner", "brute", "swarm", "scout", "flier"], "boss": "animikiins",
+  { "count": 30, "intervalMs":  450, "hpMult": 5.75, "speedMult": 1.70, "pool": ["grunt", "runner", "brute", "swarm", "scout", "flier"], "boss": "animikiins",
     "escorts": { "count": 8, "types": ["scout", "runner"], "intervalMs": 1000 } }
 ]

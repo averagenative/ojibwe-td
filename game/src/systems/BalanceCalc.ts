@@ -154,8 +154,8 @@ export function computeStatsForBalance(
 /**
  * Compute effective single-target DPS for a tower given its upgrade state.
  *
- * - Cannon / Frost / Tesla / Mortar: `damage / attackIntervalSec`
- *   (Mortar: direct hit only; splash bonus not included in single-target DPS)
+ * - Arrow / Rock Hurler / Frost / Tesla: `damage / attackIntervalSec`
+ *   (Rock Hurler: direct hit only; splash bonus not included in single-target DPS)
  * - Poison: steady-state DoT DPS at max stacks = `(base + bonus) × 2 ticks/s × maxStacks`
  * - Aura: 0 (no direct damage output)
  *

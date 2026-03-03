@@ -15,7 +15,7 @@ export interface WaveScalingConfig {
 
   /**
    * Approximate geometric HP growth factor per wave.
-   * Derived from: wave-20 hpMult (6.0) = factor^19 → factor ≈ 1.094.
+   * Derived from: wave-20 hpMult (5.75) = factor^19 → factor ≈ 1.096.
    * The authoritative per-wave values are in WAVE_HP_MULTS.
    */
   creepHpGrowthPerWave: number;
@@ -43,7 +43,7 @@ export interface WaveScalingConfig {
 
 export const WAVE_SCALING: WaveScalingConfig = {
   creepHpBase:             80,     // grunt base HP
-  creepHpGrowthPerWave:    1.094,  // ≈ 6.0^(1/19)
+  creepHpGrowthPerWave:    1.096,  // ≈ 5.75^(1/19)
   creepSpeedGrowthPerWave: 1.028,  // ≈ 1.70^(1/19)
   bossHpMultiplier:        8,      // boss = 8× standard wave HP
   bossWaves:               [5, 10, 15, 20],
@@ -67,7 +67,7 @@ export const WAVE_HP_MULTS: readonly number[] = [
   1.00, 1.10, 1.20, 1.30, 1.40,
   1.55, 1.70, 1.85, 2.00, 2.20,
   2.40, 2.65, 2.90, 3.20, 3.50,
-  3.85, 4.25, 4.70, 5.20, 6.00,
+  3.85, 4.25, 4.70, 5.20, 5.75,
 ];
 
 /**

@@ -174,11 +174,11 @@ const TESLA_UPGRADES: TowerUpgradeDef = {
     B: {
       id: 'B', name: 'Arc Damage',
       tiers: [
-        { name: 'Surge I',   description: 'Chain damage ratio +10%.',  cost: 55,  statDelta: { chainDamageRatioDelta: 0.10 } },
-        { name: 'Surge II',  description: 'Chain damage ratio +15%.',  cost: 80,  statDelta: { chainDamageRatioDelta: 0.15 } },
-        { name: 'Surge III', description: 'Chain damage ratio +20%.',  cost: 105, statDelta: { chainDamageRatioDelta: 0.20 } },
-        { name: 'Surge IV',  description: 'Chain damage ratio +25%.',  cost: 155, statDelta: { chainDamageRatioDelta: 0.25 } },
-        { name: 'Surge V',   description: 'Chain damage ratio +30%.',  cost: 195, statDelta: { chainDamageRatioDelta: 0.30 } },
+        { name: 'Surge I',   description: 'Chain damage ratio +10%. +6 base damage.',  cost: 55,  statDelta: { chainDamageRatioDelta: 0.10, damageDelta: 6  } },
+        { name: 'Surge II',  description: 'Chain damage ratio +15%. +8 base damage.',  cost: 80,  statDelta: { chainDamageRatioDelta: 0.15, damageDelta: 8  } },
+        { name: 'Surge III', description: 'Chain damage ratio +20%. +10 base damage.', cost: 105, statDelta: { chainDamageRatioDelta: 0.20, damageDelta: 10 } },
+        { name: 'Surge IV',  description: 'Chain damage ratio +25%. +14 base damage.', cost: 155, statDelta: { chainDamageRatioDelta: 0.25, damageDelta: 14 } },
+        { name: 'Surge V',   description: 'Chain damage ratio +30%. +18 base damage.', cost: 195, statDelta: { chainDamageRatioDelta: 0.30, damageDelta: 18 } },
       ],
     },
     C: {
@@ -256,7 +256,7 @@ const ARROW_UPGRADES: TowerUpgradeDef = {
       tiers: [
         { name: 'Volley I',   description: 'Fires at 1 extra target per attack.',                 cost: 30,  statDelta: { multiShotCountDelta: 1 } },
         { name: 'Volley II',  description: 'Fires at 2 extra targets per attack.',                cost: 50,  statDelta: { multiShotCountDelta: 1 } },
-        { name: 'Volley III', description: 'Fires at 3 extra targets. +5 damage.',               cost: 70,  statDelta: { multiShotCountDelta: 1, damageDelta: 5 } },
+        { name: 'Volley III', description: 'Fires at 3 extra targets. +9 damage.',               cost: 70,  statDelta: { multiShotCountDelta: 1, damageDelta: 9 } },
         { name: 'Volley IV',  description: 'Fires at 4 extra targets.',                          cost: 100, statDelta: { multiShotCountDelta: 1 } },
         { name: 'Volley V',   description: 'Fires at 5 extra targets. +8 damage.',               cost: 140, statDelta: { multiShotCountDelta: 1, damageDelta: 8 } },
       ],
