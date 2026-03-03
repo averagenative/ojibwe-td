@@ -2217,6 +2217,38 @@ Non-blocking items surfaced during code review:
   `public/assets/sprites/` and verifies they have valid headers. A parametric asset-health
   test could catch corrupted or mis-sized sprites early.
 
+### TASK-078: Elder Portraits — Dialog Box (non-blocking observations)
+
+- **Portrait assets are 96×96, not ~256×256**: The task spec says "~256×256px" but the shipped
+  portraits are 96×96 RGBA PNGs. Since VignetteOverlay displays them at 64×64 (`setDisplaySize`),
+  96×96 source images are pragmatic and avoid wasting texture memory. If portraits are ever
+  displayed larger (e.g. in a future codex character page or camp screen), higher-resolution
+  source assets should be created. Low priority.
+
+- **Only 2 expression variants per elder (minimum of 2-4 range)**: Each elder has a base +
+  one variant (proud, teaching, fierce). The task allows up to 4 variants. Future work could
+  add smiling/concerned/warning expressions to increase narrative variety without code changes
+  — just add PNGs, ELDER_PORTRAIT_KEYS entries, and BootScene load calls.
+
+- **No Nokomis presence in Acts 1, 3, or 4**: Nokomis currently speaks only in Act 2 (marshes).
+  The task suggests her for "poison/nature tower lore, healing/medicine references" which could
+  also apply to tower-unlock moments or nature-themed events in other acts. Adding Nokomis
+  vignettes to other acts would strengthen her narrative presence.
+
+- **Cutscene integration deferred**: TASK-074 (cutscene system) is not yet implemented, so
+  the "Cutscene Integration" acceptance criteria cannot be fulfilled. When TASK-074 ships,
+  elder portraits should be wired into `CutsceneFrame.portrait` field.
+
+- **VignetteOverlay nameplate colours are hardcoded**: Speaker-to-colour mapping in
+  `nameplateColour()` uses string matching (`.includes('mishoomis')`). If more speakers are
+  added, this should be refactored to a lookup table for maintainability. Low priority — the
+  current approach works fine for the three elders plus Scout/War Chief.
+
+- **Oshkaabewis commander missing portrait asset**: The codex entry `codex-commander-oshkaabewis`
+  (Oshkaabewis — The Messenger) has no `iconKey` because no `portrait-oshkaabewis` texture exists
+  in BootScene. A portrait asset should be created and wired up to complete codex icon coverage
+  for all commanders. Low priority — the fallback coloured tile displays fine.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

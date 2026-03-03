@@ -1,7 +1,7 @@
 ---
 id: TASK-078
 title: Elder Portraits — Create Visual Assets & Add to Dialog Box
-status: pending
+status: in-progress
 priority: medium
 phase: content
 ---

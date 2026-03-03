@@ -1,7 +1,7 @@
 ---
 id: TASK-101
 title: Codex — Icons for Beings, Places, Commanders
-status: pending
+status: done
 category: frontend
 priority: medium
 depends_on: []
