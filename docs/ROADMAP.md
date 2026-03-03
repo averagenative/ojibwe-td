@@ -2159,6 +2159,32 @@ Non-blocking items surfaced during code review:
   the sold tower and keep the rest selected. Low priority — current behavior is safe and
   consistent.
 
+### TASK-111 review — non-blocking findings (2026-03-03)
+
+- **Wave-complete audio plays during rush skip**: `AudioManager.playWaveComplete()` fires
+  even when `_nextWaveRushed` is true and the between-wave phase is skipped. Consider
+  suppressing or shortening the cue during rushes for a smoother feel.
+
+- **Pre-existing: HUD buttons remain interactive when hidden**: `setNextWaveVisible(false)`
+  and other HUD button hide methods do not call `disableInteractive()`. Fixed for the rush
+  button in TASK-111; the same pattern should be applied to `nextWaveBg` for consistency.
+
+### TASK-110 Review — Non-blocking findings (2026-03-03)
+
+- **Codex-scholar achievement not wired**: `AchievementManager.onCodexAllRead()` is defined
+  but never called from `CodexScene`. Wire it after `markCodexRead()` / `markAllCodexRead()`
+  once a "check all read" helper exists in SaveManager (check all unlocked entries have a
+  matching read flag).
+
+- **Per-run gold achievements show misleading progress bars**: `earn-2000-gold` and
+  `earn-5000-gold` have `target: 2000` / `5000` but use binary `_unlock()` — the gallery
+  shows `0 / 2,000` until unlocked because no partial progress is ever stored. Consider
+  changing to `target: 1` (binary) or storing the best single-run gold as progress.
+
+- **`max-upgrade-first` description mismatch**: Description says "all 3 upgrade paths at
+  tier 3" but the code triggers when any single path reaches tier 5. The description should
+  be updated to "reach tier 5 on any upgrade path for the first time."
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)

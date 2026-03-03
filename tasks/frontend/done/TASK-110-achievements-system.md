@@ -2,7 +2,7 @@
 id: TASK-110
 title: Achievements System — 50-60 Achievements for Progression Milestones
 priority: medium
-status: pending
+status: done
 type: feature
 ---
 
