@@ -1,7 +1,7 @@
 ---
 id: TASK-094
 title: Rename Tesla Tower to Thunder Tower
-status: in-progress
+status: done
 category: backend
 priority: medium
 depends_on: []
