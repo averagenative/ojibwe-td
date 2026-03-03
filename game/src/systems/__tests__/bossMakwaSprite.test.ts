@@ -1,5 +1,5 @@
 /**
- * Tests for TASK-096: Makwa Boss Sprite Rework
+ * Tests for TASK-117: Makwa Boss Sprite Rework
  *
  * Validates the boss-makwa.png asset file integrity and that the sprite
  * is correctly wired into game data definitions.
