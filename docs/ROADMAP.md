@@ -2386,6 +2386,17 @@ Non-blocking items surfaced during code review:
 - **Boss sprite art styles are inconsistent**: The new makwa sprite uses Pacific NW formline art (bold outlines, ovoid shapes, red/teal accents), while migizi, animikiins, and waabooz still use a softer cartoon style. Consider reworking the remaining boss sprites to match the formline aesthetic for visual cohesion.
 - **`gen-boss-makwa.py` generation script is untracked**: The Python PIL script that produced the sprite lives at `game/scripts/gen-boss-makwa.py` but was not staged. It should be committed alongside the asset for reproducibility, similar to `gen-critter-sprites.py`.
 
+### TASK-118 review observations (2026-03-03)
+- **3 orphan sprite files not loaded in BootScene**: `creep-boss.png`, `creep-boss-mini.png`, and `creep-flying.png` exist in `public/assets/sprites/` but are never registered as texture keys in `BootScene._loadAssets()`. They may be legacy assets or intended for future use. Consider either loading them where needed or removing them to avoid confusion.
+- **Directional sprites implementation follow-up**: The research recommends Option C (procedural X-compression) as a quick win, followed by Option A (2-frame `-vert` sprites). When implementing Option C, note that `_baseScaleX`/`_baseScaleY` are cached in `updateDirectionalVisual()` for the squash-stretch walk animation — the X-compression approach must update these cached values correctly or the walk animation will fight the compression.
+
+### TASK-034 review observations (2026-03-03)
+- **Crystal scaling not applied to loss rewards**: The `1 + 0.15 × ascensionLevel` crystal multiplier is only applied on victory. Loss-path currency (`triggerGameOver`) uses unscaled `calculateRunCurrency`. Consider scaling loss rewards too for consistency, or document this as intentional (incentivise winning at higher ascension).
+- **Level 3 (armored early) uses random chance instead of wave-offset**: The task description says "armoured creeps appear 3 waves earlier" but the implementation gives all ground creeps a flat 40% armor chance. The `ascensionArmoredEarly` value (3) is stored but only used as a boolean flag. This works gameplay-wise but diverges from the spec's "3 waves earlier" phrasing.
+- **Level 6 tower disable has no pre-warning**: Level 9 lightning strikes have a 3 s delay (providing warning), but level 6's random tower silence happens instantly at wave start. Consider adding a brief warning indicator (flash or countdown) before the disable takes effect.
+- **Lightning VFX graphics not tracked for mid-scene cleanup**: `_showLightningStrikeVFX` creates a `Graphics` object destroyed by tween completion, but if the scene shuts down mid-tween, the `onComplete` callback is skipped. Phaser's scene shutdown destroys all GameObjects so this is not a leak, but explicitly tracking the graphics would be more robust.
+- **Tower disable visual lacks ⚡ icon**: The task notes suggest "dim + ⚡ icon or grey overlay". Currently only alpha dimming is applied — no icon or text indicator. Adding a small icon/text above the disabled tower would improve clarity.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

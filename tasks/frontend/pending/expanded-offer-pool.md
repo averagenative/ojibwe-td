@@ -2,6 +2,7 @@
 id: TASK-035
 title: Expanded Roguelike Offer Pool
 status: pending
+priority: high
 category: frontend
 phase: 14
 openspec_ref: ""

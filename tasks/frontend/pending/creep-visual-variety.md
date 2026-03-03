@@ -2,6 +2,7 @@
 id: TASK-028
 title: Creep Visual Variety
 status: pending
+priority: medium
 category: frontend
 phase: 13
 openspec_ref: ""

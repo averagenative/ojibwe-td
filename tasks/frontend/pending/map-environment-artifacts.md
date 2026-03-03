@@ -2,6 +2,7 @@
 id: TASK-029
 title: Map Environment Artifacts & Buildable Tile System
 status: pending
+priority: medium
 category: frontend
 phase: 13
 openspec_ref: ""

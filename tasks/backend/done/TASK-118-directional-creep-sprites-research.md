@@ -2,7 +2,7 @@
 id: TASK-118
 title: "Backlog: Directional Creep Sprites — Research & Implementation Options"
 priority: low
-status: pending
+status: done
 type: research
 ---
 

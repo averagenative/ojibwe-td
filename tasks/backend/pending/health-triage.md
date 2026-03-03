@@ -2,6 +2,7 @@
 id: TASK-032
 title: Health Check Triage — Fix Real Issues
 status: pending
+priority: high
 category: backend
 phase: 13
 openspec_ref: ""

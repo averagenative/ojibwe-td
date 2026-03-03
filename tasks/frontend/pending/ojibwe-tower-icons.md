@@ -2,6 +2,7 @@
 id: TASK-027
 title: Ojibwe-Themed Tower Icons
 status: pending
+priority: medium
 category: frontend
 phase: 13
 openspec_ref: ""
