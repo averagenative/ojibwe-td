@@ -2149,6 +2149,9 @@ export class GameScene extends Phaser.Scene {
     this.hud.setRushWaveVisible(false);
 
     if (waveNum >= this.totalWaves && !this.isEndlessMode) {
+      // Cancel any remaining spawn timers (boss escorts may still be queued).
+      this.waveManager.cleanup();
+
       // Run complete — clear the auto-save so the player starts fresh next time.
       SessionManager.getInstance().clear();
 

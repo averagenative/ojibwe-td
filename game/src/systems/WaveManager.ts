@@ -190,8 +190,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       : [this.waypoints[0], this.waypoints[this.waypoints.length - 1]];
   }
 
-  isActive():      boolean { return this.waveActive; }
-  getWaveNumber(): number  { return this.currentWave; }
+  isActive(): boolean { return this.waveActive; }
 
   /**
    * Returns true if the wave at `waveNum` contains any air-type creeps.

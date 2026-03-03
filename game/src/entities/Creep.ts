@@ -710,8 +710,7 @@ export class Creep extends Phaser.GameObjects.Container {
     this.slowTimer?.destroy();
     this.shredTimer?.destroy();
     this._burnTimer?.destroy();
-    for (const t of this.dotTimers) t.destroy();
-    this.dotTimers = [];
+    this.clearDoTs();
     // Explicitly destroy dynamically-added visual children so they're not
     // orphaned in the container's child list after the container is destroyed.
     for (const overlay of this._effectOverlays.values()) overlay.destroy();
