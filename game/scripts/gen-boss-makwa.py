@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 """Generate Pacific Northwest formline-style Makwa (Bear) boss sprite.
 
-Outputs a 64×64 RGBA PNG with bold black outlines, ovoid shapes,
-and red/teal accents consistent with Pacific Northwest coastal art.
+Outputs a 64×64 RGBA PNG with a FULL-BODY side-view bear design.
+Bold black outlines, ovoid shapes, and red/teal accents consistent
+with Pacific Northwest coastal / Ojibwe art.
 
 Works at 4× internal resolution (256×256) and downscales for anti-aliasing.
 """
 
-import math
 import os
 from PIL import Image, ImageDraw
 
 FINAL_SIZE = 64
 WORK_SIZE = FINAL_SIZE * 4  # 256×256 working resolution
-CX = WORK_SIZE // 2
-CY = WORK_SIZE // 2
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'public', 'assets', 'sprites')
 
@@ -40,135 +38,177 @@ def ell(draw, cx, cy, rx, ry, **kw):
 
 
 def generate_makwa():
-    """Generate the Makwa (Bear) boss sprite in Pacific NW formline style."""
+    """Generate the Makwa (Bear) boss sprite — full body, side view, PNW formline style."""
     img = Image.new('RGBA', (WORK_SIZE, WORK_SIZE), CLEAR)
     draw = ImageDraw.Draw(img)
 
-    head_cx = CX
-    head_cy = CY + 6
+    # Bear faces RIGHT in side profile. Fills the 256×256 canvas well.
+    # Vertically centred with padding for legs below and ears above.
 
-    # ── EARS — round forms at top corners ─────────────────────────────────
-    for side in [-1, 1]:
-        ear_cx = head_cx + side * 72
-        ear_cy = head_cy - 90
+    # ── BODY — large horizontal ovoid (torso) ───────────────────────────────
+    body_cx = 120
+    body_cy = 118
+    body_rx = 88
+    body_ry = 56
 
-        # Black formline outer
-        circle(draw, ear_cx, ear_cy, 34, fill=BLACK)
-        # Red fill
-        circle(draw, ear_cx, ear_cy, 24, fill=RED)
-        # Teal inner ovoid
-        circle(draw, ear_cx, ear_cy, 14, fill=TEAL)
+    # Black formline border (thick)
+    ell(draw, body_cx, body_cy, body_rx + 9, body_ry + 9, fill=BLACK)
+    # Amber body fill
+    ell(draw, body_cx, body_cy, body_rx, body_ry, fill=AMBER)
 
-    # ── HEAD SHAPE — large ovoid with bold formline border ────────────────
-    head_rx = 105
-    head_ry = 110
+    # ── SHOULDER HUMP — characteristic bear hump over shoulders ─────────────
+    hump_cx = 150
+    hump_cy = body_cy - 38
+    ell(draw, hump_cx, hump_cy, 44, 32, fill=BLACK)
+    ell(draw, hump_cx, hump_cy, 36, 25, fill=AMBER_DK)
 
-    # Black border (thick formline)
-    ell(draw, head_cx, head_cy, head_rx, head_ry, fill=BLACK)
-    # Amber fill
-    ell(draw, head_cx, head_cy, head_rx - 10, head_ry - 10, fill=AMBER)
+    # ── HINDQUARTERS — rounded rear ─────────────────────────────────────────
+    hind_cx = 60
+    hind_cy = body_cy + 6
+    ell(draw, hind_cx, hind_cy, 44, 50, fill=BLACK)
+    ell(draw, hind_cx, hind_cy, 36, 42, fill=AMBER)
 
-    # ── FOREHEAD DESIGN — central ovoid crest ────────────────────────────
-    # Teal ovoid on forehead
-    ell(draw, head_cx, head_cy - 52, 34, 22, fill=BLACK)
-    ell(draw, head_cx, head_cy - 52, 26, 16, fill=TEAL)
-    # Inner amber accent
-    ell(draw, head_cx, head_cy - 52, 14, 9, fill=AMBER_LT)
+    # ── Merge body shapes with smooth amber fill ────────────────────────────
+    draw.rectangle([60, body_cy - 40, 165, body_cy + 40], fill=AMBER)
+    ell(draw, body_cx, body_cy, body_rx - 8, body_ry - 6, fill=AMBER)
 
-    # ── EYEBROW RIDGES — bold arcs ───────────────────────────────────────
-    for side in [-1, 1]:
-        ex = head_cx + side * 42
-        # Thick black brow ridge
-        draw.arc([ex - 34, head_cy - 46, ex + 34, head_cy - 12],
-                 200, 340, fill=BLACK, width=10)
+    # ── BELLY — lighter underside ───────────────────────────────────────────
+    belly_cy = body_cy + 22
+    ell(draw, body_cx - 5, belly_cy, 60, 22, fill=AMBER_LT)
 
-    # ── EYES — formline ovoids with red iris ─────────────────────────────
-    eye_y = head_cy - 14
-    for side in [-1, 1]:
-        ex = head_cx + side * 42
+    # ── FORMLINE BODY DESIGNS — ovoid accents on torso ──────────────────────
+    # Shoulder ovoid (teal — primary design element)
+    ell(draw, 148, body_cy - 6, 24, 32, fill=BLACK)
+    ell(draw, 148, body_cy - 6, 17, 25, fill=TEAL)
+    ell(draw, 148, body_cy - 6, 9, 14, fill=AMBER_LT)
 
-        # Outer black formline
-        ell(draw, ex, eye_y, 30, 22, fill=BLACK)
-        # White eye
-        ell(draw, ex, eye_y, 23, 16, fill=WHITE)
-        # Red iris (formline red)
-        ell(draw, ex + side * 3, eye_y + 1, 14, 11, fill=RED)
-        # Black pupil
-        circle(draw, ex + side * 5, eye_y + 1, 7, fill=BLACK)
-        # Highlight
-        circle(draw, ex + side * 0, eye_y - 4, 4, fill=WHITE)
+    # Haunch ovoid (red)
+    ell(draw, 76, body_cy + 2, 20, 28, fill=BLACK)
+    ell(draw, 76, body_cy + 2, 14, 21, fill=RED)
+    ell(draw, 76, body_cy + 2, 7, 11, fill=AMBER_LT)
 
-    # ── NOSE BRIDGE — vertical formline ──────────────────────────────────
-    draw.line([(head_cx, head_cy - 30), (head_cx, head_cy + 6)],
-              fill=BLACK, width=7)
+    # ── LEGS — four sturdy bear legs with paws ──────────────────────────────
+    leg_top = body_cy + 34
+    paw_y = 224
 
-    # ── SNOUT / NOSE — large prominent bear nose ─────────────────────────
-    nose_cy = head_cy + 22
+    # Front right leg (foreground)
+    fl1x = 155
+    draw.rectangle([fl1x - 15, leg_top - 4, fl1x + 15, paw_y - 6], fill=BLACK)
+    draw.rectangle([fl1x - 9, leg_top, fl1x + 9, paw_y - 8], fill=AMBER_DK)
+    # Paw
+    ell(draw, fl1x, paw_y - 4, 16, 12, fill=BLACK)
+    ell(draw, fl1x, paw_y - 6, 10, 7, fill=AMBER_DK)
+    # Claws
+    for cx_off in [-5, 0, 5]:
+        draw.line([(fl1x + cx_off, paw_y + 2), (fl1x + cx_off + 2, paw_y + 10)],
+                  fill=BLACK, width=3)
 
-    # Snout mound (darker amber, wider)
-    ell(draw, head_cx, nose_cy + 4, 44, 32, fill=AMBER_DK)
-    # Black outline around snout
-    ell(draw, head_cx, nose_cy + 4, 44, 32, outline=BLACK, width=6)
+    # Front left leg (background, slightly offset)
+    fl2x = 136
+    draw.rectangle([fl2x - 13, leg_top, fl2x + 13, paw_y - 4], fill=BLACK)
+    draw.rectangle([fl2x - 7, leg_top + 2, fl2x + 7, paw_y - 6], fill=AMBER)
+    ell(draw, fl2x, paw_y - 2, 14, 11, fill=BLACK)
+    ell(draw, fl2x, paw_y - 4, 8, 6, fill=AMBER)
 
-    # Nose pad (large black ovoid)
-    ell(draw, head_cx, nose_cy - 2, 26, 18, fill=BLACK)
-    # Red nose inner
-    ell(draw, head_cx, nose_cy - 2, 18, 12, fill=RED)
-    # Nostrils
-    for side in [-1, 1]:
-        circle(draw, head_cx + side * 9, nose_cy, 5, fill=BLACK)
+    # Hind right leg (foreground)
+    hl1x = 72
+    draw.rectangle([hl1x - 16, leg_top + 2, hl1x + 16, paw_y], fill=BLACK)
+    draw.rectangle([hl1x - 10, leg_top + 4, hl1x + 10, paw_y - 2], fill=AMBER)
+    ell(draw, hl1x, paw_y + 2, 16, 12, fill=BLACK)
+    ell(draw, hl1x, paw_y, 10, 7, fill=AMBER)
+    for cx_off in [-5, 0, 5]:
+        draw.line([(hl1x + cx_off, paw_y + 8), (hl1x + cx_off + 2, paw_y + 16)],
+                  fill=BLACK, width=3)
 
-    # ── MOUTH — simple bold line with subtle fangs ───────────────────────
-    mouth_cy = head_cy + 52
+    # Hind left leg (background)
+    hl2x = 52
+    draw.rectangle([hl2x - 13, leg_top + 4, hl2x + 13, paw_y + 2], fill=BLACK)
+    draw.rectangle([hl2x - 7, leg_top + 6, hl2x + 7, paw_y], fill=AMBER_DK)
+    ell(draw, hl2x, paw_y + 4, 14, 11, fill=BLACK)
+    ell(draw, hl2x, paw_y + 2, 8, 6, fill=AMBER_DK)
+
+    # ── TAIL — small rounded tuft on the left ───────────────────────────────
+    tail_cx = 26
+    tail_cy = body_cy - 22
+    ell(draw, tail_cx, tail_cy, 16, 14, fill=BLACK)
+    ell(draw, tail_cx, tail_cy, 10, 9, fill=AMBER_DK)
+    ell(draw, tail_cx, tail_cy, 5, 4, fill=RED)
+
+    # ── NECK — connecting head to body ──────────────────────────────────────
+    neck_points = [
+        (165, body_cy - 36),
+        (195, body_cy - 52),
+        (205, body_cy - 32),
+        (175, body_cy - 12),
+    ]
+    draw.polygon(neck_points, fill=AMBER)
+
+    # ── HEAD — large, facing right ──────────────────────────────────────────
+    head_cx = 198
+    head_cy = body_cy - 46
+
+    # Head shape — ovoid
+    head_rx = 42
+    head_ry = 36
+    ell(draw, head_cx, head_cy, head_rx + 7, head_ry + 7, fill=BLACK)
+    ell(draw, head_cx, head_cy, head_rx, head_ry, fill=AMBER)
+
+    # ── EAR — round, on top of head ─────────────────────────────────────────
+    ear_cx = head_cx - 14
+    ear_cy = head_cy - 36
+    circle(draw, ear_cx, ear_cy, 18, fill=BLACK)
+    circle(draw, ear_cx, ear_cy, 12, fill=RED)
+    circle(draw, ear_cx, ear_cy, 6, fill=TEAL)
+
+    # ── SNOUT — prominent bear muzzle, protruding right ─────────────────────
+    snout_cx = head_cx + 34
+    snout_cy = head_cy + 8
+
+    # Snout mound
+    ell(draw, snout_cx, snout_cy, 26, 20, fill=BLACK)
+    ell(draw, snout_cx, snout_cy, 19, 14, fill=AMBER_DK)
+
+    # Nose pad (black with red inner)
+    ell(draw, snout_cx + 10, snout_cy - 4, 12, 9, fill=BLACK)
+    ell(draw, snout_cx + 10, snout_cy - 4, 7, 5, fill=RED)
+
+    # Nostril
+    circle(draw, snout_cx + 14, snout_cy - 3, 3, fill=BLACK)
 
     # Mouth line
-    draw.line([(head_cx - 36, mouth_cy), (head_cx + 36, mouth_cy)],
-              fill=BLACK, width=7)
+    draw.line([(snout_cx - 6, snout_cy + 10), (snout_cx + 16, snout_cy + 6)],
+              fill=BLACK, width=5)
 
-    # Upper lip arcs
-    draw.arc([head_cx - 38, mouth_cy - 14, head_cx - 2, mouth_cy + 6],
-             0, 180, fill=BLACK, width=5)
-    draw.arc([head_cx + 2, mouth_cy - 14, head_cx + 38, mouth_cy + 6],
-             0, 180, fill=BLACK, width=5)
+    # Fang
+    draw.polygon([
+        (snout_cx + 2, snout_cy + 8),
+        (snout_cx + 8, snout_cy + 8),
+        (snout_cx + 5, snout_cy + 17),
+    ], fill=WHITE, outline=BLACK, width=2)
 
-    # Two fangs (simplified, larger for readability)
-    for side in [-1, 1]:
-        fx = head_cx + side * 16
-        # White fang
-        draw.polygon([
-            (fx - 5, mouth_cy - 2),
-            (fx + 5, mouth_cy - 2),
-            (fx, mouth_cy + 12),
-        ], fill=WHITE, outline=BLACK, width=2)
+    # ── EYE — formline ovoid style ──────────────────────────────────────────
+    eye_cx = head_cx + 8
+    eye_cy = head_cy - 8
 
-    # ── CHEEK ACCENTS — teal formline ovoids ─────────────────────────────
-    for side in [-1, 1]:
-        cx = head_cx + side * 72
-        cy = head_cy + 8
+    ell(draw, eye_cx, eye_cy, 14, 11, fill=BLACK)
+    ell(draw, eye_cx, eye_cy, 10, 7, fill=WHITE)
+    ell(draw, eye_cx + 2, eye_cy, 6, 5, fill=RED)
+    circle(draw, eye_cx + 3, eye_cy, 3, fill=BLACK)
+    circle(draw, eye_cx - 1, eye_cy - 3, 2, fill=WHITE)  # highlight
 
-        # Black border
-        ell(draw, cx, cy, 18, 26, fill=BLACK)
-        # Teal fill
-        ell(draw, cx, cy, 12, 20, fill=TEAL)
+    # ── BROW RIDGE — heavy formline arc ─────────────────────────────────────
+    draw.arc([eye_cx - 18, eye_cy - 16, eye_cx + 18, eye_cy - 2],
+             200, 340, fill=BLACK, width=7)
 
-    # ── CHIN — red formline accent ───────────────────────────────────────
-    chin_cy = head_cy + 74
-    ell(draw, head_cx, chin_cy, 24, 14, fill=BLACK)
-    ell(draw, head_cx, chin_cy, 17, 9, fill=RED)
+    # ── FOREHEAD DESIGN — small teal ovoid ──────────────────────────────────
+    ell(draw, head_cx - 6, head_cy - 18, 12, 8, fill=BLACK)
+    ell(draw, head_cx - 6, head_cy - 18, 8, 5, fill=TEAL)
 
-    # ── SIDE FORMLINES — connecting lines along face ─────────────────────
-    for side in [-1, 1]:
-        sx = head_cx + side * 88
-        # Vertical side formline
-        draw.line([(head_cx + side * 72, head_cy - 60),
-                   (sx, head_cy - 30),
-                   (sx, head_cy + 30)],
-                  fill=BLACK, width=7)
+    # ── BODY OUTLINE REINFORCEMENT (crisp formlines) ────────────────────────
+    ell(draw, body_cx, body_cy, body_rx + 9, body_ry + 9, outline=BLACK, width=5)
+    ell(draw, head_cx, head_cy, head_rx + 7, head_ry + 7, outline=BLACK, width=5)
 
-    # ── FINAL BORDER REINFORCEMENT ───────────────────────────────────────
-    ell(draw, head_cx, head_cy, head_rx, head_ry, outline=BLACK, width=9)
-
-    # ── Downscale ────────────────────────────────────────────────────────
+    # ── Downscale ────────────────────────────────────────────────────────────
     final = img.resize((FINAL_SIZE, FINAL_SIZE), Image.LANCZOS)
     return final
 
