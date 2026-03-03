@@ -1,7 +1,7 @@
 /**
  * Achievement definitions for Ojibwe TD.
  *
- * 55 achievements across 7 categories.
+ * 77 achievements across 7 categories.
  * Phaser-free — safe for unit tests and SaveManager.
  */
 
@@ -230,7 +230,7 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     hidden:      true,
   },
 
-  // ── Tower Mastery (10) ───────────────────────────────────────────────────
+  // ── Tower Mastery (14) ───────────────────────────────────────────────────
 
   {
     id:          'build-25-towers-run',
@@ -315,8 +315,41 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     category:    'tower-mastery',
     target:      1,
   },
+  {
+    id:          'place-50-towers-total',
+    title:       "Steady Builder",
+    description: "Place 50 towers across all runs.",
+    icon:        '🧱',
+    category:    'tower-mastery',
+    target:      50,
+  },
+  {
+    id:          'place-200-towers-total',
+    title:       "Veteran Builder",
+    description: "Place 200 towers across all runs.",
+    icon:        '🏗️',
+    category:    'tower-mastery',
+    target:      200,
+  },
+  {
+    id:          'place-1000-towers-total',
+    title:       "Legendary Architect",
+    description: "Place 1,000 towers across all runs.",
+    icon:        '🏯',
+    category:    'tower-mastery',
+    target:      1000,
+    hidden:      true,
+  },
+  {
+    id:          'all-6-types-simultaneous',
+    title:       "Balanced Arsenal",
+    description: "Have 6 different tower types on the field at the same time.",
+    icon:        '⚖️',
+    category:    'tower-mastery',
+    target:      1,
+  },
 
-  // ── Economy (6) ──────────────────────────────────────────────────────────
+  // ── Economy (12) ─────────────────────────────────────────────────────────
 
   {
     id:          'earn-2000-gold',
@@ -367,9 +400,67 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     target:      1,
     hidden:      true,
   },
+  {
+    id:          'earn-gold-5000-total',
+    title:       "Prosperous Journey",
+    description: "Earn 5,000 gold across all runs.",
+    icon:        '💛',
+    category:    'economy',
+    target:      5000,
+  },
+  {
+    id:          'earn-gold-25000-total',
+    title:       "Gold Magnate",
+    description: "Earn 25,000 gold across all runs.",
+    icon:        '🤑',
+    category:    'economy',
+    target:      25000,
+    hidden:      true,
+  },
+  {
+    id:          'spend-500-crystals',
+    title:       "Crystal Benefactor",
+    description: "Spend 500 crystals in the meta shop.",
+    icon:        '🔹',
+    category:    'economy',
+    target:      500,
+  },
+  {
+    id:          'sell-10-towers',
+    title:       "First Trade",
+    description: "Sell 10 towers across all runs.",
+    icon:        '🔄',
+    category:    'economy',
+    target:      10,
+  },
+  {
+    id:          'sell-50-towers',
+    title:       "Tower Trader",
+    description: "Sell 50 towers across all runs.",
+    icon:        '♻️',
+    category:    'economy',
+    target:      50,
+  },
+  {
+    id:          'sell-200-towers',
+    title:       "Scrap Master",
+    description: "Sell 200 towers across all runs.",
+    icon:        '🗑️',
+    category:    'economy',
+    target:      200,
+    hidden:      true,
+  },
 
-  // ── Combat (10) ──────────────────────────────────────────────────────────
+  // ── Combat (14) ──────────────────────────────────────────────────────────
 
+  {
+    id:          'kill-100-creeps',
+    title:       "First Stand",
+    description: "Kill 100 creeps total across all runs.",
+    icon:        '🗡️',
+    category:    'combat',
+    target:      100,
+  },
   {
     id:          'kill-500-creeps',
     title:       "Defender",
@@ -396,12 +487,37 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     hidden:      true,
   },
   {
+    id:          'kill-2000-creeps',
+    title:       "Relentless",
+    description: "Kill 2,000 creeps total across all runs.",
+    icon:        '⚔️',
+    category:    'combat',
+    target:      2000,
+  },
+  {
     id:          'kill-100000-creeps',
     title:       "Guardian of the Land",
     description: "Kill 100,000 creeps total across all runs.",
     icon:        '🌍',
     category:    'combat',
     target:      100000,
+    hidden:      true,
+  },
+  {
+    id:          'kill-50-air-creeps',
+    title:       "Falcon's Eye",
+    description: "Kill 50 air creeps total across all runs.",
+    icon:        '🦅',
+    category:    'combat',
+    target:      50,
+  },
+  {
+    id:          'kill-200-air-creeps',
+    title:       "Sky Warden",
+    description: "Kill 200 air creeps total across all runs.",
+    icon:        '🌤️',
+    category:    'combat',
+    target:      200,
     hidden:      true,
   },
   {
@@ -456,7 +572,7 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     hidden:      true,
   },
 
-  // ── Misc (8) ─────────────────────────────────────────────────────────────
+  // ── Misc (15) ────────────────────────────────────────────────────────────
 
   {
     id:          'first-victory',
@@ -522,6 +638,71 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     icon:        '📖',
     category:    'misc',
     target:      1,
+  },
+
+  // ── Run milestones ────────────────────────────────────────────────────────
+
+  {
+    id:          'win-5-runs',
+    title:       "Rising Defender",
+    description: "Win 5 runs.",
+    icon:        '🏅',
+    category:    'misc',
+    target:      5,
+  },
+  {
+    id:          'win-20-runs',
+    title:       "Seasoned Warrior",
+    description: "Win 20 runs.",
+    icon:        '🎖️',
+    category:    'misc',
+    target:      20,
+  },
+  {
+    id:          'win-50-runs',
+    title:       "Champion of the Land",
+    description: "Win 50 runs.",
+    icon:        '🏆',
+    category:    'misc',
+    target:      50,
+    hidden:      true,
+  },
+  {
+    id:          'win-100-runs',
+    title:       "Legend",
+    description: "Win 100 runs.",
+    icon:        '🌟',
+    category:    'misc',
+    target:      100,
+    hidden:      true,
+  },
+
+  // ── Rush / challenge ─────────────────────────────────────────────────────
+
+  {
+    id:          'rush-10-waves',
+    title:       "Early Riser",
+    description: "Rush 10 waves total across all runs.",
+    icon:        '⚡',
+    category:    'misc',
+    target:      10,
+  },
+  {
+    id:          'rush-50-waves',
+    title:       "Impatient Warrior",
+    description: "Rush 50 waves total across all runs.",
+    icon:        '💨',
+    category:    'misc',
+    target:      50,
+  },
+  {
+    id:          'rush-200-waves',
+    title:       "Whirlwind",
+    description: "Rush 200 waves total across all runs.",
+    icon:        '🌪️',
+    category:    'misc',
+    target:      200,
+    hidden:      true,
   },
 ];
 

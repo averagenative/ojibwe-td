@@ -237,6 +237,12 @@ export class GameScene extends Phaser.Scene {
   private _achConsumablesUsedRun: string[] = [];
   /** Reroll tokens granted at run start (before any were spent). */
   private _achInitialRerolls = 0;
+  /** Air creeps killed this run. */
+  private _achAirKillsRun = 0;
+  /** Towers sold this run. */
+  private _achTowersSoldRun = 0;
+  /** Waves rushed this run. */
+  private _achRushesRun = 0;
   /** Achievement toast notification component (created in create()). */
   private _achToast: AchievementToast | null = null;
 
@@ -348,6 +354,9 @@ export class GameScene extends Phaser.Scene {
     this._achTowerTypesRun     = new Set();
     this._achConsumablesUsedRun = [];
     this._achInitialRerolls    = 0;
+    this._achAirKillsRun       = 0;
+    this._achTowersSoldRun     = 0;
+    this._achRushesRun         = 0;
     this._ambientVFX           = null;
     this._critterManager       = null;
     this._critterCreepCheckAcc = 0;
@@ -594,6 +603,7 @@ export class GameScene extends Phaser.Scene {
       this.gold += killGold;
       this._totalKills++;
       this._goldEarned += killGold;
+      if (data.creepType === 'air') this._achAirKillsRun++;
       this.hud.setGold(this.gold);
       this.upgradePanel?.refresh();
 
@@ -1688,8 +1698,12 @@ export class GameScene extends Phaser.Scene {
     // Achievement tracking: tower placed
     this._achTowersBuiltRun++;
     this._achTowerTypesRun.add(tower.def.key);
-    AchievementManager.getInstance().addTowerBuilt(this._achTowersBuiltRun, tower.def.key);
-    this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
+    const achMgr = AchievementManager.getInstance();
+    achMgr.addTowerBuilt(this._achTowersBuiltRun, tower.def.key);
+    // Check simultaneous-6-types achievement.
+    const distinctTypesOnField = new Set(this.towers.map(t => t.def.key)).size;
+    achMgr.checkAllTypesSimultaneous(distinctTypesOnField);
+    this._achToast?.showBatch(achMgr.drainNewlyUnlocked());
 
     // Notify wildlife critters that a tower was placed nearby — they flee.
     this._critterManager?.notifyTowerPlaced(col, row);
@@ -1927,6 +1941,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.upgradeManager.removeTower(tower);
     this.towers = this.towers.filter(t => t !== tower);
+    this._achTowersSoldRun++;
     const sellCol = tower.tileCol;
     const sellRow = tower.tileRow;
     tower.sell();
@@ -2081,6 +2096,9 @@ export class GameScene extends Phaser.Scene {
    */
   private rushNextWave(): void {
     if (this.gameState !== 'wave') return;
+
+    // Track rush for achievement.
+    this._achRushesRun++;
 
     // Award bonus gold immediately.
     this.gold += RUSH_GOLD_AMOUNT;
@@ -3123,12 +3141,17 @@ export class GameScene extends Phaser.Scene {
     // Commit lifetime stats.
     am.addKills(this._totalKills);
     am.addBosses(this.bossesKilled);
+    am.addAirKills(this._achAirKillsRun);
+    am.addTowersSold(this._achTowersSoldRun);
+    am.addRushes(this._achRushesRun);
+    am.addLifetimeGold(this._goldEarned);
 
     // Rerolls used = tokens granted at run start minus tokens remaining.
     const rerollsUsed = Math.max(0, this._achInitialRerolls - this._rerollTokens);
     am.addRerolls(rerollsUsed);
 
     if (won && !this.isEndlessMode) {
+      am.addWins(1);
       // Compute all-towers-upgraded check: every on-field tower has totalSpent > 0.
       const allUpgraded = this.towers.length > 0 &&
         this.towers.every(t => (this.upgradeManager.getState(t)?.totalSpent ?? 0) > 0);

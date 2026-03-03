@@ -78,6 +78,8 @@ export interface CreepKilledData {
   x:      number;
   /** World Y position of the creep at death. */
   y:      number;
+  /** Whether the killed creep was an air-type (used for air-kill achievement tracking). */
+  creepType: 'ground' | 'air';
 }
 
 /**
@@ -678,7 +680,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       // ── Waabooz split mechanic ───────────────────────────────────────────
       creep.once('died', () => {
         this.activeCreeps.delete(creep);
-        this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
+        this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y, creepType: creep.creepType });
 
         const bossKilledData: BossKilledData = {
           bossKey:    bossDef.key,
@@ -731,7 +733,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       // ── All other boss types ─────────────────────────────────────────────
       creep.once('died', () => {
         this.activeCreeps.delete(creep);
-        this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
+        this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y, creepType: creep.creepType });
 
         const bossKilledData: BossKilledData = {
           bossKey:    bossDef.key,
@@ -774,7 +776,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     creep.once('died', () => {
       this.activeCreeps.delete(creep);
-      this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
+      this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y, creepType: creep.creepType });
       this._onSettledForWave(wave);
     });
   }
@@ -796,7 +798,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     creep.once('died', () => {
       this.activeCreeps.delete(creep);
-      this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y });
+      this.scene.events.emit('creep-killed', { reward: creep.reward, x: creep.x, y: creep.y, creepType: creep.creepType });
       this._onSettledForWave(wave);
     });
   }

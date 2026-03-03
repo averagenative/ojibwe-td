@@ -90,9 +90,9 @@ afterEach(() => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('Achievement definitions', () => {
-  it('has between 50 and 60 achievements', () => {
-    expect(ALL_ACHIEVEMENTS.length).toBeGreaterThanOrEqual(50);
-    expect(ALL_ACHIEVEMENTS.length).toBeLessThanOrEqual(60);
+  it('has at least 70 achievements (TASK-131 expanded set)', () => {
+    expect(ALL_ACHIEVEMENTS.length).toBeGreaterThanOrEqual(70);
+    expect(ALL_ACHIEVEMENTS.length).toBeLessThanOrEqual(100);
   });
 
   it('has no duplicate IDs', () => {
@@ -150,20 +150,20 @@ describe('Achievement definitions', () => {
     for (const a of ALL_ACHIEVEMENTS) {
       counts.set(a.category, (counts.get(a.category) ?? 0) + 1);
     }
-    // Map Clearing (~10): 9 is close
+    // Map Clearing (~10)
     expect(counts.get('map-clear')).toBeGreaterThanOrEqual(5);
-    // Commander (~6-8): 9 total
+    // Commander (~9+)
     expect(counts.get('commander')).toBeGreaterThanOrEqual(6);
-    // Region (~4-6)
+    // Region (~4+)
     expect(counts.get('region')).toBeGreaterThanOrEqual(4);
-    // Tower Mastery (~10-12)
-    expect(counts.get('tower-mastery')).toBeGreaterThanOrEqual(8);
-    // Economy (~6-8)
-    expect(counts.get('economy')).toBeGreaterThanOrEqual(5);
-    // Combat (~10-12)
-    expect(counts.get('combat')).toBeGreaterThanOrEqual(8);
-    // Misc (~5-8)
-    expect(counts.get('misc')).toBeGreaterThanOrEqual(5);
+    // Tower Mastery (~14 after TASK-131)
+    expect(counts.get('tower-mastery')).toBeGreaterThanOrEqual(12);
+    // Economy (~12 after TASK-131)
+    expect(counts.get('economy')).toBeGreaterThanOrEqual(10);
+    // Combat (~14 after TASK-131)
+    expect(counts.get('combat')).toBeGreaterThanOrEqual(12);
+    // Misc (~15 after TASK-131)
+    expect(counts.get('misc')).toBeGreaterThanOrEqual(12);
   });
 });
 
@@ -650,6 +650,250 @@ describe('AchievementManager', () => {
     });
   });
 
+  // ── Air kills ─────────────────────────────────────────────────────────────────
+
+  describe('addAirKills()', () => {
+    it('ignores zero or negative', () => {
+      const am = AchievementManager.getInstance();
+      am.addAirKills(0);
+      am.addAirKills(-5);
+      expect(SaveManager.getInstance().getLifetimeStat('airKills')).toBe(0);
+    });
+
+    it('accumulates lifetime air kills', () => {
+      const am = AchievementManager.getInstance();
+      am.addAirKills(30);
+      am.addAirKills(25);
+      expect(SaveManager.getInstance().getLifetimeStat('airKills')).toBe(55);
+    });
+
+    it('unlocks kill-50-air-creeps at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addAirKills(49);
+      expect(am.isUnlocked('kill-50-air-creeps')).toBe(false);
+      am.addAirKills(1);
+      expect(am.isUnlocked('kill-50-air-creeps')).toBe(true);
+      expect(am.drainNewlyUnlocked()).toContain('kill-50-air-creeps');
+    });
+
+    it('unlocks kill-200-air-creeps at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addAirKills(200);
+      expect(am.isUnlocked('kill-200-air-creeps')).toBe(true);
+    });
+  });
+
+  // ── Tower sells ───────────────────────────────────────────────────────────────
+
+  describe('addTowersSold()', () => {
+    it('ignores zero or negative', () => {
+      const am = AchievementManager.getInstance();
+      am.addTowersSold(0);
+      expect(SaveManager.getInstance().getLifetimeStat('towersSold')).toBe(0);
+    });
+
+    it('accumulates lifetime sells', () => {
+      const am = AchievementManager.getInstance();
+      am.addTowersSold(5);
+      am.addTowersSold(7);
+      expect(SaveManager.getInstance().getLifetimeStat('towersSold')).toBe(12);
+    });
+
+    it('unlocks sell-10-towers at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addTowersSold(9);
+      expect(am.isUnlocked('sell-10-towers')).toBe(false);
+      am.addTowersSold(1);
+      expect(am.isUnlocked('sell-10-towers')).toBe(true);
+    });
+
+    it('unlocks sell-50-towers and sell-200-towers at thresholds', () => {
+      const am = AchievementManager.getInstance();
+      am.addTowersSold(200);
+      expect(am.isUnlocked('sell-50-towers')).toBe(true);
+      expect(am.isUnlocked('sell-200-towers')).toBe(true);
+    });
+  });
+
+  // ── Rushes ────────────────────────────────────────────────────────────────────
+
+  describe('addRushes()', () => {
+    it('ignores zero or negative', () => {
+      const am = AchievementManager.getInstance();
+      am.addRushes(0);
+      expect(SaveManager.getInstance().getLifetimeStat('rushesTotal')).toBe(0);
+    });
+
+    it('accumulates lifetime rushes', () => {
+      const am = AchievementManager.getInstance();
+      am.addRushes(4);
+      am.addRushes(6);
+      expect(SaveManager.getInstance().getLifetimeStat('rushesTotal')).toBe(10);
+    });
+
+    it('unlocks rush-10-waves at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addRushes(10);
+      expect(am.isUnlocked('rush-10-waves')).toBe(true);
+    });
+
+    it('unlocks rush-50-waves and rush-200-waves at thresholds', () => {
+      const am = AchievementManager.getInstance();
+      am.addRushes(200);
+      expect(am.isUnlocked('rush-50-waves')).toBe(true);
+      expect(am.isUnlocked('rush-200-waves')).toBe(true);
+    });
+  });
+
+  // ── Lifetime gold ─────────────────────────────────────────────────────────────
+
+  describe('addLifetimeGold()', () => {
+    it('ignores zero or negative', () => {
+      const am = AchievementManager.getInstance();
+      am.addLifetimeGold(0);
+      expect(SaveManager.getInstance().getLifetimeStat('goldEarnedTotal')).toBe(0);
+    });
+
+    it('accumulates lifetime gold', () => {
+      const am = AchievementManager.getInstance();
+      am.addLifetimeGold(3000);
+      am.addLifetimeGold(3000);
+      expect(SaveManager.getInstance().getLifetimeStat('goldEarnedTotal')).toBe(6000);
+    });
+
+    it('unlocks earn-gold-5000-total at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addLifetimeGold(4999);
+      expect(am.isUnlocked('earn-gold-5000-total')).toBe(false);
+      am.addLifetimeGold(1);
+      expect(am.isUnlocked('earn-gold-5000-total')).toBe(true);
+    });
+
+    it('unlocks earn-gold-25000-total at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addLifetimeGold(25000);
+      expect(am.isUnlocked('earn-gold-25000-total')).toBe(true);
+    });
+  });
+
+  // ── Win count ─────────────────────────────────────────────────────────────────
+
+  describe('addWins()', () => {
+    it('ignores zero or negative', () => {
+      const am = AchievementManager.getInstance();
+      am.addWins(0);
+      expect(SaveManager.getInstance().getLifetimeStat('winsTotal')).toBe(0);
+    });
+
+    it('accumulates lifetime wins', () => {
+      const am = AchievementManager.getInstance();
+      am.addWins(3);
+      am.addWins(2);
+      expect(SaveManager.getInstance().getLifetimeStat('winsTotal')).toBe(5);
+    });
+
+    it('unlocks win-5-runs at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addWins(4);
+      expect(am.isUnlocked('win-5-runs')).toBe(false);
+      am.addWins(1);
+      expect(am.isUnlocked('win-5-runs')).toBe(true);
+    });
+
+    it('unlocks win-20-runs, win-50-runs, win-100-runs at thresholds', () => {
+      const am = AchievementManager.getInstance();
+      am.addWins(100);
+      expect(am.isUnlocked('win-20-runs')).toBe(true);
+      expect(am.isUnlocked('win-50-runs')).toBe(true);
+      expect(am.isUnlocked('win-100-runs')).toBe(true);
+    });
+  });
+
+  // ── Simultaneous tower types ───────────────────────────────────────────────────
+
+  describe('checkAllTypesSimultaneous()', () => {
+    it('does not unlock below 6', () => {
+      const am = AchievementManager.getInstance();
+      am.checkAllTypesSimultaneous(5);
+      expect(am.isUnlocked('all-6-types-simultaneous')).toBe(false);
+    });
+
+    it('unlocks at exactly 6', () => {
+      const am = AchievementManager.getInstance();
+      am.checkAllTypesSimultaneous(6);
+      expect(am.isUnlocked('all-6-types-simultaneous')).toBe(true);
+    });
+
+    it('unlocks above 6', () => {
+      const am = AchievementManager.getInstance();
+      am.checkAllTypesSimultaneous(8);
+      expect(am.isUnlocked('all-6-types-simultaneous')).toBe(true);
+    });
+  });
+
+  // ── Tower total milestones ─────────────────────────────────────────────────────
+
+  describe('addTowerBuilt() — new lifetime milestones', () => {
+    it('unlocks place-50-towers-total at lifetime threshold', () => {
+      const am = AchievementManager.getInstance();
+      SaveManager.getInstance().addLifetimeStat('towersBuilt', 49);
+      am.addTowerBuilt(1, 'cannon'); // 49 + 1 = 50
+      expect(am.isUnlocked('place-50-towers-total')).toBe(true);
+    });
+
+    it('unlocks place-200-towers-total at lifetime threshold', () => {
+      const am = AchievementManager.getInstance();
+      SaveManager.getInstance().addLifetimeStat('towersBuilt', 199);
+      am.addTowerBuilt(1, 'cannon');
+      expect(am.isUnlocked('place-200-towers-total')).toBe(true);
+    });
+
+    it('unlocks place-1000-towers-total at lifetime threshold', () => {
+      const am = AchievementManager.getInstance();
+      SaveManager.getInstance().addLifetimeStat('towersBuilt', 999);
+      am.addTowerBuilt(1, 'cannon');
+      expect(am.isUnlocked('place-1000-towers-total')).toBe(true);
+    });
+  });
+
+  // ── Kill milestones (new tiers) ───────────────────────────────────────────────
+
+  describe('addKills() — new tiers', () => {
+    it('unlocks kill-100-creeps at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addKills(99);
+      expect(am.isUnlocked('kill-100-creeps')).toBe(false);
+      am.addKills(1);
+      expect(am.isUnlocked('kill-100-creeps')).toBe(true);
+    });
+
+    it('unlocks kill-2000-creeps at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addKills(2000);
+      expect(am.isUnlocked('kill-2000-creeps')).toBe(true);
+    });
+  });
+
+  // ── Crystal spend milestone ───────────────────────────────────────────────────
+
+  describe('addCrystalsSpent() — spend-500-crystals', () => {
+    it('unlocks spend-500-crystals at threshold', () => {
+      const am = AchievementManager.getInstance();
+      am.addCrystalsSpent(499);
+      expect(am.isUnlocked('spend-500-crystals')).toBe(false);
+      am.addCrystalsSpent(1);
+      expect(am.isUnlocked('spend-500-crystals')).toBe(true);
+    });
+
+    it('does not interfere with spend-250-crystals or spend-1000-crystals thresholds', () => {
+      const am = AchievementManager.getInstance();
+      am.addCrystalsSpent(1000);
+      expect(am.isUnlocked('spend-250-crystals')).toBe(true);
+      expect(am.isUnlocked('spend-500-crystals')).toBe(true);
+      expect(am.isUnlocked('spend-1000-crystals')).toBe(true);
+    });
+  });
+
   // ── Codex ─────────────────────────────────────────────────────────────────────
 
   describe('onCodexAllRead()', () => {
@@ -847,6 +1091,7 @@ import gameOverSrc from '../../scenes/GameOverScene.ts?raw';
 import mainSrc from '../../main.ts?raw';
 import toastSrc from '../../ui/AchievementToast.ts?raw';
 import achievementsSceneSrc from '../../scenes/AchievementsScene.ts?raw';
+import waveManagerSrc from '../WaveManager.ts?raw';
 
 describe('Structural: achievement wiring', () => {
   // ── Scene registration ─────────────────────────────────────────────────────
@@ -878,7 +1123,7 @@ describe('Structural: achievement wiring', () => {
   });
 
   it('GameScene tracks towers built via addTowerBuilt()', () => {
-    expect(gameSceneSrc).toContain('AchievementManager.getInstance().addTowerBuilt(');
+    expect(gameSceneSrc).toContain('addTowerBuilt(');
   });
 
   it('GameScene calls onTowerPathMaxed() on upgrade', () => {
@@ -994,6 +1239,90 @@ describe('Structural: achievement wiring', () => {
   it('achievementDefs exports helper functions', () => {
     expect(achievementDefsSrc).toContain('export function getAchievementDef');
     expect(achievementDefsSrc).toContain('export function getAchievementsByCategory');
+  });
+
+  // ── TASK-131 new wiring ────────────────────────────────────────────────────
+
+  it('GameScene has _achAirKillsRun field', () => {
+    expect(gameSceneSrc).toContain('_achAirKillsRun');
+  });
+
+  it('GameScene has _achTowersSoldRun field', () => {
+    expect(gameSceneSrc).toContain('_achTowersSoldRun');
+  });
+
+  it('GameScene has _achRushesRun field', () => {
+    expect(gameSceneSrc).toContain('_achRushesRun');
+  });
+
+  it('GameScene increments _achAirKillsRun on air creep kill', () => {
+    expect(gameSceneSrc).toContain("data.creepType === 'air'");
+    expect(gameSceneSrc).toContain('_achAirKillsRun++');
+  });
+
+  it('GameScene increments _achTowersSoldRun in sellTower', () => {
+    expect(gameSceneSrc).toContain('_achTowersSoldRun++');
+  });
+
+  it('GameScene increments _achRushesRun in rushNextWave', () => {
+    expect(gameSceneSrc).toContain('_achRushesRun++');
+  });
+
+  it('GameScene calls addAirKills in _commitRunAchievements', () => {
+    expect(gameSceneSrc).toContain('am.addAirKills(this._achAirKillsRun)');
+  });
+
+  it('GameScene calls addTowersSold in _commitRunAchievements', () => {
+    expect(gameSceneSrc).toContain('am.addTowersSold(this._achTowersSoldRun)');
+  });
+
+  it('GameScene calls addRushes in _commitRunAchievements', () => {
+    expect(gameSceneSrc).toContain('am.addRushes(this._achRushesRun)');
+  });
+
+  it('GameScene calls addLifetimeGold in _commitRunAchievements', () => {
+    expect(gameSceneSrc).toContain('am.addLifetimeGold(this._goldEarned)');
+  });
+
+  it('GameScene calls addWins(1) on victory in _commitRunAchievements', () => {
+    expect(gameSceneSrc).toContain('am.addWins(1)');
+  });
+
+  it('GameScene calls checkAllTypesSimultaneous after tower placement', () => {
+    expect(gameSceneSrc).toContain('checkAllTypesSimultaneous(');
+  });
+
+  it('WaveManager CreepKilledData includes creepType field', () => {
+    expect(waveManagerSrc ?? '').toContain("creepType: 'ground' | 'air'");
+  });
+
+  it('WaveManager creep-killed emissions include creepType', () => {
+    const wm = waveManagerSrc ?? '';
+    expect(wm).toContain('creepType: creep.creepType');
+  });
+
+  it('AchievementManager has addAirKills method', () => {
+    expect(achievementManagerSrc).toContain('addAirKills(');
+  });
+
+  it('AchievementManager has addTowersSold method', () => {
+    expect(achievementManagerSrc).toContain('addTowersSold(');
+  });
+
+  it('AchievementManager has addRushes method', () => {
+    expect(achievementManagerSrc).toContain('addRushes(');
+  });
+
+  it('AchievementManager has addLifetimeGold method', () => {
+    expect(achievementManagerSrc).toContain('addLifetimeGold(');
+  });
+
+  it('AchievementManager has addWins method', () => {
+    expect(achievementManagerSrc).toContain('addWins(');
+  });
+
+  it('AchievementManager has checkAllTypesSimultaneous method', () => {
+    expect(achievementManagerSrc).toContain('checkAllTypesSimultaneous(');
   });
 
   it('AchievementManager does not track rerolls inside onVictory (moved to addRerolls)', () => {
