@@ -52,6 +52,10 @@ import { AchievementManager } from '../systems/AchievementManager';
 import type { VictoryData } from '../systems/AchievementManager';
 import { AchievementToast } from '../ui/AchievementToast';
 import { AmbientVFX } from '../systems/AmbientVFX';
+import {
+  getCutsceneDef, getRegionIntroCutsceneId,
+  getPreBossCutsceneId, getPostBossCutsceneId,
+} from '../data/cutsceneDefs';
 
 const DEFAULT_TOTAL_WAVES = 20;
 /** Flat gold bonus awarded when the player rushes the next wave early. */
@@ -959,14 +963,43 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(100, () => this._showResumePrompt(existingSave));
     }
 
-    // Show FIRST_PLAY vignette if one was queued (deferred so all UI is built).
-    if (firstPlayResult) {
-      this.time.delayedCall(300, () => {
+    // ── Pre-game cutscenes — deferred so all UI is built ────────────────────
+    // Priority: intro cutscene (first ever launch) → region intro → FIRST_PLAY vignette.
+    // Only ONE of these fires per create().
+    this.time.delayedCall(300, () => {
+      const save = SaveManager.getInstance();
+
+      // 1. Intro cutscene (game's first launch).
+      if (!save.hasSeenCutscene('cutscene-intro')) {
+        const introDef = getCutsceneDef('cutscene-intro');
+        if (introDef) {
+          save.markCutsceneSeen(introDef.id);
+          this.scene.launch('CutsceneScene', { cutscene: introDef });
+          return;
+        }
+      }
+
+      // 2. Region introduction cutscene (first time in this region).
+      const regionId = this.activeStageDef?.regionId;
+      if (regionId) {
+        const regionCutsceneId = getRegionIntroCutsceneId(regionId);
+        if (regionCutsceneId && !save.hasSeenCutscene(regionCutsceneId)) {
+          const regionDef = getCutsceneDef(regionCutsceneId);
+          if (regionDef) {
+            save.markCutsceneSeen(regionDef.id);
+            this.scene.launch('CutsceneScene', { cutscene: regionDef });
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: FIRST_PLAY vignette (existing system).
+      if (firstPlayResult) {
         this.vignetteOverlay.show(firstPlayResult.vignette, firstPlayResult.seenBefore, () => {
           // Vignette dismissed — no further action needed.
         });
-      });
-    }
+      }
+    });
   }
 
   update(_time: number, delta: number): void {
@@ -1806,6 +1839,33 @@ export class GameScene extends Phaser.Scene {
 
   private startNextWave(): void {
     if (this.gameState === 'over') return;
+
+    // ── Pre-boss cutscene check ──────────────────────────────────────────
+    // If the upcoming wave is a boss wave, check for a pre-boss cutscene.
+    // The cutscene plays BEFORE the wave starts; wave begins on cutscene complete.
+    const nextWaveNum = this.currentWave + 1;
+    const waveInfo = this.waveManager.getWaveAnnouncementInfo(nextWaveNum);
+    if (waveInfo?.isBoss && waveInfo.bossKey) {
+      const cutsceneId = getPreBossCutsceneId(waveInfo.bossKey);
+      if (cutsceneId && !SaveManager.getInstance().hasSeenCutscene(cutsceneId)) {
+        const cutsceneDef = getCutsceneDef(cutsceneId);
+        if (cutsceneDef) {
+          SaveManager.getInstance().markCutsceneSeen(cutsceneId);
+          this.scene.launch('CutsceneScene', {
+            cutscene: cutsceneDef,
+            onComplete: () => this._doStartWave(),
+          });
+          return;
+        }
+      }
+    }
+
+    this._doStartWave();
+  }
+
+  /** Internal wave-start logic (called directly or after a pre-boss cutscene). */
+  private _doStartWave(): void {
+    if (this.gameState === 'over') return;
     this.currentWave++;
     this.gameState = 'wave';
     this.hud.setWave(this.currentWave, this.totalWaves, this.isEndlessMode);
@@ -2065,6 +2125,25 @@ export class GameScene extends Phaser.Scene {
         show: (onDismiss) => this.openBossOfferPanel(name, onDismiss),
       });
     }
+    // 1b. Post-boss victory cutscene (after boss loot panel).
+    if (this.pendingBossKillKey) {
+      const postBossCutsceneId = getPostBossCutsceneId(this.pendingBossKillKey);
+      if (postBossCutsceneId && !SaveManager.getInstance().hasSeenCutscene(postBossCutsceneId)) {
+        const postBossDef = getCutsceneDef(postBossCutsceneId);
+        if (postBossDef) {
+          SaveManager.getInstance().markCutsceneSeen(postBossCutsceneId);
+          this._postWaveQueue.enqueue({
+            show: (onDismiss) => {
+              this.scene.launch('CutsceneScene', {
+                cutscene: postBossDef,
+                onComplete: onDismiss,
+              });
+            },
+          });
+        }
+      }
+    }
+
     // Always consume the pending boss state (even if no reward offer).
     this._pendingBossName        = null;
     this._pendingBossRewardOffer = false;

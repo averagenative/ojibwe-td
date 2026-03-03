@@ -63,6 +63,8 @@ export interface WaveAnnouncementInfo {
   isBoss:      boolean;
   /** Ojibwe animal name for the boss (e.g. 'Makwa'). */
   bossName?:   string;
+  /** Boss key for cutscene lookups (e.g. 'makwa'). */
+  bossKey?:    string;
   /** Boss mechanic identifier (e.g. 'armored', 'split', 'regen'). */
   bossAbility?: string;
   /** Escort count for boss waves (0 if none). */
@@ -307,6 +309,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         creepCount:  1,
         isBoss:      true,
         bossName:    bossDef?.name,
+        bossKey:     bossDef?.key,
         bossAbility: bossDef?.bossAbility,
         escortCount: waveDef.escorts?.count ?? 0,
       };

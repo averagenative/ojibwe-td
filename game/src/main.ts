@@ -12,6 +12,7 @@ import { InventoryScene } from './scenes/InventoryScene';
 import { ChallengeSelectScene } from './scenes/ChallengeSelectScene';
 import { TowerEquipScene } from './scenes/TowerEquipScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
+import { CutsceneScene } from './scenes/CutsceneScene';
 
 // Initialise mobile detection early — sets window.__OJIBWE_MOBILE and
 // toggles the 'mobile' body class used by CSS.
@@ -36,6 +37,7 @@ const config: Phaser.Types.Core.GameConfig = {
     ChallengeSelectScene,    // 9. Challenge map selection
     TowerEquipScene,         // 10. Tower gear equip screen
     AchievementsScene,       // 11. Achievement gallery
+    CutsceneScene,           // 12. Cutscene/dialog overlay (launched on top of any scene)
   ],
   scale: {
     mode: Phaser.Scale.FIT,
