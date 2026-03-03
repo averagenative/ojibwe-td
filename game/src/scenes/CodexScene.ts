@@ -14,6 +14,7 @@ import { SaveManager } from '../meta/SaveManager';
 import {
   ALL_CODEX_ENTRIES,
   CODEX_SECTIONS,
+  CODEX_SECTION_ICONS,
   CODEX_SECTION_LABELS,
   getCodexEntriesBySection,
 } from '../data/codexDefs';
@@ -147,6 +148,22 @@ export class CodexScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(DEPTH_UI + 1);
       this.tabLabels.set(section, label);
 
+      // Section icon — small icon to the left of the label
+      const sectionIconKey = CODEX_SECTION_ICONS[section];
+      if (this.textures.exists(sectionIconKey)) {
+        const iconSz = this._isMobile ? 20 : 16;
+        const iconGap = 4;
+        const labelW = label.width;
+        const iconLabelW = iconSz + iconGap + labelW;
+        const iconX = bx - iconLabelW / 2 + iconSz / 2;
+        const labelX = bx - iconLabelW / 2 + iconSz + iconGap + labelW / 2;
+
+        this.add.image(iconX, tabY, sectionIconKey)
+          .setDisplaySize(iconSz, iconSz)
+          .setDepth(DEPTH_UI + 2);
+        label.setX(labelX);
+      }
+
       // Count unlocked for this section
       const save = SaveManager.getInstance();
       const entries = getCodexEntriesBySection(section);
@@ -245,15 +262,22 @@ export class CodexScene extends Phaser.Scene {
       .setDepth(DEPTH_UI);
     created.push(bg);
 
-    // Colour tile (small square)
+    // Icon or colour tile (small square)
     const tileSize = 28;
-    const tileColor = isUnlocked ? entry.tileColor : 0x222222;
-    const tile = this.add.rectangle(
-      bx + 20, by + entryH / 2,
-      tileSize, tileSize,
-      tileColor,
-    ).setStrokeStyle(1, 0x333333).setDepth(DEPTH_UI + 1);
-    created.push(tile);
+    const tileX = bx + 20;
+    const tileY = by + entryH / 2;
+
+    if (isUnlocked && entry.iconKey && this.textures.exists(entry.iconKey)) {
+      const icon = this.add.image(tileX, tileY, entry.iconKey)
+        .setDisplaySize(tileSize, tileSize)
+        .setDepth(DEPTH_UI + 1);
+      created.push(icon);
+    } else {
+      const tileColor = isUnlocked ? entry.tileColor : 0x222222;
+      const tile = this.add.rectangle(tileX, tileY, tileSize, tileSize, tileColor)
+        .setStrokeStyle(1, 0x333333).setDepth(DEPTH_UI + 1);
+      created.push(tile);
+    }
 
     // Title — bold for unread unlocked entries, normal for read entries
     const titleColor = isUnlocked
@@ -328,19 +352,27 @@ export class CodexScene extends Phaser.Scene {
         .setDepth(DEPTH_DETAIL + 1);
       this.detailObjects.push(bg);
 
-      // Illustration
+      // Illustration — icon image or coloured tile fallback
       const illusSize = 48;
       const illusX = cx - panelW / 2 + 36;
       const illusY = startY + 36;
-      const illus = this.add.rectangle(illusX, illusY, illusSize, illusSize, entry.tileColor)
-        .setStrokeStyle(2, 0x556655)
-        .setDepth(DEPTH_DETAIL + 2);
-      this.detailObjects.push(illus);
 
-      const illusChar = this.add.text(illusX, illusY, entry.title[0], {
-        fontSize: this._fs(22), color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(DEPTH_DETAIL + 3);
-      this.detailObjects.push(illusChar);
+      if (entry.iconKey && this.textures.exists(entry.iconKey)) {
+        const illusIcon = this.add.image(illusX, illusY, entry.iconKey)
+          .setDisplaySize(illusSize, illusSize)
+          .setDepth(DEPTH_DETAIL + 2);
+        this.detailObjects.push(illusIcon);
+      } else {
+        const illus = this.add.rectangle(illusX, illusY, illusSize, illusSize, entry.tileColor)
+          .setStrokeStyle(2, 0x556655)
+          .setDepth(DEPTH_DETAIL + 2);
+        this.detailObjects.push(illus);
+
+        const illusChar = this.add.text(illusX, illusY, entry.title[0], {
+          fontSize: this._fs(22), color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(DEPTH_DETAIL + 3);
+        this.detailObjects.push(illusChar);
+      }
 
       const titleText = this.add.text(illusX + illusSize / 2 + 12, illusY, entry.title, {
         fontSize: this._fs(18), color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold',
@@ -432,20 +464,27 @@ export class CodexScene extends Phaser.Scene {
         .setDepth(DEPTH_DETAIL);
       this.detailObjects.push(bg);
 
-      // Illustration placeholder (large coloured tile)
+      // Illustration — icon image or coloured tile fallback
       const illusSize = 56;
       const illusX = cx - panelW / 2 + 40;
       const illusY = startY + 40;
-      const illus = this.add.rectangle(illusX, illusY, illusSize, illusSize, entry.tileColor)
-        .setStrokeStyle(2, 0x556655)
-        .setDepth(DEPTH_DETAIL + 1);
-      this.detailObjects.push(illus);
 
-      // First letter of title in illustration
-      const illusChar = this.add.text(illusX, illusY, entry.title[0], {
-        fontSize: this._fs(24), color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(DEPTH_DETAIL + 2);
-      this.detailObjects.push(illusChar);
+      if (entry.iconKey && this.textures.exists(entry.iconKey)) {
+        const illusIcon = this.add.image(illusX, illusY, entry.iconKey)
+          .setDisplaySize(illusSize, illusSize)
+          .setDepth(DEPTH_DETAIL + 1);
+        this.detailObjects.push(illusIcon);
+      } else {
+        const illus = this.add.rectangle(illusX, illusY, illusSize, illusSize, entry.tileColor)
+          .setStrokeStyle(2, 0x556655)
+          .setDepth(DEPTH_DETAIL + 1);
+        this.detailObjects.push(illus);
+
+        const illusChar = this.add.text(illusX, illusY, entry.title[0], {
+          fontSize: this._fs(24), color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(DEPTH_DETAIL + 2);
+        this.detailObjects.push(illusChar);
+      }
 
       // Title
       const titleText = this.add.text(illusX + illusSize / 2 + 16, illusY, entry.title, {
