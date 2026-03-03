@@ -289,10 +289,11 @@ export class Projectile extends Phaser.GameObjects.Arc {
 
   /** Frost impact: expanding burst ring and a sparkle cross. */
   private impactFrostBurst(cx: number, cy: number): void {
-    // Expanding ring
-    const ring = this.scene.add.graphics();
+    // Expanding ring — Graphics positioned AT the impact point so that the
+    // scale tween expands outward from (cx, cy) rather than from (0, 0).
+    const ring = this.scene.add.graphics({ x: cx, y: cy });
     ring.lineStyle(2, 0x88ccff, 0.9);
-    ring.strokeCircle(cx, cy, 5);
+    ring.strokeCircle(0, 0, 5);
     ring.setDepth(25);
     this.scene.tweens.add({
       targets:    ring,
@@ -304,12 +305,12 @@ export class Projectile extends Phaser.GameObjects.Arc {
       onComplete: () => ring.destroy(),
     });
 
-    // Sparkle cross (ice-crystal hint)
-    const spark = this.scene.add.graphics();
+    // Sparkle cross (ice-crystal hint) — also positioned at impact.
+    const spark = this.scene.add.graphics({ x: cx, y: cy });
     spark.lineStyle(1.5, 0xcceeff, 0.85);
     spark.beginPath();
-    spark.moveTo(cx - 5, cy); spark.lineTo(cx + 5, cy);
-    spark.moveTo(cx, cy - 5); spark.lineTo(cx, cy + 5);
+    spark.moveTo(-5, 0); spark.lineTo(5, 0);
+    spark.moveTo(0, -5); spark.lineTo(0, 5);
     spark.strokePath();
     spark.setDepth(25);
     this.scene.tweens.add({
