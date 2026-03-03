@@ -337,8 +337,8 @@ export class ChallengeSelectScene extends Phaser.Scene {
       wordWrap:  { width: CARD_W - CARD_PAD_X * 2 - 140 },
     });
 
-    // Modifier text
-    this.add.text(leftX, y + 58, challenge.modifier.description, {
+    // Modifier text — starts at y+70 to clear a potential 2-line description
+    this.add.text(leftX, y + 70, challenge.modifier.description, {
       fontSize:   '10px',
       color:      isUnlocked ? PAL.textDim : PAL.textLockedDim,
       fontFamily: PAL.fontBody,
