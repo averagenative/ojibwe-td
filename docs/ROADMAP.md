@@ -2249,6 +2249,32 @@ Non-blocking items surfaced during code review:
   in BootScene. A portrait asset should be created and wired up to complete codex icon coverage
   for all commanders. Low priority — the fallback coloured tile displays fine.
 
+- **Remaining tower icons are PNG while rock-hurler is SVG**: The rock-hurler tower icon was
+  upgraded to SVG in TASK-084 while the other 5 tower icons (frost, poison, tesla, aura, arrow)
+  remain as PNGs from the original `converted_assets/`. For visual consistency, these should
+  eventually be recreated as SVGs matching the rock-hurler style. Low priority — the existing
+  PNGs display correctly at all sizes.
+
+- **Gear icon rarity differentiation is tint-only**: Gear icons use `setTint(rarityCol.num)` to
+  indicate rarity. At small display sizes (26–28px) the tint difference between common (grey)
+  and uncommon (green) may be subtle. A future pass could add rarity border glows or overlays
+  per the original task spec. Low priority — the rarity stripe and text labels provide redundant
+  rarity indication.
+
+### TASK-073 (Map Ambient VFX) — non-blocking findings
+
+- **Particle fade uses multiplicative alpha decay**: In `_updatePool` and `_updateLeafPool`,
+  the fade-out reads the current `s.arc.alpha` each frame and multiplies by `t / threshold`.
+  This gives exponential decay (particles vanish quickly once in the fade zone) rather than
+  a linear ramp. Visually acceptable for subtle ambient effects, but if a smooth linear fade
+  is ever desired, store the initial alpha at emit time and use `initialAlpha * (t / threshold)`
+  instead.
+
+- **_randomTile uses arr.length as posHash salt**: When two different tile lists happen to
+  have the same length, `_randomTile` returns the same selection. Purely cosmetic — particles
+  occasionally cluster on the same tile across different effect types. Could be fixed by
+  adding a per-effect salt offset if it ever becomes visually noticeable.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

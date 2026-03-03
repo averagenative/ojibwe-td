@@ -1,7 +1,7 @@
 ---
 id: TASK-084
 title: Gear Icons & Tower Icons for Equipment UI
-status: pending
+status: done
 priority: medium
 phase: feature
 creative: true
