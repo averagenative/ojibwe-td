@@ -57,10 +57,11 @@ describe('GameScene — rushNextWave()', () => {
     expect(gameSceneSrc).toContain('this._showRushBonusFeedback(RUSH_GOLD_AMOUNT)');
   });
 
-  it('immediately calls _doStartWave() to stack the next wave', () => {
-    // Find the rushNextWave method and verify _doStartWave is called inside it.
+  it('calls _doStartWave() when no boss reward is pending', () => {
+    // Find the rushNextWave method (handles 1 level of inner braces) and
+    // verify _doStartWave is called in the no-boss-pending branch.
     const rushMethod = gameSceneSrc.match(
-      /private rushNextWave\(\)[^}]*(?:\{[^}]*\}[^}]*)*\}/s
+      /private rushNextWave\(\).*?\{(?:[^{}]*|\{[^{}]*\})*\}/s
     );
     expect(rushMethod).not.toBeNull();
     expect(rushMethod![0]).toContain('this._doStartWave()');
@@ -68,7 +69,7 @@ describe('GameScene — rushNextWave()', () => {
 
   it('does not set a _nextWaveRushed flag (multiple rushes allowed)', () => {
     const rushMethod = gameSceneSrc.match(
-      /private rushNextWave\(\)[^}]*(?:\{[^}]*\}[^}]*)*\}/s
+      /private rushNextWave\(\).*?\{(?:[^{}]*|\{[^{}]*\})*\}/s
     );
     expect(rushMethod).not.toBeNull();
     expect(rushMethod![0]).not.toContain('_nextWaveRushed');
