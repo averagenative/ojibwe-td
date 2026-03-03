@@ -57,6 +57,7 @@ import {
   getCutsceneDef, getRegionIntroCutsceneId,
   getPreBossCutsceneId, getPostBossCutsceneId,
 } from '../data/cutsceneDefs';
+import { AscensionSystem } from '../systems/AscensionSystem';
 
 const DEFAULT_TOTAL_WAVES = 20;
 /** Flat gold bonus awarded when the player rushes the next wave early. */
@@ -255,6 +256,12 @@ export class GameScene extends Phaser.Scene {
    */
   private _rubbleSprites: Map<string, Phaser.GameObjects.Image> = new Map();
 
+  // ── ascension ─────────────────────────────────────────────────────────────
+  /** Ascension level chosen at the pre-run screen (0 = standard run). */
+  private _ascensionLevel = 0;
+  /** Active AscensionSystem instance for this run (null on level 0). */
+  private _ascensionSystem: AscensionSystem | null = null;
+
   // ── ambient VFX ────────────────────────────────────────────────────────────
   /** Continuous ambient particle effects for the current map region. */
   private _ambientVFX: AmbientVFX | null = null;
@@ -270,11 +277,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Called by Phaser before preload() — captures scene-start data and resets state. */
-  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean; isChallenge?: boolean; challengeId?: string }): void {
+  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean; isChallenge?: boolean; challengeId?: string; ascensionLevel?: number }): void {
     this.selectedCommanderId = data?.commanderId ?? 'nokomis';
     this.isEndlessMode       = data?.isEndless   ?? false;
     this.isChallengeRun      = data?.isChallenge ?? false;
     this.bossesKilled        = 0;
+    this._ascensionLevel     = data?.ascensionLevel ?? 0;
 
     // Resolve challenge modifier if applicable.
     if (this.isChallengeRun && data?.challengeId) {
@@ -348,6 +356,7 @@ export class GameScene extends Phaser.Scene {
     this._critterManager       = null;
     this._critterCreepCheckAcc = 0;
     this._rubbleSprites        = new Map();
+    this._ascensionSystem      = null;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -407,6 +416,16 @@ export class GameScene extends Phaser.Scene {
       }
       this._rerollTokens = c.rerollTokens;
       this._achInitialRerolls = c.rerollTokens;
+    }
+
+    // ── Ascension system ──────────────────────────────────────────────────────
+    // Create before WaveManager so speed/HP mults are available for spawn configs.
+    if (this._ascensionLevel > 0) {
+      this._ascensionSystem = new AscensionSystem(this, this._ascensionLevel);
+      // Speed multiplier on scene.data — read by Creep constructor.
+      this.data.set('ascensionSpeedMult', this._ascensionSystem.getSpeedMultiplier());
+    } else {
+      this.data.set('ascensionSpeedMult', 1);
     }
 
     // Expose commander state and tile size on scene.data for entity-level reads
@@ -489,6 +508,11 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // Ascension HUD badge — shown when level > 0.
+    if (this._ascensionLevel > 0) {
+      this.hud.createAscensionBadge(this._ascensionLevel);
+    }
+
     // Commander HUD elements (portrait with tooltip, ability button)
     if (this.commanderDef && this.commanderState) {
       this.hud.createCommanderPortrait(
@@ -531,10 +555,24 @@ export class GameScene extends Phaser.Scene {
       }));
     }
 
-    const airWaypoints  = this.buildAirWaypoints();
+    // Apply Ascension 7 air-bypass modifier to the air waypoints.
+    const rawAirWaypoints = this.buildAirWaypoints();
+    const airWaypoints = this._ascensionSystem
+      ? this._ascensionSystem.modifyAirWaypoints(rawAirWaypoints)
+      : rawAirWaypoints;
+
+    const ascensionConfig = this._ascensionSystem
+      ? {
+          hpMult:       this._ascensionSystem.getHpMultiplier(),
+          armoredEarly: this._ascensionSystem.getArmoredEarlyWaves(),
+          regenPerSec:  this._ascensionSystem.getRegenPerSec(),
+          immuneCombo:  this._ascensionSystem.isImmuneSlowAndPoison(),
+        }
+      : undefined;
+
     this.waveManager = new WaveManager(
       this, this.waypointPaths, this.activeCreeps, creepTypeDefs, waveDefs, airWaypoints,
-      regionDifficulty,
+      regionDifficulty, ascensionConfig,
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
 
@@ -551,7 +589,9 @@ export class GameScene extends Phaser.Scene {
       const rewardMult = this.offerManager.getKillRewardMult();
       // Oshkaabewis: +1 gold per creep kill (stacks with base reward)
       const cmdBonus    = this.commanderState?.killGoldBonus ?? 0;
-      const killGold    = Math.round(data.reward * rewardMult) + cmdBonus;
+      // Ascension 10: gold income penalty (0.9 = 10% reduction).
+      const ascGoldMult = this._ascensionSystem?.getGoldIncomeMultiplier() ?? 1;
+      const killGold    = Math.round(data.reward * rewardMult * ascGoldMult) + cmdBonus;
       this.gold += killGold;
       this._totalKills++;
       this._goldEarned += killGold;
@@ -693,7 +733,11 @@ export class GameScene extends Phaser.Scene {
     // The handler below checks that flag to suppress Poison C's spread mechanic.
 
     // ── Poison C: DoT spread on death ────────────────────────────────────
+    // Also triggers Ascension 8 poison cloud if active.
     this.events.on('creep-died-poisoned', (data: CreepDiedPoisonedData) => {
+      // Ascension 8: poison cloud that debuffs nearby towers.
+      this._ascensionSystem?.onCreepDiedPoisoned(data.x, data.y, () => this.towers);
+
       // Waabizii aura: 25% chance to heal 1 life when a poisoned creep dies
       const healChance = this.commanderState?.poisonKillHealChance ?? 0;
       if (healChance > 0 && Math.random() < healChance) {
@@ -1159,6 +1203,10 @@ export class GameScene extends Phaser.Scene {
     // Audio settings panel cleanup.
     this.audioSettingsPanel?.destroy();
     this.audioSettingsPanel = undefined;
+
+    // Ascension system cleanup — cancel all scheduled timers.
+    this._ascensionSystem?.destroy();
+    this._ascensionSystem = null;
 
     // Audio system cleanup — wired in Phase 21.
     this.audioManager?.destroy();
@@ -1985,6 +2033,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.waveManager.startWave(this.currentWave);
+
+    // Ascension active effects — fire after wave manager starts (towers exist).
+    if (this._ascensionSystem) {
+      this._ascensionSystem.onWaveStart(this.currentWave, () => this.towers);
+    }
+
     // Show or hide the rush button now that a new wave is active.
     this._updateRushButton();
   }
@@ -2098,6 +2152,15 @@ export class GameScene extends Phaser.Scene {
       // Run complete — clear the auto-save so the player starts fresh next time.
       SessionManager.getInstance().clear();
 
+      // ── Ascension clear record ────────────────────────────────────────────
+      // Record the cleared level (0 = standard run) so the next ascension unlocks.
+      const ascNewUnlock = SaveManager.getInstance().recordAscensionClear(this._ascensionLevel);
+
+      // Crystal reward scaling: baseCrystals × (1 + 0.15 × ascensionLevel).
+      const ascCrystalScale = 1 + 0.15 * this._ascensionLevel;
+      const baseCurrency    = calculateRunCurrency(this.totalWaves, this.totalWaves, true);
+      const scaledCurrency  = Math.round(baseCurrency * ascCrystalScale);
+
       // Victory transition: vignette (if any) → GameOverScene.
       const proceedToVictory = () => {
         this._commitRunAchievements(true);
@@ -2111,17 +2174,19 @@ export class GameScene extends Phaser.Scene {
             this.gameState = 'over';
             const maxLives = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
             this.scene.start('GameOverScene', {
-              wavesCompleted: this.totalWaves,
-              totalWaves:     this.totalWaves,
-              won:            true,
-              runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
-              stageId:        this.selectedStageId,
-              mapId:          this.selectedMapId,
-              commanderId:    this.selectedCommanderId,
-              livesLeft:      this.lives,
+              wavesCompleted:      this.totalWaves,
+              totalWaves:          this.totalWaves,
+              won:                 true,
+              runCurrency:         scaledCurrency,
+              stageId:             this.selectedStageId,
+              mapId:               this.selectedMapId,
+              commanderId:         this.selectedCommanderId,
+              livesLeft:           this.lives,
               maxLives,
-              isChallenge:    this.isChallengeRun,
-              bossesKilled:   this.bossesKilled,
+              isChallenge:         this.isChallengeRun,
+              bossesKilled:        this.bossesKilled,
+              ascensionLevel:      this._ascensionLevel,
+              ascensionNewUnlock:  ascNewUnlock,
             });
           });
           return;
@@ -2133,17 +2198,19 @@ export class GameScene extends Phaser.Scene {
         this.hud.getCommanderPortrait()?.reactVictory();
         const maxLivesNoVig = this.mapData.startingLives + (this.commanderState?.startingLivesBonus ?? 0);
         this.scene.start('GameOverScene', {
-          wavesCompleted: this.totalWaves,
-          totalWaves:     this.totalWaves,
-          won:            true,
-          runCurrency:    calculateRunCurrency(this.totalWaves, this.totalWaves, true),
-          stageId:        this.selectedStageId,
-          mapId:          this.selectedMapId,
-          commanderId:    this.selectedCommanderId,
-          livesLeft:      this.lives,
-          maxLives:       maxLivesNoVig,
-          isChallenge:    this.isChallengeRun,
-          bossesKilled:   this.bossesKilled,
+          wavesCompleted:      this.totalWaves,
+          totalWaves:          this.totalWaves,
+          won:                 true,
+          runCurrency:         scaledCurrency,
+          stageId:             this.selectedStageId,
+          mapId:               this.selectedMapId,
+          commanderId:         this.selectedCommanderId,
+          livesLeft:           this.lives,
+          maxLives:            maxLivesNoVig,
+          isChallenge:         this.isChallengeRun,
+          bossesKilled:        this.bossesKilled,
+          ascensionLevel:      this._ascensionLevel,
+          ascensionNewUnlock:  ascNewUnlock,
         });
       };
 

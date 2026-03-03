@@ -131,6 +131,16 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   /** Per-region difficulty config (null = baseline / Region 1). */
   private regionDifficulty: RegionDifficulty | null = null;
 
+  // ── Ascension modifiers ────────────────────────────────────────────────────
+  /** Additional HP multiplier from the Ascension system (1 = no change). */
+  private ascensionHpMult    = 1;
+  /** Whether armoured creeps appear earlier due to Ascension 3 (waves earlier count). */
+  private ascensionArmoredEarly = 0;
+  /** Per-second regen fraction for normal creeps (Ascension 4). */
+  private ascensionRegenPerSec = 0;
+  /** Whether immune creeps should have both immunities (Ascension 5). */
+  private ascensionImmuneCombo = false;
+
   constructor(
     scene:        Phaser.Scene,
     /**
@@ -144,6 +154,12 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     waveDefs:      WaveDef[],
     airWaypoints?: Waypoint[],
     regionDifficulty?: RegionDifficulty,
+    ascensionConfig?: {
+      hpMult:       number;
+      armoredEarly: number;
+      regenPerSec:  number;
+      immuneCombo:  boolean;
+    },
   ) {
     super();
     this.scene            = scene;
@@ -151,6 +167,13 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     this.creepTypeDefs    = creepTypeDefs;
     this.waveDefs         = waveDefs;
     this.regionDifficulty = regionDifficulty ?? null;
+
+    if (ascensionConfig) {
+      this.ascensionHpMult     = ascensionConfig.hpMult;
+      this.ascensionArmoredEarly = ascensionConfig.armoredEarly;
+      this.ascensionRegenPerSec = ascensionConfig.regenPerSec;
+      this.ascensionImmuneCombo = ascensionConfig.immuneCombo;
+    }
 
     // Normalise waypoints to array-of-paths.
     if (waypoints.length > 0 && Array.isArray(waypoints[0])) {
@@ -470,6 +493,36 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   }
 
   /**
+   * Apply per-creep Ascension modifiers to a freshly-built CreepConfig.
+   * Called after applyRegionTraits(), so it can build on top of regional traits.
+   */
+  private applyAscensionTraits(config: CreepConfig, _typeKey: string): void {
+    // Skip boss creeps — their stats are set directly from BossDef.
+    if (config.isBoss) return;
+
+    // Level 3: armored creeps appear earlier — force armor on ground creeps with 40% chance.
+    if (this.ascensionArmoredEarly > 0 && !config.isArmored && config.type === 'ground') {
+      if (Math.random() < 0.40) {
+        config.isArmored        = true;
+        config.physicalResistPct = 0.25; // same as region armor resist
+      }
+    }
+
+    // Level 4: all non-boss creeps regenerate HP.
+    if (this.ascensionRegenPerSec > 0) {
+      config.regenPercentPerSec = this.ascensionRegenPerSec;
+    }
+
+    // Level 5: immune creeps get both slow AND poison immunity.
+    if (this.ascensionImmuneCombo) {
+      if (config.isSlowImmune || config.isPoisonImmune) {
+        config.isSlowImmune   = true;
+        config.isPoisonImmune = true;
+      }
+    }
+  }
+
+  /**
    * Resolve a BossDef with regional overrides applied.
    * Returns a new object — does NOT mutate the original.
    */
@@ -503,7 +556,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       if (!base) continue;
 
       const cfg: CreepConfig = {
-        hp:        Math.round(base.hp     * waveDef.hpMult),
+        hp:        Math.round(base.hp     * waveDef.hpMult * this.ascensionHpMult),
         speed:     Math.round(base.speed  * waveDef.speedMult),
         type:      base.type,
         reward:    base.reward,
@@ -511,6 +564,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         spriteKey: CREEP_SPRITE_KEYS[base.key],
       };
       this.applyRegionTraits(cfg, typeKey);
+      this.applyAscensionTraits(cfg, typeKey);
       queue.push(cfg);
     }
 
@@ -534,7 +588,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       if (!base) continue;
 
       const cfg: CreepConfig = {
-        hp:        Math.round(base.hp    * waveDef.hpMult),
+        hp:        Math.round(base.hp    * waveDef.hpMult * this.ascensionHpMult),
         speed:     Math.round(base.speed * waveDef.speedMult),
         type:      base.type,
         reward:    base.reward,
@@ -542,6 +596,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         spriteKey: CREEP_SPRITE_KEYS[base.key],
       };
       this.applyRegionTraits(cfg, typeKey);
+      this.applyAscensionTraits(cfg, typeKey);
       queue.push(cfg);
     }
 
@@ -563,7 +618,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     this.spawned++;
 
     const config: CreepConfig = {
-      hp:                 bossDef.hp,
+      hp:                 Math.round(bossDef.hp * this.ascensionHpMult),
       speed:              bossDef.speed,
       type:               bossDef.type,
       reward:             bossDef.reward,

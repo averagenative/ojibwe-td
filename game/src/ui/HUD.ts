@@ -46,6 +46,9 @@ export class HUD extends Phaser.GameObjects.Container {
   // Air wave warning alert (shown between waves when the next wave has air creeps)
   private airWaveAlert?: Phaser.GameObjects.Text;
 
+  // Ascension level badge (shown when ascension > 0)
+  private _ascensionBadge?: Phaser.GameObjects.Text;
+
   constructor(scene: Phaser.Scene, lives: number, gold: number) {
     super(scene, 0, 0);
 
@@ -714,6 +717,31 @@ export class HUD extends Phaser.GameObjects.Container {
     } else {
       this.airWaveAlert.setText(message).setVisible(true);
     }
+  }
+
+  /**
+   * Create a small ascension level badge in the HUD strip.
+   * Positioned just left of the wave counter.
+   * Only call when ascensionLevel > 0.
+   */
+  createAscensionBadge(ascensionLevel: number): void {
+    const { width } = this.scene.scale;
+    const cy = HUD_HEIGHT / 2;
+    // Position to the left of the wave text (wave text is right-aligned near width-PADDING).
+    const bx = width - PADDING - 110;
+
+    const bg = this.scene.add.rectangle(bx, cy, 36, 22, 0x331111)
+      .setStrokeStyle(1, 0xff4444)
+      .setDepth(DEPTH + 1);
+    this.add(bg);
+
+    this._ascensionBadge = this.scene.add.text(bx, cy, `A${ascensionLevel}`, {
+      fontSize:   '13px',
+      color:      '#ff6644',
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
+    this.add(this._ascensionBadge);
   }
 
   /**

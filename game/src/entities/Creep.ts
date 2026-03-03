@@ -269,9 +269,14 @@ export class Creep extends Phaser.GameObjects.Container {
     const start = waypoints[0];
     super(scene, start.x, start.y);
 
+    // Ascension speed multiplier — set on scene.data by GameScene at run start.
+    // Defaults to 1 when not in an ascension run (no-op for normal runs).
+    const ascensionSpeedMult: number =
+      (scene.data?.get('ascensionSpeedMult') as number | undefined) ?? 1;
+
     this.maxHp     = config.hp;
     this.hp        = config.hp;
-    this.baseSpeed = config.speed;
+    this.baseSpeed = Math.round(config.speed * ascensionSpeedMult);
     this.reward    = config.reward;
     this.creepType = config.type;
     this.isArmored = config.isArmored ?? false;

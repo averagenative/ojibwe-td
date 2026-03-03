@@ -152,6 +152,20 @@ interface SaveData {
   seenCutsceneIds: string[];
 
   /**
+   * The highest ascension level the player has ever cleared (-1 = no run cleared).
+   * Determines which ascension levels are available for selection.
+   * Ascension 1 unlocks after clearing a standard run (ascension 0).
+   */
+  highestAscensionCleared: number;
+
+  /**
+   * The ascension level the player chose at the pre-run screen for the current
+   * or most-recent run.  Persisted so the UI defaults to the last choice.
+   * Range: 0–10.  Clamped to highestAscensionCleared + 1 on load.
+   */
+  currentAscension: number;
+
+  /**
    * djb2 checksum of the serialised save data (excluding this field).
    * Used to detect casual manual tampering via browser DevTools.
    * Optional so old saves without the field still load gracefully.
@@ -184,6 +198,8 @@ function defaultSaveData(): SaveData {
     achievements:       { unlocked: [], progress: {}, stats: {} },
     defeatedBosses:     [],
     seenCutsceneIds:    [],
+    highestAscensionCleared: -1,
+    currentAscension:        0,
   };
 }
 
@@ -639,6 +655,62 @@ export class SaveManager {
     this._save();
   }
 
+  // ── Ascension system ──────────────────────────────────────────────────────
+
+  /**
+   * Return the highest ascension level the player has cleared.
+   * 0 = no ascension runs completed yet.
+   */
+  getHighestAscensionCleared(): number {
+    return this.data.highestAscensionCleared ?? -1;
+  }
+
+  /**
+   * Return the highest ascension level currently available to the player.
+   * Equals highestAscensionCleared + 1, capped at 10.
+   * A player who has cleared ascension 0 (a standard run) may attempt ascension 1.
+   */
+  getMaxAvailableAscension(): number {
+    const highest = this.data.highestAscensionCleared ?? -1;
+    return Math.max(0, Math.min(10, highest + 1));
+  }
+
+  /**
+   * Return the player's last-chosen ascension level (UI default).
+   * Always within [0, maxAvailable].
+   */
+  getCurrentAscension(): number {
+    const max = this.getMaxAvailableAscension();
+    return Math.min(this.data.currentAscension ?? 0, max);
+  }
+
+  /**
+   * Persist the player's ascension level selection.
+   * Clamped to [0, maxAvailable].
+   */
+  setCurrentAscension(level: number): void {
+    const max   = this.getMaxAvailableAscension();
+    const clamped = Math.max(0, Math.min(max, Math.floor(level)));
+    this.data.currentAscension = clamped;
+    this._save();
+  }
+
+  /**
+   * Record that a run at ascension `level` was completed successfully.
+   * Advances highestAscensionCleared when `level` exceeds the stored value.
+   * Also unlocks the next ascension level (level + 1, capped at 10).
+   * Returns true if a new ascension was unlocked (caller may trigger a toast).
+   */
+  recordAscensionClear(level: number): boolean {
+    const prev = this.data.highestAscensionCleared ?? -1;
+    if (level > prev) {
+      this.data.highestAscensionCleared = Math.min(10, level);
+      this._save();
+      return true;
+    }
+    return false;
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private _load(): void {
@@ -815,6 +887,22 @@ export class SaveManager {
       ? (d.seenCutsceneIds as unknown[]).filter((v): v is string => typeof v === 'string')
       : [];
 
+    // Ascension fields.
+    // highestAscensionCleared: -1 (no run cleared) through 10.
+    const clampHighestAsc = (v: unknown): number =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? Math.max(-1, Math.min(10, Math.floor(v)))
+        : -1;
+    const clampAscension = (v: unknown): number =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? Math.max(0, Math.min(10, Math.floor(v)))
+        : 0;
+    const highestAscensionCleared = clampHighestAsc(d.highestAscensionCleared);
+    const currentAscension        = Math.min(
+      clampAscension(d.currentAscension),
+      Math.min(10, Math.max(0, highestAscensionCleared + 1)),
+    );
+
     return {
       ...d,
       currency,
@@ -837,6 +925,8 @@ export class SaveManager {
       achievements,
       defeatedBosses,
       seenCutsceneIds,
+      highestAscensionCleared,
+      currentAscension,
     };
   }
 
