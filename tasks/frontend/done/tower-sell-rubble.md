@@ -1,7 +1,7 @@
 ---
 id: TASK-071
 title: Tower Sell Rubble — Show Damaged Tile After Selling a Tower
-status: pending
+status: done
 priority: low
 phase: polish
 ---

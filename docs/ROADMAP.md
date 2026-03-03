@@ -2341,6 +2341,17 @@ Non-blocking items surfaced during code review:
 - **CutsceneDef field naming**: The task spec used `scenes: CutsceneFrame[]` in the sample interface; the implementation uses `frames: CutsceneFrame[]`. The implementation naming is clearer and internally consistent. No action needed — just a spec vs. implementation note.
 - **Cutscene lookup performance**: `getCutsceneDef()` uses `ALL_CUTSCENES.find()` (linear scan). With 18 cutscenes this is fast, but if content grows significantly, consider a `Map<string, CutsceneDef>` for O(1) lookups.
 
+### TASK-071 — Tower Sell Rubble (non-blocking observations)
+- **Rubble not persisted in autosave**: Rubble is purely run-scoped (`init()` resets the map). If a session is restored via `SessionManager`, previously sold-tile rubble is lost. Acceptable for a cosmetic feature, but could be enhanced by serialising `_rubbleSprites` keys into `AutoSave` if desired.
+- **Tween-during-shutdown safety**: If `shutdown()` is called while a rubble fade-in tween is still running, Phaser's scene shutdown kills the tween manager, so no leak. However, if individual sprites are destroyed mid-tween (e.g. selling→rebuilding within 400ms), Phaser may log a console warning about tweening a destroyed target. A `killTweensOf(sprite)` call in `_removeRubble` would silence this, but is not functionally necessary.
+- **Multi-select sell rubble**: When selling multiple towers via region-select (`for (const t of toSell) this.sellTower(t)`), rubble is placed for each individually. No issue — each gets its own sprite at its own tile.
+
+### TASK-072 — Ambient Wildlife Critters (non-blocking observations)
+- **Procedural Graphics vs. sprite textures**: The task spec requests sprite PNGs in `public/assets/critters/` with 2-3 frame spritesheet animations and BootScene preloading. The implementation uses procedural `Phaser.GameObjects.Graphics` drawing instead — lighter weight (no asset loading, no texture memory) but redraws 4 fill calls per critter per frame. For 6 critters this is negligible. If critter count ever grows, consider caching the procedural drawing to a `RenderTexture` or generating textures at boot.
+- **`_drawCritter` called every frame**: Each critter's Graphics is `clear()`+redrawn every frame even when idle and nothing has changed. A `_dirty` flag could skip redraws when position/bob haven't changed meaningfully, but the cost for 6 tiny sprites is trivial.
+- **`_pickWanderTarget` scans all buildable tiles**: O(n) linear scan over `_buildableTiles` to find nearby candidates within 3-tile radius. Fine for current map sizes (~200 tiles) and frequency (once per 1-3s idle expiry), but worth noting if maps grow significantly larger.
+- **Water-edge heuristic**: `_waterEdgeTiles` identifies buildable tiles adjacent to PATH tiles, not actual water tiles. This is a proxy that works for lakeside/marsh maps where paths run near water, but may place "water-preferring" critters in unexpected spots on maps where paths don't follow water edges. Low priority since the visual effect is still charming.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

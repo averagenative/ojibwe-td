@@ -1,7 +1,7 @@
 ---
 id: TASK-072
 title: Ambient Wildlife Critters — Region-Appropriate Animals on Maps
-status: pending
+status: in-progress
 priority: low
 phase: polish
 ---
