@@ -46,10 +46,11 @@ describe('OfferManager', () => {
     });
 
     it('returns fewer than n if total pool < n', () => {
-      // Edge: only 1 offer exists would require a tiny pool. Just verify
-      // that drawing more than pool size doesn't crash.
+      // Edge: drawing more than pool size doesn't crash; synergy-gated offers
+      // are excluded when no tower keys provided, so result may be < ALL_OFFERS.length
       const drawn = om.drawOffers(999);
-      expect(drawn.length).toBe(ALL_OFFERS.length);
+      expect(drawn.length).toBeGreaterThan(0);
+      expect(drawn.length).toBeLessThanOrEqual(ALL_OFFERS.length);
     });
   });
 

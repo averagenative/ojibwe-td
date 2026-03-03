@@ -15,11 +15,17 @@ interface BetweenWaveData {
   nextWaveInfo?:     WaveAnnouncementInfo;
   /** Reroll tokens available this run. Each click re-draws 3 fresh offer cards. */
   rerollTokens?:     number;
+  /**
+   * Tower type keys currently placed on the field.  Used to gate synergy
+   * offers that require specific tower combinations.
+   * e.g. ['frost', 'mortar', 'cannon']
+   */
+  placedTowerKeys?:  string[];
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 const CARD_W   = 220;
-const CARD_H   = 300;
+const CARD_H   = 320; // slightly taller (was 300) to accommodate longer descriptions
 const DEPTH    = 300;
 const SPACING  = CARD_W + 24;
 
@@ -28,6 +34,17 @@ const CAT_META: Record<string, { label: string; color: string }> = {
   combat:  { label: 'COMBAT',  color: PAL.bossWarning },
   economy: { label: 'ECONOMY', color: PAL.gold },
   synergy: { label: 'SYNERGY', color: PAL.accentBlue },
+};
+
+/**
+ * Rarity → border colour (numeric 0x for Phaser setStrokeStyle).
+ * common = grey,  rare = lake blue,  epic = autumn gold,  challenge = danger red.
+ */
+const RARITY_STROKE: Record<string, number> = {
+  common:    0x888888,           // neutral grey
+  rare:      PAL.accentBlueN,   // lake blue
+  epic:      PAL.goldN,         // autumn gold
+  challenge: PAL.dangerN,       // ember red (negative/challenge offers)
 };
 
 /**
@@ -50,6 +67,8 @@ export class BetweenWaveScene extends Phaser.Scene {
   private _rerollsUsed  = 0;
   /** Saved reference so we can rebuild cards on reroll. */
   private _offerManager?: OfferManager;
+  /** Tower keys currently on the field — used for synergy gating. */
+  private _placedTowerKeys: string[] = [];
   /** Container holding the 3 offer cards — replaced on each reroll. */
   private _cardsContainer?: Phaser.GameObjects.Container;
   /** Reroll button text (updates token count after each use). */
@@ -80,12 +99,13 @@ export class BetweenWaveScene extends Phaser.Scene {
     // On mobile, taller cards accommodate the scaled-up fonts.
     this._cardH = this._isMobile ? 340 : CARD_H;
 
-    const { offerManager, waveJustCompleted, nextWave, nextWaveInfo, rerollTokens = 0 } =
+    const { offerManager, waveJustCompleted, nextWave, nextWaveInfo, rerollTokens = 0, placedTowerKeys = [] } =
       data as BetweenWaveData;
 
-    this._offerManager = offerManager;
-    this._rerollsLeft  = rerollTokens;
-    this._rerollsUsed  = 0;
+    this._offerManager    = offerManager;
+    this._placedTowerKeys = placedTowerKeys;
+    this._rerollsLeft     = rerollTokens;
+    this._rerollsUsed     = 0;
 
     const { width, height } = this.scale;
     const cx = width  / 2;
@@ -142,7 +162,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     this._cardsContainer?.destroy();
     this._cardsContainer = this.add.container(0, 0).setDepth(DEPTH);
 
-    const offers  = offerManager.drawOffers(3);
+    const offers  = offerManager.drawOffers(3, this._placedTowerKeys);
     const startX  = cx - SPACING;
 
     for (let i = 0; i < offers.length; i++) {
@@ -271,39 +291,63 @@ export class BetweenWaveScene extends Phaser.Scene {
     cardH:        number = CARD_H,
   ): void {
     const meta   = CAT_META[offer.category] ?? { label: 'OFFER', color: PAL.textNeutral };
-    const stroke = this.hexStringToInt(meta.color);
+
+    // ── Rarity-based border colour ───────────────────────────────────────────
+    // Challenge/negative offers always render with a red border regardless of rarity.
+    const rarityKey = offer.isChallenge ? 'challenge' : (offer.rarity ?? 'common');
+    const stroke    = RARITY_STROKE[rarityKey] ?? RARITY_STROKE.common;
 
     // ── Card background ──────────────────────────────────────────────────────
-    const card = this.add.rectangle(bx, by, CARD_W, cardH, PAL.bgCard)
-      .setStrokeStyle(2, stroke, 0.5)
+    const bgFill = offer.isChallenge ? 0x1a0808 : PAL.bgCard;
+    const card = this.add.rectangle(bx, by, CARD_W, cardH, bgFill)
+      .setStrokeStyle(2, stroke, 0.6)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH);
 
     // Add card to container so it's destroyed on reroll
     this._cardsContainer?.add(card);
 
+    // ── Rarity badge (top-right corner) ─────────────────────────────────────
+    const rarityLabel = offer.isChallenge ? '⚠ CHALLENGE'
+      : offer.rarity === 'epic'   ? '★ EPIC'
+      : offer.rarity === 'rare'   ? '◆ RARE'
+      : 'COMMON';
+    const rarityColor = offer.isChallenge ? PAL.danger
+      : offer.rarity === 'epic'   ? PAL.gold
+      : offer.rarity === 'rare'   ? PAL.accentBlue
+      : PAL.textNeutral;
+
+    const rarityText = this.add.text(bx + CARD_W / 2 - 6, by - cardH / 2 + 8, rarityLabel, {
+      fontSize:   this._fs(11),
+      color:      rarityColor,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(1, 0).setDepth(DEPTH + 2);
+    this._cardsContainer?.add(rarityText);
+
     // ── Category badge ───────────────────────────────────────────────────────
-    const catText = this.add.text(bx, by - cardH / 2 + 18, meta.label, {
+    const catText = this.add.text(bx - CARD_W / 2 + 6, by - cardH / 2 + 8, meta.label, {
       fontSize:   this._fs(11),
       color:      meta.color,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
-    }).setOrigin(0.5).setDepth(DEPTH + 1);
+    }).setOrigin(0, 0).setDepth(DEPTH + 2);
     this._cardsContainer?.add(catText);
 
     // ── Decorative separator ─────────────────────────────────────────────────
     const sepGfx = this.add.graphics().setDepth(DEPTH + 1);
     sepGfx.lineStyle(1, stroke, 0.3);
     sepGfx.beginPath();
-    sepGfx.moveTo(bx - CARD_W / 2 + 16, by - cardH / 2 + 30);
-    sepGfx.lineTo(bx + CARD_W / 2 - 16, by - cardH / 2 + 30);
+    sepGfx.moveTo(bx - CARD_W / 2 + 16, by - cardH / 2 + 24);
+    sepGfx.lineTo(bx + CARD_W / 2 - 16, by - cardH / 2 + 24);
     sepGfx.strokePath();
     this._cardsContainer?.add(sepGfx);
 
     // ── Offer name ───────────────────────────────────────────────────────────
+    const nameColor = offer.isChallenge ? PAL.danger : '#ffffff';
     const nameText = this.add.text(bx, by - cardH / 2 + 65, offer.name, {
       fontSize:   this._fs(16),
-      color:      '#ffffff',
+      color:      nameColor,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
       wordWrap:   { width: CARD_W - 24 },
@@ -332,10 +376,11 @@ export class BetweenWaveScene extends Phaser.Scene {
 
     // ── Hover / click interactions ───────────────────────────────────────────
     card.on('pointerover', () => {
-      card.setFillStyle(PAL.bgCardHover).setStrokeStyle(2, stroke, 1.0);
+      const hoverFill = offer.isChallenge ? 0x2a1010 : PAL.bgCardHover;
+      card.setFillStyle(hoverFill).setStrokeStyle(2, stroke, 1.0);
     });
     card.on('pointerout', () => {
-      card.setFillStyle(PAL.bgCard).setStrokeStyle(2, stroke, 0.5);
+      card.setFillStyle(bgFill).setStrokeStyle(2, stroke, 0.6);
     });
     card.on('pointerup', () => this.pickOffer(offer, offerManager));
   }
@@ -361,8 +406,4 @@ export class BetweenWaveScene extends Phaser.Scene {
     this.scene.stop();
   }
 
-  /** Convert a CSS hex colour string (e.g. '#ff6644') to an integer. */
-  private hexStringToInt(hex: string): number {
-    return parseInt(hex.replace('#', ''), 16);
-  }
 }

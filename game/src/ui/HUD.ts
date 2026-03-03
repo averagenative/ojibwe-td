@@ -4,6 +4,7 @@ import { PAL } from './palette';
 import { PANEL_HEIGHT as TOWER_PANEL_H } from './TowerPanel';
 import { CommanderPortrait } from './CommanderPortrait';
 import type { AbilityDef, CommanderDef, CommanderRunState } from '../data/commanderDefs';
+import type { OfferDef } from '../data/offerDefs';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
 const HUD_HEIGHT = _IS_MOBILE ? 64 : 48;
@@ -779,9 +780,167 @@ export class HUD extends Phaser.GameObjects.Container {
     });
   }
 
+  // ── active offers button + panel ──────────────────────────────────────────
+
+  private _offersBtnBg?: Phaser.GameObjects.Rectangle;
+  /** Count badge showing number of active offers. */
+  private _offersCountBadge?: Phaser.GameObjects.Text;
+  /** Floating panel shown when the button is clicked. */
+  private _offersPanel?: Phaser.GameObjects.Container;
+
+  /**
+   * Create a small "BUFFS" button in the HUD strip between the gold counter
+   * and the rush-wave button.  Clicking it opens a panel listing all currently
+   * active offers for this run.
+   *
+   * `getActiveOffers` is a callback invoked each time the panel opens — so it
+   * always reflects the current run state.
+   *
+   * Must be called once during scene create().
+   */
+  createOffersButton(getActiveOffers: () => OfferDef[]): void {
+    const btnW = _IS_MOBILE ? 84 : 76;
+    const btnH = _IS_MOBILE ? 44 : 30;
+    // Centred between gold counter (x~640) and the rush-wave button (x=870 left edge).
+    const cx   = _IS_MOBILE ? 760 : 775;
+    const cy   = HUD_HEIGHT / 2;
+
+    this._offersBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, 0x0e1e0e)
+      .setStrokeStyle(1, PAL.accentGreenN)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 2);
+
+    this.scene.add.text(cx, cy, '★ BUFFS', {
+      fontSize:   '11px',
+      color:      PAL.accentGreen,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
+
+    // Count badge (top-right corner of button) — updated via updateOffersCount()
+    this._offersCountBadge = this.scene.add.text(cx + btnW / 2 - 2, cy - btnH / 2 + 1, '', {
+      fontSize:   '9px',
+      color:      PAL.gold,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(1, 0).setDepth(DEPTH + 4);
+
+    this._offersBtnBg.on('pointerover', () => this._offersBtnBg?.setFillStyle(0x162a16));
+    this._offersBtnBg.on('pointerout',  () => this._offersBtnBg?.setFillStyle(0x0e1e0e));
+    this._offersBtnBg.on('pointerup', () => {
+      if (this._offersPanel) {
+        this._closeOffersPanel();
+      } else {
+        this._openOffersPanel(getActiveOffers());
+      }
+    });
+  }
+
+  /** Update the count badge on the OFFERS button to reflect active offer count. */
+  updateOffersCount(count: number): void {
+    if (!this._offersCountBadge) return;
+    this._offersCountBadge.setText(count > 0 ? `${count}` : '');
+  }
+
+  private _openOffersPanel(offers: OfferDef[]): void {
+    if (this._offersPanel) return;
+
+    const { width } = this.scene.scale;
+    const panelW  = Math.min(340, width - 32);
+    const cx      = width / 2;
+    const panelY  = HUD_HEIGHT + 12;
+
+    // Rarity colour lookup
+    const rarityColor = (o: OfferDef): string => {
+      if (o.isChallenge)            return PAL.danger;
+      if (o.rarity === 'epic')      return PAL.gold;
+      if (o.rarity === 'rare')      return PAL.accentBlue;
+      return PAL.textNeutral;
+    };
+
+    this._offersPanel = this.scene.add.container(0, 0).setDepth(DEPTH + 30);
+
+    const lineH    = 26;
+    const padY     = 8;
+    const headerH  = 28;
+    const panelH   = headerH + padY * 2 + Math.max(1, offers.length) * lineH + 4;
+
+    // Panel background
+    const bg = this.scene.add.rectangle(cx, panelY + panelH / 2, panelW, panelH, PAL.bgPanel)
+      .setStrokeStyle(1, PAL.accentGreenN)
+      .setDepth(DEPTH + 30);
+    this._offersPanel.add(bg);
+
+    // Header
+    const header = this.scene.add.text(cx, panelY + padY, 'ACTIVE BUFFS', {
+      fontSize:   '12px',
+      color:      PAL.textPrimary,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5, 0).setDepth(DEPTH + 31);
+    this._offersPanel.add(header);
+
+    // Close button (×)
+    const closeBg = this.scene.add.rectangle(cx + panelW / 2 - 12, panelY + 12, 20, 20, 0x330000)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(DEPTH + 31);
+    const closeLabel = this.scene.add.text(cx + panelW / 2 - 12, panelY + 12, '×', {
+      fontSize:   '14px',
+      color:      PAL.danger,
+      fontFamily: PAL.fontBody,
+      fontStyle:  'bold',
+    }).setOrigin(0.5, 0.5).setDepth(DEPTH + 32);
+    closeBg.on('pointerup', () => this._closeOffersPanel());
+    this._offersPanel.add(closeBg);
+    this._offersPanel.add(closeLabel);
+
+    if (offers.length === 0) {
+      const empty = this.scene.add.text(cx, panelY + headerH + padY + 4, 'No active buffs yet.', {
+        fontSize:   '11px',
+        color:      PAL.textMuted,
+        fontFamily: PAL.fontBody,
+      }).setOrigin(0.5, 0).setDepth(DEPTH + 31);
+      this._offersPanel.add(empty);
+    } else {
+      for (let i = 0; i < offers.length; i++) {
+        const o    = offers[i];
+        const oy   = panelY + headerH + padY + i * lineH + 4;
+        const col  = rarityColor(o);
+
+        const rowBg = this.scene.add.rectangle(cx, oy + lineH / 2 - 1, panelW - 8, lineH - 2,
+          i % 2 === 0 ? 0x0a1a0a : PAL.bgPanel)
+          .setDepth(DEPTH + 30);
+        this._offersPanel.add(rowBg);
+
+        // Rarity indicator dot
+        const dot = this.scene.add.text(cx - panelW / 2 + 10, oy + lineH / 2, '●', {
+          fontSize:   '8px',
+          color:      col,
+          fontFamily: PAL.fontBody,
+        }).setOrigin(0, 0.5).setDepth(DEPTH + 31);
+        this._offersPanel.add(dot);
+
+        // Offer name
+        const nameT = this.scene.add.text(cx - panelW / 2 + 22, oy + lineH / 2, o.name, {
+          fontSize:   '11px',
+          color:      o.isChallenge ? PAL.danger : '#ffffff',
+          fontFamily: PAL.fontBody,
+          fontStyle:  'bold',
+        }).setOrigin(0, 0.5).setDepth(DEPTH + 31);
+        this._offersPanel.add(nameT);
+      }
+    }
+  }
+
+  private _closeOffersPanel(): void {
+    this._offersPanel?.destroy();
+    this._offersPanel = undefined;
+  }
+
   destroy(fromScene?: boolean): void {
     clearTimeout(this._abilityLongPressTimer);
     this._hideAbilityTooltip();
+    this._closeOffersPanel();
     super.destroy(fromScene);
   }
 }
