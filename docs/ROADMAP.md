@@ -2275,6 +2275,46 @@ Non-blocking items surfaced during code review:
   occasionally cluster on the same tile across different effect types. Could be fixed by
   adding a per-effect salt offset if it ever becomes visually noticeable.
 
+### TASK-059 — Meta Screen Ambiance (non-blocking, 2026-03-03)
+
+- **Prerequisite node "flowing energy" lines not implemented**: The acceptance criteria mention
+  lines between prerequisite nodes "could have a flowing energy effect (moving dashes or
+  particle trail along the line)." Skipped because the wording was suggestive ("could have")
+  rather than imperative; revisit if the meta-menu gains prerequisite-tree UI with visible edges.
+
+- **Manual particle pools instead of Phaser ParticleEmitter**: The task spec suggested using
+  `Phaser.GameObjects.Particles.ParticleEmitter` for fireflies/dust/leaves, but MetaAmbiance
+  uses manual pool-based Arc and Triangle objects. This gives finer control over per-particle
+  sine-wave drift and pool-slot reuse. No action needed unless Phaser's emitter API is
+  preferred for consistency with future systems.
+
+- **Tree _redrawTrees() runs every frame**: The tree sway redraws `Graphics.clear()` +
+  `fillTriangle()` for 10 (desktop) / 6 (mobile) trees each frame. Not a problem at current
+  tree counts, but if tree count increases, consider a throttled redraw interval similar to
+  the bush `BUSH_REDRAW_INTERVAL` pattern.
+
+### TASK-075 non-blocking findings (menu screen polish)
+
+- **GameOverScene particle objects are fire-and-forget**: The 25 victory sparkles and 18 defeat
+  embers are created with tweens but never stored in instance fields. Since GameOverScene is a
+  terminal screen (not re-entered without scene restart), and all tweens complete within 7s,
+  this is acceptable. If GameOverScene ever needs re-entry without full scene restart, store
+  these objects and add a `shutdown()` method.
+
+- **CodexScene `setAlpha` cast could be cleaner**: The `(obj as unknown as { setAlpha })` cast
+  in `refreshEntries()` is functional but verbose. All `buildEntryTile()` return types (Rectangle,
+  Text, Image) inherit Phaser's Alpha component. A future TS upgrade with better `in` narrowing
+  would make the cast unnecessary.
+
+- **MainMenuScene `_stepEmbers()` destructures `this.scale` per frame**: The
+  `const { width, height } = this.scale` in the ember step function creates a tiny object each
+  frame. Impact is negligible at 4-6 embers, but caching width/height in create() and updating
+  on resize would be strictly cleaner.
+
+- **Button hover tweens don't cancel previous tweens**: When rapidly hovering in/out of menu
+  buttons, scale tweens can queue up. Each is very short (80-100ms) so visual impact is minimal,
+  but `this.tweens.killTweensOf(label)` before each new hover tween would be more precise.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

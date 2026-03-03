@@ -1,7 +1,7 @@
 ---
 id: TASK-075
 title: Menu & UI Screen Polish — Animated Backgrounds, Transitions, Life
-status: pending
+status: done
 priority: medium
 phase: polish
 ---
