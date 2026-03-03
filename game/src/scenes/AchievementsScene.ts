@@ -201,7 +201,7 @@ export class AchievementsScene extends Phaser.Scene {
       // Title
       const titleStr = isHidden ? '???' : def.title;
       const titleColor = unlocked ? '#00ff44' : (isHidden ? '#444444' : '#aaaaaa');
-      const titleTxt = this.add.text(cx - PANEL_W / 2 + ROW_PAD_X + 28, y + ROW_H / 2 - 10, titleStr, {
+      const titleTxt = this.add.text(cx - PANEL_W / 2 + ROW_PAD_X + 28, y + ROW_H / 2 - 16, titleStr, {
         fontSize:   this._fs(13),
         color:      titleColor,
         fontFamily: 'monospace',
@@ -211,7 +211,7 @@ export class AchievementsScene extends Phaser.Scene {
 
       // Description
       const descStr = isHidden ? '???' : def.description;
-      const desc = this.add.text(cx - PANEL_W / 2 + ROW_PAD_X + 28, y + ROW_H / 2 + 10, descStr, {
+      const desc = this.add.text(cx - PANEL_W / 2 + ROW_PAD_X + 28, y + ROW_H / 2 + 16, descStr, {
         fontSize:   this._fs(10),
         color:      '#666666',
         fontFamily: 'monospace',

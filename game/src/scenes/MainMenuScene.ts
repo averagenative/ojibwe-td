@@ -813,7 +813,7 @@ export class MainMenuScene extends Phaser.Scene {
     const chalP = makePanel(this, chalX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(chalP, R, PAL.bgEndlessBtn, PAL.borderEndless, 2);
     const chalLabel = this.add.text(chalX, bottomBtnY, 'CHALLENGES', {
-      fontSize: this._fs(13), color: PAL.accentBlue, fontFamily: PAL.fontBody,
+      fontSize: this._fs(11), color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     chalP.zone.on('pointerover', () => {
@@ -863,7 +863,7 @@ export class MainMenuScene extends Phaser.Scene {
     const achP = makePanel(this, cx, achBtnY, achBtnW, achBtnH, DEPTH_BUTTONS);
     fillPanel(achP, R, 0x001a00, 0x336633, 2);
     const achLabel = this.add.text(cx, achBtnY, '🏆 ACHIEVEMENTS', {
-      fontSize: this._fs(13), color: '#55aa55', fontFamily: PAL.fontBody,
+      fontSize: this._fs(10), color: '#55aa55', fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     achP.zone.on('pointerover', () => {
