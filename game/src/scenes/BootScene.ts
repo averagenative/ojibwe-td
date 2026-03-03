@@ -246,6 +246,20 @@ export class BootScene extends Phaser.Scene {
     this.load.image('rubble-01', 'assets/effects/rubble-01.png');
     this.load.image('rubble-02', 'assets/effects/rubble-02.png');
     this.load.image('rubble-03', 'assets/effects/rubble-03.png');
+
+    // Critter spritesheets (48×16, 3 frames of 16×16) — ambient wildlife
+    this.load.spritesheet('critter-squirrel', 'assets/critters/squirrel.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-frog',     'assets/critters/frog.png',     { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-loon',     'assets/critters/loon.png',     { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-turtle',   'assets/critters/turtle.png',   { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-heron',    'assets/critters/heron.png',    { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-rabbit',   'assets/critters/rabbit.png',   { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-turkey',   'assets/critters/turkey.png',   { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-hare',     'assets/critters/hare.png',     { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-fox',      'assets/critters/fox.png',      { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-owl',      'assets/critters/owl.png',      { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-raccoon',  'assets/critters/raccoon.png',  { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('critter-beaver',   'assets/critters/beaver.png',   { frameWidth: 16, frameHeight: 16 });
   }
 
   // ── Audio bridge ───────────────────────────────────────────────────────────
