@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
-import { calculateMoons, moonRatingLabel, moonSymbol } from '../systems/MoonRating';
+import { calculateMoons, moonRatingLabel } from '../systems/MoonRating';
+import { renderMoonRating } from '../ui/MoonRatingDisplay';
 import { PAL } from '../ui/palette';
 import { rollLoot, getGearDef, RARITY_COLORS } from '../data/gearDefs';
 import { InventoryManager } from '../meta/InventoryManager';
@@ -213,11 +214,12 @@ export class GameOverScene extends Phaser.Scene {
     // ── Moon rating display (won non-endless runs only) ───────────────────────
     let moonSectionBottom = cy - 42;
     if (won && !isEndless && moonsEarned > 0) {
-      const moonRow = Array.from({ length: 5 }, (_, i) => moonSymbol(i, moonsEarned)).join(' ');
-      this.add.text(cx, cy - 38, moonRow, {
-        fontSize: this._fs(22),
-        fontFamily: PAL.fontBody,
-      }).setOrigin(0.5);
+      renderMoonRating(this, cx, cy - 38, moonsEarned, 5, {
+        radius:  this._isMobile ? 11 : 9,
+        animate: true,
+        stagger: true,
+        depth:   10,
+      });
 
       const label = moonRatingLabel(moonsEarned);
       this.add.text(cx, cy - 14, label, {
