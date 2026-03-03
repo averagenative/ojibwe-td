@@ -2,7 +2,7 @@
 id: TASK-103
 title: Frost Tower Sound Redesign — Softer Winter Wind
 priority: high
-status: pending
+status: in-progress
 type: polish
 ---
 
