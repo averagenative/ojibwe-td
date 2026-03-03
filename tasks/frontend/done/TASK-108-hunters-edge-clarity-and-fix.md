@@ -2,7 +2,7 @@
 id: TASK-108
 title: Hunter's Edge — Unclear Description & Range Upgrade Only Works on First Rank
 priority: high
-status: in-progress
+status: done
 type: bug
 ---
 
