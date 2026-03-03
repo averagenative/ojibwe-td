@@ -302,6 +302,31 @@ describe('AudioManager', () => {
       expect(mockCtx.createBufferSource.mock.calls.length).toBeGreaterThan(callsBefore);
     });
 
+    it('playProjectileFired("frost") creates a buffer source (noise wind layer)', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createBufferSource.mockClear();
+      am.playProjectileFired('frost');
+      // Redesigned frost: noise wind layer through bandpass filter
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('playProjectileFired("frost") creates a bandpass filter (wind sweep)', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createBiquadFilter.mockClear();
+      am.playProjectileFired('frost');
+      expect(mockCtx.createBiquadFilter).toHaveBeenCalled();
+      const flt = mockCtx.createBiquadFilter.mock.results[0].value as { type: string };
+      expect(flt.type).toBe('bandpass');
+    });
+
+    it('playProjectileFired("frost") also creates an oscillator (faint tone layer)', () => {
+      const am = AudioManager.getInstance();
+      mockCtx.createOscillator.mockClear();
+      am.playProjectileFired('frost');
+      // Faint sine tone layer (cold crystalline hint) alongside the noise
+      expect(mockCtx.createOscillator).toHaveBeenCalled();
+    });
+
     it('playProjectileFired with unknown key creates no oscillator', () => {
       const am = AudioManager.getInstance();
       const callsBefore = mockCtx.createOscillator.mock.calls.length;
