@@ -2382,6 +2382,10 @@ Non-blocking items surfaced during code review:
 - **`_getBodyGeometry()` allocates a fresh object on every call**: The method returns `{ w, h, y, rotation }` which allocates a short-lived object. Currently called only on direction change and status-effect toggle (both low-frequency), so no perf issue today. If overlay refresh were ever moved into the per-frame update loop, this should be replaced with a cached/mutable struct to avoid GC pressure.
 - **Status-effect particles still use hardcoded spread widths**: `_syncParticles()` uses `this.isBossCreep ? 44 : 22` for `baseX` spread and `this.isBossCreep ? -16 : -11` for `riseY`. These don't match the body geometry constants (BODY_HORIZ_W=30, BOSS_HORIZ_W=56). Particles will extend slightly beyond or fall short of the sprite bounds. Consider deriving particle spread from `_getBodyGeometry()` for full consistency.
 
+### TASK-117 review observations (2026-03-03)
+- **Boss sprite art styles are inconsistent**: The new makwa sprite uses Pacific NW formline art (bold outlines, ovoid shapes, red/teal accents), while migizi, animikiins, and waabooz still use a softer cartoon style. Consider reworking the remaining boss sprites to match the formline aesthetic for visual cohesion.
+- **`gen-boss-makwa.py` generation script is untracked**: The Python PIL script that produced the sprite lives at `game/scripts/gen-boss-makwa.py` but was not staged. It should be committed alongside the asset for reproducibility, similar to `gen-critter-sprites.py`.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

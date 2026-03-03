@@ -2,7 +2,7 @@
 id: TASK-121
 title: Arrow Tower First in Tower Selection List
 priority: high
-status: pending
+status: done
 type: bug
 ---
 
