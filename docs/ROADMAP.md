@@ -2031,6 +2031,32 @@ Non-blocking items surfaced during code review:
   and auto-applies trivial regex-based fixes would bypass LLM calls entirely for
   these patterns. Filed as TASK-109.
 
+### TASK-104 review notes (2026-03-02)
+
+- **Tooltip line rendering duplication**: `CommanderPortrait.showTooltip()` and
+  `HUD._showAbilityTooltip()` both contain nearly identical tooltip rendering
+  loops (iterate lines, create text objects, measure height, add bg rect).
+  Consider extracting a shared `renderTooltipLines()` utility in `ui/tooltip.ts`
+  to DRY up the pattern if more tooltips are added in future.
+
+- **HUD ability tooltip not added to HUD container**: The ability tooltip
+  container is created via `this.scene.add.container()` rather than added as a
+  child of the HUD. This means it doesn't move with the HUD if the HUD were
+  ever repositioned. Currently harmless since the HUD is static at (0,0), but
+  worth noting if the HUD layout changes.
+
+### TASK-108 review (2026-03-02)
+
+- **Other upgrade paths lack `description`**: Only Arrow path C (Hunter's Edge) has a
+  `description` on its `UpgradePathDef`. Consider adding short descriptions to all 18
+  paths (6 towers × 3 paths) so every column header communicates the path's identity
+  at a glance. Low-effort, high-clarity improvement.
+
+- **`mobileCompat.test.ts` mirrors UI constants manually**: The test file duplicates
+  layout constants (e.g. `UPGRADE_PANEL_HEIGHT`) because Phaser can't load in jsdom.
+  This creates drift risk (fixed once in this review: 160 → 176). Consider extracting
+  layout constants into a Phaser-free module that both UI code and tests can import.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)

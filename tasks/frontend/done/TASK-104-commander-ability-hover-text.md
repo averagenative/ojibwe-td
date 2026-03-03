@@ -2,7 +2,7 @@
 id: TASK-104
 title: Commander Ability Hover Text with English Translation
 priority: high
-status: pending
+status: done
 type: ui
 ---
 
