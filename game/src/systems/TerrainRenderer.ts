@@ -63,6 +63,12 @@ interface SeasonPalette {
   accentOverlay: number | null;
   accentAlpha: number;
   accentChance: number;
+  /** Colour for small pebbles/stones scattered on the path. */
+  pathStoneColor: number;
+  /** Season-specific overlay ON path tiles (puddles / frost / leaves). Null = none. */
+  pathAccentColor: number | null;
+  pathAccentAlpha: number;
+  pathAccentChance: number;
 }
 
 /** @internal */
@@ -81,6 +87,10 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     accentOverlay: null,
     accentAlpha:   0,
     accentChance:  0,
+    pathStoneColor:   0x808080,  // grey pebbles
+    pathAccentColor:  null,
+    pathAccentAlpha:  0,
+    pathAccentChance: 0,
   },
   spring: {
     groundBase:    0x1e3518,   // fresh green, cooler
@@ -96,6 +106,10 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     accentOverlay: 0x2050a0,   // blue-tinted wet patches
     accentAlpha:   0.12,
     accentChance:  0.15,
+    pathStoneColor:   0x707070,  // damp grey-blue pebbles
+    pathAccentColor:  0x204060,  // muddy puddles
+    pathAccentAlpha:  0.15,
+    pathAccentChance: 0.12,
   },
   autumn: {
     groundBase:    0x3a2a10,   // golden-brown ground
@@ -111,6 +125,10 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     accentOverlay: null,
     accentAlpha:   0,
     accentChance:  0,
+    pathStoneColor:   0x6a5a4a,  // brownish stones
+    pathAccentColor:  0x884420,  // fallen leaf litter
+    pathAccentAlpha:  0.18,
+    pathAccentChance: 0.14,
   },
   winter: {
     groundBase:    0xb0bcc8,   // pale blue-grey snow
@@ -126,6 +144,10 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     accentOverlay: 0xe0e8f0,   // bright snow patches
     accentAlpha:   0.25,
     accentChance:  0.20,
+    pathStoneColor:   0x7888a0,  // cold grey stones
+    pathAccentColor:  0xd0dde8,  // frost / ice patches
+    pathAccentAlpha:  0.20,
+    pathAccentChance: 0.16,
   },
 };
 
@@ -249,6 +271,115 @@ function drawGrassTuft(
   }
 }
 
+// ── Path detail drawing ─────────────────────────────────────────────────────
+
+/** Draw a cluster of 2-4 tiny pebbles on a path tile. */
+function drawPathPebbles(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  color: number, h1: number, h2: number,
+): void {
+  const count = 2 + Math.floor(h1 * 3);
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + h2 * Math.PI;
+    const dist = 2 + h1 * 5;
+    const px = cx + Math.cos(angle) * dist;
+    const py = cy + Math.sin(angle) * dist;
+    const r = 0.8 + (h2 + i * 0.1) * 0.8;
+    gfx.fillStyle(shiftBrightness(color, 0.8 + i * 0.12), 0.4 + h1 * 0.15);
+    gfx.fillCircle(px, py, r);
+  }
+}
+
+/** Draw a worn/trampled darker patch on the path surface. */
+function drawWornPatch(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  color: number, h1: number, h2: number,
+): void {
+  gfx.fillStyle(color, 0.10 + h1 * 0.08);
+  gfx.fillCircle(cx, cy, 4 + h1 * 5);
+  gfx.fillCircle(cx + 3 * (h2 - 0.5), cy - 2 * (h1 - 0.5), 3 + h2 * 3);
+}
+
+/** Draw short grass blades bleeding inward from a path edge. */
+function drawPathEdgeTuft(
+  gfx: Phaser.GameObjects.Graphics,
+  ex: number, ey: number,
+  color: number,
+  side: 'top' | 'bottom' | 'left' | 'right',
+  hash: number,
+): void {
+  const count = 2 + Math.floor(hash * 2);
+  gfx.lineStyle(1, color, 0.35 + hash * 0.15);
+  for (let i = 0; i < count; i++) {
+    const lean = -0.2 + hash * 0.4;
+    let bx: number, by: number, tx: number, ty: number;
+    const spread = (i - count / 2) * 3;
+    const bladeLen = 3 + hash * 3;
+    switch (side) {
+      case 'top':
+        bx = ex + spread;     by = ey;
+        tx = bx + lean * 3;   ty = ey + bladeLen;
+        break;
+      case 'bottom':
+        bx = ex + spread;     by = ey;
+        tx = bx + lean * 3;   ty = ey - bladeLen;
+        break;
+      case 'left':
+        bx = ex;              by = ey + spread;
+        tx = ex + bladeLen;   ty = by + lean * 3;
+        break;
+      case 'right':
+        bx = ex;              by = ey + spread;
+        tx = ex - bladeLen;   ty = by + lean * 3;
+        break;
+    }
+    gfx.lineBetween(bx, by, tx, ty);
+  }
+}
+
+/** Draw a season-specific accent on a path tile (puddle, frost, leaf litter). */
+function drawPathAccent(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  color: number, alpha: number,
+  season: SeasonalTheme, h1: number, h2: number,
+): void {
+  if (season === 'autumn') {
+    // Fallen leaf litter: 2-3 small specs in warm tones
+    const count = 2 + Math.floor(h1 * 2);
+    for (let i = 0; i < count; i++) {
+      const lx = cx + (h2 - 0.5) * 12 + i * 4;
+      const ly = cy + (h1 - 0.5) * 10 - i * 2;
+      gfx.fillStyle(shiftBrightness(color, 0.9 + i * 0.15), alpha);
+      gfx.fillCircle(lx, ly, 1.2 + h2 * 0.8);
+    }
+  } else {
+    // Puddle (spring), frost patch (winter): rounded spot
+    const r = 3 + h1 * 5;
+    gfx.fillStyle(color, alpha * (0.7 + h2 * 0.3));
+    gfx.fillCircle(cx + (h2 - 0.5) * 4, cy + (h1 - 0.5) * 4, r);
+    // Highlight/shine spot
+    gfx.fillStyle(shiftBrightness(color, 1.3), alpha * 0.3);
+    gfx.fillCircle(cx + (h2 - 0.5) * 4 - 1, cy + (h1 - 0.5) * 4 - 1, r * 0.4);
+  }
+}
+
+/** Draw a small rock at a path edge. */
+function drawPathEdgeRock(
+  gfx: Phaser.GameObjects.Graphics,
+  ex: number, ey: number,
+  color: number, hash: number,
+): void {
+  const r = 1.5 + hash * 1.5;
+  gfx.fillStyle(color, 0.45);
+  gfx.fillCircle(ex, ey, r);
+  // Subtle highlight
+  gfx.fillStyle(shiftBrightness(color, 1.2), 0.2);
+  gfx.fillCircle(ex - 0.5, ey - 0.5, r * 0.5);
+}
+
 // ── Depth constants ───────────────────────────────────────────────────────────
 
 /**
@@ -351,10 +482,18 @@ export function renderTerrain(
 
       const x = col * ts;
       const y = row * ts;
+      const tileCx = x + ts / 2;
+      const tileCy = y + ts / 2;
 
-      // ── Path tile: worn dirt / gravel trail ──
+      // ── Path tile: worn dirt / gravel trail with visual variety ──
       const noise = posHash(seed, row, col, 0);
-      const base = shiftBrightness(pal.pathBase, 0.95 + noise * 0.1);
+      // Wider brightness range for more visible tile-to-tile variation
+      const warmCool = posHash(seed, row, col, 40);
+      let bFactor = 0.86 + noise * 0.28;
+      // Occasional warm/cool shift: ~33% warmer, ~33% neutral, ~33% cooler
+      if (warmCool < 0.33)      bFactor *= 0.96;
+      else if (warmCool > 0.66) bFactor *= 1.04;
+      const base = shiftBrightness(pal.pathBase, bFactor);
       pathGfx.fillStyle(base, 1);
       pathGfx.fillRect(x, y, ts, ts);
 
@@ -378,6 +517,41 @@ export function renderTerrain(
       pathGfx.fillStyle(pal.pathCenter, 0.5);
       pathGfx.fillRect(cx, cy, cw, ch);
 
+      // ── Worn dirt patches — darker trampled areas (~15%) ──
+      const wornHash = posHash(seed, row, col, 41);
+      if (wornHash < 0.15) {
+        const wcx = tileCx + (posHash(seed, row, col, 42) - 0.5) * (ts * 0.4);
+        const wcy = tileCy + (posHash(seed, row, col, 43) - 0.5) * (ts * 0.4);
+        drawWornPatch(
+          pathGfx, wcx, wcy, pal.pathEdge,
+          posHash(seed, row, col, 44), posHash(seed, row, col, 45),
+        );
+      }
+
+      // ── Scattered pebbles (~10%) ──
+      const pebbleHash = posHash(seed, row, col, 46);
+      if (pebbleHash < 0.10) {
+        const pcx = tileCx + (posHash(seed, row, col, 47) - 0.5) * (ts * 0.5);
+        const pcy = tileCy + (posHash(seed, row, col, 48) - 0.5) * (ts * 0.5);
+        drawPathPebbles(
+          pathGfx, pcx, pcy, pal.pathStoneColor,
+          posHash(seed, row, col, 49), posHash(seed, row, col, 50),
+        );
+      }
+
+      // ── Season-specific path accent (puddles / frost / leaf litter) ──
+      if (pal.pathAccentColor !== null) {
+        const accentHash = posHash(seed, row, col, 55);
+        if (accentHash < pal.pathAccentChance) {
+          const acx = tileCx + (posHash(seed, row, col, 56) - 0.5) * (ts * 0.3);
+          const acy = tileCy + (posHash(seed, row, col, 57) - 0.5) * (ts * 0.3);
+          drawPathAccent(
+            pathGfx, acx, acy, pal.pathAccentColor, pal.pathAccentAlpha,
+            season, posHash(seed, row, col, 58), posHash(seed, row, col, 59),
+          );
+        }
+      }
+
       // Darker edge lines where NOT connecting to another path tile.
       // Alpha 0.5 gives a clear but subtle contrast border against ground.
       pathGfx.fillStyle(pal.pathEdge, 0.5);
@@ -385,6 +559,49 @@ export function renderTerrain(
       if (!below) pathGfx.fillRect(x,            y + ts - 2,   ts, 2);
       if (!left)  pathGfx.fillRect(x,            y,            2,  ts);
       if (!right) pathGfx.fillRect(x + ts - 2,   y,            2,  ts);
+
+      // ── Path-edge decorations (grass tufts & rocks bleeding onto path) ──
+      // ~30% of eligible edges get a grass tuft, ~10% get a small rock
+      if (!above) {
+        const egHash = posHash(seed, row, col, 60);
+        if (egHash < 0.30) {
+          const ex = x + ts * (0.2 + posHash(seed, row, col, 61) * 0.6);
+          drawPathEdgeTuft(pathGfx, ex, y, pal.grassColor, 'top', posHash(seed, row, col, 62));
+        } else if (egHash < 0.40) {
+          const ex = x + ts * (0.2 + posHash(seed, row, col, 61) * 0.6);
+          drawPathEdgeRock(pathGfx, ex, y + 2, pal.rockColor, posHash(seed, row, col, 63));
+        }
+      }
+      if (!below) {
+        const egHash = posHash(seed, row, col, 64);
+        if (egHash < 0.30) {
+          const ex = x + ts * (0.2 + posHash(seed, row, col, 65) * 0.6);
+          drawPathEdgeTuft(pathGfx, ex, y + ts, pal.grassColor, 'bottom', posHash(seed, row, col, 66));
+        } else if (egHash < 0.40) {
+          const ex = x + ts * (0.2 + posHash(seed, row, col, 65) * 0.6);
+          drawPathEdgeRock(pathGfx, ex, y + ts - 2, pal.rockColor, posHash(seed, row, col, 67));
+        }
+      }
+      if (!left) {
+        const egHash = posHash(seed, row, col, 68);
+        if (egHash < 0.30) {
+          const ey = y + ts * (0.2 + posHash(seed, row, col, 69) * 0.6);
+          drawPathEdgeTuft(pathGfx, x, ey, pal.grassColor, 'left', posHash(seed, row, col, 70));
+        } else if (egHash < 0.40) {
+          const ey = y + ts * (0.2 + posHash(seed, row, col, 69) * 0.6);
+          drawPathEdgeRock(pathGfx, x + 2, ey, pal.rockColor, posHash(seed, row, col, 71));
+        }
+      }
+      if (!right) {
+        const egHash = posHash(seed, row, col, 72);
+        if (egHash < 0.30) {
+          const ey = y + ts * (0.2 + posHash(seed, row, col, 73) * 0.6);
+          drawPathEdgeTuft(pathGfx, x + ts, ey, pal.grassColor, 'right', posHash(seed, row, col, 74));
+        } else if (egHash < 0.40) {
+          const ey = y + ts * (0.2 + posHash(seed, row, col, 73) * 0.6);
+          drawPathEdgeRock(pathGfx, x + ts - 2, ey, pal.rockColor, posHash(seed, row, col, 75));
+        }
+      }
     }
   }
 
