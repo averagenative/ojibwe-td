@@ -225,8 +225,11 @@ describe('tap targets — 44px minimum on mobile', () => {
   });
 
   it('MetaMenuScene: unlock node ≥ 44px on mobile', () => {
-    // nodeH = this._isMobile ? Math.max(NODE_H_COMPACT, 44) : NODE_H_COMPACT
-    expect(metaMenuSrc).toContain('Math.max(NODE_H_COMPACT, 44)');
+    // nodeH = NODE_H (90) — always exceeds 44px tap target on both platforms
+    expect(metaMenuSrc).toMatch(/const nodeH\s*=\s*NODE_H;/);
+    // NODE_H is 90, which satisfies the 44px minimum
+    const m = metaMenuSrc.match(/const NODE_H\s+=\s+(\d+)/);
+    expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(44);
   });
 });
 

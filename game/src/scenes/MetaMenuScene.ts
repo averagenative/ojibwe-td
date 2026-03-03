@@ -4,8 +4,8 @@ import type { ConsumablePending } from '../meta/SaveManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
 import type { UnlockNode } from '../meta/unlockDefs';
 import { MobileManager } from '../systems/MobileManager';
+import { PAL } from '../ui/palette';
 
-const BG_COLOR    = 0x0a0a0a;
 const PANEL_W     = 420;
 const NODE_H          = 90;
 const NODE_H_COMPACT  = 60;
@@ -68,7 +68,7 @@ export class MetaMenuScene extends Phaser.Scene {
     const cx = width / 2;
 
     // Background
-    this.add.rectangle(cx, height / 2, width, height, BG_COLOR);
+    this.createBackground();
 
     const save = SaveManager.getInstance();
 
@@ -127,6 +127,20 @@ export class MetaMenuScene extends Phaser.Scene {
     });
   }
 
+  // ── Background ─────────────────────────────────────────────────────────────
+
+  private createBackground(): void {
+    const { width, height } = this.scale;
+    this.add.rectangle(width / 2, height / 2, width, height, PAL.bgDark);
+
+    const gfx = this.add.graphics();
+    gfx.lineStyle(1, 0x1a2a1a, 0.3);
+    const ts = 40;
+    for (let x = 0; x < width; x += ts) { gfx.moveTo(x, 0); gfx.lineTo(x, height); }
+    for (let y = 0; y < height; y += ts) { gfx.moveTo(0, y); gfx.lineTo(width, y); }
+    gfx.strokePath();
+  }
+
   // ── Tab renderers ─────────────────────────────────────────────────────────
 
   private renderUnlocksTab(
@@ -142,8 +156,8 @@ export class MetaMenuScene extends Phaser.Scene {
     // All scrollable unlock content lives in this container.
     const container = this.add.container(0, 0);
 
-    // On mobile, use slightly taller nodes to ensure 44px tap target.
-    const nodeH = this._isMobile ? Math.max(NODE_H_COMPACT, 44) : NODE_H_COMPACT;
+    // Use full node height so wrapped descriptions don't overflow the box.
+    const nodeH = NODE_H;
 
     let y = startY;
 
@@ -276,12 +290,13 @@ export class MetaMenuScene extends Phaser.Scene {
         fontStyle:  'bold',
       });
 
-      // Description
+      // Description — word-wrapped with maxLines to prevent overflow on mobile.
       this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, item.description, {
         fontSize:   this._fs(11),
         color:      '#888888',
         fontFamily: 'monospace',
         wordWrap:   { width: PANEL_W - NODE_PAD_X * 2 - 110 },
+        maxLines:   3,
       });
 
       // Right-side cost + stock badge
@@ -392,12 +407,13 @@ export class MetaMenuScene extends Phaser.Scene {
     });
     if (container) container.add(label);
 
-    // Description
+    // Description — word-wrapped to fit within the node box; maxLines guards against overflow.
     const desc = this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, node.description, {
       fontSize:    this._fs(11),
       color:       '#888888',
       fontFamily:  'monospace',
       wordWrap:    { width: PANEL_W - NODE_PAD_X * 2 - 100 },
+      maxLines:    3,
     });
     if (container) container.add(desc);
 
