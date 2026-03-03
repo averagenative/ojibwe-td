@@ -2,7 +2,7 @@
 id: TASK-107
 title: Multi-Tower Select & Batch Upgrade
 priority: medium
-status: in-progress
+status: done
 type: feature
 ---
 
