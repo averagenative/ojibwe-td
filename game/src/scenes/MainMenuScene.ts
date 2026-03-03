@@ -187,7 +187,7 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     this.add.text(cx, labelY, 'SELECT REGION', {
-      fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody,
+      fontSize: this._fs(12), color: PAL.textMuted, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION);
   }
 
@@ -216,24 +216,28 @@ export class MainMenuScene extends Phaser.Scene {
     this.regionPanels.set(region.id, panel);
 
     this.add.text(bx, by - rh * 0.25, region.name, {
-      fontSize: this._fs(14), color: pal.text, fontFamily: PAL.fontBody, fontStyle: 'bold',
+      fontSize: this._fs(15), color: pal.text, fontFamily: PAL.fontBody, fontStyle: 'bold',
+      shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 2, fill: true, stroke: false },
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     const parts = region.displayName.split('(');
     const english = parts[1] ? '(' + parts[1] : '';
     if (english) {
       this.add.text(bx, by - rh * 0.04, english, {
-        fontSize: this._fs(10), color: PAL.textMuted, fontFamily: PAL.fontBody,
+        fontSize: this._fs(11), color: PAL.textSecondary, fontFamily: PAL.fontBody,
+        shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 2, fill: true, stroke: false },
       }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
     }
 
     const stageCount = region.stages.length;
     this.add.text(bx, by + rh * 0.18, `${stageCount} stage${stageCount !== 1 ? 's' : ''}`, {
-      fontSize: this._fs(10), color: PAL.textDim, fontFamily: PAL.fontBody,
+      fontSize: this._fs(11), color: PAL.textMuted, fontFamily: PAL.fontBody,
+      shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 2, fill: true, stroke: false },
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     this.add.text(bx, by + rh * 0.34, region.seasonalTheme.toUpperCase(), {
-      fontSize: this._fs(9), color: PAL.textFaint, fontFamily: PAL.fontBody,
+      fontSize: this._fs(10), color: PAL.textMuted, fontFamily: PAL.fontBody,
+      shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 2, fill: true, stroke: false },
     }).setOrigin(0.5).setDepth(DEPTH_REGION + 1);
 
     panel.zone.on('pointerover', () => {
@@ -282,7 +286,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.refreshStageTiles();
 
     this.add.text(cx, this.stageRowY - this._stageH / 2 - 16, 'SELECT STAGE', {
-      fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody,
+      fontSize: this._fs(12), color: PAL.textMuted, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_STAGE);
   }
 
