@@ -144,7 +144,7 @@ describe('MainMenuScene layout offset for logo', () => {
     expect(match).not.toBeNull();
   });
 
-  it('iconY accounts for logoAreaH offset', () => {
+  it('labelY accounts for logoAreaH offset', () => {
     expect(mainMenuSrc).toContain('TOP_PAD + logoAreaH');
   });
 });
