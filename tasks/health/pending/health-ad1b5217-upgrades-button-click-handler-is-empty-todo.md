@@ -2,6 +2,7 @@
 id: HEALTH-ad1b5217
 title: "UPGRADES button click handler is empty TODO"
 status: pending
+priority: high
 category: health
 severity: low
 source: health-check

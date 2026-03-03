@@ -2,6 +2,7 @@
 id: HEALTH-01da022e
 title: "Poison Plague II–V describe features never implemented"
 status: pending
+priority: high
 category: health
 severity: high
 source: health-check

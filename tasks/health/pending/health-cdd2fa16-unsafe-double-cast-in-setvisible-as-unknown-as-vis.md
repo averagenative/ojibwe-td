@@ -2,6 +2,7 @@
 id: HEALTH-cdd2fa16
 title: "Unsafe double cast in setVisible: as unknown as Visible"
 status: pending
+priority: medium
 category: health
 severity: medium
 source: health-check

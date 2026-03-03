@@ -2,7 +2,7 @@
 id: TASK-119
 title: Remove Visual Box from Tower Turrets
 priority: high
-status: pending
+status: done
 type: bug
 ---
 

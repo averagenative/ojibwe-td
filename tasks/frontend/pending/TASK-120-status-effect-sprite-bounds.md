@@ -2,7 +2,7 @@
 id: TASK-120
 title: Status Effect Visuals — Clip to Sprite Bounds, Not Full Box
 priority: high
-status: pending
+status: in-progress
 type: bug
 ---
 

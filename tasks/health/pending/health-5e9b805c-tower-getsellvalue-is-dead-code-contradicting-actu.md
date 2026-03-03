@@ -2,6 +2,7 @@
 id: HEALTH-5e9b805c
 title: "Tower.getSellValue() is dead code contradicting actual sell logic"
 status: pending
+priority: medium
 category: health
 severity: medium
 source: health-check

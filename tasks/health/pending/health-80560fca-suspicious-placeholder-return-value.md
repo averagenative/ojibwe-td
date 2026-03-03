@@ -2,6 +2,7 @@
 id: HEALTH-80560fca
 title: "Suspicious placeholder return value"
 status: pending
+priority: low
 category: health
 severity: low
 source: health-check

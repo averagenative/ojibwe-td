@@ -2375,6 +2375,13 @@ Non-blocking items surfaced during code review:
 - **VignetteOverlay skip button bypasses hold-to-skip delay for first-time vignettes**: The "Skip ▶" button calls `dismiss()` directly, skipping the 1.5s `HOLD_SKIP_MS` delay that `handleClick()` enforces for never-before-seen vignettes. This is intentional per the task spec ("immediately closes the dialog"), but may warrant a brief confirmation prompt if playtesting reveals players accidentally skipping important story beats.
 - **CutsceneScene and VignetteOverlay skip buttons have inconsistent styling**: CutsceneScene uses "SKIP" (bold, top-right, 80×32/90×44), VignetteOverlay uses "Skip ▶" (normal weight, bottom-right, 70×28/80×44). Consider unifying label text, position, and styling across both overlay types for visual consistency.
 
+### TASK-119 review observations (2026-03-03)
+- **Tower body Rectangle still has a visible filled background**: Removing the stroke hides the outline, but the body rectangle itself is still rendered with `this.def.bodyColor` as a filled 28×28 square. Towers that have an icon overlay fully cover this, but if any tower icon is smaller than 20×20 display size the colored square will peek through. Not an issue today (all icons use `setDisplaySize(20, 20)` on a 28×28 body), but worth verifying after any icon size changes.
+
+### TASK-120 review observations (2026-03-03)
+- **`_getBodyGeometry()` allocates a fresh object on every call**: The method returns `{ w, h, y, rotation }` which allocates a short-lived object. Currently called only on direction change and status-effect toggle (both low-frequency), so no perf issue today. If overlay refresh were ever moved into the per-frame update loop, this should be replaced with a cached/mutable struct to avoid GC pressure.
+- **Status-effect particles still use hardcoded spread widths**: `_syncParticles()` uses `this.isBossCreep ? 44 : 22` for `baseX` spread and `this.isBossCreep ? -16 : -11` for `riseY`. These don't match the body geometry constants (BODY_HORIZ_W=30, BOSS_HORIZ_W=56). Particles will extend slightly beyond or fall short of the sprite bounds. Consider deriving particle spread from `_getBodyGeometry()` for full consistency.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-03 02:00:05
 Findings: 113 total (60 new task files created, 53 already tracked)

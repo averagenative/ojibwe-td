@@ -2,6 +2,7 @@
 id: HEALTH-8a7dd5aa
 title: "Unsafe 'as' type cast"
 status: pending
+priority: low
 category: health
 severity: low
 source: health-check

@@ -2,6 +2,7 @@
 id: HEALTH-379b1771
 title: "No shutdown() to tear down input listeners and systems"
 status: pending
+priority: high
 category: health
 severity: medium
 source: health-check

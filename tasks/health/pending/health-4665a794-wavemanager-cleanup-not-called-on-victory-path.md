@@ -2,6 +2,7 @@
 id: HEALTH-4665a794
 title: "WaveManager.cleanup() not called on victory path"
 status: pending
+priority: critical
 category: health
 severity: medium
 source: health-check

@@ -2,6 +2,7 @@
 id: HEALTH-3f160d17
 title: "getBottomUIHeight() exported but never imported"
 status: pending
+priority: low
 category: health
 severity: low
 source: health-check

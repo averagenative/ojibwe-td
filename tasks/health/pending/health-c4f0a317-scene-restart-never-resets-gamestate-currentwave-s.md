@@ -2,6 +2,7 @@
 id: HEALTH-c4f0a317
 title: "Scene restart never resets gameState / currentWave / speed"
 status: pending
+priority: critical
 category: health
 severity: high
 source: health-check

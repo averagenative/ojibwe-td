@@ -2,6 +2,7 @@
 id: HEALTH-16f01c1a
 title: "Suspicious placeholder return value"
 status: pending
+priority: low
 category: health
 severity: low
 source: health-check

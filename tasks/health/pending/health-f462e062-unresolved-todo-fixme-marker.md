@@ -2,6 +2,7 @@
 id: HEALTH-f462e062
 title: "Unresolved TODO/FIXME marker"
 status: pending
+priority: high
 category: health
 severity: medium
 source: health-check

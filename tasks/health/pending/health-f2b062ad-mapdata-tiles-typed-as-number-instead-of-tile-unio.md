@@ -2,6 +2,7 @@
 id: HEALTH-f2b062ad
 title: "MapData.tiles typed as number[][] instead of TILE union"
 status: pending
+priority: medium
 category: health
 severity: low
 source: health-check

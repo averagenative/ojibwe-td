@@ -2,6 +2,7 @@
 id: HEALTH-9ac10860
 title: "WaveManager.isActive() and getWaveNumber() never called"
 status: pending
+priority: low
 category: health
 severity: low
 source: health-check

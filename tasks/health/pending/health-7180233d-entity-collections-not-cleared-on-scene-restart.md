@@ -2,6 +2,7 @@
 id: HEALTH-7180233d
 title: "Entity collections not cleared on scene restart"
 status: pending
+priority: critical
 category: health
 severity: high
 source: health-check

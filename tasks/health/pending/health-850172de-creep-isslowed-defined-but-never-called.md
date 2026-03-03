@@ -2,6 +2,7 @@
 id: HEALTH-850172de
 title: "Creep.isSlowed() defined but never called"
 status: pending
+priority: low
 category: health
 severity: low
 source: health-check
