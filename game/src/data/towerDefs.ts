@@ -205,7 +205,7 @@ export const POISON_DEF: TowerDef = {
 };
 
 export const TESLA_DEF: TowerDef = {
-  key: 'tesla',  name: 'Tesla',  cost: 200,
+  key: 'tesla',  name: 'Thunder',  cost: 200,
   range: 160,  damage: 42,  attackIntervalMs: 1500,  projectileSpeed: 500,
   description: 'Chains lightning to up to 3 air targets. Air-only specialist.',
   bodyColor: 0xbbaa22,  projectileColor: 0xffff44,  projectileRadius: 4,

@@ -682,7 +682,7 @@ export class GameScene extends Phaser.Scene {
       this.hud.setNextWaveVisible(true, nextWave, this.isEndlessMode);
       this.showWaveBanner(nextWave);
       if (this.waveManager.hasAirCreepsInWave(nextWave)) {
-        this.hud.showAirWaveAlert('▲ Air wave incoming! Deploy Tesla/Frost!');
+        this.hud.showAirWaveAlert('▲ Air wave incoming! Deploy Thunder/Frost!');
       } else {
         this.hud.showAirWaveAlert('');
       }

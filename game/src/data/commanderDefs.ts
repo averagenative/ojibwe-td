@@ -230,7 +230,7 @@ const ANIMIKIIKAA: CommanderDef = {
   aura: {
     name: 'Animiki-bimaadiziwin',
     nameEnglish: 'Thunder Life',
-    description: 'Tesla chain count +1 globally; chain jumps emit a 1-tile AoE on impact.',
+    description: 'Thunder chain count +1 globally; chain jumps emit a 1-tile AoE on impact.',
     apply(state) {
       state.teslaChainBonus = 1;
       state.teslaChainAoE = true;
@@ -239,7 +239,7 @@ const ANIMIKIIKAA: CommanderDef = {
   ability: {
     name: 'Gichi-animikiikaa',
     nameEnglish: 'Great Thunder',
-    description: 'For 8 seconds all Tesla towers fire at 3x speed and chains ignore target limits.',
+    description: 'For 8 seconds all Thunder towers fire at 3x speed and chains ignore target limits.',
     cooldown: 'once-per-run',
     uiIcon: 'ability-great-thunder',
     activate(state, ctx) {
