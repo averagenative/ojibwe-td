@@ -11,6 +11,7 @@ import type { CommanderAnimDef, CommanderElement } from '../data/commanderAnimDe
 import { SaveManager } from '../meta/SaveManager';
 import { getCommanderUnlockNode } from '../meta/unlockDefs';
 import { MobileManager } from '../systems/MobileManager';
+import { getStageDef, getRegionDef, SEASON_PALETTE } from '../data/stageDefs';
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -93,6 +94,9 @@ export class CommanderSelectScene extends Phaser.Scene {
   /** True when running on a mobile/touch device. Set once in create(). */
   private _isMobile = false;
 
+  /** Transition guard — prevents double-navigation. */
+  private _fading = false;
+
   /** Per-card animation state for unlocked commanders. */
   private _animStates: CardAnimState[] = [];
   /** Max ambient particles per card (keep light for performance). */
@@ -120,13 +124,26 @@ export class CommanderSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    this._fading = false;
+    // Fade in from black for smooth scene transition
+    this.cameras.main.fadeIn(350, 0, 0, 0);
+
     this._isMobile = MobileManager.getInstance().isMobile();
 
     const { width, height } = this.scale;
     const cx = width / 2;
 
-    // Background
-    this.add.rectangle(cx, height / 2, width, height, 0x0a0a0a);
+    // Background — tinted by selected region's seasonal palette
+    const stageDef = this.selectedStageId ? getStageDef(this.selectedStageId) : null;
+    const regionDef = stageDef ? getRegionDef(stageDef.regionId) : null;
+    const palette = regionDef ? SEASON_PALETTE[regionDef.seasonalTheme] : null;
+    const bgColor = palette ? palette.bg : 0x0a0a0a;
+    this.add.rectangle(cx, height / 2, width, height, bgColor);
+    // Subtle dark vignette at top and bottom edges
+    const vigGfx = this.add.graphics();
+    vigGfx.fillStyle(0x000000, 0.30);
+    vigGfx.fillRect(0, 0, width, height * 0.18);
+    vigGfx.fillRect(0, height * 0.82, width, height * 0.18);
 
     // Title
     this.add.text(cx, 36, 'CHOOSE YOUR COMMANDER', {
@@ -178,7 +195,7 @@ export class CommanderSelectScene extends Phaser.Scene {
       this.confirmLabel.setColor('#00ff44');
     });
     this.confirmBtn.on('pointerup', () => {
-      this.scene.start('GameScene', {
+      this._go('GameScene', {
         commanderId: this.selectedId,
         stageId:     this.selectedStageId,
         mapId:       this.selectedMapId,
@@ -202,10 +219,27 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     backBg.on('pointerover', () => backLabel.setColor('#cccccc'));
     backBg.on('pointerout', () => backLabel.setColor('#888888'));
-    backBg.on('pointerup', () => this.scene.start('MainMenuScene'));
+    backBg.on('pointerup', () => this._go('MainMenuScene'));
 
     // Select default
     this.highlightCard(this.selectedId);
+
+    // Portrait slide-in from sides
+    const n = this._animStates.length;
+    const midIdx = (n - 1) / 2;
+    for (let i = 0; i < n; i++) {
+      const state = this._animStates[i];
+      const offsetDir = i < midIdx ? -1 : 1;
+      const startX = state.baseX + offsetDir * 280;
+      state.portrait.x = startX;
+      this.tweens.add({
+        targets: state.portrait,
+        x: state.baseX,
+        duration: 380,
+        delay: i * 60,
+        ease: 'Back.easeOut',
+      });
+    }
   }
 
   // ── Card builder ──────────────────────────────────────────────────────────
@@ -639,7 +673,7 @@ export class CommanderSelectScene extends Phaser.Scene {
     confirmBg.on('pointerover', () => confirmBg.setFillStyle(0x004466));
     confirmBg.on('pointerout', () => confirmBg.setFillStyle(0x003355));
     confirmBg.on('pointerup', () => {
-      this.scene.start('MetaMenuScene');
+      this._go('MetaMenuScene');
     });
 
     // Cancel button
@@ -918,6 +952,17 @@ export class CommanderSelectScene extends Phaser.Scene {
       CARD_W + 2,
       CARD_H + 2,
     );
+  }
+
+  // ── Fade transition ───────────────────────────────────────────────────────
+
+  private _go(key: string, data?: object): void {
+    if (this._fading) return;
+    this._fading = true;
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(key, data);
+    });
   }
 
   // ── Lifecycle cleanup ─────────────────────────────────────────────────────
