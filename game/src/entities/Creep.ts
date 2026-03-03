@@ -879,6 +879,9 @@ export class Creep extends Phaser.GameObjects.Container {
       this.armorIndicator.x = this.armorBaseX;
       this.armorIndicator.y = this.armorBaseY;
     }
+
+    // Keep any active status-effect overlays aligned with the new body geometry.
+    this._refreshOverlayGeometries();
   }
 
   /**
@@ -999,9 +1002,67 @@ export class Creep extends Phaser.GameObjects.Container {
   // ── Status effect visual helpers ──────────────────────────────────────────
 
   /**
+   * Return the overlay geometry (size, y-position, rotation) that matches the
+   * current body sprite's visible area.  Uses canonical display-size constants
+   * so the overlay does NOT flutter with the walk animation.
+   *
+   * • bodyImage path: always sized HORIZ_W × HORIZ_H; rotation mirrors the
+   *   image rotation so vertical movement shows the taller silhouette.
+   * • bodyRect path: width/height change per direction (no rotation).
+   * • Air creeps: y is set to AIR_BODY_OFFSET_Y so the overlay floats with
+   *   the sprite rather than sitting at the container origin.
+   */
+  private _getBodyGeometry(): { w: number; h: number; y: number; rotation: number } {
+    const isHoriz = this.direction === 'left' || this.direction === 'right';
+
+    if (this.bodyImage) {
+      const w = this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W;
+      const h = this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H;
+      const rotation = isHoriz
+        ? 0
+        : (this.direction === 'down' ? Math.PI / 2 : -Math.PI / 2);
+      return { w, h, y: this.bodyImage.y, rotation };
+    }
+
+    if (this.bodyRect) {
+      const w = isHoriz
+        ? (this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W)
+        : (this.isBossCreep ? BOSS_VERT_W  : BODY_VERT_W);
+      const h = isHoriz
+        ? (this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H)
+        : (this.isBossCreep ? BOSS_VERT_H  : BODY_VERT_H);
+      return { w, h, y: this.bodyRect.y, rotation: 0 };
+    }
+
+    // Fallback — should never occur in practice.
+    return {
+      w: this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W,
+      h: this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H,
+      y: 0,
+      rotation: 0,
+    };
+  }
+
+  /**
+   * Resize / reposition every allocated overlay rectangle to match the current
+   * body geometry.  Called from updateDirectionalVisual() so overlays track
+   * direction changes in real time.
+   */
+  private _refreshOverlayGeometries(): void {
+    if (this._effectOverlays.size === 0) return;
+    const geo = this._getBodyGeometry();
+    for (const overlay of this._effectOverlays.values()) {
+      overlay.setSize(geo.w, geo.h);
+      overlay.setPosition(0, geo.y);
+      overlay.setRotation(geo.rotation);
+    }
+  }
+
+  /**
    * Show or hide the semi-transparent tint overlay for the given effect.
    * Overlays are inserted into the container BEFORE the HP bar so the HP bar
-   * always renders on top.
+   * always renders on top.  Size/position/rotation are derived from the current
+   * body geometry so the overlay covers only the sprite's visible area.
    */
   private _syncOverlay(
     key:    StatusEffectKey,
@@ -1015,17 +1076,20 @@ export class Creep extends Phaser.GameObjects.Container {
     let overlay = this._effectOverlays.get(key);
 
     if (active) {
+      const geo = this._getBodyGeometry();
       if (!overlay) {
-        const bodyW = this.isBossCreep ? 58 : 32;
-        const bodyH = this.isBossCreep ? 42 : 26;
         overlay = new Phaser.GameObjects.Rectangle(
-          this.scene, 0, 0, bodyW, bodyH, color, alpha,
+          this.scene, 0, geo.y, geo.w, geo.h, color, alpha,
         );
+        overlay.setRotation(geo.rotation);
         // Insert before hpBarBg so the HP bar always renders above the overlay.
         const insertIdx = Math.max(0, this.getIndex(this._hpBarBg));
         this.addAt(overlay, insertIdx);
         this._effectOverlays.set(key, overlay);
       } else {
+        overlay.setSize(geo.w, geo.h);
+        overlay.setPosition(0, geo.y);
+        overlay.setRotation(geo.rotation);
         overlay.setFillStyle(color);
         overlay.setAlpha(alpha);
         overlay.setVisible(true);
