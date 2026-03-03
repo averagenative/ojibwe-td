@@ -51,6 +51,7 @@ import { MultiTowerPanel } from '../ui/MultiTowerPanel';
 import { AchievementManager } from '../systems/AchievementManager';
 import type { VictoryData } from '../systems/AchievementManager';
 import { AchievementToast } from '../ui/AchievementToast';
+import { AmbientVFX } from '../systems/AmbientVFX';
 
 const DEFAULT_TOTAL_WAVES = 20;
 /** Flat gold bonus awarded when the player rushes the next wave early. */
@@ -239,6 +240,10 @@ export class GameScene extends Phaser.Scene {
   /** Achievement toast notification component (created in create()). */
   private _achToast: AchievementToast | null = null;
 
+  // ── ambient VFX ────────────────────────────────────────────────────────────
+  /** Continuous ambient particle effects for the current map region. */
+  private _ambientVFX: AmbientVFX | null = null;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -317,6 +322,7 @@ export class GameScene extends Phaser.Scene {
     this._achTowerTypesRun     = new Set();
     this._achConsumablesUsedRun = [];
     this._achInitialRerolls    = 0;
+    this._ambientVFX           = null;
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -384,6 +390,18 @@ export class GameScene extends Phaser.Scene {
     this.data.set('tileSize', this.mapData.tileSize);
 
     this.renderMap();
+
+    // ── Ambient VFX ───────────────────────────────────────────────────────
+    {
+      const regionId = this.activeStageDef?.regionId ?? 'zaagaiganing';
+      this._ambientVFX = new AmbientVFX(
+        this,
+        this.mapData,
+        regionId,
+        this.selectedStageId,
+        MobileManager.getInstance().isMobile(),
+      );
+    }
 
     // ── Performance systems ───────────────────────────────────────────────
     // Spatial grid: cell size 80px over the full map canvas.
@@ -971,6 +989,9 @@ export class GameScene extends Phaser.Scene {
     // ── Trail pool update ──────────────────────────────────────────────────
     this.trailPool.update(scaledDelta);
 
+    // ── Ambient VFX update ─────────────────────────────────────────────────
+    this._ambientVFX?.update(scaledDelta);
+
     for (const proj of this.projectiles) {
       if (proj.active) {
         proj.step(scaledDelta);
@@ -1061,6 +1082,10 @@ export class GameScene extends Phaser.Scene {
 
     // Vignette overlay cleanup.
     this.vignetteOverlay?.cleanup();
+
+    // Ambient VFX cleanup.
+    this._ambientVFX?.destroy();
+    this._ambientVFX = null;
 
     // Drop entity references so GC can reclaim memory after restart.
     this.activeCreeps?.clear();
