@@ -44,6 +44,14 @@ const AFFINITY_COLORS: Record<string, number> = {
   arrow:         0x8b6b3d,
 };
 
+// ── Seasonal card particle colours per theme ──────────────────────────────────
+const SEASON_PARTICLE_COLORS: Record<string, number> = {
+  winter: 0xd8eeff,
+  autumn: 0xcc6600,
+  spring: 0x88dd44,
+  summer: 0xffcc44,
+};
+
 // ── Rounded-panel helper ────────────────────────────────────────────────────
 
 interface Panel {
@@ -77,6 +85,34 @@ function fillPanel(
   }
 }
 
+// ── Particle types ────────────────────────────────────────────────────────────
+
+interface EmberParticle {
+  gfx: Phaser.GameObjects.Arc;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+}
+
+interface CardParticle {
+  gfx: Phaser.GameObjects.Arc;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  cx: number;
+  cy: number;
+  hw: number;
+  hh: number;
+}
+
+interface ParallaxLayer {
+  gfx: Phaser.GameObjects.Graphics;
+  freq: number;
+  amp: number;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -102,6 +138,14 @@ export class MainMenuScene extends Phaser.Scene {
   /** Active stage card height (scaled for mobile). */
   private _stageH     = STAGE_H;
 
+  // ── Animated background state ──────────────────────────────────────────────
+  private _parallaxLayers: ParallaxLayer[] = [];
+  private _embers: EmberParticle[] = [];
+  private _cardParticles: CardParticle[] = [];
+
+  // ── Transition guard ───────────────────────────────────────────────────────
+  private _fading = false;
+
   /**
    * Returns a CSS font-size string scaled up by 1.35× on mobile.
    * Example: _fs(11) → '11px' on desktop, '15px' on mobile.
@@ -116,6 +160,10 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    this._fading = false;
+    // Fade in from black for smooth scene transition
+    this.cameras.main.fadeIn(350, 0, 0, 0);
+
     // Start menu music (no-op if the file buffer isn't loaded yet).
     AudioManager.getInstance().startMusicTrack('music-menu');
 
@@ -142,6 +190,9 @@ export class MainMenuScene extends Phaser.Scene {
     this.regionPanels.clear();
     this.stagePanels.clear();
     this.stageTiles = [];
+    this._parallaxLayers = [];
+    this._embers = [];
+    this._cardParticles = [];
 
     // Vertical flow: icons → label → regions → label → stage → buttons → footer
     const iconY  = TOP_PAD;
@@ -152,6 +203,10 @@ export class MainMenuScene extends Phaser.Scene {
     this._audioPanel = null;
 
     this.createBackground();
+    this._buildParallaxLayers();
+    this._buildTimeOfDayTint();
+    this._buildLogoTitle(cx, iconY - 14);
+    this._buildEmbers();
     this.createHeader(cx, iconY, labelY);
     this.createRegionRow(cx);
     this.createStageRow(cx);
@@ -173,6 +228,150 @@ export class MainMenuScene extends Phaser.Scene {
     for (let x = 0; x < width; x += ts) { gfx.moveTo(x, 0); gfx.lineTo(x, height); }
     for (let y = 0; y < height; y += ts) { gfx.moveTo(0, y); gfx.lineTo(width, y); }
     gfx.strokePath();
+  }
+
+  // ── Animated parallax layers ───────────────────────────────────────────────
+
+  private _buildParallaxLayers(): void {
+    const { width, height } = this.scale;
+
+    // Layer 0: distant mountains — slow, large amplitude
+    const mtn = this.add.graphics().setDepth(DEPTH_BG + 1);
+    mtn.fillStyle(0x071109, 1);
+    mtn.beginPath();
+    mtn.moveTo(-60, height);
+    for (let i = 0; i <= 10; i++) {
+      const x = -60 + (width + 120) * i / 10;
+      const isPeak = i % 2 === 1;
+      const peakVar = isPeak ? Math.sin(i * 1.7) * 38 : 0;
+      const y = isPeak ? height * 0.42 + peakVar : height * 0.57;
+      mtn.lineTo(x, y);
+    }
+    mtn.lineTo(width + 60, height);
+    mtn.closePath();
+    mtn.fillPath();
+    this._parallaxLayers.push({ gfx: mtn, freq: 0.00007, amp: 25 });
+
+    // Layer 1: midground treeline — medium speed
+    const trees = this.add.graphics().setDepth(DEPTH_BG + 2);
+    trees.fillStyle(0x091509, 1);
+    trees.beginPath();
+    trees.moveTo(-60, height);
+    for (let i = 0; i <= 14; i++) {
+      const x = -60 + (width + 120) * i / 14;
+      const isPeak = i % 2 === 0;
+      const treeH = isPeak ? height * 0.49 + Math.sin(i * 2.3) * 22 : height * 0.60;
+      trees.lineTo(x, treeH);
+    }
+    trees.lineTo(width + 60, height);
+    trees.closePath();
+    trees.fillPath();
+    this._parallaxLayers.push({ gfx: trees, freq: 0.00010, amp: 18 });
+
+    // Layer 2: foreground brush — faster, smallest amplitude
+    const brush = this.add.graphics().setDepth(DEPTH_BG + 3);
+    brush.fillStyle(0x0b1a09, 1);
+    brush.beginPath();
+    brush.moveTo(-60, height);
+    for (let i = 0; i <= 18; i++) {
+      const x = -60 + (width + 120) * i / 18;
+      const isPeak = i % 3 !== 0;
+      const bH = isPeak ? height * 0.57 + Math.sin(i * 1.1) * 14 : height * 0.64;
+      brush.lineTo(x, bH);
+    }
+    brush.lineTo(width + 60, height);
+    brush.closePath();
+    brush.fillPath();
+    this._parallaxLayers.push({ gfx: brush, freq: 0.00013, amp: 12 });
+  }
+
+  // ── Time-of-day tint ──────────────────────────────────────────────────────
+
+  private _buildTimeOfDayTint(): void {
+    const { width, height } = this.scale;
+    const hour = new Date().getHours();
+
+    let color: number;
+    let alpha: number;
+
+    if (hour >= 6 && hour < 9) {
+      // Morning: cool blue-pink
+      color = 0x0d1a2a;
+      alpha = 0.07;
+    } else if (hour >= 9 && hour < 17) {
+      // Daytime: no tint (bright)
+      return;
+    } else if (hour >= 17 && hour < 20) {
+      // Sunset: warm amber (default look)
+      color = 0x2a1205;
+      alpha = 0.10;
+    } else {
+      // Night: deep blue
+      color = 0x050818;
+      alpha = 0.12;
+    }
+
+    this.add.rectangle(width / 2, height / 2, width, height, color)
+      .setAlpha(alpha)
+      .setDepth(DEPTH_BG + 0.5);
+  }
+
+  // ── Logo title with breathing glow ────────────────────────────────────────
+
+  private _buildLogoTitle(cx: number, y: number): void {
+    // Warm glow behind the title
+    const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
+    glowGfx.fillStyle(0x2a1205, 0.45);
+    glowGfx.fillEllipse(cx, y, 300, 24);
+
+    // Title text
+    const logoText = this.add.text(cx, y, 'OJIBWE TD', {
+      fontSize: this._fs(14),
+      color: PAL.gold,
+      fontFamily: PAL.fontTitle,
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(DEPTH_BG + 5);
+
+    // Breathing glow pulse via alpha tween
+    this.tweens.add({
+      targets: [logoText, glowGfx],
+      alpha: { from: 0.7, to: 1.0 },
+      duration: 2800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  // ── Floating embers / fireflies ───────────────────────────────────────────
+
+  private _buildEmbers(): void {
+    const { width, height } = this.scale;
+    const count = this._isMobile ? 4 : 6;
+
+    for (let i = 0; i < count; i++) {
+      const x = Phaser.Math.Between(20, width - 20);
+      const y = Phaser.Math.Between(Math.round(height * 0.3), height - 40);
+      const radius = 1 + Math.random() * 2;
+      // Alternate between warm ember and cool firefly
+      const color = i % 2 === 0 ? 0xff8822 : 0x88ee44;
+      const initAlpha = 0.25 + Math.random() * 0.35;
+
+      const gfx = this.add.circle(x, y, radius, color)
+        .setAlpha(initAlpha)
+        .setDepth(DEPTH_BG + 4);
+
+      const speed = 0.014 + Math.random() * 0.018;
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.9;
+
+      this._embers.push({
+        gfx,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: Math.random() * 3000,
+        maxLife: 3500 + Math.random() * 2500,
+      });
+    }
   }
 
   // ── Header (icons + label) ────────────────────────────────────────────────
@@ -202,6 +401,7 @@ export class MainMenuScene extends Phaser.Scene {
       const region = ALL_REGIONS[i];
       const bx = startX + i * (REGION_W + REGION_GAP);
       this.buildRegionTile(region, bx, this.regionRowY);
+      this._spawnCardSeasonParticles(region, bx, this.regionRowY);
     }
 
     this.highlightRegion(this.selectedRegionId);
@@ -278,6 +478,43 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     this.refreshStageTiles();
+  }
+
+  // ── Seasonal card particles ────────────────────────────────────────────────
+
+  private _spawnCardSeasonParticles(region: RegionDef, cx: number, cy: number): void {
+    const hw = REGION_W / 2 - 4;
+    const hh = this._regionH / 2 - 4;
+    const count = this._isMobile ? 2 : 3;
+    const color = SEASON_PARTICLE_COLORS[region.seasonalTheme] ?? 0xffffff;
+
+    let baseVx = 0;
+    let baseVy = 0;
+    switch (region.seasonalTheme) {
+      case 'winter': baseVy =  0.018; break;  // snow drifts down
+      case 'autumn': baseVx =  0.015; baseVy = 0.012; break;  // leaves fall sideways
+      case 'spring': baseVy = -0.015; break;  // pollen rises
+      case 'summer': baseVy = -0.012; break;  // fireflies drift up
+    }
+
+    for (let i = 0; i < count; i++) {
+      const startX = cx + (Math.random() - 0.5) * hw * 1.6;
+      const startY = cy + (Math.random() - 0.5) * hh * 1.6;
+      const radius = 0.8 + Math.random() * 0.8;
+
+      const gfx = this.add.circle(startX, startY, radius, color)
+        .setAlpha(0.5 + Math.random() * 0.25)
+        .setDepth(DEPTH_REGION - 0.5);
+
+      this._cardParticles.push({
+        gfx,
+        vx: baseVx + (Math.random() - 0.5) * 0.005,
+        vy: baseVy + (Math.random() - 0.5) * 0.005,
+        life: Math.random() * 2000,
+        maxLife: 2200 + Math.random() * 1500,
+        cx, cy, hw, hh,
+      });
+    }
   }
 
   // ── Stage row ──────────────────────────────────────────────────────────────
@@ -379,7 +616,7 @@ export class MainMenuScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
       created.push(lockLabel);
 
-      panel.zone.on('pointerup', () => this.scene.start('MetaMenuScene'));
+      panel.zone.on('pointerup', () => this._go('MetaMenuScene'));
     } else {
       const dots = this.buildAffinityDots(bx, by + sh / 2 - 36, stage.towerAffinities);
       created.push(...dots);
@@ -407,7 +644,7 @@ export class MainMenuScene extends Phaser.Scene {
       ePanel.zone.on('pointerup',   () => {
         this.selectedStageId = stage.id;
         this.highlightStage(stage.id);
-        this.scene.start('CommanderSelectScene', { stageId: stage.id, isEndless: true });
+        this._go('CommanderSelectScene', { stageId: stage.id, isEndless: true });
       });
 
       panel.zone.on('pointerover', () => fillPanel(panel, R, PAL.bgPanelHover, PAL.borderInactive, 2));
@@ -494,11 +731,19 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(22), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    startP.zone.on('pointerover',  () => { fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2); startLabel.setColor('#ffffff'); });
-    startP.zone.on('pointerout',   () => { fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2); startLabel.setColor(PAL.accentGreen); });
+    startP.zone.on('pointerover',  () => {
+      fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2);
+      startLabel.setColor('#ffffff');
+      this.tweens.add({ targets: startLabel, scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
+    });
+    startP.zone.on('pointerout',   () => {
+      fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
+      startLabel.setColor(PAL.accentGreen);
+      this.tweens.add({ targets: startLabel, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
+    });
     startP.zone.on('pointerdown',  () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
     startP.zone.on('pointerup',    () => {
-      this.scene.start('CommanderSelectScene', { stageId: this.selectedStageId });
+      this._go('CommanderSelectScene', { stageId: this.selectedStageId });
     });
 
     // Bottom row: UPGRADES | CHALLENGES | CODEX
@@ -515,9 +760,15 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(15), color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    metaP.zone.on('pointerover', () => metaLabel.setColor(PAL.accentBlueLight));
-    metaP.zone.on('pointerout',  () => metaLabel.setColor(PAL.accentBlue));
-    metaP.zone.on('pointerup',   () => this.scene.start('MetaMenuScene'));
+    metaP.zone.on('pointerover', () => {
+      metaLabel.setColor(PAL.accentBlueLight);
+      this.tweens.add({ targets: metaLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
+    });
+    metaP.zone.on('pointerout',  () => {
+      metaLabel.setColor(PAL.accentBlue);
+      this.tweens.add({ targets: metaLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
+    });
+    metaP.zone.on('pointerup',   () => this._go('MetaMenuScene'));
 
     // CHALLENGES
     const chalX = cx;
@@ -527,9 +778,15 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(13), color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    chalP.zone.on('pointerover', () => chalLabel.setColor(PAL.accentBlueLight));
-    chalP.zone.on('pointerout',  () => chalLabel.setColor(PAL.accentBlue));
-    chalP.zone.on('pointerup',   () => this.scene.start('ChallengeSelectScene'));
+    chalP.zone.on('pointerover', () => {
+      chalLabel.setColor(PAL.accentBlueLight);
+      this.tweens.add({ targets: chalLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
+    });
+    chalP.zone.on('pointerout',  () => {
+      chalLabel.setColor(PAL.accentBlue);
+      this.tweens.add({ targets: chalLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
+    });
+    chalP.zone.on('pointerup',   () => this._go('ChallengeSelectScene'));
 
     // CODEX
     const codexX = cx + bottomBtnW + bottomGap;
@@ -539,9 +796,15 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(15), color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    codexP.zone.on('pointerover', () => codexLabel.setColor(PAL.textPrimary));
-    codexP.zone.on('pointerout',  () => codexLabel.setColor(PAL.textSecondary));
-    codexP.zone.on('pointerup',   () => this.scene.start('CodexScene', { returnTo: 'MainMenuScene' }));
+    codexP.zone.on('pointerover', () => {
+      codexLabel.setColor(PAL.textPrimary);
+      this.tweens.add({ targets: codexLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
+    });
+    codexP.zone.on('pointerout',  () => {
+      codexLabel.setColor(PAL.textSecondary);
+      this.tweens.add({ targets: codexLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
+    });
+    codexP.zone.on('pointerup',   () => this._go('CodexScene', { returnTo: 'MainMenuScene' }));
 
     // Notification badge — shows count of unlocked-but-unread codex entries
     const save = SaveManager.getInstance();
@@ -565,9 +828,17 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(13), color: '#55aa55', fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    achP.zone.on('pointerover', () => { achLabel.setColor('#00ff44'); achP.gfx.setAlpha(1.2); });
-    achP.zone.on('pointerout',  () => { achLabel.setColor('#55aa55'); achP.gfx.setAlpha(1); });
-    achP.zone.on('pointerup',   () => this.scene.start('AchievementsScene', { returnTo: 'MainMenuScene' }));
+    achP.zone.on('pointerover', () => {
+      achLabel.setColor('#00ff44');
+      achP.gfx.setAlpha(1.2);
+      this.tweens.add({ targets: achLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
+    });
+    achP.zone.on('pointerout',  () => {
+      achLabel.setColor('#55aa55');
+      achP.gfx.setAlpha(1);
+      this.tweens.add({ targets: achLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
+    });
+    achP.zone.on('pointerup',   () => this._go('AchievementsScene', { returnTo: 'MainMenuScene' }));
   }
 
   private createAudioButton(width: number, height: number): void {
@@ -604,5 +875,98 @@ export class MainMenuScene extends Phaser.Scene {
     this.add.text(cx, height - 14, 'v0.1.0 · Inspired by Green TD', {
       fontSize: this._fs(11), color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BG + 1);
+  }
+
+  // ── Frame update ────────────────────────────────────────────────────────────
+
+  update(time: number, _delta: number): void {
+    this._stepParallax(time);
+    this._stepEmbers(_delta);
+    this._stepCardParticles(_delta);
+  }
+
+  private _stepParallax(time: number): void {
+    for (const layer of this._parallaxLayers) {
+      layer.gfx.setX(Math.sin(time * layer.freq) * layer.amp);
+    }
+  }
+
+  private _stepEmbers(delta: number): void {
+    const { width, height } = this.scale;
+    for (const e of this._embers) {
+      if (!e.gfx.active) continue;
+      e.gfx.x += e.vx * delta;
+      e.gfx.y += e.vy * delta;
+      e.life += delta;
+
+      // Fade in → hold → fade out over lifetime
+      const t = e.life / e.maxLife;
+      const fadeAlpha = t < 0.2 ? t / 0.2 : t > 0.8 ? (1 - t) / 0.2 : 1.0;
+      e.gfx.setAlpha(fadeAlpha * 0.55);
+
+      // Reset when lifetime expires or drifts off-screen
+      if (e.life >= e.maxLife || e.gfx.y < -10 || e.gfx.x < -20 || e.gfx.x > width + 20) {
+        e.gfx.setPosition(
+          Phaser.Math.Between(20, width - 20),
+          height - Phaser.Math.Between(10, 60),
+        );
+        e.life = 0;
+        e.maxLife = 3500 + Math.random() * 2500;
+      }
+    }
+  }
+
+  private _stepCardParticles(delta: number): void {
+    for (const p of this._cardParticles) {
+      if (!p.gfx.active) continue;
+      p.gfx.x += p.vx * delta;
+      p.gfx.y += p.vy * delta;
+      p.life += delta;
+
+      // Fade in → hold → fade out
+      const t = p.life / p.maxLife;
+      const fadeAlpha = t < 0.15 ? t / 0.15 : t > 0.8 ? (1 - t) / 0.2 : 1.0;
+      p.gfx.setAlpha(fadeAlpha * 0.55);
+
+      // Respawn within card bounds when expired
+      if (p.life >= p.maxLife) {
+        p.gfx.setPosition(
+          p.cx + (Math.random() - 0.5) * p.hw * 1.6,
+          p.cy + (Math.random() - 0.5) * p.hh * 1.6,
+        );
+        p.life = 0;
+        p.maxLife = 2200 + Math.random() * 1500;
+      }
+    }
+  }
+
+  // ── Transition helper ──────────────────────────────────────────────────────
+
+  private _go(key: string, data?: object): void {
+    if (this._fading) return;
+    this._fading = true;
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(key, data);
+    });
+  }
+
+  // ── Lifecycle cleanup ────────────────────────────────────────────────────
+
+  shutdown(): void {
+    for (const layer of this._parallaxLayers) {
+      if (layer.gfx.active) layer.gfx.destroy();
+    }
+    this._parallaxLayers = [];
+
+    for (const e of this._embers) {
+      if (e.gfx.active) e.gfx.destroy();
+    }
+    this._embers = [];
+
+    for (const p of this._cardParticles) {
+      if (p.gfx.active) p.gfx.destroy();
+    }
+    this._cardParticles = [];
   }
 }

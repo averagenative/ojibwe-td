@@ -35,6 +35,9 @@ export class GameOverScene extends Phaser.Scene {
   /** True when running on a mobile/touch device. Set once in create(). */
   private _isMobile = false;
 
+  /** Transition guard — prevents double-navigation. */
+  private _fading = false;
+
   /**
    * Returns a CSS font-size string scaled up by 1.35× on mobile.
    */
@@ -48,6 +51,8 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   create(data: GameOverData): void {
+    this._fading = false;
+    this.cameras.main.fadeIn(350, 0, 0, 0);
     this._isMobile = MobileManager.getInstance().isMobile();
 
     const { width, height } = this.scale;
@@ -116,6 +121,40 @@ export class GameOverScene extends Phaser.Scene {
 
     this.add.rectangle(cx, cy, width, height, PAL.bgDark);
 
+    // Victory sparkle burst / defeat ember drift
+    if (won) {
+      for (let i = 0; i < 25; i++) {
+        const sx = cx - 220 + Math.random() * 440;
+        const sy = cy - 210 + Math.random() * 80;
+        const circ = this.add.circle(sx, sy, 2 + Math.random() * 3, 0xffcc44, 1.0);
+        this.tweens.add({
+          targets: circ,
+          x: sx + (Math.random() - 0.5) * 300,
+          y: sy - 80 - Math.random() * 120,
+          alpha: 0,
+          duration: 800 + Math.random() * 600,
+          delay: Math.random() * 400,
+          ease: 'Quad.easeOut',
+        });
+      }
+    } else {
+      this.add.rectangle(cx, cy, width, height, 0x000000, 0.20);
+      for (let i = 0; i < 18; i++) {
+        const ex = Math.random() * width;
+        const ey = -10 - Math.random() * 50;
+        const ember = this.add.circle(ex, ey, 1 + Math.random() * 2, 0x881100, 0.7);
+        this.tweens.add({
+          targets: ember,
+          y: ey + height + 50,
+          x: ex + (Math.random() - 0.5) * 50,
+          alpha: { from: 0.7, to: 0 },
+          duration: 4000 + Math.random() * 3000,
+          delay: Math.random() * 2000,
+          ease: 'Linear',
+        });
+      }
+    }
+
     // Title — endless runs always end in game-over (no victory possible)
     const titleText  = won ? 'VICTORY!'   : 'GAME OVER';
     const titleColor = won ? PAL.accentGreen : PAL.danger;
@@ -126,30 +165,38 @@ export class GameOverScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // Waves label — endless shows "Endless — Wave Reached: N"
-    const wavesLabel = isEndless
-      ? `Endless \u2014 Wave Reached: ${waves}`
-      : `Waves completed: ${waves} / ${total}`;
-    this.add.text(cx, cy - 120, wavesLabel, {
-      fontSize: this._fs(20),
-      color: PAL.textNeutral,
-      fontFamily: PAL.fontBody,
-    }).setOrigin(0.5);
+    // Waves label (count-up) — endless shows "Endless — Wave Reached: N"
+    const wavesText = this.add.text(cx, cy - 120,
+      isEndless ? `Endless \u2014 Wave Reached: 0` : `Waves completed: 0 / ${total}`,
+      { fontSize: this._fs(20), color: PAL.textNeutral, fontFamily: PAL.fontBody },
+    ).setOrigin(0.5);
+    const wavesObj = { v: 0 };
+    this.tweens.add({
+      targets: wavesObj, v: waves, duration: 800, delay: 300, ease: 'Quad.easeOut',
+      onUpdate: () => {
+        const w = Math.floor(wavesObj.v);
+        wavesText.setText(isEndless ? `Endless \u2014 Wave Reached: ${w}` : `Waves completed: ${w} / ${total}`);
+      },
+    });
 
-    // Run currency + XP earned (side by side)
-    this.add.text(cx - 100, cy - 88, `Crystals: +${currency}`, {
-      fontSize: this._fs(18),
-      color: PAL.accentBlue,
-      fontFamily: PAL.fontBody,
-      fontStyle: 'bold',
+    // Run currency + XP earned (side by side, count-up)
+    const currText = this.add.text(cx - 100, cy - 88, `Crystals: +0`, {
+      fontSize: this._fs(18), color: PAL.accentBlue, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5);
+    const currObj = { v: 0 };
+    this.tweens.add({
+      targets: currObj, v: currency, duration: 1000, delay: 400, ease: 'Quad.easeOut',
+      onUpdate: () => { currText.setText(`Crystals: +${Math.floor(currObj.v)}`); },
+    });
 
-    this.add.text(cx + 100, cy - 88, `XP: +${runXp}`, {
-      fontSize: this._fs(18),
-      color: PAL.gold,
-      fontFamily: PAL.fontBody,
-      fontStyle: 'bold',
+    const xpText = this.add.text(cx + 100, cy - 88, `XP: +0`, {
+      fontSize: this._fs(18), color: PAL.gold, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5);
+    const xpObj = { v: 0 };
+    this.tweens.add({
+      targets: xpObj, v: runXp, duration: 1000, delay: 400, ease: 'Quad.easeOut',
+      onUpdate: () => { xpText.setText(`XP: +${Math.floor(xpObj.v)}`); },
+    });
 
     // Commander level display
     const levelText = leveledUp
@@ -277,20 +324,20 @@ export class GameOverScene extends Phaser.Scene {
       const btnSpacing = 160;
       const row1StartX = cx - btnSpacing;
       this.makeButton(row1StartX,                row1Y, btnH, 'RETRY', () => {
-        this.scene.start('GameScene', { stageId, mapId, commanderId, isEndless });
+        this._go('GameScene', { stageId, mapId, commanderId, isEndless });
       });
       this.makeButton(row1StartX + btnSpacing,   row1Y, btnH, 'UPGRADES', () => {
-        this.scene.start('MetaMenuScene');
+        this._go('MetaMenuScene');
       });
       this.makeButton(row1StartX + btnSpacing * 2, row1Y, btnH, 'GEAR', () => {
-        this.scene.start('InventoryScene');
+        this._go('InventoryScene');
       }, PAL.bgPanel, PAL.accentBlueN);
       const row2StartX = cx - btnSpacing / 2;
       this.makeButton(row2StartX,              row2Y, btnH, 'CODEX', () => {
-        this.scene.start('CodexScene', { returnTo: 'GameOverScene', returnData: data });
+        this._go('CodexScene', { returnTo: 'GameOverScene', returnData: data });
       }, PAL.bgPanel, PAL.accentGreenN);
       this.makeButton(row2StartX + btnSpacing, row2Y, btnH, 'MENU', () => {
-        this.scene.start('MainMenuScene');
+        this._go('MainMenuScene');
       });
     } else {
       const btnY = height - 50;
@@ -298,21 +345,30 @@ export class GameOverScene extends Phaser.Scene {
       const btnCount = 5;
       const btnStartX = cx - btnSpacing * (btnCount - 1) / 2;
       this.makeButton(btnStartX,                   btnY, btnH, 'RETRY', () => {
-        this.scene.start('GameScene', { stageId, mapId, commanderId, isEndless });
+        this._go('GameScene', { stageId, mapId, commanderId, isEndless });
       });
       this.makeButton(btnStartX + btnSpacing,       btnY, btnH, 'UPGRADES', () => {
-        this.scene.start('MetaMenuScene');
+        this._go('MetaMenuScene');
       });
       this.makeButton(btnStartX + btnSpacing * 2,   btnY, btnH, 'GEAR', () => {
-        this.scene.start('InventoryScene');
+        this._go('InventoryScene');
       }, PAL.bgPanel, PAL.accentBlueN);
       this.makeButton(btnStartX + btnSpacing * 3,   btnY, btnH, 'CODEX', () => {
-        this.scene.start('CodexScene', { returnTo: 'GameOverScene', returnData: data });
+        this._go('CodexScene', { returnTo: 'GameOverScene', returnData: data });
       }, PAL.bgPanel, PAL.accentGreenN);
       this.makeButton(btnStartX + btnSpacing * 4,   btnY, btnH, 'MENU', () => {
-        this.scene.start('MainMenuScene');
+        this._go('MainMenuScene');
       });
     }
+  }
+
+  private _go(key: string, data?: object): void {
+    if (this._fading) return;
+    this._fading = true;
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(key, data);
+    });
   }
 
   private makeButton(

@@ -63,6 +63,9 @@ export class CodexScene extends Phaser.Scene {
   private returnTo = 'MainMenuScene';
   private returnData: Record<string, unknown> = {};
 
+  /** Transition guard — prevents double-navigation. */
+  private _fading = false;
+
   /** True when running on a mobile/touch device. Set once in create(). */
   private _isMobile = false;
 
@@ -84,22 +87,48 @@ export class CodexScene extends Phaser.Scene {
   }
 
   create(): void {
+    this._fading = false;
+    this.cameras.main.fadeIn(350, 0, 0, 0);
     this._isMobile = MobileManager.getInstance().isMobile();
 
     const { width, height } = this.scale;
     const cx = width / 2;
 
-    // Background
-    this.add.rectangle(cx, height / 2, width, height, 0x0a0a0a).setDepth(DEPTH_BG);
+    // Parchment/scroll background — warm dark tone
+    this.add.rectangle(cx, height / 2, width, height, 0x100c05).setDepth(DEPTH_BG);
 
-    // Grid overlay
+    // Warm grid overlay
     const gfx = this.add.graphics().setDepth(DEPTH_BG);
-    gfx.lineStyle(1, 0x1a2a1a, 0.2);
+    gfx.lineStyle(1, 0x2a2010, 0.18);
     for (let x = 0; x < width; x += 40) { gfx.moveTo(x, 0); gfx.lineTo(x, height); }
     for (let y = 0; y < height; y += 40) { gfx.moveTo(0, y); gfx.lineTo(width, y); }
     gfx.strokePath();
 
-    // Title
+    // Grain overlay — sparse random dots for parchment texture
+    const grainGfx = this.add.graphics().setDepth(DEPTH_BG);
+    grainGfx.fillStyle(0xc8a050, 0.04);
+    for (let i = 0; i < 180; i++) {
+      grainGfx.fillRect(
+        Math.random() * width, Math.random() * height,
+        1 + Math.random(), 1 + Math.random(),
+      );
+    }
+
+    // Title with decorative flourish
+    const flourishGfx = this.add.graphics().setDepth(DEPTH_UI);
+    flourishGfx.lineStyle(1, 0x446644, 0.6);
+    const flourishY = 32;
+    const flourishHalfW = 120;
+    flourishGfx.beginPath();
+    flourishGfx.moveTo(cx - flourishHalfW, flourishY);
+    flourishGfx.lineTo(cx - 60, flourishY);
+    flourishGfx.moveTo(cx + 60, flourishY);
+    flourishGfx.lineTo(cx + flourishHalfW, flourishY);
+    flourishGfx.strokePath();
+    flourishGfx.fillStyle(0x446644, 0.6);
+    flourishGfx.fillCircle(cx - flourishHalfW, flourishY, 2);
+    flourishGfx.fillCircle(cx + flourishHalfW, flourishY, 2);
+
     this.add.text(cx, 32, 'CODEX', {
       fontSize: this._fs(32), color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_UI);
@@ -211,7 +240,10 @@ export class CodexScene extends Phaser.Scene {
 
   private refreshEntries(): void {
     for (const obj of this.entryObjects) {
-      if (obj?.active) obj.destroy();
+      if (obj?.active) {
+        this.tweens.killTweensOf(obj);
+        obj.destroy();
+      }
     }
     this.entryObjects = [];
 
@@ -240,6 +272,19 @@ export class CodexScene extends Phaser.Scene {
 
       const isUnlocked = entry.defaultUnlocked || save.isCodexUnlocked(entry.id);
       const objs = this.buildEntryTile(entry, bx, by, isUnlocked, entryH);
+      // Staggered fade-in for a parchment-scroll reveal feel
+      for (const obj of objs) {
+        if ('setAlpha' in obj) {
+          (obj as unknown as { setAlpha: (v: number) => void }).setAlpha(0);
+          this.tweens.add({
+            targets: obj,
+            alpha: 1,
+            duration: 200,
+            delay: i * 30,
+            ease: 'Sine.easeOut',
+          });
+        }
+      }
       this.entryObjects.push(...objs);
     }
   }
@@ -611,7 +656,16 @@ export class CodexScene extends Phaser.Scene {
     bg.on('pointerover', () => { bg.setFillStyle(0x330000); label.setColor('#ffffff'); });
     bg.on('pointerout',  () => { bg.setFillStyle(0x1a0000); label.setColor('#ff4444'); });
     bg.on('pointerup',   () => {
-      this.scene.start(this.returnTo, this.returnData);
+      this._go(this.returnTo, this.returnData);
+    });
+  }
+
+  private _go(key: string, data?: object): void {
+    if (this._fading) return;
+    this._fading = true;
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(key, data);
     });
   }
 }
