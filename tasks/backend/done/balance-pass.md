@@ -1,7 +1,7 @@
 ---
 id: TASK-031
 title: Balance Pass — DPS Curves & Economy Tuning
-status: pending
+status: done
 priority: high
 category: backend
 phase: 13
