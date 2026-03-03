@@ -256,25 +256,38 @@ run_agent() {
   return 1
 }
 
-# ── Pre-validate: bash typecheck gate before expensive Opus review ─────────────
+# ── Pre-validate: bash gates before expensive Opus review ─────────────────────
 #
-# Runs `npm run typecheck` as pure bash in the worktree game directory.
-# Returns 0 on success, 1 on failure.  Saves ~10,000–25,000 Opus tokens per
+# Gate 1: `npm run typecheck` — catches compilation errors.
+# Gate 2: `npm run test`      — catches test regressions.
+# Returns 0 on success, 1 on failure.  Saves ~60–120 K Opus tokens per
 # broken implementation by short-circuiting before the review agent is invoked.
 
 pre_validate() {
   local wt_game="$1"
   local slug="$2"
+
+  # Gate 1: TypeScript compilation
   log "[$slug] Pre-validate: running typecheck (bash gate — no LLM)…"
   local out
-  out=$(cd "$wt_game" && npm run typecheck 2>&1) && {
-    log "[$slug] Pre-validate: typecheck passed ✓  (Opus review will proceed)"
-    return 0
+  out=$(cd "$wt_game" && npm run typecheck 2>&1) || {
+    echo "$out" | sed "s/^/[$slug] [typecheck] /"
+    log "[$slug] Pre-validate: typecheck FAILED — skipping Opus review to save tokens"
+    log "[$slug]   Fix TypeScript errors in the implement agent before re-running."
+    return 1
   }
-  echo "$out" | sed "s/^/[$slug] [typecheck] /"
-  log "[$slug] Pre-validate: typecheck FAILED — skipping Opus review to save tokens"
-  log "[$slug]   Fix TypeScript errors in the implement agent before re-running."
-  return 1
+  log "[$slug] Pre-validate: typecheck passed ✓"
+
+  # Gate 2: Existing test suite — catch regressions before paying Opus
+  log "[$slug] Pre-validate: running test suite (bash gate — no LLM)…"
+  out=$(cd "$wt_game" && npm run test 2>&1) || {
+    echo "$out" | sed "s/^/[$slug] [test] /"
+    log "[$slug] Pre-validate: tests FAILED — skipping Opus review to save tokens"
+    log "[$slug]   Fix test failures in the implement agent before re-running."
+    return 1
+  }
+  log "[$slug] Pre-validate: tests passed ✓  (Opus review will proceed)"
+  return 0
 }
 
 # ── Worker: implement + review in an isolated worktree ────────────────────────

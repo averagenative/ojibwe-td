@@ -24,7 +24,7 @@ TASKS_OUT="$REPO_DIR/tasks/health/pending"
 ROADMAP="$REPO_DIR/docs/ROADMAP.md"
 LOG_DIR="$REPO_DIR/logs"
 LOCK_FILE="/tmp/greentd-health.lock"
-MODEL="opus"
+MODEL="sonnet"   # Sonnet is sufficient for pattern-finding; Opus is ~5× more expensive
 
 DRY_RUN=false
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
