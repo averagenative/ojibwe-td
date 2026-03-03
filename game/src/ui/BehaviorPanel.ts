@@ -12,7 +12,7 @@ export const BEHAVIOR_PANEL_HEIGHT = 64;
 
 // Match the sibling panels (must stay in sync).
 const PANEL_HEIGHT_TOWER   = 72;   // TowerPanel.PANEL_HEIGHT
-const PANEL_HEIGHT_UPGRADE = 160;  // UpgradePanel.UPGRADE_PANEL_HEIGHT
+const PANEL_HEIGHT_UPGRADE = 176;  // UpgradePanel.UPGRADE_PANEL_HEIGHT
 
 const ROW_H = 22;  // height of each button row
 const ROW1_OFFSET = 14;

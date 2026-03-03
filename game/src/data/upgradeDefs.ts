@@ -54,6 +54,11 @@ export interface UpgradeTierDef {
 export interface UpgradePathDef {
   id:    'A' | 'B' | 'C';
   name:  string;
+  /**
+   * One-line summary shown in the upgrade panel column header.
+   * Helps players understand the path before committing gold.
+   */
+  description?: string;
   tiers: [UpgradeTierDef, UpgradeTierDef, UpgradeTierDef, UpgradeTierDef, UpgradeTierDef];
 }
 
@@ -258,6 +263,7 @@ const ARROW_UPGRADES: TowerUpgradeDef = {
     },
     C: {
       id: 'C', name: "Hunter's Edge",
+      description: 'Extends range (tiers 1, 4, 5) and slows targets on hit (tiers 2–5).',
       tiers: [
         { name: 'Track I',   description: '+20 range.',                                           cost: 30,  statDelta: { rangeDelta: 20 } },
         { name: 'Track II',  description: 'Arrows slow targets 15% for 1.5s.',                   cost: 50,  effects: { arrowSlowFactor: 0.85, arrowSlowDurationMs: 1500 } },

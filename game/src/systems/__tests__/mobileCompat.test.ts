@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest';
 /** TowerPanel.ts → PANEL_HEIGHT */
 const PANEL_HEIGHT = 72;
 /** UpgradePanel.ts → UPGRADE_PANEL_HEIGHT */
-const UPGRADE_PANEL_HEIGHT = 160;
+const UPGRADE_PANEL_HEIGHT = 176;
 /** BehaviorPanel.ts → BEHAVIOR_PANEL_HEIGHT */
 const BEHAVIOR_PANEL_HEIGHT = 64;
 /** HUD.ts → HUD_HEIGHT */
