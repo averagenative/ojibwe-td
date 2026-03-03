@@ -351,10 +351,6 @@ export class Tower extends Phaser.GameObjects.Container {
     }
   }
 
-  getSellValue(): number {
-    return Math.floor(this.def.cost * 0.7);
-  }
-
   sell(): void {
     this.rangeGfx.destroy();
     this.auraPulseGfx?.destroy();

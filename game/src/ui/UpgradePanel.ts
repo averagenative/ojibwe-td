@@ -430,7 +430,9 @@ export class UpgradePanel {
 
   private setVisible(visible: boolean): void {
     for (const obj of this.allObjects) {
-      (obj as unknown as Phaser.GameObjects.Components.Visible).setVisible(visible);
+      if ('setVisible' in obj) {
+        (obj as unknown as Phaser.GameObjects.Components.Visible).setVisible(visible);
+      }
     }
     // Lock overlays: only show when panel is open AND path is locked
     if (visible) {
@@ -445,9 +447,4 @@ export class UpgradePanel {
   private isPathLocked(path: 'A' | 'B' | 'C'): boolean {
     return this.manager.getState(this.currentTower!)?.locked.has(path) ?? false;
   }
-}
-
-/** Combined bottom UI height when upgrade panel is open/closed. */
-export function getBottomUIHeight(upgradePanelOpen: boolean): number {
-  return PANEL_HEIGHT_TOWER + (upgradePanelOpen ? UPGRADE_PANEL_HEIGHT : 0);
 }

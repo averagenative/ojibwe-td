@@ -18,7 +18,7 @@ export interface MapData {
   cols: number;
   rows: number;
   /** 2D array [row][col] of tile values */
-  tiles: number[][];
+  tiles: (typeof TILE[keyof typeof TILE])[][];
   /**
    * Path waypoints in tile coords.
    *
