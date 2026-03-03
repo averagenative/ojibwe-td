@@ -726,42 +726,46 @@ export class AudioManager {
     if (!ctx || !sfxGain) return;
     const t = ctx.currentTime;
 
-    // High-pass removes any sub-bass artifacts
-    const hpf = ctx.createBiquadFilter();
-    hpf.type = 'highpass';
-    hpf.frequency.value = 140;
-    hpf.Q.value = 0.7;
+    // ── Wind layer: bandpass-filtered noise — soft cold whoosh ───────────────
+    const bufLen = Math.floor(ctx.sampleRate * 0.16);
+    const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data   = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
 
-    // Main crystalline tone — descending sine, well below harsh 3 kHz range
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    // Bandpass sweeps 1400 → 650 Hz: cold exhale character; Q=1.5 (gentle resonance)
+    const bpf = ctx.createBiquadFilter();
+    bpf.type = 'bandpass';
+    bpf.frequency.setValueAtTime(1400, t);
+    bpf.frequency.linearRampToValueAtTime(650, t + 0.13);
+    bpf.Q.value = 1.5;
+
+    // Soft envelope: 8 ms attack, decays to silence; peak well below cannon (0.4) / tesla (0.2)
+    const gWind = ctx.createGain();
+    gWind.gain.setValueAtTime(0, t);
+    gWind.gain.linearRampToValueAtTime(0.085, t + 0.008);
+    gWind.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+    src.connect(bpf); bpf.connect(gWind); gWind.connect(sfxGain);
+    src.start(t);
+    src.onended = () => { src.disconnect(); bpf.disconnect(); gWind.disconnect(); };
+
+    // ── Tone layer: faint sine for a hint of crystalline cold ────────────────
     const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(1100, t);
-    osc.frequency.linearRampToValueAtTime(760, t + 0.12);
+    osc.frequency.setValueAtTime(680, t);
+    osc.frequency.linearRampToValueAtTime(420, t + 0.11);
 
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.07, t + 0.006);  // soft 6ms attack avoids click stacking
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    const gTone = ctx.createGain();
+    gTone.gain.setValueAtTime(0, t);
+    gTone.gain.linearRampToValueAtTime(0.020, t + 0.008);
+    gTone.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
 
-    // Shimmer — 2× harmonic at low level for crystalline brightness without harshness
-    const shimmer = ctx.createOscillator();
-    shimmer.type = 'sine';
-    shimmer.frequency.setValueAtTime(2200, t);
-    shimmer.frequency.linearRampToValueAtTime(1520, t + 0.10);
-
-    const sg = ctx.createGain();
-    sg.gain.setValueAtTime(0, t);
-    sg.gain.linearRampToValueAtTime(0.020, t + 0.006);
-    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
-
-    osc.connect(g);      g.connect(hpf);
-    shimmer.connect(sg); sg.connect(hpf);
-    hpf.connect(sfxGain);
-
-    osc.start(t);     osc.stop(t + 0.15);
-    shimmer.start(t); shimmer.stop(t + 0.15);
-    osc.onended     = () => { osc.disconnect();     g.disconnect(); hpf.disconnect(); };
-    shimmer.onended = () => { shimmer.disconnect(); sg.disconnect(); };
+    osc.connect(gTone); gTone.connect(sfxGain);
+    osc.start(t); osc.stop(t + 0.13);
+    osc.onended = () => { osc.disconnect(); gTone.disconnect(); };
   }
 
   private _sfxTesla(): void {
