@@ -244,6 +244,14 @@ export class GameScene extends Phaser.Scene {
   /** Achievement toast notification component (created in create()). */
   private _achToast: AchievementToast | null = null;
 
+  // ── rubble ─────────────────────────────────────────────────────────────────
+  /**
+   * Cosmetic rubble sprites keyed by "col,row".
+   * Placed when a tower is sold; removed when a new tower is built on that tile.
+   * Cleared between runs; not persisted.
+   */
+  private _rubbleSprites: Map<string, Phaser.GameObjects.Image> = new Map();
+
   // ── ambient VFX ────────────────────────────────────────────────────────────
   /** Continuous ambient particle effects for the current map region. */
   private _ambientVFX: AmbientVFX | null = null;
@@ -327,6 +335,7 @@ export class GameScene extends Phaser.Scene {
     this._achConsumablesUsedRun = [];
     this._achInitialRerolls    = 0;
     this._ambientVFX           = null;
+    this._rubbleSprites        = new Map();
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
@@ -1123,6 +1132,10 @@ export class GameScene extends Phaser.Scene {
     this._ambientVFX?.destroy();
     this._ambientVFX = null;
 
+    // Rubble sprite cleanup.
+    for (const sprite of this._rubbleSprites.values()) sprite.destroy();
+    this._rubbleSprites.clear();
+
     // Drop entity references so GC can reclaim memory after restart.
     this.activeCreeps?.clear();
     this.projectiles?.clear();
@@ -1525,6 +1538,9 @@ export class GameScene extends Phaser.Scene {
     this.gold -= actualCost;
     this.hud.setGold(this.gold);
 
+    // Remove any rubble on this tile before placing the tower.
+    this._removeRubble(col, row);
+
     // Play placement sound: woody thunk for combat towers, soft hum for aura.
     const am = AudioManager.getInstance();
     if (this.placementDef.isAura) {
@@ -1808,7 +1824,41 @@ export class GameScene extends Phaser.Scene {
     }
     this.upgradeManager.removeTower(tower);
     this.towers = this.towers.filter(t => t !== tower);
+    const sellCol = tower.tileCol;
+    const sellRow = tower.tileRow;
     tower.sell();
+    this._placeRubble(sellCol, sellRow);
+  }
+
+  // ── rubble ─────────────────────────────────────────────────────────────────
+
+  private _placeRubble(col: number, row: number): void {
+    const key = `${col},${row}`;
+    // Remove any existing rubble on this tile first (shouldn't happen, but guard).
+    this._removeRubble(col, row);
+
+    const ts      = this.mapData.tileSize;
+    const cx      = col * ts + ts / 2;
+    const cy      = row * ts + ts / 2;
+    const variant = Math.floor(Math.random() * 3) + 1;  // 1, 2, or 3
+    const sprite  = this.add
+      .image(cx, cy, `rubble-0${variant}`)
+      .setDepth(2)
+      .setAlpha(0)
+      .setRotation((Math.random() - 0.5) * 0.6);  // ±0.3 rad random rotation
+
+    this.tweens.add({ targets: sprite, alpha: 1, duration: 400, ease: 'Sine.easeOut' });
+
+    this._rubbleSprites.set(key, sprite);
+  }
+
+  private _removeRubble(col: number, row: number): void {
+    const key = `${col},${row}`;
+    const sprite = this._rubbleSprites.get(key);
+    if (sprite) {
+      sprite.destroy();
+      this._rubbleSprites.delete(key);
+    }
   }
 
   private findTowerAt(worldX: number, worldY: number): Tower | null {
@@ -2835,6 +2885,8 @@ export class GameScene extends Phaser.Scene {
     const def = ALL_TOWER_DEFS.find(d => d.key === saved.key);
     if (!def) return;
     if (this.isTileOccupied(saved.col, saved.row)) return;
+    // Clear any rubble that might exist on this tile from a previous sell.
+    this._removeRubble(saved.col, saved.row);
 
     const tower = new Tower(
       this,

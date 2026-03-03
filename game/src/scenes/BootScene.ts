@@ -241,6 +241,11 @@ export class BootScene extends Phaser.Scene {
     this.load.image('tile-brush', 'assets/tiles/tile-brush.png');
     this.load.image('tile-rock',  'assets/tiles/tile-rock.png');
     this.load.image('tile-water', 'assets/tiles/tile-water.png');
+
+    // Rubble effect sprites (40x40) — shown on tiles where towers were sold
+    this.load.image('rubble-01', 'assets/effects/rubble-01.png');
+    this.load.image('rubble-02', 'assets/effects/rubble-02.png');
+    this.load.image('rubble-03', 'assets/effects/rubble-03.png');
   }
 
   // ── Audio bridge ───────────────────────────────────────────────────────────
