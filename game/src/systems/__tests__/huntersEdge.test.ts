@@ -227,10 +227,9 @@ describe("UpgradePanel source structure (TASK-108)", () => {
     expect(panelSrc).toContain('statsTxt');
   });
 
-  it("refresh() updates statsTxt with DMG and RNG stats", () => {
+  it("refresh() delegates stats display to buildStatsLine", () => {
     expect(panelSrc).toContain('statsTxt.setText');
-    expect(panelSrc).toContain('DMG:');
-    expect(panelSrc).toContain('RNG:');
+    expect(panelSrc).toContain('buildStatsLine');
   });
 
   it("refresh() updates descText from pathDef.description", () => {
@@ -238,8 +237,17 @@ describe("UpgradePanel source structure (TASK-108)", () => {
     expect(panelSrc).toContain('pathDef.description');
   });
 
-  it("aura tower shows 'passive aura' label instead of DMG", () => {
-    expect(panelSrc).toContain('passive aura');
+  it("aura stats handled by buildStatsLine (imported from statsLine.ts)", () => {
+    expect(panelSrc).toContain("from './statsLine'");
+    // Verify statsLine.ts has aura-specific display logic
+    const statsLineSrc = readFileSync(
+      resolve(__dirname, '../../ui/statsLine.ts'),
+      'utf8',
+    );
+    expect(statsLineSrc).toContain('isAura');
+    expect(statsLineSrc).toContain('auraIntervalMult');
+    expect(statsLineSrc).toContain('auraDamageMult');
+    expect(statsLineSrc).toContain('auraRangePct');
   });
 });
 
