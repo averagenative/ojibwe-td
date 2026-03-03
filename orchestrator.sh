@@ -279,6 +279,25 @@ done_path_for() {
   echo "$1" | sed 's|/pending/|/done/|'
 }
 
+# ── Pre-validate: bash typecheck gate before expensive Opus review ─────────────
+#
+# Runs `npm run typecheck` in $GAME_DIR as pure bash.
+# Returns 0 on success, 1 on failure.  Saves ~10,000–25,000 Opus tokens per
+# broken implementation by short-circuiting before the review agent is invoked.
+
+pre_validate() {
+  log "Pre-validate: running typecheck (bash gate — no LLM)…"
+  local out
+  out=$(cd "$GAME_DIR" && npm run typecheck 2>&1) && {
+    log "Pre-validate: typecheck passed ✓  (Opus review will proceed)"
+    return 0
+  }
+  echo "$out" | sed 's/^/[typecheck] /'
+  log "Pre-validate: typecheck FAILED — skipping Opus review to save tokens"
+  log "  Fix TypeScript errors in implement agent, then re-run with --resume"
+  return 1
+}
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 main() {
@@ -375,6 +394,15 @@ Be thorough — the next agent will verify every criterion against the task file
     save_checkpoint "implement" "$task_file"
   else
     log "=== AGENT 1 — Implement  [SKIPPED — already completed] ==="
+  fi
+
+  # ── Bash gate: typecheck before invoking Opus ───────────────────────────────
+  if [[ "$resume_from" == "none" || "$resume_from" == "implement" ]]; then
+    pre_validate || {
+      log "Pre-validate failed — aborting pipeline. Re-run implement to fix errors."
+      log "Checkpoint preserved at 'implement' stage — resume with: ./orchestrator.sh --resume"
+      return 1
+    }
   fi
 
   # ── Agent 2: Review & Tests ─────────────────────────────────────────────

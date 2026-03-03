@@ -9,6 +9,11 @@
  * changes required.
  *
  * Phaser-free — safe for unit tests.
+ *
+ * Elder portrait keys:
+ *   Mishoomis: 'elder-mishoomis' | 'elder-mishoomis-proud'
+ *   Nokomis:   'elder-nokomis'   | 'elder-nokomis-teaching'
+ *   Ogichidaa: 'elder-ogichidaa' | 'elder-ogichidaa-fierce'
  */
 
 // ── Trigger Types ────────────────────────────────────────────────────────────
@@ -52,13 +57,15 @@ export interface VignetteDef {
 //
 // Framing story: something is disturbing the land. The player defends
 // the lake-country village. 4 vignettes across 20 waves.
+// Speaker: Mishoomis (Grandfather) — story/land narrator.
 
 const ACT1_VIGNETTES: VignetteDef[] = [
   {
     id:           'act1-arrival',
     trigger:      TriggerType.FIRST_PLAY,
     regionId:     'zaagaiganing',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'The waters of Zaaga\'iganing have always been still.',
       'But something stirs beneath — the fish swim in circles,',
@@ -73,7 +80,8 @@ const ACT1_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.WAVE_COMPLETE,
     triggerValue: 3,
     regionId:     'zaagaiganing',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'These creatures are not enemies — they are lost.',
       'Something has driven them from their homes.',
@@ -87,7 +95,8 @@ const ACT1_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.BOSS_KILLED,
     triggerValue: 'makwa',
     regionId:     'zaagaiganing',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'Makwa, the great bear, wanders far from the den.',
       'In another season this would be a sacred meeting.',
@@ -100,7 +109,8 @@ const ACT1_VIGNETTES: VignetteDef[] = [
     id:           'act1-stage-end',
     trigger:      TriggerType.STAGE_COMPLETE,
     regionId:     'zaagaiganing',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'The crossing holds — for now.',
       'But the disturbance has not ended. It has moved.',
@@ -116,6 +126,7 @@ const ACT1_VIGNETTES: VignetteDef[] = [
 //
 // The disturbance spreads. Boss Waabooz (Hare) is revealed as a displaced
 // spirit, not malicious. 4 vignettes.
+// Speaker: Scout (no elder portrait — field narrator).
 
 const ACT2_VIGNETTES: VignetteDef[] = [
   {
@@ -179,6 +190,7 @@ const ACT2_VIGNETTES: VignetteDef[] = [
 //
 // The source approaches. First encounter with Animikiins (Thunderbird) as
 // an omen, not an enemy. 4 vignettes.
+// Speaker: Ogichidaa (Warrior Elder) — combat strategy and tower lore.
 
 const ACT3_VIGNETTES: VignetteDef[] = [
   {
@@ -186,7 +198,8 @@ const ACT3_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.WAVE_START,
     triggerValue: 1,
     regionId:     'mitigomizh',
-    speaker:      'War Chief',
+    speaker:      'Ogichidaa',
+    portrait:     'elder-ogichidaa',
     lines: [
       'The oaks are scorched but standing.',
       'Fire has swept through here — not natural fire.',
@@ -200,7 +213,8 @@ const ACT3_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.WAVE_COMPLETE,
     triggerValue: 10,
     regionId:     'mitigomizh',
-    speaker:      'War Chief',
+    speaker:      'Ogichidaa',
+    portrait:     'elder-ogichidaa',
     lines: [
       'I saw it — high above the smoke.',
       'Animikiins. The little thunderbird.',
@@ -215,7 +229,8 @@ const ACT3_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.BOSS_KILLED,
     triggerValue: 'migizi',
     regionId:     'mitigomizh',
-    speaker:      'War Chief',
+    speaker:      'Ogichidaa',
+    portrait:     'elder-ogichidaa-fierce',
     lines: [
       'Migizi, the eagle, struck like lightning across open ground.',
       'Even in defeat, the golden feathers catch the light.',
@@ -228,7 +243,8 @@ const ACT3_VIGNETTES: VignetteDef[] = [
     id:           'act3-stage-end',
     trigger:      TriggerType.STAGE_COMPLETE,
     regionId:     'mitigomizh',
-    speaker:      'War Chief',
+    speaker:      'Ogichidaa',
+    portrait:     'elder-ogichidaa',
     lines: [
       'The savanna cools. But the source is not here.',
       'North — into the winter lands.',
@@ -243,6 +259,7 @@ const ACT3_VIGNETTES: VignetteDef[] = [
 //
 // Final reckoning. Nature out of balance must be restored, not destroyed.
 // Two ending variants: clean run (no life lost) vs lives lost.
+// Speaker: Mishoomis (Grandfather) — the journey completes where it began.
 
 const ACT4_VIGNETTES: VignetteDef[] = [
   {
@@ -250,7 +267,8 @@ const ACT4_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.WAVE_START,
     triggerValue: 1,
     regionId:     'biboon-aki',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'Biboon-aki. The world of winter.',
       'The cold here is not cruelty — it is sleep.',
@@ -265,7 +283,8 @@ const ACT4_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.WAVE_COMPLETE,
     triggerValue: 10,
     regionId:     'biboon-aki',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'The spirits grow more desperate as we approach the heart.',
       'They are not attacking — they are trying to reach it first.',
@@ -278,7 +297,8 @@ const ACT4_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.BOSS_KILLED,
     triggerValue: 'animikiins',
     regionId:     'biboon-aki',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'Animikiins falls — and the sky weeps.',
       'The thunderbird was never the enemy.',
@@ -292,7 +312,8 @@ const ACT4_VIGNETTES: VignetteDef[] = [
     id:           'act4-ending-clean',
     trigger:      TriggerType.STAGE_COMPLETE,
     regionId:     'biboon-aki',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis-proud',
     lines: [
       'Not a single life was lost.',
       'The balance is restored — not by force, but by care.',
@@ -306,7 +327,8 @@ const ACT4_VIGNETTES: VignetteDef[] = [
     id:           'act4-ending-bittersweet',
     trigger:      TriggerType.STAGE_COMPLETE,
     regionId:     'biboon-aki',
-    speaker:      'Elder',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
     lines: [
       'The balance is restored, but the cost was real.',
       'Some who defended this land did not return.',
@@ -343,3 +365,17 @@ export function getVignettesForTrigger(
     return true;
   });
 }
+
+// ── Elder portrait key constants (Phaser-free, importable by tests) ──────────
+
+/** All elder portrait texture keys loaded in BootScene. */
+export const ELDER_PORTRAIT_KEYS = [
+  'elder-mishoomis',
+  'elder-mishoomis-proud',
+  'elder-nokomis',
+  'elder-nokomis-teaching',
+  'elder-ogichidaa',
+  'elder-ogichidaa-fierce',
+] as const;
+
+export type ElderPortraitKey = (typeof ELDER_PORTRAIT_KEYS)[number];

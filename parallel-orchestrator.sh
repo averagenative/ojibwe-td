@@ -47,7 +47,29 @@ STOP_FILE="$REPO_DIR/.orch_stop"
 # ── Graceful shutdown ─────────────────────────────────────────────────────────
 # SIGINT/SIGTERM: finish the current batch, then stop after shipping.
 SHUTDOWN_REQUESTED=false
+
+# Cleanup on exit: reset in-progress tasks and remove stale worktrees/branches
+_cleanup_on_exit() {
+  # Reset in-progress tasks to pending
+  local count=0
+  while IFS= read -r f; do
+    sed -i 's/^status: in-progress$/status: pending/' "$f"
+    count=$((count + 1))
+  done < <(find "$REPO_DIR/tasks" -name "*.md" -not -path "*/done/*" -not -path "*/health/*" \
+    -exec grep -l "^status: in-progress$" {} \; 2>/dev/null)
+  [ "$count" -gt 0 ] && log "Reset $count stale in-progress task(s) to pending on exit."
+
+  # Remove worktrees created by this orchestrator run
+  local wt_count=0
+  while IFS= read -r wt; do
+    git worktree remove --force "$wt" 2>/dev/null && wt_count=$((wt_count + 1))
+  done < <(git worktree list --porcelain 2>/dev/null | grep "^worktree " | grep "\.worktrees/" | sed 's/^worktree //')
+  git worktree prune 2>/dev/null
+  [ "$wt_count" -gt 0 ] && log "Cleaned up $wt_count stale worktree(s) on exit."
+}
+
 trap 'SHUTDOWN_REQUESTED=true; log "Shutdown requested — finishing current batch…"' INT TERM
+trap '_cleanup_on_exit' EXIT
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
@@ -234,6 +256,27 @@ run_agent() {
   return 1
 }
 
+# ── Pre-validate: bash typecheck gate before expensive Opus review ─────────────
+#
+# Runs `npm run typecheck` as pure bash in the worktree game directory.
+# Returns 0 on success, 1 on failure.  Saves ~10,000–25,000 Opus tokens per
+# broken implementation by short-circuiting before the review agent is invoked.
+
+pre_validate() {
+  local wt_game="$1"
+  local slug="$2"
+  log "[$slug] Pre-validate: running typecheck (bash gate — no LLM)…"
+  local out
+  out=$(cd "$wt_game" && npm run typecheck 2>&1) && {
+    log "[$slug] Pre-validate: typecheck passed ✓  (Opus review will proceed)"
+    return 0
+  }
+  echo "$out" | sed "s/^/[$slug] [typecheck] /"
+  log "[$slug] Pre-validate: typecheck FAILED — skipping Opus review to save tokens"
+  log "[$slug]   Fix TypeScript errors in the implement agent before re-running."
+  return 1
+}
+
 # ── Worker: implement + review in an isolated worktree ────────────────────────
 #
 # Called once per task in a subshell (background &).
@@ -242,6 +285,15 @@ run_agent() {
 worker() {
   local task_file="$1"
   local status_file="$2"   # parent reads this to know success/failure
+
+  # Workers run in a subshell (via &) and inherit the parent's EXIT/ERR traps.
+  # Clear them so worker exit doesn't reset other workers' tasks or remove their worktrees.
+  trap - EXIT
+  trap 'log "[worker] ERR at line $LINENO (exit $?): $(sed -n "${LINENO}p" "$0" 2>/dev/null || echo "?")"' ERR
+
+  # Disable strict mode inside workers — the parent already handles PENDING status
+  # files as failures, so we don't need set -eu to guard against bugs here.
+  set +eu
 
   local slug
   slug=$(basename "$task_file" .md | cut -c1-20)
@@ -256,6 +308,13 @@ worker() {
   log "[$slug] Starting  task: $title"
   log "[$slug] Branch   : $branch"
   log "[$slug] Worktree : $wt_path"
+
+  # Clean up stale branch/worktree from a previous failed run
+  if git -C "$REPO_DIR" rev-parse --verify "$branch" &>/dev/null; then
+    git -C "$REPO_DIR" worktree remove --force "$wt_path" 2>/dev/null || true
+    git -C "$REPO_DIR" worktree prune 2>/dev/null
+    git -C "$REPO_DIR" branch -D "$branch" 2>/dev/null || true
+  fi
 
   # Create isolated worktree on a fresh branch
   git -C "$REPO_DIR" worktree add -b "$branch" "$wt_path" HEAD \
@@ -292,6 +351,15 @@ Steps
 
   state_write "$task_file" "implement_done" "$wt_path" "$branch"
   show_worker_status
+
+  # ── Bash gate: typecheck before invoking Opus ───────────────────────────────
+  pre_validate "$wt_game" "$slug" || {
+    state_write "$task_file" "failed" "$wt_path" "$branch"
+    echo "FAIL" > "$status_file"
+    cleanup_worker "$wt_path" "$branch"
+    return 1
+  }
+
   state_write "$task_file" "reviewing" "$wt_path" "$branch"
 
   # ── Agent 2: Review (Opus) ──────────────────────────────────────────────────
@@ -322,8 +390,10 @@ Steps
   show_worker_status
 
   # Signal success — main process will handle ship
-  echo "OK:$wt_path:$branch:$task_file" > "$status_file"
+  log "[$slug] DEBUG: wt_path=$wt_path branch=$branch task_file=$task_file status_file=$status_file"
+  echo "OK:${wt_path}:${branch}:${task_file}" > "$status_file"
   log "[$slug] implement+review complete — ready to ship"
+  cat "$status_file"
 }
 
 cleanup_worker() {
@@ -498,18 +568,21 @@ show_worker_status() {
   log "Parallel worker state  $(date '+%Y-%m-%d %H:%M:%S')"
   log "────────────────────────────────────────"
 
-  while IFS='|' read -r task_file stage wt branch task_start phase_start; do
-    [ -z "$task_file" ] && continue
+  # IMPORTANT: declare loop variables local so they don't clobber the caller's
+  # locals (bash uses dynamic scoping — read without local overwrites caller vars)
+  local _sw_task _sw_stage _sw_wt _sw_branch _sw_task_start _sw_phase_start
+  while IFS='|' read -r _sw_task _sw_stage _sw_wt _sw_branch _sw_task_start _sw_phase_start; do
+    [ -z "$_sw_task" ] && continue
     local slug
-    slug=$(basename "$task_file" .md)
+    slug=$(basename "$_sw_task" .md)
     local emoji
-    emoji=$(stage_emoji "$stage")
+    emoji=$(stage_emoji "$_sw_stage")
     local label
-    label=$(stage_label "$stage")
+    label=$(stage_label "$_sw_stage")
 
     local total_elapsed=0 phase_elapsed=0
-    [ -n "$task_start" ] && [ "$task_start" -gt 0 ] 2>/dev/null && total_elapsed=$(( now - task_start ))
-    [ -n "$phase_start" ] && [ "$phase_start" -gt 0 ] 2>/dev/null && phase_elapsed=$(( now - phase_start ))
+    [ -n "$_sw_task_start" ] && [ "$_sw_task_start" -gt 0 ] 2>/dev/null && total_elapsed=$(( now - _sw_task_start ))
+    [ -n "$_sw_phase_start" ] && [ "$_sw_phase_start" -gt 0 ] 2>/dev/null && phase_elapsed=$(( now - _sw_phase_start ))
 
     printf "[porch %s]   %s  %-38s %-16s (total: %s | phase: %s)\n" \
       "$(date +%H:%M:%S)" \
@@ -518,9 +591,9 @@ show_worker_status() {
       "$(fmt_elapsed $phase_elapsed)"
 
     # Show changed files if worktree exists
-    if [ -n "$wt" ] && [ -d "$wt" ]; then
+    if [ -n "$_sw_wt" ] && [ -d "$_sw_wt" ]; then
       local file_count changed_files
-      changed_files=$(git -C "$wt" diff --name-only HEAD 2>/dev/null || true)
+      changed_files=$(git -C "$_sw_wt" diff --name-only HEAD 2>/dev/null || true)
       if [ -n "$changed_files" ]; then
         file_count=$(echo "$changed_files" | wc -l)
         printf "[porch %s]       %d file(s) changed:\n" "$(date +%H:%M:%S)" "$file_count"
@@ -639,7 +712,6 @@ main() {
     log "Tasks to run (${#tasks[@]}):"
     for t in "${tasks[@]}"; do
       log "  • $(get_title "$t")  [$t]"
-      claim_task "$t"
     done
 
     # ── Launch workers in parallel ───────────────────────────────────────────
@@ -648,6 +720,7 @@ main() {
     local pids=()
 
     for task_file in "${tasks[@]}"; do
+      claim_task "$task_file"
       local sf
       sf=$(mktemp /tmp/porch_status_XXXXXX)
       echo "PENDING" > "$sf"
@@ -689,8 +762,8 @@ main() {
       result=$(cat "$sf" 2>/dev/null || echo "FAIL")
       rm -f "$sf"
 
-      if [[ "$result" == FAIL* ]]; then
-        log "Skipping ship for task $i — worker reported failure."
+      if [[ "$result" != OK:* ]]; then
+        log "Skipping ship for task $i — worker reported: $result"
         # Reset the task back to pending so it can be retried
         local failed_task="${tasks[$i]}"
         if [ -f "$failed_task" ]; then
@@ -707,8 +780,8 @@ main() {
       task_file=$(echo "$result" | cut -d: -f4)
 
       ship_task "$wt_path" "$branch" "$task_file" || {
-        log "Ship failed for $task_file — manual intervention needed."
-        log "Worktree preserved at: $wt_path (branch: $branch)"
+        log "Ship failed for $task_file — resetting to pending."
+        sed -i 's/^status: in-progress$/status: pending/' "$task_file" 2>/dev/null
         all_ok=false
       }
     done

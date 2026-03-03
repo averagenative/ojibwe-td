@@ -370,6 +370,10 @@ describe('BootScene expected texture keys', () => {
     // Commander portraits
     'portrait-nokomis', 'portrait-makoons', 'portrait-waabizii',
     'portrait-bizhiw', 'portrait-animikiikaa',
+    // Elder portraits — narrative speakers in vignettes (3 elders × 2 expressions each)
+    'elder-mishoomis', 'elder-mishoomis-proud',
+    'elder-nokomis', 'elder-nokomis-teaching',
+    'elder-ogichidaa', 'elder-ogichidaa-fierce',
     // Ground creep sprites (refreshed animal silhouettes)
     'creep-normal', 'creep-fast', 'creep-armored', 'creep-immune', 'creep-regen',
     // Air creep sprites (distinct per subtype)
@@ -382,8 +386,8 @@ describe('BootScene expected texture keys', () => {
     'logo',
   ];
 
-  it('expects 31 total texture keys (logo + 8 icons + 5 portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
-    expect(EXPECTED_KEYS).toHaveLength(31);
+  it('expects 37 total texture keys (logo + 8 icons + 5 commander portraits + 6 elder portraits + 5 ground creeps + 3 air creeps + 5 bosses + 4 tiles)', () => {
+    expect(EXPECTED_KEYS).toHaveLength(37);
   });
 
   it('all keys are unique', () => {
@@ -391,7 +395,7 @@ describe('BootScene expected texture keys', () => {
   });
 
   it('every key follows a known prefix pattern', () => {
-    const validPrefixes = ['icon-', 'portrait-', 'creep-', 'boss-', 'tile-', 'logo'];
+    const validPrefixes = ['icon-', 'portrait-', 'elder-', 'creep-', 'boss-', 'tile-', 'logo'];
     for (const key of EXPECTED_KEYS) {
       const matchesPrefix = validPrefixes.some(p => key.startsWith(p));
       expect(matchesPrefix).toBe(true);

@@ -6,6 +6,7 @@ import { rollLoot, getGearDef, RARITY_COLORS } from '../data/gearDefs';
 import { InventoryManager } from '../meta/InventoryManager';
 import { calculateRunXp, levelFromXp } from '../data/enhancementDefs';
 import { MobileManager } from '../systems/MobileManager';
+import { AudioManager } from '../systems/AudioManager';
 
 interface GameOverData {
   wavesCompleted: number;
@@ -54,6 +55,14 @@ export class GameOverScene extends Phaser.Scene {
     const waves       = data?.wavesCompleted ?? 0;
     const total       = data?.totalWaves    ?? 20;
     const won         = data?.won           ?? false;
+
+    // Start the appropriate Suno music track for this screen.
+    // 'music-victory' / 'music-gameover' were pre-loaded by BootScene; if the
+    // buffer is absent (e.g. file missing), startMusicTrack() is a no-op and
+    // the procedural arpeggio is NOT restarted — the player hears silence on
+    // this screen, which is acceptable. The procedural arpeggio was stopped by
+    // GameScene.shutdown() → audioManager.destroy() and is not replayed here.
+    AudioManager.getInstance().startMusicTrack(won ? 'music-victory' : 'music-gameover');
     const currency    = data?.runCurrency   ?? 0;
     const stageId     = data?.stageId       ?? undefined;
     const mapId       = data?.mapId         ?? 'map-01';

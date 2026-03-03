@@ -150,9 +150,8 @@ export class BootScene extends Phaser.Scene {
       btnBg.setFillStyle(PAL.bgStartBtnPress);
     });
 
-    // Click → reveal HTML header, enable audio, enter main menu
+    // Click → enable audio, enter main menu
     btnBg.on('pointerup', () => {
-      document.getElementById('game-header')?.classList.add('visible');
       AudioManager.getInstance().startMusicTrack('music-menu');
       this.scene.start('MainMenuScene');
     });
@@ -200,6 +199,14 @@ export class BootScene extends Phaser.Scene {
     this.load.image('portrait-waabizii',    'assets/portraits/portrait-waabizii.png');
     this.load.image('portrait-bizhiw',      'assets/portraits/portrait-bizhiw.png');
     this.load.image('portrait-animikiikaa', 'assets/portraits/portrait-animikiikaa.png');
+
+    // Elder portraits (96x96) — narrative speakers in vignettes
+    this.load.image('elder-mishoomis',         'assets/portraits/elder-mishoomis.png');
+    this.load.image('elder-mishoomis-proud',   'assets/portraits/elder-mishoomis-proud.png');
+    this.load.image('elder-nokomis',           'assets/portraits/elder-nokomis.png');
+    this.load.image('elder-nokomis-teaching',  'assets/portraits/elder-nokomis-teaching.png');
+    this.load.image('elder-ogichidaa',         'assets/portraits/elder-ogichidaa.png');
+    this.load.image('elder-ogichidaa-fierce',  'assets/portraits/elder-ogichidaa-fierce.png');
 
     // Ground creep sprites (48x48)
     this.load.image('creep-normal',  'assets/sprites/creep-normal.png');

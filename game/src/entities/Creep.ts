@@ -896,6 +896,9 @@ export class Creep extends Phaser.GameObjects.Container {
   }
 
   private refreshStatusVisual(): void {
+    // Guard: scene may be torn down while a timer callback is still pending.
+    if (!this.scene) return;
+
     const slowed   = this.slowFactor < 1.0;
     const poisoned = this.dotStacks > 0;
     const burning  = this._burnActive;
@@ -1006,6 +1009,9 @@ export class Creep extends Phaser.GameObjects.Container {
     alpha:  number,
     color:  number,
   ): void {
+    // Guard: scene may be torn down while a dot timer callback is still pending.
+    if (!this.scene) return;
+
     let overlay = this._effectOverlays.get(key);
 
     if (active) {

@@ -1926,6 +1926,55 @@ Non-blocking items surfaced during code review:
 - **Arrow `'arrow'` SFX missing**: `AudioManager.playProjectileFired()` has no `'arrow'` case
   — Arrow towers fire silently. Consider adding a bow-twang procedural SFX.
 
+### TASK-105 review (give-up button reposition) — 2026-03-02
+
+- **Give-up button objects not tracked as instance fields**: `createGiveUpButton()`
+  creates `bg` and `label` as local variables added directly to the scene (not to the
+  HUD container). If called twice, the old objects would leak. Currently safe — only
+  called once per `GameScene.create()` — but consider storing them as instance fields
+  with a guard or cleanup path if the pattern is ever reused.
+
+### TASK-106 Review Findings (Orchestrator Token Optimization) — 2026-03-02
+
+Non-blocking items surfaced during code review:
+
+- **Unquoted heredoc in `ship_bash()` commit message**: The heredoc delimiter `EOF`
+  is unquoted, so `$title` is expanded (intentional) but any `$` or backtick in
+  a task title would be interpreted as shell expansion. Risk is very low since
+  task titles are repo-controlled, but quoting with `'EOF'` and using a separate
+  variable for the message body would be marginally safer.
+
+- **JOURNEY.md entries from `ship_bash()` are generic**: The bash ship writes
+  "Shipped via bash pipeline." with no description of what was built. The old
+  LLM agent produced richer context. Consider extracting a one-line summary from
+  the task file (e.g. the first non-frontmatter paragraph) to include automatically.
+
+- **Follow-up tasks TASK-109/110/111 not filed as task files**: Only TASK-107 and
+  TASK-108 have pending task files. The remaining three (pass test results to review,
+  trim implement prompt, ROADMAP opt-in) are listed in `docs/token-optimization.md`
+  only. If they should enter the orchestrator queue, they need task files.
+
+- **TASK-106 review finding — `parallel-orchestrator.sh` pre-validation gate had
+  a bug**: Both `npm run typecheck` and `npm run test` ran in a single subshell
+  used with `||`, which disables `set -e` inside the subshell. A typecheck failure
+  would not stop test execution, and if tests passed the gate would report success.
+  Fixed during review by splitting into separate subshells (matching the
+  `orchestrator.sh` pattern).
+
+### TASK-105 review — non-blocking findings (2026-03-02)
+
+- **Give-up button and confirmation dialog GameObjects not stored as class fields.**
+  The `createGiveUpButton` button `bg` and `label` are local variables — they cannot
+  be individually destroyed via `HUD.destroy()`. This is the same pattern as the
+  speed buttons. Not a leak (scene teardown cleans them) but if HUD ever needs a
+  `removeGiveUpButton()` method, fields will be needed.
+
+- **Multiple confirmation dialogs possible in theory.** If a user manages to
+  rapidly double-click the give-up button, two dialogs could appear. The overlay's
+  `setInteractive()` should block the second click in practice, but a boolean guard
+  (`_confirmOpen`) would be more defensive. Low priority since the overlay reliably
+  captures input.
+
 <!-- HEALTH_CHECK_START -->
 Last run: 2026-03-02 02:00:04
 Findings: 90 total (79 new task files created, 11 already tracked)

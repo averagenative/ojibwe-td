@@ -3,7 +3,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   publicDir: 'public',
   server: {
-    port: 3000,
+    port: 3001,
+    strictPort: false,
     host: '0.0.0.0',
     open: true,
     allowedHosts: true,

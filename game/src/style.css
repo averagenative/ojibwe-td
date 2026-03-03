@@ -17,15 +17,7 @@ body {
 }
 
 #game-header {
-  flex-shrink: 0;
-  display: none;           /* hidden until PLAY is clicked (BootScene reveals it) */
-  justify-content: center;
-  align-items: center;
-  padding: 6px 0 2px;
-}
-
-#game-header.visible {
-  display: flex;
+  display: none;           /* Logo handled in-canvas; header hidden to avoid resize */
 }
 
 #logo {

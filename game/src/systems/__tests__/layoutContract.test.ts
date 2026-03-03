@@ -60,8 +60,8 @@ describe('style.css — layout contract', () => {
     expect(css).toContain('overflow: hidden');
   });
 
-  it('header has vertical padding', () => {
-    expect(css).toMatch(/padding:\s*\d+px/);
+  it('header is hidden by default (logo handled in-canvas)', () => {
+    expect(css).toMatch(/#game-header\s*\{[^}]*display:\s*none/);
   });
 });
 
