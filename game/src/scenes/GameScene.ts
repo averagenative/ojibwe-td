@@ -22,6 +22,7 @@ import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
 import { getStageDef, getStageByPathFile, getRegionDef } from '../data/stageDefs';
 import type { StageDef } from '../data/stageDefs';
+import { getRegionDifficulty, applyRegionToWaveDefs } from '../data/regionDifficulty';
 import { SaveManager, GOLD_BOOST_AMOUNT } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
 import { WaveBanner } from '../ui/WaveBanner';
@@ -399,7 +400,12 @@ export class GameScene extends Phaser.Scene {
     const creepTypeDefs = this.cache.json.get('creep-types');
     let waveDefs = this.cache.json.get('wave-defs');
 
-    // Apply challenge modifiers to wave definitions (HP/speed scaling).
+    // Apply regional difficulty scaling (HP/speed multipliers + creep pool overrides).
+    // `regionId` is already declared above (for VignetteManager).
+    const regionDifficulty = getRegionDifficulty(regionId);
+    waveDefs = applyRegionToWaveDefs(waveDefs, regionDifficulty);
+
+    // Apply challenge modifiers on top of regional scaling (stacks multiplicatively).
     if (this.challengeModifier) {
       const mod = this.challengeModifier;
       waveDefs = waveDefs.map((w: { hpMult: number; speedMult: number }) => ({
@@ -412,6 +418,7 @@ export class GameScene extends Phaser.Scene {
     const airWaypoints  = this.buildAirWaypoints();
     this.waveManager = new WaveManager(
       this, this.waypointPaths, this.activeCreeps, creepTypeDefs, waveDefs, airWaypoints,
+      regionDifficulty,
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
 
