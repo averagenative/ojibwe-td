@@ -13,7 +13,7 @@ interface BetweenWaveData {
   nextWave:          number;
   /** Upcoming wave metadata for the preview strip. Optional — omitted on the last wave. */
   nextWaveInfo?:     WaveAnnouncementInfo;
-  /** Reroll tokens available this run. Each click re-draws 3 fresh offer cards. */
+  /** Reroll tokens available this run. Each click re-draws fresh offer cards. */
   rerollTokens?:     number;
   /**
    * Tower type keys currently placed on the field.  Used to gate synergy
@@ -21,6 +21,11 @@ interface BetweenWaveData {
    * e.g. ['frost', 'mortar', 'cannon']
    */
   placedTowerKeys?:  string[];
+  /**
+   * Number of offer cards to display (default 3).
+   * Commanders with aura bonuses (e.g. Oshkaabewis) may increase this to 4.
+   */
+  offerCount?:       number;
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────────
@@ -50,7 +55,7 @@ const RARITY_STROKE: Record<string, number> = {
 /**
  * BetweenWaveScene — shown after every wave completion (except the final wave).
  *
- * Presents 3 drawn offer cards; the player must click one to proceed.
+ * Presents drawn offer cards (count driven by `offerCount` param); the player must click one to proceed.
  * The scene is NOT skippable: it has no dismiss button and intercepts all
  * pointer events below it via a full-screen blocking overlay.
  *
@@ -69,7 +74,9 @@ export class BetweenWaveScene extends Phaser.Scene {
   private _offerManager?: OfferManager;
   /** Tower keys currently on the field — used for synergy gating. */
   private _placedTowerKeys: string[] = [];
-  /** Container holding the 3 offer cards — replaced on each reroll. */
+  /** Number of offer cards to display — set from BetweenWaveData.offerCount. */
+  private _offerCount = 3;
+  /** Container holding the offer cards — replaced on each reroll. */
   private _cardsContainer?: Phaser.GameObjects.Container;
   /** Reroll button text (updates token count after each use). */
   private _rerollLabel?: Phaser.GameObjects.Text;
@@ -99,11 +106,12 @@ export class BetweenWaveScene extends Phaser.Scene {
     // On mobile, taller cards accommodate the scaled-up fonts.
     this._cardH = this._isMobile ? 340 : CARD_H;
 
-    const { offerManager, waveJustCompleted, nextWave, nextWaveInfo, rerollTokens = 0, placedTowerKeys = [] } =
+    const { offerManager, waveJustCompleted, nextWave, nextWaveInfo, rerollTokens = 0, placedTowerKeys = [], offerCount = 3 } =
       data as BetweenWaveData;
 
     this._offerManager    = offerManager;
     this._placedTowerKeys = placedTowerKeys;
+    this._offerCount      = offerCount;
     this._rerollsLeft     = rerollTokens;
     this._rerollsUsed     = 0;
 
@@ -155,15 +163,16 @@ export class BetweenWaveScene extends Phaser.Scene {
   // ── Private ───────────────────────────────────────────────────────────────
 
   /**
-   * (Re)build the 3 offer card objects into `_cardsContainer`, destroying any
+   * (Re)build the offer card objects into `_cardsContainer`, destroying any
    * previous container first.  Called on create and on each reroll.
    */
   private _buildCards(offerManager: OfferManager, cx: number, cy: number): void {
     this._cardsContainer?.destroy();
     this._cardsContainer = this.add.container(0, 0).setDepth(DEPTH);
 
-    const offers  = offerManager.drawOffers(3, this._placedTowerKeys);
-    const startX  = cx - SPACING;
+    const offers  = offerManager.drawOffers(this._offerCount, this._placedTowerKeys);
+    // Centre the card strip: for N cards the first card is offset left by (N-1)/2 slots.
+    const startX  = cx - ((this._offerCount - 1) / 2) * SPACING;
 
     for (let i = 0; i < offers.length; i++) {
       this.buildCard(offers[i], startX + i * SPACING, cy, offerManager, this._cardH);
