@@ -256,6 +256,20 @@ export class BootScene extends Phaser.Scene {
     this.load.image('rubble-02', 'assets/effects/rubble-02.png');
     this.load.image('rubble-03', 'assets/effects/rubble-03.png');
 
+    // Tower sprites (64×64) — base (static) + turret (rotating) per tower type
+    this.load.image('tower-arrow-base',       'assets/towers/arrow-base.png');
+    this.load.image('tower-arrow-turret',     'assets/towers/arrow-turret.png');
+    this.load.image('tower-rock-hurler-base',   'assets/towers/rock-hurler-base.png');
+    this.load.image('tower-rock-hurler-turret', 'assets/towers/rock-hurler-turret.png');
+    this.load.image('tower-frost-base',       'assets/towers/frost-base.png');
+    this.load.image('tower-frost-turret',     'assets/towers/frost-turret.png');
+    this.load.image('tower-poison-base',      'assets/towers/poison-base.png');
+    this.load.image('tower-poison-turret',    'assets/towers/poison-turret.png');
+    this.load.image('tower-tesla-base',       'assets/towers/tesla-base.png');
+    this.load.image('tower-tesla-turret',     'assets/towers/tesla-turret.png');
+    this.load.image('tower-aura-base',        'assets/towers/aura-base.png');
+    this.load.image('tower-aura-turret',      'assets/towers/aura-turret.png');
+
     // Critter spritesheets (48×16, 3 frames of 16×16) — ambient wildlife
     this.load.spritesheet('critter-squirrel', 'assets/critters/squirrel.png', { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('critter-frog',     'assets/critters/frog.png',     { frameWidth: 16, frameHeight: 16 });

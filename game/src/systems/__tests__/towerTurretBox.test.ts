@@ -1,15 +1,16 @@
 /**
- * Tests for TASK-119 + TASK-153: Remove Visual Box from Tower Turrets.
+ * Tests for TASK-119 + TASK-153 + TASK-156: Tower Sprite Architecture.
  *
  * TASK-119 removed the white stroke from the body shape.
- * TASK-153 replaces the rectangular body with a circular Arc so that the
- * tower body has no corners and does not look like a "rotating box" when
- * the container tracks a target.
+ * TASK-153 replaced the rectangular body with a circular Arc.
+ * TASK-156 replaces the Arc + icon overlay with dedicated base and turret
+ * Image sprites. The base sprite never rotates; the turret sprite rotates
+ * to face targets.
  *
  * Verifies:
  *  1. buildBody() does NOT call setStrokeStyle on the body shape
- *  2. buildBody() creates an Arc (circle) — NOT a Rectangle — for the body
- *  3. buildBody() still stores _bodyRef
+ *  2. buildBody() creates Phaser.GameObjects.Image sprites (NOT Arc/Rectangle)
+ *  3. buildBody() stores _baseSprite and _turretSprite
  *  4. Tower rotation tracking is intact (_barrelAngle, lerpAngleDeg usage)
  *  5. Range circle strokes are NOT affected (still present in drawRange)
  *  6. All tower defs still have bodyColor defined
@@ -67,29 +68,37 @@ describe('buildBody — no turret box stroke', () => {
   });
 });
 
-// ── 2. Body shape is a circle (Arc), NOT a rectangle ────────────────────────
+// ── 2. Body uses Image sprites (not Arc/Rectangle) ─────────────────────────
 
-describe('buildBody — circle body, not rectangle', () => {
+describe('buildBody — sprite-based rendering', () => {
   it('does NOT use Phaser.GameObjects.Rectangle for the body', () => {
-    // Rectangle has corners; rotating the container creates a visible box.
-    // The body must be circular so rotation has no rectangular artefact.
     expect(buildBodySrc).not.toContain('Phaser.GameObjects.Rectangle');
   });
 
-  it('creates a Phaser.GameObjects.Arc (circle) for the body', () => {
-    expect(buildBodySrc).toContain('Phaser.GameObjects.Arc');
+  it('does NOT use Phaser.GameObjects.Arc for the body', () => {
+    // TASK-156: Arc replaced by Image sprites so no rotating-box artefact.
+    expect(buildBodySrc).not.toContain('Phaser.GameObjects.Arc');
   });
 
-  it('uses BODY_SIZE for the radius (BODY_SIZE / 2)', () => {
+  it('creates Phaser.GameObjects.Image for base and turret sprites', () => {
+    expect(buildBodySrc).toContain('Phaser.GameObjects.Image');
+  });
+
+  it('uses BODY_SIZE for sprite display size', () => {
     expect(buildBodySrc).toContain('BODY_SIZE');
   });
 
-  it('passes this.def.bodyColor as fill color', () => {
-    expect(buildBodySrc).toContain('this.def.bodyColor');
+  it('stores base sprite in this._baseSprite', () => {
+    expect(buildBodySrc).toContain('this._baseSprite = base');
   });
 
-  it('stores result in this._bodyRef', () => {
-    expect(buildBodySrc).toContain('this._bodyRef = body');
+  it('stores turret sprite in this._turretSprite', () => {
+    expect(buildBodySrc).toContain('this._turretSprite = turret');
+  });
+
+  it('uses tower key to build sprite texture keys', () => {
+    expect(buildBodySrc).toContain('tower-${this.def.key}-base');
+    expect(buildBodySrc).toContain('tower-${this.def.key}-turret');
   });
 });
 
