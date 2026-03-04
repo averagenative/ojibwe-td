@@ -1,9 +1,14 @@
 /**
- * Tests for TASK-119: Remove Visual Box from Tower Turrets.
+ * Tests for TASK-119 + TASK-153: Remove Visual Box from Tower Turrets.
+ *
+ * TASK-119 removed the white stroke from the body shape.
+ * TASK-153 replaces the rectangular body with a circular Arc so that the
+ * tower body has no corners and does not look like a "rotating box" when
+ * the container tracks a target.
  *
  * Verifies:
- *  1. buildBody() does NOT call setStrokeStyle on the body rectangle
- *  2. buildBody() still creates a Rectangle with BODY_SIZE and fill color
+ *  1. buildBody() does NOT call setStrokeStyle on the body shape
+ *  2. buildBody() creates an Arc (circle) — NOT a Rectangle — for the body
  *  3. buildBody() still stores _bodyRef
  *  4. Tower rotation tracking is intact (_barrelAngle, lerpAngleDeg usage)
  *  5. Range circle strokes are NOT affected (still present in drawRange)
@@ -62,18 +67,24 @@ describe('buildBody — no turret box stroke', () => {
   });
 });
 
-// ── 2. Body rectangle is still created ──────────────────────────────────────
+// ── 2. Body shape is a circle (Arc), NOT a rectangle ────────────────────────
 
-describe('buildBody — rectangle still created', () => {
-  it('creates a Phaser.GameObjects.Rectangle', () => {
-    expect(buildBodySrc).toContain('Phaser.GameObjects.Rectangle');
+describe('buildBody — circle body, not rectangle', () => {
+  it('does NOT use Phaser.GameObjects.Rectangle for the body', () => {
+    // Rectangle has corners; rotating the container creates a visible box.
+    // The body must be circular so rotation has no rectangular artefact.
+    expect(buildBodySrc).not.toContain('Phaser.GameObjects.Rectangle');
   });
 
-  it('uses BODY_SIZE for dimensions', () => {
+  it('creates a Phaser.GameObjects.Arc (circle) for the body', () => {
+    expect(buildBodySrc).toContain('Phaser.GameObjects.Arc');
+  });
+
+  it('uses BODY_SIZE for the radius (BODY_SIZE / 2)', () => {
     expect(buildBodySrc).toContain('BODY_SIZE');
   });
 
-  it('passes this.def.bodyColor as fill', () => {
+  it('passes this.def.bodyColor as fill color', () => {
     expect(buildBodySrc).toContain('this.def.bodyColor');
   });
 
