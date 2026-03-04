@@ -71,13 +71,13 @@ describe('BootScene gear icon loading (TASK-084)', () => {
     }
   });
 
-  it('icon-rock-hurler is loaded as SVG (not PNG placeholder)', () => {
+  it('icon-rock-hurler is loaded as PNG (all tower icons are PNG)', () => {
     const rockHurlerLine = bootSceneRaw
       .split('\n')
       .find(l => l.includes("'icon-rock-hurler'"));
     expect(rockHurlerLine).toBeDefined();
-    expect(rockHurlerLine).toContain('.svg');
-    expect(rockHurlerLine).not.toContain('.png');
+    expect(rockHurlerLine).toContain('.png');
+    expect(rockHurlerLine).not.toContain('.svg');
   });
 });
 

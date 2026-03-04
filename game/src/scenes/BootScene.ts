@@ -189,7 +189,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('logo', 'assets/ui/logo.png');
 
     // Tower icons
-    this.load.image('icon-rock-hurler', 'assets/icons/icon-rock-hurler.svg');
+    this.load.image('icon-rock-hurler', 'assets/icons/icon-rock-hurler.png');
     this.load.image('icon-frost',       'assets/icons/icon-frost.png');
     this.load.image('icon-poison',      'assets/icons/icon-poison.png');
     this.load.image('icon-tesla',       'assets/icons/icon-tesla.png');
