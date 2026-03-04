@@ -1,7 +1,7 @@
 ---
 id: TASK-141
 title: Gear Enhancement Effects Not Clear in UI
-status: pending
+status: in-progress
 priority: medium
 category: frontend
 phase: polish

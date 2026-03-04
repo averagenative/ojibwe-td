@@ -2694,3 +2694,15 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 - **`Rng.nextInt(min, max)` does not guard `min > max`** — Callers always pass valid ranges, but the method silently produces incorrect values if `min > max`. Consider adding a debug assertion.
 - **Phase 2 integration not yet wired** — `MapGenerator.ts` and `Rng.ts` are standalone (not imported by any scene). Phase 2 tasks (Quick Play integration, seed input field, seed display on HUD) are required before the feature is player-facing.
 - **No TASK-030 predecessor** — The task lists TASK-030 (seeded RNG) as a dependency, but Rng.ts was delivered inline with TASK-147. This is fine — the dependency is satisfied by the code itself.
+
+### TASK-141 Review Findings (Gear Enhancement UI Clarity)
+
+- **`_formatStatVal` sign quirk (fixed)** — The original implementation computed the `+`/`-` sign from the raw input `val` rather than the rounded display value, which could produce `+0%` or `+0` for values that round to zero. Fixed during review to compute sign after rounding.
+- **Enhance level always shows `/5` cap** — Good for player clarity, but if the max enhance level becomes configurable per rarity in future, the hardcoded `5` in the template literal (`+${item.enhanceLevel}/5`) should be extracted to a constant (e.g. `MAX_ENHANCE_LEVEL`).
+- **Float precision in stat display** — `getEnhancedStatMult` uses `1.0 + level * 0.05`, which can produce IEEE-754 float artifacts (e.g. `0.05 * 1.15 = 0.057499…` instead of `0.0575`). The current rounding (`Math.round(val * 1000) / 10`) handles this well, but consider integer-based arithmetic if more tiers or finer granularity are added.
+
+### TASK-030 Review Findings (Seeded RNG — Replace Math.random)
+
+- **GameScene poison-heal chance still uses `Math.random()`** — `GameScene.ts:787` has `Math.random() < healChance` for Waabizii commander's poison-kill heal. This is gameplay-affecting logic that should use the run's seeded `Rng` for full replay determinism. Low priority since it's a rare commander-specific mechanic, but should be converted if replay support is added.
+- **`InventoryManager._rng` seeded with `Date.now()` at singleton construction** — This means the InventoryManager's RNG seed is determined by when the singleton is first accessed, not by a run seed. For gear evolution, this is acceptable (meta-progression is intentionally non-deterministic), but worth documenting if replay scope expands beyond in-run systems.
+- **`Rng.nextBelow(0)` returns `NaN`** — `Math.floor(next() * 0)` returns 0, which is fine, but `nextBelow(-1)` returns -1 which is unexpected. No caller passes invalid values currently, but a debug assertion could guard against future misuse.

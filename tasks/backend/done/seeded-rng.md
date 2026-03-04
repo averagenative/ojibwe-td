@@ -1,7 +1,7 @@
 ---
 id: TASK-030
 title: Seeded RNG — Replace Math.random()
-status: pending
+status: done
 priority: medium
 category: backend
 phase: 13
