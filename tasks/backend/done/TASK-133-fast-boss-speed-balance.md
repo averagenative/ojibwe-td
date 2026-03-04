@@ -1,7 +1,7 @@
 ---
 id: TASK-133
 title: Fast Boss Speed Balance — Too Fast
-status: in-progress
+status: done
 priority: high
 category: backend
 phase: balance
