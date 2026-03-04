@@ -1,7 +1,7 @@
 ---
 id: TASK-148
 title: Rush Wave Only Gives 1 Wave Clear Upgrade Instead of Full Offer Set
-status: pending
+status: in-progress
 priority: high
 category: backend
 phase: polish

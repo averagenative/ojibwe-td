@@ -2624,3 +2624,13 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **`creepTraversalSec` does not accept a region difficulty parameter** — the balance helper computes traversal time using only wave speed mults, ignoring the region's `creepSpeedMult`. Tests work around this with a manual `savannahGruntTraversal()` helper. Consider adding an optional `regionSpeedMult` parameter to `creepTraversalSec` for accurate per-region traversal calculations in future balance tooling.
 - **`SAVANNAH_PATH_LENGTH_PX` is a manually-derived constant** — the 1640px value is computed by hand from map-03 waypoints. If the map layout changes, this constant can silently drift out of sync. Consider deriving it at build time or in a test from the actual `map-03.json` waypoints.
+
+### TASK-145 Review Findings (Crystal Tower Base Stat Upgrades)
+
+- **No audio/visual purchase feedback in upgrades tab** — Criterion D.vi asks for "visual feedback on purchase (flash, sound if audio enabled)". The current implementation does `scene.restart()` which refreshes the UI (tier pips update, cost changes), but there is no explicit flash animation or `AudioManager.playUiClick()` call. The existing unlocks and shop tabs also lack purchase audio, so this is consistent but worth adding across all three tabs in a future polish pass.
+- **Effective stats not shown in tower tooltip** — Task notes suggest "Consider showing effective stats in tower tooltip so players see the meta bonus impact." This is not an acceptance criterion but would improve player understanding of their meta investment. Consider a future task to surface meta bonuses in the in-game tower info panel.
+
+### TASK-148 Review Findings (Rush Wave Offer Parity)
+
+- **BetweenWaveScene doc comment still says "3 offer cards"** — The class-level JSDoc says "Presents 3 drawn offer cards" (line 58), but the count is now dynamic via `_offerCount`. Minor doc drift; update the comment to say "Presents N drawn offer cards" in a future pass.
+- **Stacked offer panels from rapid rushing have no visual indicator** — When rushing multiple waves in quick succession, several BetweenWaveScene panels queue up. The player sees them one-by-one but has no indication of how many are pending. Consider showing a "2 more offers waiting" badge on the offer panel in a future UX polish pass.

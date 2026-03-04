@@ -1,7 +1,7 @@
 ---
 id: TASK-145
 title: Crystal Tower Base Stat Upgrades — Permanent Meta-Progression
-status: in-progress
+status: done
 priority: high
 category: backend
 phase: meta

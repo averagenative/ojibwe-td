@@ -215,7 +215,7 @@ const BIZHIW: CommanderDef = {
       }
     },
   },
-  unlockCost: 200,
+  unlockCost: 400,
   defaultUnlocked: false,
 };
 
@@ -251,7 +251,7 @@ const ANIMIKIIKAA: CommanderDef = {
       });
     },
   },
-  unlockCost: 400,
+  unlockCost: 800,
   defaultUnlocked: false,
 };
 
@@ -285,7 +285,7 @@ const MAKOONS: CommanderDef = {
       });
     },
   },
-  unlockCost: 300,
+  unlockCost: 400,
   defaultUnlocked: false,
 };
 
@@ -320,7 +320,7 @@ const OSHKAABEWIS: CommanderDef = {
       }
     },
   },
-  unlockCost: 250,
+  unlockCost: 500,
   defaultUnlocked: false,
 };
 
@@ -352,7 +352,7 @@ const WAABIZII: CommanderDef = {
       // Cleared by GameScene at the end of the next wave.
     },
   },
-  unlockCost: 350,
+  unlockCost: 500,
   defaultUnlocked: false,
 };
 
