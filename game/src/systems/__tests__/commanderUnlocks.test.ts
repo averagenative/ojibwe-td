@@ -54,34 +54,34 @@ describe('commander unlock nodes', () => {
     }
   });
 
-  it('unlock-commander-makoons has cost 8', () => {
+  it('unlock-commander-makoons has cost 400', () => {
     const node = commanderNodes.find(n => n.id === 'unlock-commander-makoons');
     expect(node).toBeDefined();
-    expect(node!.cost).toBe(8);
+    expect(node!.cost).toBe(400);
     expect(node!.description).toBe('Unlock Makoons \u2014 the bear spirit warrior');
     expect(node!.effect).toEqual({ type: 'commander', commanderId: 'makoons' });
   });
 
-  it('unlock-commander-waabizii has cost 8', () => {
+  it('unlock-commander-waabizii has cost 500', () => {
     const node = commanderNodes.find(n => n.id === 'unlock-commander-waabizii');
     expect(node).toBeDefined();
-    expect(node!.cost).toBe(8);
+    expect(node!.cost).toBe(500);
     expect(node!.description).toBe('Unlock Waabizii \u2014 the swan healer');
     expect(node!.effect).toEqual({ type: 'commander', commanderId: 'waabizii' });
   });
 
-  it('unlock-commander-bizhiw has cost 12', () => {
+  it('unlock-commander-bizhiw has cost 650', () => {
     const node = commanderNodes.find(n => n.id === 'unlock-commander-bizhiw');
     expect(node).toBeDefined();
-    expect(node!.cost).toBe(12);
+    expect(node!.cost).toBe(650);
     expect(node!.description).toBe('Unlock Bizhiw \u2014 the lynx hunter');
     expect(node!.effect).toEqual({ type: 'commander', commanderId: 'bizhiw' });
   });
 
-  it('unlock-commander-animikiikaa has cost 16', () => {
+  it('unlock-commander-animikiikaa has cost 800', () => {
     const node = commanderNodes.find(n => n.id === 'unlock-commander-animikiikaa');
     expect(node).toBeDefined();
-    expect(node!.cost).toBe(16);
+    expect(node!.cost).toBe(800);
     expect(node!.description).toBe('Unlock Animikiikaa \u2014 the thunderbird');
     expect(node!.effect).toEqual({ type: 'commander', commanderId: 'animikiikaa' });
   });
@@ -196,9 +196,9 @@ describe('UNLOCK_NODES overall integrity with commander nodes', () => {
     }
   });
 
-  it('commander costs form ascending progression: 8, 8, 12, 16', () => {
+  it('commander costs form ascending progression: 400, 500, 650, 800', () => {
     const commanderNodes = UNLOCK_NODES.filter(n => n.effect.type === 'commander');
     const costs = commanderNodes.map(n => n.cost).sort((a, b) => a - b);
-    expect(costs).toEqual([8, 8, 12, 16]);
+    expect(costs).toEqual([400, 500, 650, 800]);
   });
 });
