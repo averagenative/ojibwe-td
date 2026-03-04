@@ -151,6 +151,12 @@ export class GameScene extends Phaser.Scene {
   private readonly _postWaveQueue = new PostWaveUIQueue();
   /** Boss name from a boss-killed event, shown in the post-wave loot panel. */
   private _pendingBossName: string | null = null;
+  /**
+   * Bounty (escape) offer: tracks whether the first-escape bounty has already
+   * been armed this wave.  Prevents a second or third escape from re-arming
+   * the bounty after it was consumed by a kill.
+   */
+  private _bountyEscapeArmedThisWave = false;
   /** Whether the pending boss should display a loot offer panel post-wave. */
   private _pendingBossRewardOffer = false;
   /** Dismiss callback captured by the BetweenWaveScene queue entry. */
@@ -609,11 +615,14 @@ export class GameScene extends Phaser.Scene {
 
       // Bounty Hunter: kill rewards worth 20% more.
       const rewardMult = this.offerManager.getKillRewardMult();
+      // Bounty (escape): if a creep escaped this wave, the first kill earns triple gold.
+      const bountyMult = this.offerManager.getBountyKillMult();
+      if (bountyMult > 1) this.offerManager.consumeBounty();
       // Oshkaabewis: +1 gold per creep kill (stacks with base reward)
       const cmdBonus    = this.commanderState?.killGoldBonus ?? 0;
       // Ascension 10: gold income penalty (0.9 = 10% reduction).
       const ascGoldMult = this._ascensionSystem?.getGoldIncomeMultiplier() ?? 1;
-      const killGold    = Math.round(data.reward * rewardMult * ascGoldMult) + cmdBonus;
+      const killGold    = Math.round(data.reward * rewardMult * bountyMult * ascGoldMult) + cmdBonus;
       this.gold += killGold;
       this._totalKills++;
       this._goldEarned += killGold;
@@ -678,6 +687,12 @@ export class GameScene extends Phaser.Scene {
       const liveCost = data?.liveCost ?? 1;
       const reward   = data?.reward   ?? 0;
       const isBoss   = data?.isBoss   ?? false;
+
+      // Bounty (escape): arm the triple-gold bounty on the first escape each wave.
+      if (this.offerManager.hasBountyEscape() && !this._bountyEscapeArmedThisWave) {
+        this.offerManager.activateBounty();
+        this._bountyEscapeArmedThisWave = true;
+      }
 
       // Tax Collector: escaped creeps refund 50% of their gold value.
       const taxRefund = this.offerManager.getEscapeRefund(reward);
@@ -2084,6 +2099,10 @@ export class GameScene extends Phaser.Scene {
     if (this.commanderState) {
       this.commanderState.waveStartLives = this.lives;
     }
+
+    // Bounty (escape): reset per-wave tracking at the start of each new wave.
+    this._bountyEscapeArmedThisWave = false;
+    this.offerManager.consumeBounty(); // clear any stale bounty from previous wave
 
     // Supply Cache: +10 gold per owned tower at wave start.
     const supplyCacheBonus = this.offerManager.getSupplyCacheBonus(this.towers.length);
