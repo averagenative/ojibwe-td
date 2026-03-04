@@ -17,7 +17,7 @@ import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
 import type { MapData } from '../types/MapData';
-import { TILE, getWaypointPaths } from '../types/MapData';
+import { TILE, getWaypointPaths, getAirWaypointPaths } from '../types/MapData';
 import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
 import { getStageDef, getStageByPathFile, getRegionDef } from '../data/stageDefs';
@@ -575,11 +575,13 @@ export class GameScene extends Phaser.Scene {
       }));
     }
 
-    // Apply Ascension 7 air-bypass modifier to the air waypoints.
-    const rawAirWaypoints = this.buildAirWaypoints();
-    const airWaypoints = this._ascensionSystem
-      ? this._ascensionSystem.modifyAirWaypoints(rawAirWaypoints)
-      : rawAirWaypoints;
+    // Apply Ascension 7 air-bypass modifier to each air lane.
+    const rawAirPaths = this.buildAllAirWaypointPaths();
+    const airPaths = rawAirPaths.map(rawAirWaypoints =>
+      this._ascensionSystem
+        ? this._ascensionSystem.modifyAirWaypoints(rawAirWaypoints)
+        : rawAirWaypoints
+    );
 
     const ascensionConfig = this._ascensionSystem
       ? {
@@ -591,7 +593,7 @@ export class GameScene extends Phaser.Scene {
       : undefined;
 
     this.waveManager = new WaveManager(
-      this, this.waypointPaths, this.activeCreeps, creepTypeDefs, waveDefs, airWaypoints,
+      this, this.waypointPaths, this.activeCreeps, creepTypeDefs, waveDefs, airPaths,
       regionDifficulty, ascensionConfig,
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
@@ -1295,24 +1297,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Build the pixel-space air waypoint array for the current map.
-   * If the map defines custom `airWaypoints`, convert them; otherwise
-   * default to a direct spawn→exit path (first and last ground waypoints).
-   * Air creeps fly this simplified route, ignoring ground terrain.
+   * Build the pixel-space air waypoint paths for the current map.
+   *
+   * Checks `airWaypointPaths` (multi-lane) → `airWaypoints` (single-lane
+   * legacy) → direct spawn→exit fallback.  Returns an array of 1–3 paths,
+   * each expressed as pixel-space `PixelWaypoint[]`.  WaveManager randomly
+   * picks one path per air creep to create lane diversity.
    */
-  private buildAirWaypoints(): PixelWaypoint[] {
+  private buildAllAirWaypointPaths(): PixelWaypoint[][] {
     const ts = this.mapData.tileSize;
-    const custom = this.mapData.airWaypoints;
-    if (custom && custom.length >= 2) {
-      return custom.map(wp => ({
-        x: wp.col * ts + ts / 2,
-        y: wp.row * ts + ts / 2,
-      }));
-    }
-    // Default: direct line from spawn (first) to exit (last) ground waypoint.
-    const first = this.waypoints[0];
-    const last  = this.waypoints[this.waypoints.length - 1];
-    return [first, last];
+    // groundPath is already in tile coords (MapWaypoint with col/row).
+    const groundPath = getWaypointPaths(this.mapData)[0] ?? [];
+    const mapPaths = getAirWaypointPaths(this.mapData, groundPath);
+    return mapPaths.map(path =>
+      path.map(wp => ({ x: wp.col * ts + ts / 2, y: wp.row * ts + ts / 2 }))
+    );
   }
 
   private renderMap(): void {
