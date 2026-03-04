@@ -278,3 +278,41 @@ describe('computeWaaboozSplitConfig edge cases', () => {
     expect(cfg.reward).toBe(1); // Math.max(1, ...) guard
   });
 });
+
+// ── 8. TASK-133: Migizi speed balance ────────────────────────────────────
+
+describe('TASK-133 — Migizi speed balance', () => {
+  const RUNNER_SPEED = 120; // from creep-types.json
+
+  it('Migizi speed is 130 px/s (reduced from 160)', () => {
+    expect(MIGIZI_DEF.speed).toBe(130);
+  });
+
+  it('Migizi is faster than the runner (120 px/s)', () => {
+    expect(MIGIZI_DEF.speed).toBeGreaterThan(RUNNER_SPEED);
+  });
+
+  it('Migizi is the fastest boss', () => {
+    for (const def of [MAKWA_DEF, WAABOOZ_DEF, ANIMIKIINS_DEF]) {
+      expect(MIGIZI_DEF.speed).toBeGreaterThan(def.speed);
+    }
+  });
+
+  it('Migizi is no more than 50 % faster than the runner (balance guard)', () => {
+    // At 130 it's ~8 % faster; a 50 % cap prevents future over-buffs
+    expect(MIGIZI_DEF.speed).toBeLessThanOrEqual(RUNNER_SPEED * 1.5);
+  });
+
+  it('Migizi retains slow-immunity as its defining threat', () => {
+    expect(MIGIZI_DEF.isSlowImmune).toBe(true);
+  });
+
+  it('Arrow tower gets ≥ 2 shots per pass at Migizi speed', () => {
+    // Arrow tower: 180 px range, 600 ms fire interval
+    const arrowRange = 180;
+    const arrowIntervalMs = 600;
+    const dpsWindowSec = arrowRange / MIGIZI_DEF.speed;
+    const shots = dpsWindowSec / (arrowIntervalMs / 1000);
+    expect(shots).toBeGreaterThanOrEqual(2);
+  });
+});

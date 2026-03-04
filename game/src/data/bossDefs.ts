@@ -165,6 +165,14 @@ export const MAKWA_DEF: BossDef = {
  * Wave 10 — Migizi (Eagle)
  * Moderate HP, very fast movement, immune to slow and freeze.
  * HP ≈ avg(grunt×2.2, runner×2.2, brute×2.2, swarm×2.2) × 18 = 3762
+ *
+ * Speed balance (TASK-133): reduced from 160 → 130 px/s.
+ * At 160 px/s the Arrow tower (180 px range, 600 ms interval) only landed ~1.9 shots
+ * per pass, and slow immunity made it impossible to extend that window.  Compared with
+ * a runner (120 px/s, slowable) the effective DPS window was ~50 % shorter — too punishing.
+ * At 130 px/s the Arrow window is ~1.38 s (~2.3 shots) — a 23 % improvement.  Migizi is
+ * still the fastest unit in the game (8 % faster than runner) and slow-immunity remains its
+ * defining threat, making it feel fast but beatable with good tower coverage.
  */
 export const MIGIZI_DEF: BossDef = {
   key:               'migizi',
@@ -173,7 +181,7 @@ export const MIGIZI_DEF: BossDef = {
   isBoss:            true,
   bossAbility:       'slow-immune',
   hp:                3762,
-  speed:             160,        // very fast — more than double normal runners
+  speed:             130,        // fast — 8 % faster than runner (120); was 160 (too punishing)
   reward:            80,
   rewardGold:        150,
   rewardOffer:       true,
