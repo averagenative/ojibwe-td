@@ -5,6 +5,7 @@ import { calculateWaveBonus } from './EconomyManager';
 import { BOSS_DEFS, computeWaaboozSplitConfig, bossEscapeLiveCost } from '../data/bossDefs';
 import type { BossDef } from '../data/bossDefs';
 import type { RegionDifficulty } from '../data/regionDifficulty';
+import { Rng } from './Rng';
 
 interface Waypoint { x: number; y: number; }
 
@@ -144,6 +145,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   /** Per-region difficulty config (null = baseline / Region 1). */
   private regionDifficulty: RegionDifficulty | null = null;
+  private readonly rng: Rng;
 
   // ── Ascension modifiers ────────────────────────────────────────────────────
   /** Additional HP multiplier from the Ascension system (1 = no change). */
@@ -180,8 +182,10 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       regenPerSec:  number;
       immuneCombo:  boolean;
     },
+    rng?: Rng,
   ) {
     super();
+    this.rng              = rng ?? new Rng(Date.now());
     this.scene            = scene;
     this.activeCreeps     = activeCreeps;
     this.creepTypeDefs    = creepTypeDefs;
@@ -226,7 +230,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
    * each creep independently picks one, distributing pressure across zones.
    */
   private _pickAirPath(): Waypoint[] {
-    const idx = Math.floor(Math.random() * this.airWaypointPaths.length);
+    const idx = this.rng.nextBelow(this.airWaypointPaths.length);
     return this.airWaypointPaths[idx];
   }
 
@@ -536,19 +540,19 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     // but only once the region's armoredStartWave threshold is reached.
     const armoredStartWave = rd.armoredStartWave ?? 1;
     if (!config.isArmored && config.type === 'ground' && typeKey !== 'brute' && waveNumber >= armoredStartWave) {
-      if (rd.armoredFraction > 0 && Math.random() < rd.armoredFraction) {
+      if (rd.armoredFraction > 0 && this.rng.next() < rd.armoredFraction) {
         config.isArmored        = true;
         config.physicalResistPct = rd.armorResistPct;
       }
     }
 
     // Slow immunity.
-    if (rd.slowImmuneFraction > 0 && Math.random() < rd.slowImmuneFraction) {
+    if (rd.slowImmuneFraction > 0 && this.rng.next() < rd.slowImmuneFraction) {
       config.isSlowImmune = true;
     }
 
     // Poison immunity.
-    if (rd.poisonImmuneFraction > 0 && Math.random() < rd.poisonImmuneFraction) {
+    if (rd.poisonImmuneFraction > 0 && this.rng.next() < rd.poisonImmuneFraction) {
       config.isPoisonImmune = true;
     }
   }
@@ -563,7 +567,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     // Level 3: armored creeps appear earlier — force armor on ground creeps with 40% chance.
     if (this.ascensionArmoredEarly > 0 && !config.isArmored && config.type === 'ground') {
-      if (Math.random() < 0.40) {
+      if (this.rng.next() < 0.40) {
         config.isArmored        = true;
         config.physicalResistPct = 0.25; // same as region armor resist
       }
@@ -612,7 +616,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     const queue: CreepConfig[] = [];
 
     for (let i = 0; i < waveDef.count; i++) {
-      const typeKey = waveDef.pool[Math.floor(Math.random() * waveDef.pool.length)];
+      const typeKey = this.rng.nextItem(waveDef.pool);
       const base    = this.creepTypeDefs.find(t => t.key === typeKey);
       if (!base) continue;
 
@@ -646,7 +650,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     const queue: CreepConfig[] = [];
 
     for (let i = 0; i < escorts.count; i++) {
-      const typeKey = escorts.types[Math.floor(Math.random() * escorts.types.length)];
+      const typeKey = this.rng.nextItem(escorts.types);
       const base    = this.creepTypeDefs.find(t => t.key === typeKey);
       if (!base) continue;
 

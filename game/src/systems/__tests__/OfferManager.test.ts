@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { OfferManager } from '../OfferManager';
 import { ALL_OFFERS } from '../../data/offerDefs';
+import { Rng } from '../Rng';
 
 describe('OfferManager', () => {
   let om: OfferManager;
@@ -341,6 +342,16 @@ describe('OfferManager', () => {
       expect(crits).toBeGreaterThan(30);
       expect(crits).toBeLessThan(200);
     });
+
+    it('is deterministic with a fixed-seed Rng — same seed → same sequence', () => {
+      const om1 = new OfferManager(new Rng(12345));
+      const om2 = new OfferManager(new Rng(12345));
+      om1.applyOffer('critical-strike');
+      om2.applyOffer('critical-strike');
+      const seq1 = Array.from({ length: 50 }, () => om1.critRoll());
+      const seq2 = Array.from({ length: 50 }, () => om2.critRoll());
+      expect(seq1).toEqual(seq2);
+    });
   });
 
   // ── Synergy multipliers ────────────────────────────────────────────────────
@@ -635,6 +646,38 @@ describe('OfferManager', () => {
       // 5% of 2000 = 100; allow wide tolerance [30, 200].
       expect(hits).toBeGreaterThan(30);
       expect(hits).toBeLessThan(200);
+    });
+  });
+
+  // ── Deterministic output with fixed-seed Rng ───────────────────────────────
+
+  describe('determinism with fixed-seed Rng', () => {
+    it('getJackpotBonus: same seed → same sequence', () => {
+      const om1 = new OfferManager(new Rng(42));
+      const om2 = new OfferManager(new Rng(42));
+      om1.applyOffer('jackpot');
+      om2.applyOffer('jackpot');
+      const seq1 = Array.from({ length: 20 }, () => om1.getJackpotBonus());
+      const seq2 = Array.from({ length: 20 }, () => om2.getJackpotBonus());
+      expect(seq1).toEqual(seq2);
+    });
+
+    it('drawOffers: same seed → same draw sequence', () => {
+      const om1 = new OfferManager(new Rng(9001));
+      const om2 = new OfferManager(new Rng(9001));
+      const draw1 = om1.drawOffers(3).map(o => o.id);
+      const draw2 = om2.drawOffers(3).map(o => o.id);
+      expect(draw1).toEqual(draw2);
+    });
+
+    it('drawOffers: different seeds produce different draws (probabilistically)', () => {
+      const om1 = new OfferManager(new Rng(1));
+      const om2 = new OfferManager(new Rng(999999));
+      // Draw many offers to make collision extremely unlikely.
+      const draws1 = Array.from({ length: 10 }, () => om1.drawOffers(3).map(o => o.id).join(','));
+      const draws2 = Array.from({ length: 10 }, () => om2.drawOffers(3).map(o => o.id).join(','));
+      // At least one draw should differ (astronomically unlikely to collide 10 times).
+      expect(draws1.join('|')).not.toBe(draws2.join('|'));
     });
   });
 

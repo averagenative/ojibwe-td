@@ -170,7 +170,8 @@ describe('WaveManager — air lane diversity (structural)', () => {
 
   it('has a _pickAirPath method that returns a random lane', () => {
     expect(waveManagerSrc).toContain('_pickAirPath');
-    expect(waveManagerSrc).toContain('Math.random()');
+    // Uses injected Rng — Math.random() replaced with this.rng
+    expect(waveManagerSrc).toContain('this.rng');
   });
 
   it('uses _pickAirPath for air creep spawning', () => {

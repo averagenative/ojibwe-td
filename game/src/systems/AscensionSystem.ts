@@ -14,6 +14,7 @@
 import Phaser from 'phaser';
 import type { Tower } from '../entities/towers/Tower';
 import { getModifier } from '../data/ascensionDefs';
+import { Rng } from './Rng';
 
 // Attack-speed slow fraction applied to towers hit by a poison cloud.
 const POISON_CLOUD_RADIUS_PX = 100;
@@ -26,12 +27,14 @@ const LIGHTNING_DELAYS_MS = [3000, 6000, 9000] as const;
 export class AscensionSystem {
   private readonly scene: Phaser.Scene;
   private readonly level: number;
+  private readonly rng: Rng;
   /** All Phaser timers this system has scheduled — cleared on destroy(). */
   private readonly _timers: Phaser.Time.TimerEvent[] = [];
 
-  constructor(scene: Phaser.Scene, level: number) {
+  constructor(scene: Phaser.Scene, level: number, rng?: Rng) {
     this.scene = scene;
     this.level = Math.max(0, Math.min(10, Math.floor(level)));
+    this.rng   = rng ?? new Rng(Date.now());
   }
 
   getLevel(): number {
@@ -181,7 +184,7 @@ export class AscensionSystem {
     const eligible = getTowers().filter(t => !t.def.isAura);
     if (eligible.length === 0) return;
 
-    const target = eligible[Math.floor(Math.random() * eligible.length)];
+    const target = this.rng.nextItem(eligible);
     target.disableForAscension(durationMs);
   }
 
@@ -198,7 +201,7 @@ export class AscensionSystem {
       const timer = this.scene.time.delayedCall(delay, () => {
         const eligible = getTowers().filter(t => !t.def.isAura);
         if (eligible.length === 0) return;
-        const target = eligible[Math.floor(Math.random() * eligible.length)];
+        const target = this.rng.nextItem(eligible);
         target.disableForAscension(LIGHTNING_DISABLE_DURATION_MS);
         this._showLightningStrikeVFX(target.x, target.y);
       });

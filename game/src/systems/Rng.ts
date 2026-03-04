@@ -59,6 +59,15 @@ export class Rng {
   }
 
   /**
+   * Returns a random element from the given array.
+   * Throws if the array is empty.
+   */
+  nextItem<T>(arr: T[]): T {
+    if (arr.length === 0) throw new RangeError('nextItem: array must not be empty');
+    return arr[this.nextBelow(arr.length)];
+  }
+
+  /**
    * Creates a child Rng seeded from the current state mixed with an offset.
    * Useful for independent streams within the same overall seed.
    */
