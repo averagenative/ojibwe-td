@@ -74,6 +74,19 @@ describe('GameScene — rushNextWave()', () => {
     expect(rushMethod).not.toBeNull();
     expect(rushMethod![0]).not.toContain('_nextWaveRushed');
   });
+
+  it('adds gold before calling _doStartWave()', () => {
+    const rushMethod = gameSceneSrc.match(
+      /private rushNextWave\(\).*?\{(?:[^{}]*|\{[^{}]*\})*\}/s
+    );
+    expect(rushMethod).not.toBeNull();
+    const body = rushMethod![0];
+    const goldIdx      = body.indexOf('this.gold += RUSH_GOLD_AMOUNT');
+    const startWaveIdx = body.indexOf('this._doStartWave()');
+    expect(goldIdx).toBeGreaterThan(-1);
+    expect(startWaveIdx).toBeGreaterThan(-1);
+    expect(goldIdx).toBeLessThan(startWaveIdx);
+  });
 });
 
 // ── _updateRushButton() method ────────────────────────────────────────────────
