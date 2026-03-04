@@ -137,6 +137,18 @@ export class InventoryManager {
     return this.equipped;
   }
 
+  /** Find the tower slot currently holding a gear item, if any. */
+  getEquippedLocation(uid: string): { towerKey: string; slot: number } | null {
+    for (const [towerKey, slots] of Object.entries(this.equipped)) {
+      for (let slot = 0; slot < slots.length; slot++) {
+        if (slots[slot] === uid) {
+          return { towerKey, slot };
+        }
+      }
+    }
+    return null;
+  }
+
   /**
    * Equip a gear item to a tower slot. Returns true on success.
    * Fails if item doesn't exist, can't fit the tower, or slot is invalid.

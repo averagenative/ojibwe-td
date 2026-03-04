@@ -102,12 +102,17 @@ export class TowerEquipScene extends Phaser.Scene {
       if (item) {
         const def = getGearDef(item.defId);
         if (def) {
-          const towerKey = GEAR_TYPE_TOWER[def.gearType];
-          if (towerKey) {
-            this.selectedTower = towerKey;
+          const equippedTowerKey = this.inv.getEquippedLocation(item.uid)?.towerKey ?? null;
+          if (equippedTowerKey) {
+            this.selectedTower = equippedTowerKey;
           } else {
-            // Universal — default to rock-hurler
-            this.selectedTower = 'rock-hurler';
+            const towerKey = GEAR_TYPE_TOWER[def.gearType];
+            if (towerKey) {
+              this.selectedTower = towerKey;
+            } else {
+              // Universal and not yet equipped — default to the first generalist tower.
+              this.selectedTower = 'rock-hurler';
+            }
           }
           this._buildTowerCards();
           this._buildSlots();

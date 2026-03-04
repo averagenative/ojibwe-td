@@ -13,6 +13,7 @@ import { InventoryManager } from '../meta/InventoryManager';
 import { getGearDef, RARITY_COLORS, ALL_RUNES, GEAR_TYPE_TOWER, SALVAGE_VALUES } from '../data/gearDefs';
 import type { GearInstance, GearRarity } from '../data/gearDefs';
 import { SaveManager } from '../meta/SaveManager';
+import { matchesGearInventoryFilter, resolveGearDisplayTowerKey, UNIVERSAL_GEAR_FILTER } from '../ui/gearTowerAssociation';
 import { PAL } from '../ui/palette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -40,7 +41,7 @@ const FILTER_OPTIONS: { label: string; towerKey: string | null }[] = [
   { label: 'Poison',       towerKey: 'poison' },
   { label: 'Aura',         towerKey: 'aura' },
   { label: 'Arrow',        towerKey: 'arrow' },
-  { label: 'Universal',    towerKey: '__universal' },
+  { label: 'Universal',    towerKey: UNIVERSAL_GEAR_FILTER },
 ];
 
 export class InventoryScene extends Phaser.Scene {
@@ -175,8 +176,8 @@ export class InventoryScene extends Phaser.Scene {
       const def = getGearDef(item.defId);
       if (!def) return false;
       const towerKey = GEAR_TYPE_TOWER[def.gearType];
-      if (this.activeFilter === '__universal') return towerKey === null;
-      return towerKey === this.activeFilter || towerKey === null;
+      const equippedTowerKey = this.inv.getEquippedLocation(item.uid)?.towerKey ?? null;
+      return matchesGearInventoryFilter(this.activeFilter, towerKey, equippedTowerKey);
     });
   }
 
@@ -253,7 +254,10 @@ export class InventoryScene extends Phaser.Scene {
       }
 
       // Tower type label
-      const towerKey = GEAR_TYPE_TOWER[def.gearType];
+      const towerKey = resolveGearDisplayTowerKey(
+        GEAR_TYPE_TOWER[def.gearType],
+        this.inv.getEquippedLocation(item.uid)?.towerKey ?? null,
+      );
       const typeLabel = towerKey ? towerKey.charAt(0).toUpperCase() + towerKey.slice(1) : 'Uni';
       const typeText = this.add.text(x, y + 26, typeLabel, {
         fontSize:   '9px',
@@ -352,7 +356,8 @@ export class InventoryScene extends Phaser.Scene {
     y += 22;
 
     // Tower type with tower icon
-    const towerKey = GEAR_TYPE_TOWER[def.gearType];
+    const equippedTowerKey = this.inv.getEquippedLocation(item.uid)?.towerKey ?? null;
+    const towerKey = resolveGearDisplayTowerKey(GEAR_TYPE_TOWER[def.gearType], equippedTowerKey);
     const towerLabel = towerKey ? towerKey.charAt(0).toUpperCase() + towerKey.slice(1) : 'Universal';
     const towerIconKey = towerKey ? `icon-${towerKey}` : null;
     let towerTextOffsetX = leftX;
@@ -362,7 +367,8 @@ export class InventoryScene extends Phaser.Scene {
       this.detailObjects.push(towerImg);
       towerTextOffsetX = leftX + 24;
     }
-    const typeText = this.add.text(towerTextOffsetX, y, `Type: ${towerLabel}`, {
+    const typePrefix = equippedTowerKey ? 'Equipped To' : 'Type';
+    const typeText = this.add.text(towerTextOffsetX, y, `${typePrefix}: ${towerLabel}`, {
       fontSize:   '12px',
       color:      PAL.textSecondary,
       fontFamily: PAL.fontBody,

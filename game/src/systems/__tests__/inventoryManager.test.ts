@@ -214,6 +214,21 @@ describe('InventoryManager', () => {
       const map = inv.getEquipMap();
       expect(map['rock-hurler'][0]).toBe(item.uid);
     });
+
+    it('getEquippedLocation returns the owning tower and slot', () => {
+      const item = createGearInstance('charm-flint');
+      inv.addItem(item);
+      inv.equip('frost', 1, item.uid);
+
+      expect(inv.getEquippedLocation(item.uid)).toEqual({ towerKey: 'frost', slot: 1 });
+    });
+
+    it('getEquippedLocation returns null for unequipped items', () => {
+      const item = createGearInstance('charm-flint');
+      inv.addItem(item);
+
+      expect(inv.getEquippedLocation(item.uid)).toBeNull();
+    });
   });
 
   // ── Salvage ──────────────────────────────────────────────────────────────
