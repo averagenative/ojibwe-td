@@ -1,7 +1,7 @@
 ---
 id: TASK-154
 title: "Bounty" Offer Card Describes Impossible Mechanic — Escaped Creep Can't Be Killed
-status: in-progress
+status: done
 priority: medium
 category: backend
 phase: polish
