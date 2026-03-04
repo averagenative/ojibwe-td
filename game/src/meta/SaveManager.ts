@@ -10,6 +10,8 @@
  * Phaser-free — safe for use in any context.
  */
 
+import { MAX_META_TIER, META_TIER_COSTS } from '../data/towerMetaUpgradeDefs';
+
 const SAVE_KEY     = 'ojibwe-td-save';
 const SCHEMA_VER   = 1;
 
@@ -166,6 +168,14 @@ interface SaveData {
   currentAscension: number;
 
   /**
+   * Permanent meta-upgrade tiers for tower base stats.
+   * Outer key = tower type key (e.g. 'arrow', 'frost').
+   * Inner key = stat track key (e.g. 'damage', 'range').
+   * Value = current tier (0 = not upgraded, max = MAX_META_TIER).
+   */
+  towerMetaUpgrades: Record<string, Record<string, number>>;
+
+  /**
    * djb2 checksum of the serialised save data (excluding this field).
    * Used to detect casual manual tampering via browser DevTools.
    * Optional so old saves without the field still load gracefully.
@@ -200,6 +210,7 @@ function defaultSaveData(): SaveData {
     seenCutsceneIds:    [],
     highestAscensionCleared: -1,
     currentAscension:        0,
+    towerMetaUpgrades:       {},
   };
 }
 
@@ -711,6 +722,52 @@ export class SaveManager {
     return false;
   }
 
+  // ── Tower meta upgrades ────────────────────────────────────────────────────
+
+  /**
+   * Return a deep copy of all tower meta upgrade tiers.
+   * Keys: outer = towerKey, inner = statKey, value = tier 0–MAX_META_TIER.
+   */
+  getTowerMetaUpgrades(): Record<string, Record<string, number>> {
+    const result: Record<string, Record<string, number>> = {};
+    const src = this.data.towerMetaUpgrades ?? {};
+    for (const [tKey, statMap] of Object.entries(src)) {
+      result[tKey] = { ...statMap };
+    }
+    return result;
+  }
+
+  /**
+   * Return the current tier for a specific tower+stat combination.
+   * Returns 0 if not upgraded.
+   */
+  getTowerMetaUpgradeTier(towerKey: string, statKey: string): number {
+    return this.data.towerMetaUpgrades?.[towerKey]?.[statKey] ?? 0;
+  }
+
+  /**
+   * Purchase the next tier of a tower meta upgrade.
+   * Deducts the crystal cost and increments the tier.
+   * Returns false if:
+   *   - already at MAX_META_TIER
+   *   - player can't afford the cost
+   */
+  purchaseTowerMetaUpgrade(towerKey: string, statKey: string): boolean {
+    if (!this.data.towerMetaUpgrades) this.data.towerMetaUpgrades = {};
+    if (!this.data.towerMetaUpgrades[towerKey]) this.data.towerMetaUpgrades[towerKey] = {};
+
+    const currentTier = this.data.towerMetaUpgrades[towerKey][statKey] ?? 0;
+    if (currentTier >= MAX_META_TIER) return false;
+
+    const cost = META_TIER_COSTS[currentTier];
+    if (this.data.currency < cost) return false;
+
+    this.data.currency                              -= cost;
+    this.data.towerMetaUpgrades[towerKey][statKey]  = currentTier + 1;
+    this._save();
+    return true;
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private _load(): void {
@@ -903,6 +960,23 @@ export class SaveManager {
       Math.min(10, Math.max(0, highestAscensionCleared + 1)),
     );
 
+    // Tower meta upgrades: nested Record<string, Record<string, number>>.
+    // Inner tier values are clamped to [0, MAX_META_TIER].
+    const towerMetaUpgrades: Record<string, Record<string, number>> = {};
+    const rawTmu = (d.towerMetaUpgrades as unknown) as Record<string, unknown> | undefined;
+    if (rawTmu && typeof rawTmu === 'object') {
+      for (const [tKey, statMap] of Object.entries(rawTmu)) {
+        if (typeof statMap !== 'object' || statMap === null) continue;
+        const sanitizedStats: Record<string, number> = {};
+        for (const [sKey, v] of Object.entries(statMap as Record<string, unknown>)) {
+          if (typeof v === 'number' && Number.isFinite(v)) {
+            sanitizedStats[sKey] = Math.max(0, Math.min(MAX_META_TIER, Math.floor(v)));
+          }
+        }
+        towerMetaUpgrades[tKey] = sanitizedStats;
+      }
+    }
+
     return {
       ...d,
       currency,
@@ -927,6 +1001,7 @@ export class SaveManager {
       seenCutsceneIds,
       highestAscensionCleared,
       currentAscension,
+      towerMetaUpgrades,
     };
   }
 
