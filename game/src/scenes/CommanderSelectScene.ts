@@ -249,10 +249,12 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     // Portrait slide-in from sides
     const n = this._animStates.length;
-    const midIdx = (n - 1) / 2;
+    const screenCx = this.scale.width / 2;
     for (let i = 0; i < n; i++) {
       const state = this._animStates[i];
-      const offsetDir = i < midIdx ? -1 : 1;
+      // Direction based on card position relative to screen centre;
+      // cards left of centre fly in from the left, right from the right.
+      const offsetDir = state.baseX < screenCx ? -1 : 1;
       const startX = state.baseX + offsetDir * 280;
       state.portrait.x = startX;
       this.tweens.add({
