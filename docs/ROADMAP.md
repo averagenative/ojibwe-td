@@ -2660,3 +2660,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 ### TASK-153 Review Findings (Turret Rotation Box Regression)
 
 - **Stale test description in `towerIdleAnims.test.ts:433`** — Says "body Rectangle reference" but the body is now an `Arc`. The assertion (`toContain('_bodyRef')`) is correct; only the `it()` description string needs updating.
+
+### TASK-156 Review Findings (Tower Sprites DALL-E 3 Overhaul)
+
+- **Placeholder sprites** — The 12 PNG assets are programmatically generated placeholders (300-800 bytes each), not actual DALL-E 3 generated art. They satisfy the structural requirements but will need to be replaced with real artwork before a visual polish pass. Consider adding a task for DALL-E 3 sprite generation once the art direction is finalised.
+- **`bodyColor` field unused at runtime** — Tower defs still carry `bodyColor` (used by old Arc rendering + `setFillStyle` flash effects), but it is no longer referenced in Tower.ts. It is still referenced by other systems (e.g. tower-palette tests, offer panels). Keep for now but could be cleaned up if no external consumers remain.

@@ -46,6 +46,9 @@ Supersedes TASK-027 (Ojibwe-Themed Tower Icons).
 - [ ] BootScene preload keys unchanged — just replace the image files
 - [ ] Visual check: icons look correct in tower selection UI, upgrade panel, and HUD
 - [ ] `npm run typecheck` clean
+- [ ] `npm run test` passes — you MUST update these existing tests that will break:
+  - `src/systems/__tests__/gearAndTowerIcons.test.ts` line ~79: asserts `icon-rock-hurler` is loaded as `.svg` — update to expect `.png` since all icons are now PNG
+  - `src/systems/__tests__/poisonIconSpider.test.ts` line ~143: asserts two poison icon files are byte-identical — update or remove this assertion since the icon content has changed
 
 ## Prompt Strategy
 

@@ -1,7 +1,7 @@
 ---
 id: TASK-156
 title: In-Game Tower Sprites Overhaul — DALL-E 3 Base + Turret Sprites
-status: pending
+status: done
 priority: high
 category: frontend
 phase: polish
@@ -128,4 +128,7 @@ For turret sprites, add:
 - [ ] BootScene preloads all 12 new assets
 - [ ] No regression in tower placement, selling, targeting, or upgrade visuals
 - [ ] `npm run typecheck` clean
-- [ ] `npm run test` passes — update structural tests if Tower rendering assertions change
+- [ ] `npm run test` passes — you MUST update these structural tests that will break:
+  - `src/systems/__tests__/towerTurretBox.test.ts`: asserts `_bodyRef`, `BODY_SIZE = 28`, `this._bodyRef = body` — update to match new `_baseSprite`/`_turretSprite` fields
+  - `src/systems/__tests__/towerIdleAnims.test.ts` lines ~433-438: asserts `_bodyRef` and `_iconRef` fields exist — update to match new field names
+  - Any other structural tests that assert Tower.ts source patterns for body/icon rendering
