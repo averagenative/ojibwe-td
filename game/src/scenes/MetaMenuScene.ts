@@ -10,6 +10,13 @@ import { MetaAmbiance } from '../systems/MetaAmbiance';
 import type { MetaAmbianceConfig } from '../systems/MetaAmbiance';
 import { ALL_STAGES, ALL_REGIONS } from '../data/stageDefs';
 import type { SeasonalTheme } from '../data/stageDefs';
+import {
+  TOWER_META_UPGRADE_DEFS,
+  META_TIER_COSTS,
+  MAX_META_TIER,
+  getMetaBonusDisplay,
+  getNextTierBonusDisplay,
+} from '../data/towerMetaUpgradeDefs';
 
 const PANEL_W     = 420;
 const NODE_H          = 90;
@@ -18,7 +25,7 @@ const NODE_GAP        = 10;
 const NODE_PAD_X  = 20;
 
 /** Tabs available in the meta menu. */
-type MetaTab = 'unlocks' | 'shop';
+type MetaTab = 'unlocks' | 'shop' | 'upgrades';
 
 /** Data passed to scene.restart() to preserve tab selection. */
 interface MetaMenuData { tab?: MetaTab }
@@ -108,19 +115,22 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // ── Tab buttons — 44px minimum height on mobile ──────────────────────────
     const TAB_Y = 112;
-    this.makeTabButton(cx - 110, TAB_Y, 'UNLOCKS', tab === 'unlocks', () => {
+    this.makeTabButton(cx - 200, TAB_Y, 'UNLOCKS', tab === 'unlocks', () => {
       this.scene.restart({ tab: 'unlocks' } as MetaMenuData);
     });
-    this.makeTabButton(cx + 110, TAB_Y, 'SHOP', tab === 'shop', () => {
+    this.makeTabButton(cx, TAB_Y, 'UPGRADES', tab === 'upgrades', () => {
+      this.scene.restart({ tab: 'upgrades' } as MetaMenuData);
+    });
+    this.makeTabButton(cx + 200, TAB_Y, 'SHOP', tab === 'shop', () => {
       this.scene.restart({ tab: 'shop' } as MetaMenuData);
     });
 
-    // Separator line below tabs
+    // Separator line below tabs — spans all 3 tab positions
     const sepGfx = this.add.graphics();
     sepGfx.lineStyle(1, 0x224422, 0.8);
     sepGfx.beginPath();
-    sepGfx.moveTo(cx - PANEL_W / 2, TAB_Y + 22);
-    sepGfx.lineTo(cx + PANEL_W / 2, TAB_Y + 22);
+    sepGfx.moveTo(cx - 310, TAB_Y + 22);
+    sepGfx.lineTo(cx + 310, TAB_Y + 22);
     sepGfx.strokePath();
 
     const contentY = TAB_Y + 36;
@@ -128,6 +138,8 @@ export class MetaMenuScene extends Phaser.Scene {
     // ── Render active tab content ────────────────────────────────────────────
     if (tab === 'unlocks') {
       this.renderUnlocksTab(cx, contentY, save, balanceText);
+    } else if (tab === 'upgrades') {
+      this.renderUpgradesTab(cx, contentY, save, balanceText);
     } else {
       this.renderShopTab(cx, contentY, save, balanceText);
     }
@@ -401,6 +413,167 @@ export class MetaMenuScene extends Phaser.Scene {
         wordWrap:   { width: PANEL_W },
       },
     ).setOrigin(0.5, 0);
+  }
+
+  private renderUpgradesTab(
+    cx:          number,
+    startY:      number,
+    save:        SaveManager,
+    balanceText: Phaser.GameObjects.Text,
+  ): void {
+    const container = this.add.container(0, 0);
+
+    this.add.text(cx - PANEL_W / 2, startY,
+      'Permanent stat boosts — applied to every run.',
+      {
+        fontSize:   this._fs(12),
+        color:      '#557799',
+        fontFamily: 'monospace',
+      },
+    );
+
+    let y = startY + 26;
+
+    for (const towerDef of TOWER_META_UPGRADE_DEFS) {
+      // Tower block header
+      const headerBg = this.add.rectangle(cx, y + 14, PANEL_W, 28, 0x1a2a1a)
+        .setStrokeStyle(1, 0x335533);
+      container.add(headerBg);
+
+      container.add(this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 4, towerDef.towerName, {
+        fontSize:   this._fs(14),
+        color:      '#44cc88',
+        fontFamily: 'monospace',
+        fontStyle:  'bold',
+      }));
+
+      y += 28 + 4;
+
+      // Stat rows
+      for (const track of towerDef.stats) {
+        const tier     = save.getTowerMetaUpgradeTier(towerDef.towerKey, track.key);
+        const isMaxed  = tier >= MAX_META_TIER;
+        const cost     = isMaxed ? 0 : META_TIER_COSTS[tier];
+        const canAfford = !isMaxed && save.getCurrency() >= cost;
+
+        const rowBg = this.add.rectangle(cx, y + 20, PANEL_W, 40, 0x0d1a0d)
+          .setStrokeStyle(1, isMaxed ? 0x006633 : (canAfford ? 0x224422 : 0x1a1a1a));
+        container.add(rowBg);
+
+        // Stat label
+        container.add(this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 8, track.label, {
+          fontSize:   this._fs(12),
+          color:      '#aaccaa',
+          fontFamily: 'monospace',
+        }));
+
+        // Tier pips (5 small squares)
+        const pipStartX = cx - 60;
+        for (let i = 0; i < MAX_META_TIER; i++) {
+          const filled = i < tier;
+          const pip = this.add.rectangle(pipStartX + i * 16, y + 20, 12, 12,
+            filled ? 0x00bb55 : 0x223322,
+          ).setStrokeStyle(1, filled ? 0x00ff77 : 0x335533);
+          container.add(pip);
+        }
+
+        // Current bonus display
+        const bonusStr = getMetaBonusDisplay(track, tier);
+        container.add(this.add.text(cx + 38, y + 20, bonusStr, {
+          fontSize:   this._fs(11),
+          color:      isMaxed ? '#ffcc44' : '#88ccaa',
+          fontFamily: 'monospace',
+          fontStyle:  isMaxed ? 'bold' : 'normal',
+        }).setOrigin(0.5));
+
+        if (isMaxed) {
+          // MAXED indicator
+          container.add(this.add.text(cx + PANEL_W / 2 - NODE_PAD_X - 30, y + 20, 'MAXED', {
+            fontSize:   this._fs(11),
+            color:      '#ffcc44',
+            fontFamily: 'monospace',
+            fontStyle:  'bold',
+          }).setOrigin(0.5));
+        } else {
+          // Cost + next-tier bonus
+          const nextBonus = getNextTierBonusDisplay(track, tier);
+          const costColor = canAfford ? '#88ccff' : '#666666';
+
+          container.add(this.add.text(cx + PANEL_W / 2 - NODE_PAD_X - 70, y + 12, nextBonus, {
+            fontSize:   this._fs(11),
+            color:      canAfford ? '#44dd88' : '#557755',
+            fontFamily: 'monospace',
+          }).setOrigin(0.5));
+
+          container.add(this.add.text(cx + PANEL_W / 2 - NODE_PAD_X - 70, y + 26, `${cost}💎`, {
+            fontSize:   this._fs(11),
+            color:      costColor,
+            fontFamily: 'monospace',
+          }).setOrigin(0.5));
+
+          if (canAfford) {
+            rowBg.setInteractive({ useHandCursor: true });
+            rowBg.on('pointerover',  () => rowBg.setFillStyle(0x1a3322));
+            rowBg.on('pointerout',   () => rowBg.setFillStyle(0x0d1a0d));
+            rowBg.on('pointerup', () => {
+              const ok = save.purchaseTowerMetaUpgrade(towerDef.towerKey, track.key);
+              if (ok) {
+                AchievementManager.getInstance().addCrystalsSpent(cost);
+                balanceText.setText(`Crystals: ${save.getCurrency()}`);
+                this.scene.restart({ tab: 'upgrades' } as MetaMenuData);
+              }
+            });
+          }
+        }
+
+        y += 40 + 4;
+      }
+
+      y += 8; // extra gap between tower blocks
+    }
+
+    // Set up scrolling if content overflows
+    const contentH = y - startY;
+    const visibleH  = this.scale.height - startY - 80;
+
+    if (contentH > visibleH) {
+      const maskGfx = this.make.graphics({});
+      maskGfx.fillRect(0, startY, this.scale.width, visibleH);
+      container.setMask(maskGfx.createGeometryMask());
+
+      const maxScroll  = contentH - visibleH;
+      let scrollOffset = 0;
+
+      const applyScroll = (delta: number): void => {
+        scrollOffset = Phaser.Math.Clamp(scrollOffset + delta, 0, maxScroll);
+        container.y = -scrollOffset;
+      };
+
+      this.input.on('wheel', (
+        _pointer: Phaser.Input.Pointer,
+        _over: Phaser.GameObjects.GameObject[],
+        _dx: number,
+        deltaY: number,
+      ) => {
+        applyScroll(deltaY * 0.5);
+      });
+
+      const arrowX = cx + PANEL_W / 2 + 24;
+
+      const upArrow = this.add.text(arrowX, startY + 8, '▲', {
+        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      upArrow.on('pointerup',   () => applyScroll(-44));
+      upArrow.on('pointerover', () => upArrow.setColor('#55aa55'));
+      upArrow.on('pointerout',  () => upArrow.setColor('#335533'));
+
+      const downArrow = this.add.text(arrowX, startY + visibleH - 8, '▼', {
+        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      downArrow.on('pointerup',   () => applyScroll(44));
+      downArrow.on('pointerover', () => downArrow.setColor('#55aa55'));
+      downArrow.on('pointerout',  () => downArrow.setColor('#335533'));
+    }
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────────

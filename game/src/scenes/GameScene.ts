@@ -58,6 +58,7 @@ import {
   getPreBossCutsceneId, getPostBossCutsceneId,
 } from '../data/cutsceneDefs';
 import { AscensionSystem } from '../systems/AscensionSystem';
+import { applyTowerMetaToStats } from '../data/towerMetaUpgradeDefs';
 
 const DEFAULT_TOTAL_WAVES = 20;
 /** Flat gold bonus awarded when the player rushes the next wave early. */
@@ -264,6 +265,13 @@ export class GameScene extends Phaser.Scene {
   /** Active AscensionSystem instance for this run (null on level 0). */
   private _ascensionSystem: AscensionSystem | null = null;
 
+  // ── tower meta upgrades ───────────────────────────────────────────────────
+  /**
+   * Permanent meta-upgrade tiers loaded from SaveManager at run start.
+   * Applied to each tower's base stats when the tower is placed or restored.
+   */
+  private _towerMetaUpgrades: Record<string, Record<string, number>> = {};
+
   // ── ambient VFX ────────────────────────────────────────────────────────────
   /** Continuous ambient particle effects for the current map region. */
   private _ambientVFX: AmbientVFX | null = null;
@@ -357,6 +365,7 @@ export class GameScene extends Phaser.Scene {
     this._achAirKillsRun       = 0;
     this._achTowersSoldRun     = 0;
     this._achRushesRun         = 0;
+    this._towerMetaUpgrades    = {};
     this._ambientVFX           = null;
     this._critterManager       = null;
     this._critterCreepCheckAcc = 0;
@@ -422,6 +431,9 @@ export class GameScene extends Phaser.Scene {
       this._rerollTokens = c.rerollTokens;
       this._achInitialRerolls = c.rerollTokens;
     }
+
+    // ── Tower meta upgrades — load permanent stat bonuses for this run ────────
+    this._towerMetaUpgrades = SaveManager.getInstance().getTowerMetaUpgrades();
 
     // ── Ascension system ──────────────────────────────────────────────────────
     // Create before WaveManager so speed/HP mults are available for spawn configs.
@@ -1684,6 +1696,9 @@ export class GameScene extends Phaser.Scene {
       applyGearToStats(tower.upgStats, gearBonuses);
     }
 
+    // Apply permanent meta-upgrade bonuses (after gear bonuses).
+    this._applyTowerMetaBonuses(tower);
+
     tower.on('pointerup', (ptr: Phaser.Input.Pointer) => {
       const shiftHeld = !MobileManager.getInstance().isMobile() &&
         ((ptr.event as MouseEvent)?.shiftKey ?? false);
@@ -1712,6 +1727,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── tower management ──────────────────────────────────────────────────────
+
+  /**
+   * Apply permanent meta-upgrade bonuses to a tower's stats.
+   * Must be called after defaultUpgradeStats() and gear bonuses.
+   */
+  private _applyTowerMetaBonuses(tower: Tower): void {
+    const upgrades = this._towerMetaUpgrades[tower.def.key];
+    if (!upgrades) return;
+    applyTowerMetaToStats(tower.upgStats, tower.def.key, upgrades);
+  }
 
   private selectTower(tower: Tower): void {
     if (this.placementDef) return;
@@ -2914,7 +2939,7 @@ export class GameScene extends Phaser.Scene {
       }),
       offers:          this.offerManager.getActiveIds(),
       consumedOffers:  this.offerManager.getConsumedOneTimeOfferIds(),
-      metaStatBonuses: {},
+      metaStatBonuses: this._towerMetaUpgrades,
       seenDialogs:     Array.from(this._seenDialogIds),
     });
   }
@@ -3074,6 +3099,9 @@ export class GameScene extends Phaser.Scene {
         gearBonuses.specialEffects.length > 0) {
       applyGearToStats(tower.upgStats, gearBonuses);
     }
+
+    // Apply permanent meta-upgrade bonuses (after gear bonuses).
+    this._applyTowerMetaBonuses(tower);
 
     // Re-apply upgrades tier by tier — paths in order A, B, C.
     // buyUpgrade returns the cost; we discard it (no gold deduction).
