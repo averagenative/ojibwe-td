@@ -881,14 +881,27 @@ export class GameScene extends Phaser.Scene {
       this._betweenWaveDismiss = null;
       dismiss?.();
 
-      // Reveal the next-wave button (elder dialog was shown before BetweenWaveScene).
-      const nextWave = this.currentWave + 1;
-      this.hud.setNextWaveVisible(true, nextWave, this.isEndlessMode);
-      this.showWaveBanner(nextWave);
-      if (this.waveManager.hasAirCreepsInWave(nextWave)) {
-        this.hud.showAirWaveAlert('▲ Air wave incoming! Deploy Thunder/Frost!');
-      } else {
-        this.hud.showAirWaveAlert('');
+      // Only show the next-wave button when the post-wave queue is fully done.
+      // If the queue still has items (e.g. a second BetweenWaveScene queued from
+      // a concurrent wave completing mid-offer), the next item handles UI.
+      if (!this._postWaveQueue.isActive) {
+        if (this.waveManager.isActive()) {
+          // A concurrent wave is still running (rush scenario) — return to wave
+          // state so the game continues.  The next-wave button is intentionally
+          // hidden; the rush button is re-evaluated by _updateRushButton().
+          this.gameState = 'wave';
+          this._updateRushButton();
+        } else {
+          // All queue items done and no wave running — reveal the next-wave button.
+          const nextWave = this.currentWave + 1;
+          this.hud.setNextWaveVisible(true, nextWave, this.isEndlessMode);
+          this.showWaveBanner(nextWave);
+          if (this.waveManager.hasAirCreepsInWave(nextWave)) {
+            this.hud.showAirWaveAlert('▲ Air wave incoming! Deploy Thunder/Frost!');
+          } else {
+            this.hud.showAirWaveAlert('');
+          }
+        }
       }
     });
 
@@ -2182,14 +2195,15 @@ export class GameScene extends Phaser.Scene {
   private onWaveComplete(waveNum: number): void {
     if (this.gameState === 'over') return;
 
-    // Other waves are still running — wait until all concurrent waves complete
-    // before showing any between-wave UI or triggering victory.
-    if (this.waveManager.isActive()) return;
+    // Track whether another wave is still running (rush scenario).
+    // If concurrent, we still show the offer panel for this wave, but skip
+    // final-wave victory processing (which waits until all waves settle).
+    const isConcurrent = this.waveManager.isActive();
 
-    // All waves done — hide the rush button (it belongs only in 'wave' state).
+    // Hide the rush button — it belongs only in 'wave' state.
     this.hud.setRushWaveVisible(false);
 
-    if (this.currentWave >= this.totalWaves && !this.isEndlessMode) {
+    if (!isConcurrent && this.currentWave >= this.totalWaves && !this.isEndlessMode) {
       // Cancel any remaining spawn timers (boss escorts may still be queued).
       this.waveManager.cleanup();
 
@@ -2286,7 +2300,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Update OfferManager wave state.
-    this.offerManager.setWavesCompleted(this.currentWave);
+    // Use waveNum (the wave that actually completed) rather than currentWave
+    // (which may already be incremented by a rush) for accurate tracking.
+    this.offerManager.setWavesCompleted(waveNum);
     this.offerManager.resetWavePlacements();
 
     // Interest: bonus gold = 2% of current gold each wave.
@@ -2317,7 +2333,13 @@ export class GameScene extends Phaser.Scene {
     // ── Post-wave UI queue — show panels in strict priority order ────────────
     // 1) Boss loot/gear reward → 2) Elder dialog → 3) Between-wave upgrade offers
     // Each panel is fully dismissed before the next appears.
-    this._postWaveQueue.clear();
+    //
+    // When a concurrent wave is still running (rush scenario), don't clobber
+    // a currently-showing panel — just append new items to the tail so they
+    // display sequentially after the in-progress item finishes.
+    if (!this._postWaveQueue.isActive) {
+      this._postWaveQueue.clear();
+    }
 
     // 1. Boss loot/gear reward (boss waves only, deferred from boss-killed event).
     if (this._pendingBossRewardOffer && this._pendingBossName) {
@@ -2357,18 +2379,23 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 3. Between-wave upgrade offers (BetweenWaveScene).
+    // When concurrent (rush scenario), wave waveNum+1 is already running, so
+    // display that as the upcoming wave in the panel rather than currentWave+1.
+    const nextWaveForDisplay = isConcurrent ? waveNum + 1 : this.currentWave + 1;
     const nextWaveInfo: WaveAnnouncementInfo | null =
-      this.waveManager.getWaveAnnouncementInfo(this.currentWave + 1);
+      this.waveManager.getWaveAnnouncementInfo(nextWaveForDisplay);
+    const offerCount = this.commanderState?.offerCardCount ?? 3;
     this._postWaveQueue.enqueue({
       show: (onDismiss) => {
         this._betweenWaveDismiss = onDismiss;
         this.scene.launch('BetweenWaveScene', {
           offerManager:      this.offerManager,
           waveJustCompleted: waveNum,
-          nextWave:          this.currentWave + 1,
+          nextWave:          nextWaveForDisplay,
           nextWaveInfo:      nextWaveInfo ?? undefined,
           rerollTokens:      this._rerollTokens,
           placedTowerKeys:   this.towers.map(t => t.def.key),
+          offerCount,
         });
       },
     });

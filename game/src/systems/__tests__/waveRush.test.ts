@@ -144,8 +144,12 @@ describe('GameScene — onWaveComplete concurrent wave handling', () => {
     expect(gameSceneSrc).toContain('this.hud.setRushWaveVisible(false)');
   });
 
-  it('returns early when other waves are still active (concurrent wave support)', () => {
-    expect(gameSceneSrc).toContain('if (this.waveManager.isActive()) return;');
+  it('tracks concurrent wave state via isConcurrent flag (not early return)', () => {
+    // TASK-148: the early return was removed so rushed waves still receive offer panels.
+    // onWaveComplete now captures isConcurrent = waveManager.isActive() and uses it
+    // to skip only the final-wave victory block, not the entire offer-panel flow.
+    expect(gameSceneSrc).toContain('const isConcurrent = this.waveManager.isActive()');
+    expect(gameSceneSrc).not.toContain('if (this.waveManager.isActive()) return;');
   });
 
   it('uses this.currentWave for the final-wave check (not waveNum from event)', () => {
