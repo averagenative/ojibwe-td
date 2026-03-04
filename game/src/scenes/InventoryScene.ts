@@ -10,7 +10,7 @@
 
 import Phaser from 'phaser';
 import { InventoryManager } from '../meta/InventoryManager';
-import { getGearDef, RARITY_COLORS, ALL_RUNES, GEAR_TYPE_TOWER, SALVAGE_VALUES } from '../data/gearDefs';
+import { getGearDef, RARITY_COLORS, ALL_RUNES, GEAR_TYPE_TOWER, SALVAGE_VALUES, getEnhancedStatMult } from '../data/gearDefs';
 import type { GearInstance, GearRarity } from '../data/gearDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { matchesGearInventoryFilter, resolveGearDisplayTowerKey, UNIVERSAL_GEAR_FILTER } from '../ui/gearTowerAssociation';
@@ -344,16 +344,28 @@ export class InventoryScene extends Phaser.Scene {
     this.detailObjects.push(nameText);
     y += 28;
 
-    // Rarity + enhance level
+    // Rarity + enhance level (always show X/5 so player knows the cap)
     const rarityLabel = def.rarity.charAt(0).toUpperCase() + def.rarity.slice(1);
-    const enhLabel = item.enhanceLevel > 0 ? `  +${item.enhanceLevel}` : '';
-    const rarityText = this.add.text(leftX, y, `${rarityLabel}${enhLabel}`, {
+    const enhLevelDisplay = `  +${item.enhanceLevel}/5`;
+    const rarityText = this.add.text(leftX, y, `${rarityLabel}${enhLevelDisplay}`, {
       fontSize:   '13px',
       color:      RARITY_COLORS[def.rarity].hex,
       fontFamily: PAL.fontBody,
     });
     this.detailObjects.push(rarityText);
     y += 22;
+
+    // MAX LEVEL badge (criterion: indicate max clearly)
+    if (item.enhanceLevel >= 5) {
+      const maxBadge = this.add.text(leftX, y, 'MAX LEVEL', {
+        fontSize:   '12px',
+        color:      PAL.gold,
+        fontFamily: PAL.fontBody,
+        fontStyle:  'bold',
+      });
+      this.detailObjects.push(maxBadge);
+      y += 18;
+    }
 
     // Tower type with tower icon
     const equippedTowerKey = this.inv.getEquippedLocation(item.uid)?.towerKey ?? null;
@@ -398,11 +410,22 @@ export class InventoryScene extends Phaser.Scene {
       this.detailObjects.push(statsHeader);
       y += 18;
 
+      // Show current effective value and, if not maxed, what the next enhance will give
+      const currentMult = getEnhancedStatMult(item.enhanceLevel);
+      const nextMult    = item.enhanceLevel < 5 ? getEnhancedStatMult(item.enhanceLevel + 1) : null;
+
       for (const [key, val] of statEntries) {
-        const statLabel = this._formatStatName(key);
-        const sign = (val as number) > 0 ? '+' : '';
-        const pctVal = this._isPercentStat(key) ? `${sign}${Math.round((val as number) * 100)}%` : `${sign}${val}`;
-        const statText = this.add.text(leftX + 8, y, `${statLabel}: ${pctVal}`, {
+        const statLabel  = this._formatStatName(key);
+        const isPct      = this._isPercentStat(key);
+        const currentStr = this._formatStatVal((val as number) * currentMult, isPct);
+        let lineStr: string;
+        if (nextMult !== null) {
+          const nextStr = this._formatStatVal((val as number) * nextMult, isPct);
+          lineStr = `${statLabel}: ${currentStr} → ${nextStr}`;
+        } else {
+          lineStr = `${statLabel}: ${currentStr}`;
+        }
+        const statText = this.add.text(leftX + 8, y, lineStr, {
           fontSize:   '11px',
           color:      PAL.textSecondary,
           fontFamily: PAL.fontBody,
@@ -450,10 +473,12 @@ export class InventoryScene extends Phaser.Scene {
     }, PAL.bgPanel, PAL.accentGreenN);
     y += btnGap;
 
-    // ENHANCE
+    // ENHANCE — label shows target level and crystal cost for clarity
     const enhCost = this.inv.getEnhanceCost(item.uid);
     const canEnhance = enhCost >= 0 && this.save.getCurrency() >= enhCost;
-    const enhLabel2 = enhCost >= 0 ? `ENHANCE (${enhCost})` : 'ENHANCE (MAX)';
+    const enhLabel2 = enhCost >= 0
+      ? `ENHANCE → +${item.enhanceLevel + 1}/5  (${enhCost} crystals)`
+      : 'ENHANCE (MAX LEVEL)';
     this._makeDetailButton(btnX, y, enhLabel2, () => {
       if (canEnhance) {
         this.inv.enhance(item.uid);
@@ -603,6 +628,25 @@ export class InventoryScene extends Phaser.Scene {
 
   private _isPercentStat(key: string): boolean {
     return key.includes('Pct');
+  }
+
+  /**
+   * Format an effective stat value for display.
+   * Percent stats are shown as "+8.4%" (one decimal when needed).
+   * Flat stats are shown as "+1.1" (one decimal when needed).
+   */
+  private _formatStatVal(val: number, isPct: boolean): string {
+    if (isPct) {
+      const pct = Math.round(val * 1000) / 10;
+      const sign = pct > 0 ? '+' : '';
+      const pctStr = pct % 1 === 0 ? String(Math.round(pct)) : pct.toFixed(1);
+      return `${sign}${pctStr}%`;
+    } else {
+      const rounded = Math.round(val * 10) / 10;
+      const sign = rounded > 0 ? '+' : '';
+      const numStr = rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
+      return `${sign}${numStr}`;
+    }
   }
 
   private _makeButton(
