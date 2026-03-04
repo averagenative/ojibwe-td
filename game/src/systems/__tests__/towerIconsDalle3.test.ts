@@ -1,11 +1,12 @@
 /**
  * TASK-152: Tower Icons Overhaul — DALL-E 3
+ * Updated by TASK-165: icon size upgraded from 64×64 to 96×96 for consistent style
  *
  * Structural + file-integrity tests verifying:
  *  - All tower icons in BootScene are loaded as PNG (no SVGs)
  *  - icon-rock-hurler was migrated from SVG to PNG
  *  - All 6 tower icon PNG files exist and have valid headers
- *  - Icon dimensions are 64×64 (consistent across all towers)
+ *  - Icon dimensions are 96×96 (consistent across all towers)
  *  - BootScene preload keys are unchanged (drop-in replacement)
  */
 
@@ -116,11 +117,11 @@ describe('Tower icon PNG integrity (TASK-152)', () => {
       expect(buf[3]).toBe(0x47); // G
     });
 
-    it(`${key}.png is 64×64`, () => {
+    it(`${key}.png is 96×96`, () => {
       const buf = readFileSync(filePath);
       const { width, height } = pngDimensions(buf);
-      expect(width).toBe(64);
-      expect(height).toBe(64);
+      expect(width).toBe(96);
+      expect(height).toBe(96);
     });
 
     it(`${key}.png file size is reasonable (100 B – 10 KB)`, () => {
