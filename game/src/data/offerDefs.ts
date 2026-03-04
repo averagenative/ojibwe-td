@@ -641,7 +641,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'bounty-escape',
     name:        'Bounty',
-    description: 'The first creep to escape each wave drops triple gold on the next kill.',
+    description: 'If a creep escapes, the next kill earns triple gold (once per wave).',
     category:    'economy',
     weight:      4,
     rarity:      'rare',

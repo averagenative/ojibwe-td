@@ -651,13 +651,21 @@ export class OfferManager {
   consumeHeadstart(): void { this._headstartConsumed = true; }
 
   /**
-   * Bounty (escape): the first creep to escape each wave activates a bounty.
-   * On the next kill, the player earns triple gold.
+   * Bounty (escape): if any creep escapes this wave, the next kill earns triple gold.
+   * The bonus fires at most once per wave — `_bountyActive` is cleared after consumption
+   * or at the start of a new wave.
    */
   hasBountyEscape(): boolean { return this.activeIds.has('bounty-escape'); }
-  activateBounty(): void   { this._bountyActive = true; }
-  isBountyActive(): boolean { return this._bountyActive; }
-  consumeBounty(): void    { this._bountyActive = false; }
+  activateBounty(): void    { this._bountyActive = true; }
+  isBountyActive(): boolean  { return this._bountyActive; }
+  consumeBounty(): void     { this._bountyActive = false; }
+
+  /**
+   * Returns the kill gold multiplier from an active Bounty escape.
+   * 3.0 when the bounty is pending; 1.0 otherwise.
+   * Caller must call consumeBounty() after applying the multiplier.
+   */
+  getBountyKillMult(): number { return this._bountyActive ? 3.0 : 1.0; }
 
   /**
    * Insurance: if 2+ lives are lost in a wave, gain 20 gold compensation.
