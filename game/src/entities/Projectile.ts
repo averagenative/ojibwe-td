@@ -1,6 +1,12 @@
 import Phaser from 'phaser';
 import { Creep } from './Creep';
 import type { TrailPool } from '../systems/TrailPool';
+import {
+  PROJECTILE_VISUAL_CONFIGS,
+  travelAngle,
+  advanceTumble,
+  ROCK_SIZE_VARIANTS,
+} from '../data/projectileVisualDefs';
 
 export interface ProjectileOptions {
   color?:       number;  // fill colour, default yellow
@@ -61,6 +67,21 @@ export class Projectile extends Phaser.GameObjects.Arc {
   /** Lazy-initialised on first mortar step — original distance to target. */
   private mortarInitDist = -1;
 
+  // ── Shape graphics ────────────────────────────────────────────────────────
+  /**
+   * Optional separate Graphics object drawn on top of (or instead of) the Arc.
+   * Created in constructor for tower types with custom shapes.
+   * Destroyed in destroy() to prevent leaks.
+   */
+  private _shapeGfx:    Phaser.GameObjects.Graphics | null = null;
+  /** Current direction of travel in radians. Updated each step. */
+  private _travelAngle  = 0;
+  /**
+   * Cumulative tumble rotation for Rock Hurler (radians).
+   * Incremented per step independent of travel direction.
+   */
+  private _tumblePhase  = 0;
+
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -86,7 +107,214 @@ export class Projectile extends Phaser.GameObjects.Arc {
 
     // Tesla: hide the Arc — the visual is a lightning arc drawn on impact.
     if (opts.towerKey === 'tesla') this.setAlpha(0);
+
+    // Build tower-specific shape graphics if applicable.
+    this._buildShapeGfx();
   }
+
+  // ── shape graphics ────────────────────────────────────────────────────────
+
+  private _buildShapeGfx(): void {
+    const key = this.opts.towerKey;
+    if (!key) return;
+
+    const cfg = PROJECTILE_VISUAL_CONFIGS[key];
+    if (!cfg || cfg.shape === 'none') return;
+
+    // Hide the underlying Arc — the shape replaces it entirely.
+    this.setAlpha(0);
+
+    this._shapeGfx = this.scene.add.graphics();
+    this._shapeGfx.setDepth(20);
+    this._shapeGfx.setPosition(this.x, this.y);
+
+    switch (cfg.shape) {
+      case 'arrow':       this._drawArrow(cfg.size, cfg.color);       break;
+      case 'rock':        this._drawRock(cfg.size, cfg.color);        break;
+      case 'frost-shard': this._drawFrostShard(cfg.size, cfg.color);  break;
+      case 'poison-blob': this._drawPoisonBlob(cfg.size, cfg.color);  break;
+    }
+
+    // Poison blob: add a looping scale wobble tween.
+    if (cfg.shape === 'poison-blob') {
+      this.scene.tweens.add({
+        targets:  this._shapeGfx,
+        scaleX:   0.82,
+        scaleY:   1.18,
+        duration: 160,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
+    }
+  }
+
+  /** Arrow: shaft + triangular arrowhead + small V-fletching at the rear.
+   *  Drawn pointing right (angle = 0); rotated to face travel direction. */
+  private _drawArrow(size: number, color: number): void {
+    const gfx   = this._shapeGfx!;
+    const shaft = size;           // half-shaft back from center
+    const head  = size * 0.55;   // head forward from shaft tip
+    const tipX  = shaft * 0.45;  // where shaft meets head base
+
+    // Shaft
+    gfx.lineStyle(2, color, 1.0);
+    gfx.beginPath();
+    gfx.moveTo(-shaft, 0);
+    gfx.lineTo(tipX, 0);
+    gfx.strokePath();
+
+    // Arrowhead triangle (filled)
+    gfx.fillStyle(color, 1.0);
+    gfx.beginPath();
+    gfx.moveTo(tipX, -head * 0.38);
+    gfx.lineTo(tipX,  head * 0.38);
+    gfx.lineTo(tipX + head, 0);
+    gfx.closePath();
+    gfx.fillPath();
+
+    // Fletching: V shape at rear end
+    const fletchColor = 0x8b6000;
+    gfx.lineStyle(1.5, fletchColor, 0.85);
+    gfx.beginPath();
+    gfx.moveTo(-shaft, -head * 0.45);
+    gfx.lineTo(-shaft + size * 0.25, 0);
+    gfx.lineTo(-shaft, head * 0.45);
+    gfx.strokePath();
+  }
+
+  /**
+   * Rock: rough irregular polygon with a slight brown shading.
+   * A random size variant is picked per-instance for visual variety.
+   */
+  private _drawRock(baseSize: number, color: number): void {
+    const gfx = this._shapeGfx!;
+    // Pick one of 3 size variants for variety.
+    const variant = ROCK_SIZE_VARIANTS[Math.floor(Math.random() * ROCK_SIZE_VARIANTS.length)];
+    const r = baseSize + variant;
+
+    // Fixed angular offsets make it look like a natural rock, not a circle.
+    // 8 points; each point has a fixed radial deviation to produce an irregular shape.
+    const pts: Array<{ x: number; y: number }> = [
+      { x: r * 0.85 * Math.cos(0),                y: r * 0.70 * Math.sin(0) },
+      { x: r * 1.00 * Math.cos(Math.PI * 0.28),   y: r * 0.90 * Math.sin(Math.PI * 0.28) },
+      { x: r * 0.70 * Math.cos(Math.PI * 0.55),   y: r * 1.00 * Math.sin(Math.PI * 0.55) },
+      { x: r * 0.90 * Math.cos(Math.PI * 0.80),   y: r * 0.80 * Math.sin(Math.PI * 0.80) },
+      { x: r * 0.80 * Math.cos(Math.PI),          y: r * 0.85 * Math.sin(Math.PI) },
+      { x: r * 1.00 * Math.cos(Math.PI * 1.25),   y: r * 0.95 * Math.sin(Math.PI * 1.25) },
+      { x: r * 0.75 * Math.cos(Math.PI * 1.55),   y: r * 1.00 * Math.sin(Math.PI * 1.55) },
+      { x: r * 0.90 * Math.cos(Math.PI * 1.80),   y: r * 0.75 * Math.sin(Math.PI * 1.80) },
+    ];
+
+    gfx.fillStyle(color, 1.0);
+    gfx.beginPath();
+    gfx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) gfx.lineTo(pts[i].x, pts[i].y);
+    gfx.closePath();
+    gfx.fillPath();
+
+    // Dark outline for depth
+    gfx.lineStyle(1.5, 0x7a5c28, 0.8);
+    gfx.beginPath();
+    gfx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) gfx.lineTo(pts[i].x, pts[i].y);
+    gfx.closePath();
+    gfx.strokePath();
+
+    // Highlight facet (top-left bright streak)
+    gfx.lineStyle(1, 0xffeebb, 0.45);
+    gfx.beginPath();
+    gfx.moveTo(-r * 0.3, -r * 0.55);
+    gfx.lineTo(r * 0.15, -r * 0.2);
+    gfx.strokePath();
+  }
+
+  /** Frost shard: 6-pointed ice crystal formed by three crossing lines. */
+  private _drawFrostShard(size: number, color: number): void {
+    const gfx = this._shapeGfx!;
+    const r   = size;
+    const inner = r * 0.45; // inner notch radius
+
+    // 3 main axes at 0°, 60°, 120°
+    gfx.lineStyle(2.5, color, 0.95);
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI) / 3;
+      gfx.beginPath();
+      gfx.moveTo(-Math.cos(a) * r, -Math.sin(a) * r);
+      gfx.lineTo( Math.cos(a) * r,  Math.sin(a) * r);
+      gfx.strokePath();
+    }
+
+    // Small barbs on each arm (6 arms × 2 barbs each)
+    gfx.lineStyle(1.2, 0xcceeff, 0.75);
+    for (let i = 0; i < 6; i++) {
+      const a    = (i * Math.PI) / 3;
+      const bx   = Math.cos(a) * inner;
+      const by   = Math.sin(a) * inner;
+      const perp = a + Math.PI / 2;
+      const bl   = r * 0.28; // barb length
+      gfx.beginPath();
+      gfx.moveTo(bx + Math.cos(perp) * bl, by + Math.sin(perp) * bl);
+      gfx.lineTo(bx, by);
+      gfx.lineTo(bx - Math.cos(perp) * bl, by - Math.sin(perp) * bl);
+      gfx.strokePath();
+    }
+
+    // Centre dot
+    gfx.fillStyle(0xddf4ff, 0.9);
+    gfx.fillCircle(0, 0, 2);
+  }
+
+  /** Poison blob: round body with a small drip, bright toxic green. */
+  private _drawPoisonBlob(size: number, color: number): void {
+    const gfx = this._shapeGfx!;
+    const rx  = size;
+    const ry  = size * 1.15;
+
+    // Main blob body (slightly oval)
+    gfx.fillStyle(color, 0.9);
+    gfx.fillEllipse(0, 0, rx * 2, ry * 2);
+
+    // Drip at bottom
+    gfx.fillStyle(color, 0.7);
+    gfx.fillCircle(0, ry, size * 0.38);
+
+    // Bright highlight
+    gfx.fillStyle(0xaaffcc, 0.55);
+    gfx.fillCircle(-size * 0.3, -size * 0.35, size * 0.3);
+
+    // Dark edge
+    gfx.lineStyle(1, 0x22aa55, 0.6);
+    gfx.strokeEllipse(0, 0, rx * 2, ry * 2);
+  }
+
+  // ── shape sync ────────────────────────────────────────────────────────────
+
+  /** Sync _shapeGfx position and rotation to current projectile position. */
+  private _syncShapeGfx(): void {
+    if (!this._shapeGfx) return;
+    this._shapeGfx.setPosition(this.x, this.y);
+
+    const key = this.opts.towerKey;
+    if (key === 'arrow') {
+      // Arrow always faces direction of travel.
+      this._shapeGfx.setRotation(this._travelAngle);
+    } else if (key === 'rock-hurler') {
+      // Rock tumbles independently of travel direction.
+      this._shapeGfx.setRotation(this._tumblePhase);
+    }
+    // frost-shard and poison-blob: no rotation applied (symmetric shapes)
+  }
+
+  // ── destroy override ──────────────────────────────────────────────────────
+
+  override destroy(fromScene?: boolean): void {
+    this._shapeGfx?.destroy();
+    this._shapeGfx = null;
+    super.destroy(fromScene);
+  }
+
+  // ── public step ───────────────────────────────────────────────────────────
 
   step(delta: number): void {
     if (!this.active) return;
@@ -99,6 +327,11 @@ export class Projectile extends Phaser.GameObjects.Arc {
         this.trailTimer = 0;
         this.emitTrailParticle();
       }
+    }
+
+    // Rock Hurler: advance tumble angle each frame.
+    if (key === 'rock-hurler') {
+      this._tumblePhase = advanceTumble(this._tumblePhase, delta);
     }
 
     if (this.targetPos) {
@@ -125,8 +358,13 @@ export class Projectile extends Phaser.GameObjects.Arc {
       return;
     }
 
+    // Update travel angle before moving.
+    this._travelAngle = travelAngle(dx, dy);
+
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
+
+    this._syncShapeGfx();
   }
 
   private stepToPosition(delta: number): void {
@@ -141,19 +379,27 @@ export class Projectile extends Phaser.GameObjects.Arc {
       if (this.mortarInitDist < 0) this.mortarInitDist = dist;
       if (this.mortarInitDist > 0) {
         const t = 1 - dist / this.mortarInitDist;        // 0 at launch → 1 at impact
-        this.setScale(1 + Math.sin(Math.max(0, t) * Math.PI) * 0.55);
+        const s = 1 + Math.sin(Math.max(0, t) * Math.PI) * 0.55;
+        this.setScale(s);
+        this._shapeGfx?.setScale(s);
       }
     }
 
     if (dist <= step) {
       this.setScale(1);
+      this._shapeGfx?.setScale(1);
       this.arriveAtPosition(pos.x, pos.y);
       this.destroy();
       return;
     }
 
+    // Update travel angle before moving.
+    this._travelAngle = travelAngle(dx, dy);
+
     this.x += (dx / dist) * step;
     this.y += (dy / dist) * step;
+
+    this._syncShapeGfx();
   }
 
   // ── impact ────────────────────────────────────────────────────────────────
