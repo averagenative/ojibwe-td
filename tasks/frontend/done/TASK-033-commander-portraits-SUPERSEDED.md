@@ -1,7 +1,7 @@
 ---
 id: TASK-033
 title: Commander Portrait Icons & Character Art
-status: in-progress
+status: done
 priority: medium
 category: frontend
 phase: 13

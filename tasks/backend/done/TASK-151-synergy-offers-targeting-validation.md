@@ -1,7 +1,7 @@
 ---
 id: TASK-151
 title: Synergy Offer Cards Must Respect Tower Targeting Rules
-status: pending
+status: done
 priority: high
 category: backend
 phase: polish

@@ -32,7 +32,7 @@ _L() { LEFT+=("$1"); }
 _L "$(printf "${BOLD}Orchestrator processes${RESET}")"
 _L "$(sep_l)"
 
-SINGLE_PIDS=$(pgrep -f "[o]rchestrator\.sh" 2>/dev/null | { grep -vw "parallel" || true; })
+SINGLE_PIDS=$(pgrep -f "[^-][o]rchestrator\.sh" 2>/dev/null || true)
 PARALLEL_PIDS=$(pgrep -f "[p]arallel-orchestrator\.sh" 2>/dev/null || true)
 # Only show orchestrator-spawned agents (have -p flag), not interactive sessions
 CLAUDE_PIDS=$(pgrep -af "claude.*--dangerously-skip.*-p " 2>/dev/null | { grep -v "^$$" || true; })

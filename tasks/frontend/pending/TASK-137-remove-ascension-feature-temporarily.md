@@ -2,7 +2,7 @@
 id: TASK-137
 title: Remove Ascension Feature Temporarily
 status: pending
-priority: high
+priority: critical
 category: frontend
 phase: polish
 depends_on: []
@@ -23,3 +23,4 @@ from the UI for now and revisited in a future design pass.
 - [ ] Do NOT delete the ascension system code — just hide/disable it
 - [ ] Ensure meta-progression (unlocks, stats) still works without ascension
 - [ ] No visual artifacts or layout issues after removal
+- [ ] Update `src/systems/__tests__/ascensionSystem.test.ts`: the "CommanderSelectScene — ascension picker" describe block (lines 567-595) has 7 structural `?raw` tests that assert ascension patterns exist in `CommanderSelectScene.ts` source. These tests MUST be updated to reflect the hidden/disabled state — either skip them with `it.skip`, delete them, or rewrite assertions to match the new gated code. DO NOT leave them failing.

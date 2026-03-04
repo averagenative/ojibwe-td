@@ -503,19 +503,49 @@ EOF
 # task_start: epoch when task was first claimed
 # phase_start: epoch when current phase began
 
+STATE_LOCKFILE="${PARALLEL_STATE_FILE}.lock"
+
 state_write() {
   local task_file="$1" stage="$2" wt="${3:-}" branch="${4:-}"
+  local attempt max_attempts=10 delay=0.2
+
+  for (( attempt=1; attempt<=max_attempts; attempt++ )); do
+    # Try to acquire lock (fd 9). flock -n fails immediately if held.
+    if ( flock -n 9 || exit 1
+      local now
+      now=$(date +%s)
+
+      # Preserve task_start from existing entry, or use now if new
+      local task_start="$now"
+      if [ -f "$PARALLEL_STATE_FILE" ]; then
+        local existing_start
+        existing_start=$(grep "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null | head -1 | cut -d'|' -f5)
+        [ -n "$existing_start" ] && task_start="$existing_start"
+      fi
+
+      local tmp
+      tmp=$(mktemp)
+      grep -v "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null > "$tmp" || true
+      echo "${task_file}|${stage}|${wt}|${branch}|${task_start}|${now}" >> "$tmp"
+      mv "$tmp" "$PARALLEL_STATE_FILE"
+    ) 9>"$STATE_LOCKFILE"; then
+      return 0
+    fi
+
+    # Lock held by another worker — wait and retry
+    sleep "$delay"
+  done
+
+  # All retries exhausted — force-write as last resort
+  log "WARNING: state_write lock contention after $max_attempts attempts, forcing write"
   local now
   now=$(date +%s)
-
-  # Preserve task_start from existing entry, or use now if new
   local task_start="$now"
   if [ -f "$PARALLEL_STATE_FILE" ]; then
     local existing_start
     existing_start=$(grep "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null | head -1 | cut -d'|' -f5)
     [ -n "$existing_start" ] && task_start="$existing_start"
   fi
-
   local tmp
   tmp=$(mktemp)
   grep -v "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null > "$tmp" || true
