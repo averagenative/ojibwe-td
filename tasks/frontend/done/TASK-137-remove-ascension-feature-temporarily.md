@@ -1,7 +1,7 @@
 ---
 id: TASK-137
 title: Remove Ascension Feature Temporarily
-status: pending
+status: done
 priority: critical
 category: frontend
 phase: polish

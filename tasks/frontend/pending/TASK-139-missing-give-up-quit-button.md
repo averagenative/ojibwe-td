@@ -1,7 +1,7 @@
 ---
 id: TASK-139
 title: Restore Give Up / Quit Button in Game HUD
-status: pending
+status: in-progress
 priority: high
 category: frontend
 phase: polish
