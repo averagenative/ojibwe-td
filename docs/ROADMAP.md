@@ -2728,3 +2728,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Mobile quick play still vertically stacked** — On mobile viewports (<~500px wide), the side-by-side layout doesn't fit (START=280px + gap + QUICK PLAY=240px = 536px). The review fix uses a below-and-right-offset layout on mobile instead of true side-by-side. If a fully side-by-side mobile layout is desired, both buttons would need to be narrowed significantly.
 - **`quickBtnW` on mobile could be reduced** — The mobile quick play button is 240px wide, nearly as wide as START (280px). Reducing to ~160px would allow side-by-side placement on 414px+ viewports (iPhone Plus/Pro Max size). Trade-off: smaller touch target width, though height remains 44px.
+
+### TASK-163 Review Findings (Main Menu Button Layout Fix)
+
+- **Layout fits exactly at the limit** — Both desktop (achBottom=706) and mobile (achBottom=706) hit exactly the 720−14=706 pixel cap. Any future addition of a button row or increased gap would overflow. Consider increasing the maxStartY offset if more vertical room is needed.
+- **TASK-162 side-by-side note is now obsolete** — TASK-163 switched QUICK PLAY to centred-below on both desktop and mobile, superseding the TASK-162 finding above.

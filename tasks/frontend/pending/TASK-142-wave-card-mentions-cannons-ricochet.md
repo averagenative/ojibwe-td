@@ -1,7 +1,7 @@
 ---
 id: TASK-142
 title: Wave Clear Card Still Mentions "Cannons" (Ricochet)
-status: pending
+status: done
 priority: low
 category: frontend
 phase: bug
@@ -21,3 +21,7 @@ text from an earlier tower naming scheme. Update to match current tower names.
 - [ ] Replace "cannons" with the correct tower name or generic term
 - [ ] Audit all other wave clear cards for outdated tower references
 - [ ] Ensure card descriptions match current game terminology
+
+## Resolution
+Superseded by TASK-161 (Remove All Cannon Tower References) which covers a full
+codebase audit of all cannon mentions including offer card text.
