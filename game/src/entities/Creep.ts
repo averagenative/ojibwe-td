@@ -66,6 +66,11 @@ export interface CreepConfig {
   bossKey?:            string;
   /** Boss display name (Ojibwe animal name). */
   bossName?:           string;
+  /**
+   * Wave number this creep belongs to (1–20).
+   * Used to scale creep body size from 0.85× (wave 1) to 1.15× (wave 20).
+   */
+  waveNumber?:         number;
 }
 
 interface Waypoint {
@@ -92,10 +97,24 @@ interface EffectParticle {
   drift:  number;
 }
 
-const BODY_COLORS: Record<CreepType, number> = {
-  ground: 0x22cc55,
-  air:    0x4488ff,
+/** Visual style derived from spriteKey + config flags at construction time. */
+type CreepVisualStyle =
+  | 'normal' | 'fast' | 'armored' | 'immune' | 'regen'
+  | 'flying' | 'boss-waabooz' | 'boss-waabooz-mini' | 'boss-generic';
+
+// ── Per-style base body colours ───────────────────────────────────────────────
+const STYLE_COLORS: Record<CreepVisualStyle, number> = {
+  normal:              0xd4a56a, // warm tan/brown (base reference)
+  fast:                0xffaa22, // bright yellow-orange (runner)
+  armored:             0xaaaaaa, // silver-grey (brute)
+  immune:              0xcc99ee, // soft lavender (spirit — can't be slowed/poisoned)
+  regen:               0x22aa44, // deep forest green (regenerating)
+  flying:              0x88ccff, // light sky blue
+  'boss-waabooz':      0xcc2222, // deep red
+  'boss-waabooz-mini': 0xcc2222, // same deep red
+  'boss-generic':      0xcc6600, // amber fallback (used if boss has no tint)
 };
+
 
 // ── Air creep visual constants ────────────────────────────────────────────────
 /** Y offset applied to body/shadow visuals for air creeps (floating effect). */
@@ -267,6 +286,28 @@ export class Creep extends Phaser.GameObjects.Container {
   // Tesla shock — residual static for 0.5 s after chain-lightning hit
   private _teslaShockedMs = 0;
 
+  // ── Visual variety (TASK-028) ──────────────────────────────────────────────
+  /** Visual style determined once at construction from spriteKey + config flags. */
+  private readonly _visualStyle: CreepVisualStyle;
+  /** Body size scale factor: 0.85 (wave 1) → 1.15 (wave 20). Bosses always 1.0. */
+  private readonly _waveSizeScale: number;
+  /** Graphics object used as the creep body for diamond (fast, flying) or circle (immune). */
+  private _bodyGfx?: Phaser.GameObjects.Graphics;
+  /** Current fill colour for _bodyGfx — used when redrawing on status-effect changes. */
+  private _bodyGfxColor: number = 0;
+  /** Cached half-width of the current gfx body (to report geometry without re-drawing). */
+  private _bodyGfxHW: number = 0;
+  /** Cached half-height of the current gfx body. */
+  private _bodyGfxHH: number = 0;
+  /** Extra detail graphics: armor border, regen "+" marks, boss stripe pattern. */
+  private _detailGfx?: Phaser.GameObjects.Graphics;
+  /** Pulsing immune-circle outline (immune creeps only). */
+  private _immuneOutlineGfx?: Phaser.GameObjects.Graphics;
+  /** Tween driving the immune outline alpha pulse (0.4 → 1.0 → 0.4, loop). */
+  private _immuneOutlineTween?: Phaser.Tweens.Tween;
+  /** Scene-level shadow ellipse for air creeps — lives outside the container at ground depth. */
+  private _sceneShadow?: Phaser.GameObjects.Ellipse;
+
   constructor(
     scene: Phaser.Scene,
     waypoints: Waypoint[],
@@ -300,8 +341,12 @@ export class Creep extends Phaser.GameObjects.Container {
     this.bossKey              = config.bossKey           ?? '';
     this.bossName             = config.bossName          ?? '';
 
+    // Derive visual style before computing baseBodyColor so colour lookup is correct.
+    this._visualStyle   = Creep._deriveVisualStyle(config);
+    this._waveSizeScale = this.isBossCreep ? 1.0 : Creep._computeWaveSizeScale(config.waveNumber);
+
     this.hpBarMaxWidth  = this.isBossCreep ? BOSS_HP_BAR_WIDTH : HP_BAR_WIDTH;
-    this.baseBodyColor  = config.tint ?? BODY_COLORS[config.type];
+    this.baseBodyColor  = config.tint ?? STYLE_COLORS[this._visualStyle];
     // For sprite-path: boss tint or 0xffffff (no tint) for standard creeps.
     this.baseSpriteTint = config.tint ?? 0xffffff;
 
@@ -324,10 +369,10 @@ export class Creep extends Phaser.GameObjects.Container {
     // Apply the initial directional transform (flip / rotation / size).
     this.updateDirectionalVisual();
     scene.add.existing(this);
-    // Depth 15: above terrain (0), decorations (1), towers (10); below
-    // projectiles (20) and UI panels (30+).  Health bars render at this depth
-    // too since they are children of this container.
-    this.setDepth(CREEP_DEPTH);
+    // Flying creeps render at depth +2 above ground creeps so they appear
+    // to float over the path and any ground units below them.
+    // Ground: 15, Flying: 17 — still below projectiles (20) and UI (30+).
+    this.setDepth(this.creepType === 'air' ? CREEP_DEPTH + 2 : CREEP_DEPTH);
   }
 
   // ── update ────────────────────────────────────────────────────────────────
@@ -350,6 +395,7 @@ export class Creep extends Phaser.GameObjects.Container {
     }
 
     if (this.waypointIndex >= this.waypoints.length) {
+      this._sceneShadow?.setVisible(false);
       this.emit('reached-exit');
       this.setActive(false).setVisible(false);
       return;
@@ -369,6 +415,7 @@ export class Creep extends Phaser.GameObjects.Container {
     );
 
     if (this.waypointIndex >= this.waypoints.length) {
+      this._sceneShadow?.setVisible(false);
       this.emit('reached-exit');
       this.setActive(false).setVisible(false);
       return;
@@ -391,9 +438,14 @@ export class Creep extends Phaser.GameObjects.Container {
     // ── Bobbing (sine wave on body Y, scales with effective speed) ───────────
     const bobY = Math.sin(this.bobPhase) * BOB_AMPLITUDE;
     if (this.bodyImage) this.bodyImage.y = bobY;
+    if (this._bodyGfx)  this._bodyGfx.y  = bobY;
     if (this.bodyRect)  this.bodyRect.y  = bobY;
     if (this.armorIndicator) {
       this.armorIndicator.y = this.armorBaseY + bobY;
+    }
+    // Update scene-level shadow position (air creeps — outside the container).
+    if (this._sceneShadow) {
+      this._sceneShadow.setPosition(this.x, this.y + 2);
     }
     // Accumulate phase after applying so phase=0 → bobY=0 on the first frame.
     this.bobPhase += (effectiveSpeed / 1000) * delta * BOB_FREQ_FACTOR;
@@ -460,6 +512,7 @@ export class Creep extends Phaser.GameObjects.Container {
         };
         this.scene.events.emit('creep-died-poisoned', data);
       }
+      this._sceneShadow?.setVisible(false);
       this.setActive(false).setVisible(false);
       this.emit('died', this);
       this.destroy();
@@ -755,118 +808,332 @@ export class Creep extends Phaser.GameObjects.Container {
     this._effectParticles.clear();
     this._frostRingGfx?.destroy();
     this._iconBarGfx?.destroy();
+    // Visual-variety objects (TASK-028)
+    this._immuneOutlineTween?.stop();
+    this._immuneOutlineTween = undefined;
+    this._immuneOutlineGfx?.destroy();
+    this._detailGfx?.destroy();
+    this._bodyGfx?.destroy();
+    // Scene-level shadow (air creeps — not a container child).
+    this._sceneShadow?.destroy();
+    this._sceneShadow = undefined;
     super.destroy(fromScene);
   }
 
   // ── private ───────────────────────────────────────────────────────────────
 
-  private buildVisuals(config: CreepConfig): void {
-    const isBoss   = this.isBossCreep;
-    const bodySize = isBoss ? 48 : 24;
-    const barW     = this.hpBarMaxWidth;
-    const barH     = isBoss ? BOSS_HP_BAR_HEIGHT   : HP_BAR_HEIGHT;
-    const barOffY  = isBoss ? BOSS_HP_BAR_OFFSET_Y : HP_BAR_OFFSET_Y;
+  // ── Static helpers (Phaser-free, unit-testable) ───────────────────────────
 
-    // ── Body: sprite image or coloured rectangle fallback ────────────────────
+  /**
+   * Derive the visual style for a creep from its config.
+   * Priority (highest first): air → boss → waabooz-mini → armored →
+   *   immune → regen → fast → normal.
+   */
+  private static _deriveVisualStyle(config: CreepConfig): CreepVisualStyle {
+    if (config.type === 'air') return 'flying';
+    if (config.isBoss) {
+      const key = (config.bossKey ?? '').replace(/-ew\d+$/, '');
+      return key === 'waabooz' ? 'boss-waabooz' : 'boss-generic';
+    }
+    if (config.spriteKey === 'boss-waabooz-mini') return 'boss-waabooz-mini';
+    // Armour takes priority over immunity / regen so brutes stay recognisable.
+    if (config.isArmored || config.spriteKey === 'creep-armored') return 'armored';
+    if (config.isSlowImmune || config.isPoisonImmune) return 'immune';
+    if ((config.regenPercentPerSec ?? 0) > 0) return 'regen';
+    if (config.spriteKey === 'creep-fast') return 'fast';
+    return 'normal';
+  }
+
+  /**
+   * Compute a body-size scale factor from the wave number.
+   * Wave 1 → 0.85×, wave 20 → 1.15× (linear interpolation).
+   */
+  private static _computeWaveSizeScale(waveNumber: number | undefined): number {
+    if (!waveNumber) return 1.0;
+    const n = Math.max(1, Math.min(20, waveNumber));
+    return 0.85 + (n - 1) / 19 * 0.30;
+  }
+
+  // ── Instance drawing helpers ──────────────────────────────────────────────
+
+  /**
+   * Draw (or redraw) the Graphics body.
+   * Fast / flying → 4-point diamond;  immune → filled circle.
+   * Uses the current `direction` to choose horizontal or vertical proportions.
+   * Caches half-width/height for `_getBodyGeometry()`.
+   */
+  private _drawGfxBody(color: number): void {
+    const gfx = this._bodyGfx;
+    if (!gfx) return;
+    const sc      = this._waveSizeScale;
+    const isHoriz = this.direction === 'left' || this.direction === 'right';
+    const hw = isHoriz
+      ? (this.isBossCreep ? BOSS_HORIZ_W / 2 : Math.round(BODY_HORIZ_W / 2 * sc))
+      : (this.isBossCreep ? BOSS_VERT_W  / 2 : Math.round(BODY_VERT_W  / 2 * sc));
+    const hh = isHoriz
+      ? (this.isBossCreep ? BOSS_HORIZ_H / 2 : Math.round(BODY_HORIZ_H / 2 * sc))
+      : (this.isBossCreep ? BOSS_VERT_H  / 2 : Math.round(BODY_VERT_H  / 2 * sc));
+    this._bodyGfxHW = hw;
+    this._bodyGfxHH = hh;
+    gfx.clear();
+    gfx.fillStyle(color, 1);
+
+    if (this._visualStyle === 'immune') {
+      // Filled circle — radius is the larger of half-width / half-height.
+      const radius = Math.max(hw, hh);
+      gfx.fillCircle(0, 0, radius);
+    } else {
+      // 4-point diamond (fast / flying).
+      gfx.fillPoints(
+        [{ x: hw, y: 0 }, { x: 0, y: hh }, { x: -hw, y: 0 }, { x: 0, y: -hh }],
+        true,
+      );
+    }
+  }
+
+  /**
+   * Redraw direction-dependent detail graphics (_detailGfx and _immuneOutlineGfx).
+   * Called from updateDirectionalVisual() after the body geometry is updated.
+   */
+  private _redrawDetailGfx(): void {
+    const style   = this._visualStyle;
+    const isHoriz = this.direction === 'left' || this.direction === 'right';
+    const sc      = this._waveSizeScale;
+
+    // ── Immune circle outline ───────────────────────────────────────────────
+    if (this._immuneOutlineGfx) {
+      const hw = isHoriz
+        ? Math.round(BODY_HORIZ_W / 2 * sc) : Math.round(BODY_VERT_W / 2 * sc);
+      const hh = isHoriz
+        ? Math.round(BODY_HORIZ_H / 2 * sc) : Math.round(BODY_VERT_H / 2 * sc);
+      const radius = Math.round(Math.max(hw, hh) + 5);
+      this._immuneOutlineGfx.clear();
+      this._immuneOutlineGfx.lineStyle(2, 0xffffff, 1);
+      this._immuneOutlineGfx.strokeCircle(0, 0, radius);
+      // Draw a second, slightly larger ring for the spirit effect.
+      this._immuneOutlineGfx.lineStyle(1, 0xddbbff, 0.6);
+      this._immuneOutlineGfx.strokeCircle(0, 0, radius + 3);
+    }
+
+    if (!this._detailGfx) return;
+    const gfx = this._detailGfx;
+    gfx.clear();
+
+    switch (style) {
+      case 'armored': {
+        // Dark border around the silver-grey body rectangle.
+        const bw = isHoriz
+          ? Math.round(BODY_HORIZ_W * sc) : Math.round(BODY_VERT_W * sc);
+        const bh = isHoriz
+          ? Math.round(BODY_HORIZ_H * sc) : Math.round(BODY_VERT_H * sc);
+        gfx.lineStyle(3, 0x555555, 1);
+        gfx.strokeRect(-bw / 2 - 1, -bh / 2 - 1, bw + 2, bh + 2);
+        // Inner highlight strip along the top edge for a shell/carapace look.
+        gfx.lineStyle(1, 0xcccccc, 0.6);
+        gfx.strokeRect(-bw / 2 + 2, -bh / 2 + 2, bw - 4, bh - 4);
+        break;
+      }
+      case 'regen': {
+        // Two small green "+" crosses on the body surface.
+        const cross = (cx: number, cy: number, len: number): void => {
+          gfx.fillRect(cx - 1, cy - len, 2, len * 2);
+          gfx.fillRect(cx - len, cy - 1, len * 2, 2);
+        };
+        gfx.fillStyle(0x44ff88, 0.9);
+        cross(-6, 0, 3);
+        cross(5, -3, 3);
+        break;
+      }
+      case 'boss-waabooz':
+      case 'boss-waabooz-mini': {
+        // Two horizontal white stripes across the body.
+        // Use actual rendered body dimensions (boss vs normal vs scaled mini).
+        const bw = this.isBossCreep
+          ? (isHoriz ? BOSS_HORIZ_W : BOSS_VERT_W)
+          : Math.round((isHoriz ? BODY_HORIZ_W : BODY_VERT_W) * sc);
+        const bh = this.isBossCreep
+          ? (isHoriz ? BOSS_HORIZ_H : BOSS_VERT_H)
+          : Math.round((isHoriz ? BODY_HORIZ_H : BODY_VERT_H) * sc);
+        const stripeH = Math.max(2, Math.round(bh / 5));
+        const gap     = Math.round(bh / 3);
+        gfx.fillStyle(0xffffff, 0.55);
+        gfx.fillRect(-bw / 2 + 2, -gap / 2 - stripeH / 2, bw - 4, stripeH);
+        gfx.fillRect(-bw / 2 + 2,  gap / 2 - stripeH / 2, bw - 4, stripeH);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  private buildVisuals(config: CreepConfig): void {
+    const isBoss  = this.isBossCreep;
+    const style   = this._visualStyle;
+    const scale   = this._waveSizeScale;
+    const barW    = this.hpBarMaxWidth;
+    const barH    = isBoss ? BOSS_HP_BAR_HEIGHT   : HP_BAR_HEIGHT;
+    const barOffY = isBoss ? BOSS_HP_BAR_OFFSET_Y : HP_BAR_OFFSET_Y;
+
+    // ── HP bar (unchanged) ────────────────────────────────────────────────────
+    const hpBg = new Phaser.GameObjects.Rectangle(
+      this.scene, 0, barOffY, barW, barH, 0x333333,
+    );
+    this._hpBarBg = hpBg;
+    this.hpBarFill = new Phaser.GameObjects.Rectangle(
+      this.scene, -(barW / 2), barOffY, barW, barH,
+      isBoss ? BOSS_HP_BAR_COLOR : hpBarColor(1),
+    );
+    this.hpBarFill.setOrigin(0, 0.5);
+
+    // Boss HP bars are always visible (alpha 1); normal bars are shown only
+    // when HP < 100% — handled by the existing opacity logic in takeDamage().
+    // No changes needed here.
+
+    // ── Body: choose between Graphics diamond and Rectangle ───────────────────
     const useSprite = config.spriteKey
       && this.scene.textures.exists(config.spriteKey);
 
-    let bodyObj: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
+    // Graphics-drawn body types: diamond (fast, flying) or circle (immune).
+    const useGfxBody = !useSprite && (style === 'fast' || style === 'flying' || style === 'immune');
+
+    let bodyObj: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle | Phaser.GameObjects.Graphics;
 
     if (useSprite) {
+      // ── Sprite path (texture exists) ────────────────────────────────────────
+      const bodySize = isBoss ? 48 : Math.round(24 * scale);
       this.bodyImage = new Phaser.GameObjects.Image(
         this.scene, 0, 0, config.spriteKey!,
       );
       this.bodyImage.setDisplaySize(bodySize, bodySize);
-      // Apply boss tint if specified; 0xffffff means no tint (clear).
       if (this.baseSpriteTint !== 0xffffff) {
         this.bodyImage.setTint(this.baseSpriteTint);
       }
       bodyObj = this.bodyImage;
+
+    } else if (useGfxBody) {
+      // ── Graphics body: diamond (fast/flying) or circle (immune) ──────────────
+      this._bodyGfxColor = config.tint ?? STYLE_COLORS[style];
+      this._bodyGfx = new Phaser.GameObjects.Graphics(this.scene);
+      // Initial draw deferred to updateDirectionalVisual() after direction is set.
+      bodyObj = this._bodyGfx;
+
     } else {
-      const bodyColor = config.tint ?? BODY_COLORS[config.type];
+      // ── Rectangle body (all other ground creep types + bosses) ───────────────
+      const bodySize = isBoss ? 48 : Math.round(24 * scale);
+      const bodyColor = config.tint ?? STYLE_COLORS[style];
       this.bodyRect = new Phaser.GameObjects.Rectangle(
         this.scene, 0, 0, bodySize, bodySize, bodyColor,
       );
       bodyObj = this.bodyRect;
     }
 
-    const hpBg = new Phaser.GameObjects.Rectangle(
-      this.scene, 0, barOffY, barW, barH, 0x333333,
-    );
-    this._hpBarBg = hpBg;
+    // ── Style-specific detail overlays ────────────────────────────────────────
+    switch (style) {
+      case 'armored': {
+        // Dark border drawn around the silver body to simulate a shell.
+        this._detailGfx = new Phaser.GameObjects.Graphics(this.scene);
+        // Actual drawing deferred to updateDirectionalVisual().
+        break;
+      }
+      case 'immune': {
+        // Pulsing white/lavender circle outline rendered at body radius + margin.
+        this._immuneOutlineGfx = new Phaser.GameObjects.Graphics(this.scene);
+        // Initial draw deferred to updateDirectionalVisual().
+        // Start the alpha-pulse tween after a short setup delay so the scene is ready.
+        this.scene.time.delayedCall(16, () => {
+          if (!this.active || !this.scene) return;
+          this._immuneOutlineTween = this.scene.tweens.add({
+            targets:  this._immuneOutlineGfx,
+            alpha:    { from: 0.4, to: 1.0 },
+            duration: 900,
+            yoyo:     true,
+            repeat:   -1,
+            ease:     'Sine.easeInOut',
+          });
+        });
+        break;
+      }
+      case 'regen': {
+        // Small green "+" marks drawn on the body surface.
+        this._detailGfx = new Phaser.GameObjects.Graphics(this.scene);
+        // Deferred to updateDirectionalVisual().
+        break;
+      }
+      case 'boss-waabooz':
+      case 'boss-waabooz-mini': {
+        // White stripe pattern drawn over the deep-red body.
+        this._detailGfx = new Phaser.GameObjects.Graphics(this.scene);
+        // Deferred to updateDirectionalVisual().
+        break;
+      }
+      default:
+        break;
+    }
 
-    this.hpBarFill = new Phaser.GameObjects.Rectangle(
-      this.scene,
-      -(barW / 2),
-      barOffY,
-      barW,
-      barH,
-      isBoss ? BOSS_HP_BAR_COLOR : hpBarColor(1),
-    );
-    this.hpBarFill.setOrigin(0, 0.5);
-
-    // ── Armour badge (armored creeps only) ───────────────────────────────────
+    // ── Armour badge (armored creeps only, unchanged) ─────────────────────────
     if (this.isArmored) {
       this.computeArmorBasePos();
       this.armorIndicator = new Phaser.GameObjects.Rectangle(
         this.scene, this.armorBaseX, this.armorBaseY,
         this.isBossCreep ? 12 : 8,
-        this.isBossCreep ? 6 : 4,
-        0xaaaacc,
+        this.isBossCreep ? 6  : 4,
+        0x555577,  // darker edge for the armoured badge
       );
     }
 
-    // ── Air creep visuals ─────────────────────────────────────────────────────
-    // Body floats above ground position; shadow circle below shows actual position.
+    // ── Air creep visuals (wings + shadow) ────────────────────────────────────
     if (config.type === 'air') {
       bodyObj.y = AIR_BODY_OFFSET_Y;
 
-      // Shadow ellipse at the "ground" position (depth rendered before body)
+      // Scene-level shadow: separate object so it can sit at ground depth (CREEP_DEPTH)
+      // while the container renders at CREEP_DEPTH + 2.
+      this._sceneShadow = new Phaser.GameObjects.Ellipse(
+        this.scene, this.x, this.y + 2,
+        this.isBossCreep ? 44 : 18,
+        this.isBossCreep ? 12 : 5,
+        0x000000, 0.22,
+      );
+      this._sceneShadow.setDepth(CREEP_DEPTH - 1);
+      this.scene.add.existing(this._sceneShadow);
+
+      // Container-local shadow used for wing-flap pulse (remains for legacy anim).
       const shadow = new Phaser.GameObjects.Ellipse(
         this.scene, 0, 2,
-        this.isBossCreep ? 44 : 22,
-        this.isBossCreep ? 12 : 6,
-        0x000000, 0.25,
+        this.isBossCreep ? 44 : 18,
+        this.isBossCreep ? 12 : 5,
+        0x000000, 0.15,
       );
-      // Store ref so the wing-flap animation can pulse the shadow width.
       this._airShadow = shadow;
 
-      if (useSprite) {
-        // Sprite already includes wings — add only shadow + body + UI.
-        if (this.armorIndicator) {
-          this.add([shadow, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
-        } else {
-          this.add([shadow, bodyObj, hpBg, this.hpBarFill]);
-        }
+      const wingColor = 0x99ccff;
+      const wx = this.isBossCreep ? 24 : 14;
+      const wingY = AIR_BODY_OFFSET_Y;
+      const leftWing  = new Phaser.GameObjects.Rectangle(
+        this.scene, -wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.80,
+      );
+      const rightWing = new Phaser.GameObjects.Rectangle(
+        this.scene,  wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.80,
+      );
+      this._leftWing  = leftWing;
+      this._rightWing = rightWing;
+
+      if (this.armorIndicator) {
+        this.add([shadow, leftWing, rightWing, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
       } else {
-        // Rectangle fallback — add wing indicator rectangles on each side.
-        const wingColor = 0x88bbff;
-        const wx = this.isBossCreep ? 24 : 14;
-        const wingY = AIR_BODY_OFFSET_Y;
-        const leftWing  = new Phaser.GameObjects.Rectangle(
-          this.scene, -wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
-        );
-        const rightWing = new Phaser.GameObjects.Rectangle(
-          this.scene,  wx, wingY, AIR_WING_W, AIR_WING_H, wingColor, 0.75,
-        );
-        // Store refs so the wing-flap animation can rotate them each frame.
-        this._leftWing  = leftWing;
-        this._rightWing = rightWing;
-        if (this.armorIndicator) {
-          this.add([shadow, leftWing, rightWing, bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
-        } else {
-          this.add([shadow, leftWing, rightWing, bodyObj, hpBg, this.hpBarFill]);
-        }
+        this.add([shadow, leftWing, rightWing, bodyObj, hpBg, this.hpBarFill]);
       }
       return;
     }
 
-    if (this.armorIndicator) {
-      this.add([bodyObj, this.armorIndicator, hpBg, this.hpBarFill]);
-    } else {
-      this.add([bodyObj, hpBg, this.hpBarFill]);
-    }
+    // ── Ground creep child assembly ───────────────────────────────────────────
+    // Insert detail gfx before the body so the body renders on top.
+    const children: Phaser.GameObjects.GameObject[] = [];
+    if (this._detailGfx) children.push(this._detailGfx);
+    children.push(bodyObj);
+    if (this._immuneOutlineGfx) children.push(this._immuneOutlineGfx);
+    if (this.armorIndicator)   children.push(this.armorIndicator);
+    children.push(hpBg, this.hpBarFill);
+    this.add(children);
   }
 
   /**
@@ -879,6 +1146,7 @@ export class Creep extends Phaser.GameObjects.Container {
    */
   private updateDirectionalVisual(): void {
     const isHoriz = this.direction === 'left' || this.direction === 'right';
+    const sc      = this._waveSizeScale;
 
     if (this.bodyImage) {
       // Sprite path — rotation + flipX
@@ -893,21 +1161,24 @@ export class Creep extends Phaser.GameObjects.Container {
       // Always use horizontal display dimensions; 90° rotation produces the
       // taller silhouette without needing a separate vertical texture.
       this.bodyImage.setDisplaySize(
-        this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W,
-        this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H,
+        this.isBossCreep ? BOSS_HORIZ_W : Math.round(BODY_HORIZ_W * sc),
+        this.isBossCreep ? BOSS_HORIZ_H : Math.round(BODY_HORIZ_H * sc),
       );
-      // Cache the base scale so _stepWalkAnim() can apply squash-stretch as a
-      // multiplier on top of the direction-based display size.
       this._baseScaleX = this.bodyImage.scaleX;
       this._baseScaleY = this.bodyImage.scaleY;
+
+    } else if (this._bodyGfx) {
+      // Graphics body path — redraw with correct direction proportions.
+      this._drawGfxBody(this._bodyGfxColor);
+
     } else if (this.bodyRect) {
-      // Rectangle path — resize (no rotation; shape change achieves the effect)
+      // Rectangle path — resize to match direction.
       const w = isHoriz
-        ? (this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W)
-        : (this.isBossCreep ? BOSS_VERT_W  : BODY_VERT_W);
+        ? (this.isBossCreep ? BOSS_HORIZ_W : Math.round(BODY_HORIZ_W * sc))
+        : (this.isBossCreep ? BOSS_VERT_W  : Math.round(BODY_VERT_W  * sc));
       const h = isHoriz
-        ? (this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H)
-        : (this.isBossCreep ? BOSS_VERT_H  : BODY_VERT_H);
+        ? (this.isBossCreep ? BOSS_HORIZ_H : Math.round(BODY_HORIZ_H * sc))
+        : (this.isBossCreep ? BOSS_VERT_H  : Math.round(BODY_VERT_H  * sc));
       this.bodyRect.setSize(w, h);
     }
 
@@ -917,6 +1188,9 @@ export class Creep extends Phaser.GameObjects.Container {
       this.armorIndicator.x = this.armorBaseX;
       this.armorIndicator.y = this.armorBaseY;
     }
+
+    // Redraw style-specific details that depend on body geometry.
+    this._redrawDetailGfx();
 
     // Keep any active status-effect overlays aligned with the new body geometry.
     this._refreshOverlayGeometries();
@@ -963,6 +1237,15 @@ export class Creep extends Phaser.GameObjects.Container {
           this.bodyImage.clearTint();
         }
       }
+    } else if (this._bodyGfx) {
+      // Graphics body — redraw with status-effect override colour.
+      let color: number;
+      if (slowed && poisoned) color = 0x44aaaa;
+      else if (slowed)        color = this.shatterActive ? 0xbbd8ff : 0x4488ff;
+      else if (poisoned)      color = 0x44ff66;
+      else if (burning)       color = 0xff8833;
+      else                    color = this._bodyGfxColor; // restore style colour
+      this._drawGfxBody(color);
     } else if (this.bodyRect) {
       if (slowed && poisoned) {
         this.bodyRect.setFillStyle(0x44aaaa);
@@ -1052,30 +1335,41 @@ export class Creep extends Phaser.GameObjects.Container {
    */
   private _getBodyGeometry(): { w: number; h: number; y: number; rotation: number } {
     const isHoriz = this.direction === 'left' || this.direction === 'right';
+    const sc      = this._waveSizeScale;
 
     if (this.bodyImage) {
-      const w = this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W;
-      const h = this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H;
+      const w = this.isBossCreep ? BOSS_HORIZ_W : Math.round(BODY_HORIZ_W * sc);
+      const h = this.isBossCreep ? BOSS_HORIZ_H : Math.round(BODY_HORIZ_H * sc);
       const rotation = isHoriz
         ? 0
         : (this.direction === 'down' ? Math.PI / 2 : -Math.PI / 2);
       return { w, h, y: this.bodyImage.y, rotation };
     }
 
+    if (this._bodyGfx) {
+      // Bounding box of the diamond (2 × half-width/height).
+      return {
+        w: this._bodyGfxHW * 2,
+        h: this._bodyGfxHH * 2,
+        y: this._bodyGfx.y,
+        rotation: 0,
+      };
+    }
+
     if (this.bodyRect) {
       const w = isHoriz
-        ? (this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W)
-        : (this.isBossCreep ? BOSS_VERT_W  : BODY_VERT_W);
+        ? (this.isBossCreep ? BOSS_HORIZ_W : Math.round(BODY_HORIZ_W * sc))
+        : (this.isBossCreep ? BOSS_VERT_W  : Math.round(BODY_VERT_W  * sc));
       const h = isHoriz
-        ? (this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H)
-        : (this.isBossCreep ? BOSS_VERT_H  : BODY_VERT_H);
+        ? (this.isBossCreep ? BOSS_HORIZ_H : Math.round(BODY_HORIZ_H * sc))
+        : (this.isBossCreep ? BOSS_VERT_H  : Math.round(BODY_VERT_H  * sc));
       return { w, h, y: this.bodyRect.y, rotation: 0 };
     }
 
     // Fallback — should never occur in practice.
     return {
-      w: this.isBossCreep ? BOSS_HORIZ_W : BODY_HORIZ_W,
-      h: this.isBossCreep ? BOSS_HORIZ_H : BODY_HORIZ_H,
+      w: this.isBossCreep ? BOSS_HORIZ_W : Math.round(BODY_HORIZ_W * sc),
+      h: this.isBossCreep ? BOSS_HORIZ_H : Math.round(BODY_HORIZ_H * sc),
       y: 0,
       rotation: 0,
     };
@@ -1306,6 +1600,9 @@ export class Creep extends Phaser.GameObjects.Container {
     if (this.bodyImage) {
       // Sprite path: apply as a multiplier on the direction-based display scale.
       this.bodyImage.setScale(this._baseScaleX * sx, this._baseScaleY * sy);
+    } else if (this._bodyGfx) {
+      // Graphics body path: setScale() scales the drawn shape.
+      this._bodyGfx.setScale(sx, sy);
     } else if (this.bodyRect) {
       // Rect path: setScale() is a visual multiplier on top of setSize().
       this.bodyRect.setScale(sx, sy);
