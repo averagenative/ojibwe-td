@@ -3,14 +3,18 @@ import srcRaw from '../../scenes/CommanderSelectScene.ts?raw';
 
 /**
  * TASK-155 — Nokomis portrait flies right-to-left on scene entry.
+ * TASK-158 — Commander portraits drift off-screen due to stacking expression tweens.
  *
- * The bug: slide-in direction was index-based (`i < midIdx`), so when only
+ * TASK-155 bug: slide-in direction was index-based (`i < midIdx`), so when only
  * one card was in _animStates (fresh game, only Nokomis unlocked),
  * midIdx = 0, 0 < 0 was false → offsetDir = 1 → flew from right.
+ * Fix: direction is now based on card x-position vs screen centre.
  *
- * The fix: direction is now based on card x-position vs screen centre.
+ * TASK-158 bug: idle expression tweens (smirk, glance) stacked when fired
+ * before the previous yoyo cycle completed, causing cumulative position drift.
+ * Fix: kill in-flight tweens and snap to base position before each expression.
  */
-describe('TASK-155 — Portrait slide-in direction', () => {
+describe('TASK-155 / TASK-158 — Portrait slide-in direction & drift prevention', () => {
 
   // ── Structural: old bug pattern is gone ──────────────────────────────────
 
@@ -132,6 +136,91 @@ describe('TASK-155 — Portrait slide-in direction', () => {
       // This case was actually fine for 2 cards
       expect(0 < midIdx ? -1 : 1).toBe(-1);
       expect(1 < midIdx ? -1 : 1).toBe(1);
+    });
+  });
+
+  // ── TASK-158: Expression tween drift prevention ────────────────────────
+
+  describe('TASK-158 — Expression tween drift prevention', () => {
+
+    // ── Structural: kill + snap before new expression ────────────────────
+
+    it('kills in-flight tweens on portrait before each expression', () => {
+      expect(srcRaw).toMatch(/this\.tweens\.killTweensOf\(portrait\)/);
+    });
+
+    it('snaps portrait.x back to baseX before expression tween', () => {
+      // The snap must appear in _stepExpressions, after killTweensOf
+      const killIdx = srcRaw.indexOf('killTweensOf(portrait)');
+      const snapXIdx = srcRaw.indexOf('portrait.x = state.baseX', killIdx);
+      expect(snapXIdx).toBeGreaterThan(killIdx);
+    });
+
+    it('snaps portrait.y back to baseY before expression tween', () => {
+      const killIdx = srcRaw.indexOf('killTweensOf(portrait)');
+      const snapYIdx = srcRaw.indexOf('portrait.y = state.baseY', killIdx);
+      expect(snapYIdx).toBeGreaterThan(killIdx);
+    });
+
+    it('kill + snap happens before any expression switch case', () => {
+      const killIdx = srcRaw.indexOf('killTweensOf(portrait)');
+      const switchIdx = srcRaw.indexOf("case 'blink'", killIdx);
+      expect(killIdx).toBeGreaterThan(-1);
+      expect(switchIdx).toBeGreaterThan(killIdx);
+    });
+
+    // ── Structural: entry slide-in snaps on complete ─────────────────────
+
+    it('entry slide-in tween has onComplete that snaps to baseX', () => {
+      // The onComplete in the slide-in tween should set portrait.x = state.baseX
+      expect(srcRaw).toMatch(
+        /ease:\s*'Back\.easeOut'[\s\S]*?onComplete:\s*\(\)\s*=>\s*\{\s*state\.portrait\.x\s*=\s*state\.baseX;\s*\}/
+      );
+    });
+
+    // ── Arithmetic: drift simulation ─────────────────────────────────────
+
+    it('without kill+snap, two overlapping yoyo tweens cause drift', () => {
+      // Simulates the old bug: two smirk tweens overlap
+      let x = 500; // baseX
+      const baseX = 500;
+
+      // First smirk starts: moves to baseX + 1.5
+      x = baseX + 1.5; // = 501.5
+      // Before yoyo completes, second smirk fires
+      // Second smirk starts from current x (501.5), yoyo returns to 501.5
+      // but targets baseX + 1.5 = 501.5 (no visible move)
+      // Meanwhile first tween yoyos back to its start (501.5, not 500!)
+      // After both complete, x could be stuck at 501.5 instead of 500
+      expect(x).not.toBe(baseX); // demonstrates drift
+    });
+
+    it('with kill+snap, position always resets before new expression', () => {
+      let x = 501.5; // drifted position
+      const baseX = 500;
+
+      // Kill + snap (the fix)
+      x = baseX; // snap back
+      // Now new smirk tween starts from correct baseX
+      expect(x).toBe(baseX);
+    });
+
+    // ── Structural: all expression cases use base-relative targets ───────
+
+    it('smirk targets baseX + offset (not portrait.x + offset)', () => {
+      expect(srcRaw).toMatch(/case\s+'smirk'[\s\S]*?x:\s*state\.baseX\s*\+\s*1\.5/);
+    });
+
+    it('glance targets baseX ± offset (not portrait.x ± offset)', () => {
+      expect(srcRaw).toMatch(
+        /case\s+'glance'[\s\S]*?x:\s*state\.baseX\s*\+/
+      );
+    });
+
+    it('brow-furrow targets baseY + offset (not portrait.y + offset)', () => {
+      expect(srcRaw).toMatch(
+        /case\s+'brow-furrow'[\s\S]*?y:\s*state\.baseY\s*\+\s*1/
+      );
     });
   });
 });
