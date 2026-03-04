@@ -154,11 +154,11 @@ export interface CommanderDef {
 const NOKOMIS: CommanderDef = {
   id: 'nokomis',
   name: 'Nokomis',
-  clan: 'Marten Clan',
+  clan: 'Crane Clan',
   totem: 'Turtle',
   role: 'Sustain',
   lore: 'A keeper of medicine knowledge and oral tradition. She knows the land and what grows where. Nokomis has walked these paths longer than any other, and her wisdom runs deep as the roots of the oldest cedar. Her garden sustains all who defend it.',
-  portraitIcon: 'commander-nokomis',
+  portraitIcon: 'portrait-nokomis',
   aura: {
     name: 'Gitigaan',
     nameEnglish: 'Garden',
@@ -184,14 +184,14 @@ const NOKOMIS: CommanderDef = {
 const BIZHIW: CommanderDef = {
   id: 'bizhiw',
   name: 'Bizhiw',
-  clan: 'Crane Clan',
+  clan: 'Marten Clan',
   totem: 'Lynx',
   role: 'Precision',
   lore: 'The lynx sees what others cannot. Bizhiw moves through the forest without sound, and their arrows find their mark before the prey knows it has been seen. Patience and precision are their weapons, honed across a lifetime of silent observation.',
-  portraitIcon: 'commander-bizhiw',
+  portraitIcon: 'portrait-bizhiw',
   aura: {
-    name: 'Bimaadiziwin',
-    nameEnglish: 'The Good Life',
+    name: 'Giiyosewin',
+    nameEnglish: 'The Hunt',
     description: 'Rock Hurler and Frost tower attack speed +20%; projectile travel speed +25%.',
     apply(state) {
       state.attackSpeedMultByKey['rock-hurler'] = 0.80;
@@ -222,11 +222,11 @@ const BIZHIW: CommanderDef = {
 const ANIMIKIIKAA: CommanderDef = {
   id: 'animikiikaa',
   name: 'Animikiikaa',
-  clan: 'Eagle Clan',
-  totem: 'Eagle',
+  clan: 'Bird Clan',
+  totem: 'Thunderbird',
   role: 'Burst',
   lore: 'When Animikiikaa speaks, the sky splits open and the earth trembles. They are the voice of the thunderstorm, and their fury is matched only by their devotion to protecting the people. Lightning bows to their will.',
-  portraitIcon: 'commander-animikiikaa',
+  portraitIcon: 'portrait-animikiikaa',
   aura: {
     name: 'Animiki-bimaadiziwin',
     nameEnglish: 'Thunder Life',
@@ -262,7 +262,7 @@ const MAKOONS: CommanderDef = {
   totem: 'Bear',
   role: 'Damage',
   lore: "The bear cub grows into the warrior. Makoons carries the strength of their ancestors in every step. Where others see an obstacle, Makoons sees something to charge through. Their presence alone makes every defender hit harder.",
-  portraitIcon: 'commander-makoons',
+  portraitIcon: 'portrait-makoons',
   aura: {
     name: 'Makwa-zoongide\'e',
     nameEnglish: 'Bear Courage',
@@ -292,14 +292,14 @@ const MAKOONS: CommanderDef = {
 const OSHKAABEWIS: CommanderDef = {
   id: 'oshkaabewis',
   name: 'Oshkaabewis',
-  clan: 'Loon Clan',
+  clan: 'Deer Clan',
   totem: 'Deer',
   role: 'Economy',
   lore: 'The messenger runs between worlds, carrying words and wealth in equal measure. Oshkaabewis knows every trail and every shortcut, and their keen eye for opportunity turns every encounter into profit. Resources flow where they walk.',
-  portraitIcon: 'commander-oshkaabewis',
+  portraitIcon: 'portrait-oshkaabewis',
   aura: {
-    name: 'Bimosewin',
-    nameEnglish: 'The Walk',
+    name: 'Adaawewin',
+    nameEnglish: 'The Trade',
     description: '+1 gold per creep kill; between-wave offer draws show 4 cards instead of 3.',
     apply(state) {
       state.killGoldBonus = 1;
@@ -327,11 +327,11 @@ const OSHKAABEWIS: CommanderDef = {
 const WAABIZII: CommanderDef = {
   id: 'waabizii',
   name: 'Waabizii',
-  clan: 'Fish Clan',
+  clan: 'Loon Clan',
   totem: 'Swan',
   role: 'Resilience',
   lore: 'The swan glides above the chaos, serene and untouchable. Waabizii embodies unconditional love — their presence mends wounds and shields the vulnerable. Even in the darkest wave, their tenderness keeps hope alive.',
-  portraitIcon: 'commander-waabizii',
+  portraitIcon: 'portrait-waabizii',
   aura: {
     name: "Zaagi'idiwin",
     nameEnglish: 'Unconditional Love',

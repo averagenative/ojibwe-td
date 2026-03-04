@@ -216,7 +216,7 @@ const COMMANDERS: CodexEntryDef[] = [
     tileColor: 0x44aa44,
     iconKey:   'portrait-nokomis',
     lines: [
-      'Nokomis of the Marten Clan carries the turtle totem.',
+      'Nokomis of the Crane Clan carries the turtle totem.',
       'A keeper of medicine knowledge and oral tradition,',
       'she has walked these paths longer than any other.',
       'Her garden sustains all who defend it.',
@@ -232,7 +232,7 @@ const COMMANDERS: CodexEntryDef[] = [
     tileColor: 0x888866,
     iconKey:   'portrait-bizhiw',
     lines: [
-      'Bizhiw of the Crane Clan carries the lynx totem.',
+      'Bizhiw of the Marten Clan carries the lynx totem.',
       'The lynx sees what others cannot.',
       'Moving through the forest without sound,',
       'their arrows find their mark before the prey knows it has been seen.',
@@ -247,7 +247,7 @@ const COMMANDERS: CodexEntryDef[] = [
     tileColor: 0x6644cc,
     iconKey:   'portrait-animikiikaa',
     lines: [
-      'Animikiikaa of the Eagle Clan carries the eagle totem.',
+      'Animikiikaa of the Bird Clan carries the thunderbird totem.',
       'When they speak, the sky splits open and the earth trembles.',
       'They are the voice of the thunderstorm,',
       'and their fury is matched only by their devotion',
@@ -276,7 +276,7 @@ const COMMANDERS: CodexEntryDef[] = [
     tileColor: 0xaaaa44,
     iconKey:   'portrait-oshkaabewis',
     lines: [
-      'Oshkaabewis of the Loon Clan carries the deer totem.',
+      'Oshkaabewis of the Deer Clan carries the deer totem.',
       'The messenger runs between worlds,',
       'carrying words and wealth in equal measure.',
       'Their keen eye for opportunity turns every encounter into profit.',
@@ -291,7 +291,7 @@ const COMMANDERS: CodexEntryDef[] = [
     tileColor: 0xeeddff,
     iconKey:   'portrait-waabizii',
     lines: [
-      'Waabizii of the Fish Clan carries the swan totem.',
+      'Waabizii of the Loon Clan carries the swan totem.',
       'The swan glides above the chaos, serene and untouchable.',
       'Their presence mends wounds and shields the vulnerable.',
       'Even in the darkest wave, their tenderness keeps hope alive.',
