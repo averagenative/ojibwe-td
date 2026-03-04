@@ -305,8 +305,8 @@ describe('Resume button layout', () => {
   });
 
   it('single-button mode (no resume) uses original formula', () => {
-    const singleY = Math.min(stageBottom + 44, height - 110);
-    expect(singleY).toBeLessThanOrEqual(height - 110);
+    const singleY = Math.min(stageBottom + 44, height - 208);  // desktop: height - 208
+    expect(singleY).toBeLessThanOrEqual(height - 208);
     expect(singleY).toBeLessThanOrEqual(stageBottom + 44);
   });
 });

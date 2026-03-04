@@ -404,91 +404,97 @@ describe('QUICK PLAY button sizing', () => {
     expect(desktop).toBe(38);
   });
 
-  it('desktop: QUICK PLAY is to the right of START GAME (same Y, X offset)', () => {
-    const cx     = 640;   // 1280 / 2
-    const btnW   = 240;   // desktop
-    const quickBtnW   = 200;
-    const quickSideGap = 20;
-    const startY = 490;
+  it('desktop: QUICK PLAY is centred below START GAME', () => {
+    const cx         = 640;   // 1280 / 2
+    const btnH       = 48;    // desktop
+    const quickBtnH  = 38;
+    const quickDropGap = 20;  // desktop gap
+    const startY     = 490;
 
-    const quickPlayX = cx + btnW / 2 + quickSideGap + quickBtnW / 2;
-    const quickPlayY = startY;
-
-    expect(quickPlayX).toBeGreaterThan(cx + btnW / 2); // right of START
-    expect(quickPlayY).toBe(startY); // same Y
-    // Right edge must fit within 1280
-    expect(quickPlayX + quickBtnW / 2).toBeLessThanOrEqual(1280);
-  });
-
-  it('mobile: QUICK PLAY is below START GAME and offset right', () => {
-    const cx     = 180;   // 360 / 2
-    const btnW   = 280;   // mobile
-    const btnH   = 60;
-    const quickBtnW   = 240;
-    const quickBtnH   = 44;
-    const quickDropGap = 10;
-    const startY = 490;
-
-    const quickPlayX = cx + (btnW - quickBtnW) / 2;
+    const quickPlayX = cx;    // always centred
     const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
 
+    expect(quickPlayX).toBe(cx);                  // centred with START
+    expect(quickPlayY).toBeGreaterThan(startY);    // below START
+    // Gap between START bottom edge and QUICK PLAY top edge = quickDropGap
+    const startBottom  = startY + btnH / 2;
+    const quickTop     = quickPlayY - quickBtnH / 2;
+    expect(quickTop - startBottom).toBe(quickDropGap);
+  });
+
+  it('mobile: QUICK PLAY is centred below START GAME', () => {
+    const cx         = 180;   // 360 / 2
+    const btnH       = 60;    // mobile
+    const quickBtnH  = 44;
+    const quickDropGap = 16;  // mobile gap
+    const startY     = 490;
+
+    const quickPlayX = cx;    // always centred
+    const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
+
+    expect(quickPlayX).toBe(cx);               // centred
     expect(quickPlayY).toBeGreaterThan(startY); // below START
-    expect(quickPlayX).toBeGreaterThan(cx);      // offset right
-    // Right edge must fit within 360px mobile viewport
-    expect(quickPlayX + quickBtnW / 2).toBeLessThanOrEqual(360);
+    // Gap between START bottom edge and QUICK PLAY top edge = quickDropGap
+    const startBottom = startY + btnH / 2;
+    const quickTop    = quickPlayY - quickBtnH / 2;
+    expect(quickTop - startBottom).toBe(quickDropGap);
   });
 
   it('mobile: quick play right edge fits within narrow 360px viewport', () => {
-    const cx     = 180;
-    const btnW   = 280;
+    const cx        = 180;
     const quickBtnW = 240;
 
-    const quickPlayX = cx + (btnW - quickBtnW) / 2;
+    const quickPlayX = cx;   // centred
     const rightEdge  = quickPlayX + quickBtnW / 2;
 
     expect(rightEdge).toBeLessThanOrEqual(360);
   });
 
   it('desktop: quick play right edge fits within 1280px viewport', () => {
-    const cx     = 640;
-    const btnW   = 240;
-    const quickBtnW   = 200;
-    const quickSideGap = 20;
+    const cx        = 640;
+    const quickBtnW = 200;
 
-    const quickPlayX = cx + btnW / 2 + quickSideGap + quickBtnW / 2;
+    const quickPlayX = cx;   // centred
     const rightEdge  = quickPlayX + quickBtnW / 2;
 
     expect(rightEdge).toBeLessThanOrEqual(1280);
   });
 
   it('mobile: bottom row + ach row fit below quick play within canvas', () => {
-    const height    = 720;
-    const maxStartY = height - 174;  // mobile cap
-    const startY    = maxStartY;
+    const height      = 720;
+    const maxStartY   = height - 232;  // mobile cap
+    const startY      = maxStartY;
 
     const btnH         = 60;
     const quickBtnH    = 44;
-    const quickDropGap = 10;
+    const quickDropGap = 16;  // mobile
+    const bottomDropGap = 16; // mobile
     const bottomBtnH   = 48;
 
     const quickPlayY  = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-    const bottomBtnY  = quickPlayY + quickBtnH / 2 + 10;
-    const achBottom   = bottomBtnY + bottomBtnH / 2 + 16 + 48 / 2;
+    const bottomBtnY  = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
+    // achBtnY = bottomBtnY + bottomBtnH/2 + 16 + achBtnH/2 (achBtnH = bottomBtnH)
+    const achBottom   = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH;
 
     // Must fit above footer (height - 14)
     expect(achBottom).toBeLessThanOrEqual(height - 14);
   });
 
-  it('desktop: bottom row + ach row fit below start within canvas', () => {
-    const height    = 720;
-    const maxStartY = height - 110;  // desktop cap
-    const startY    = maxStartY;
+  it('desktop: bottom row + ach row fit below quick play within canvas', () => {
+    const height      = 720;
+    const maxStartY   = height - 208;  // desktop cap
+    const startY      = maxStartY;
 
-    const btnH         = 48;
-    const bottomBtnH   = 38;
+    const btnH          = 48;
+    const quickBtnH     = 38;
+    const quickDropGap  = 20;  // desktop
+    const bottomDropGap = 20;  // desktop
+    const bottomBtnH    = 38;
 
-    const bottomBtnY  = startY + btnH / 2 + 12;
-    const achBottom   = bottomBtnY + bottomBtnH / 2 + 14 + 38 / 2;
+    const quickPlayY  = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
+    const bottomBtnY  = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
+    // achBtnY = bottomBtnY + bottomBtnH/2 + 16 + achBtnH/2 (achBtnH = bottomBtnH)
+    const achBottom   = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH;
 
     expect(achBottom).toBeLessThanOrEqual(height - 14);
   });
