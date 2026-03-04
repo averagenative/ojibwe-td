@@ -1,7 +1,7 @@
 ---
 id: TASK-160
 title: Air Creeps Should Roughly Follow Ground Path Instead of Random Screen Lanes
-status: pending
+status: done
 priority: high
 category: frontend
 phase: polish

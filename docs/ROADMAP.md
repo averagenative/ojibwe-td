@@ -2723,3 +2723,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **`CANNON_DEF` is dead code** — `evaluate-map.ts` was updated to use `ROCK_HURLER_DEF`, but `CANNON_DEF` (with `@deprecated`) is still exported from `towerDefs.ts` with no consumers. Can be safely removed in a future cleanup pass.
 - **`docs/map-evaluation-rubric.md` still references cannon** — Lines 41, 44, 46, 48, 95 mention cannon/CANNON_DEF. Should be updated to say rock-hurler/ROCK_HURLER_DEF to match the code change in `evaluate-map.ts`.
+
+### TASK-162 Review Findings (Quick Play Button Reposition)
+
+- **Mobile quick play still vertically stacked** — On mobile viewports (<~500px wide), the side-by-side layout doesn't fit (START=280px + gap + QUICK PLAY=240px = 536px). The review fix uses a below-and-right-offset layout on mobile instead of true side-by-side. If a fully side-by-side mobile layout is desired, both buttons would need to be narrowed significantly.
+- **`quickBtnW` on mobile could be reduced** — The mobile quick play button is 240px wide, nearly as wide as START (280px). Reducing to ~160px would allow side-by-side placement on 414px+ viewports (iPhone Plus/Pro Max size). Trade-off: smaller touch target width, though height remains 44px.
