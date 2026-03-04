@@ -802,10 +802,10 @@ export class MainMenuScene extends Phaser.Scene {
 
     // ── Quick Play button sizing ────────────────────────────────────────────
     // These constants drive both the layout math and the button rendering.
-    const quickBtnH   = this._isMobile ? 44  : 38;  // meets 44px touch target on mobile
-    const quickBtnW   = this._isMobile ? 240 : 200;
-    const quickSideGap = 20;  // desktop: px between START right edge and QUICK PLAY left edge
-    const quickDropGap = 10; // mobile: px below START GAME bottom edge
+    const quickBtnH    = this._isMobile ? 44  : 38;  // meets 44px touch target on mobile
+    const quickBtnW    = this._isMobile ? 240 : 200;
+    const quickDropGap = this._isMobile ? 16 : 20;   // vertical gap: START bottom → QUICK PLAY top
+    const bottomDropGap = this._isMobile ? 16 : 20;  // vertical gap: QUICK PLAY bottom → bottom row top
 
     // ── Resume Game button (only shown when a save exists) ──────────────────
     const hasResume   = !!this._autoSave && this._autoSave.currentWave > 0;
@@ -824,14 +824,14 @@ export class MainMenuScene extends Phaser.Scene {
       resumeY = blockTopY + resumeBtnH / 2;
       startY  = resumeY + resumeBtnH / 2 + resumeGap + btnH / 2;
       // Cap to ensure quick play + bottom rows still fit.
-      const maxStartY = height - (this._isMobile ? 174 : 110);
+      const maxStartY = height - (this._isMobile ? 232 : 208);
       if (startY > maxStartY) {
         startY  = maxStartY;
         resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2;
       }
     } else {
       // Cap: bottom rows must fit below startY.
-      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 174 : 110));
+      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 232 : 208));
     }
 
     if (hasResume && this._autoSave) {
@@ -887,18 +887,9 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
-    // ── QUICK PLAY button — desktop: right of START; mobile: below + right offset ──
-    let quickPlayX: number;
-    let quickPlayY: number;
-    if (this._isMobile) {
-      // Below START, offset right so it's not directly stacked
-      quickPlayX = cx + (btnW - quickBtnW) / 2;
-      quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-    } else {
-      // Right of START, same vertical centre
-      quickPlayX = cx + btnW / 2 + quickSideGap + quickBtnW / 2;
-      quickPlayY = startY;
-    }
+    // ── QUICK PLAY button — centred below START GAME (both mobile and desktop) ──
+    const quickPlayX = cx;
+    const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
     const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnW, quickBtnH, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
     const quickLabel = this.add.text(quickPlayX, quickPlayY, 'QUICK PLAY', {
@@ -945,10 +936,9 @@ export class MainMenuScene extends Phaser.Scene {
     // Bottom row: UPGRADES | CHALLENGES | CODEX
     const bottomBtnW = this._isMobile ? 120 : 100;
     const bottomBtnH = this._isMobile ? 48  : 38;
-    const bottomBtnY = this._isMobile
-      ? quickPlayY + quickBtnH / 2 + 10   // below the quick play button on mobile
-      : startY + btnH / 2 + 12;           // below start on desktop (quick play is beside it)
-    const bottomGap  = 8;
+    // Always below QUICK PLAY (≥16px gap between edges)
+    const bottomBtnY = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
+    const bottomGap  = 16;  // horizontal gap between button edges (≥12px requirement)
 
     // UPGRADES
     const metaX = cx - bottomBtnW - bottomGap;
@@ -1016,10 +1006,10 @@ export class MainMenuScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
     }
 
-    // ACHIEVEMENTS — third row, centered
-    const achBtnY = bottomBtnY + bottomBtnH / 2 + (this._isMobile ? 16 : 14);
+    // ACHIEVEMENTS — third row, centered (16px gap below bottom row)
     const achBtnW = this._isMobile ? 140 : 120;
     const achBtnH = bottomBtnH;
+    const achBtnY = bottomBtnY + bottomBtnH / 2 + 16 + achBtnH / 2;
     const achP = makePanel(this, cx, achBtnY, achBtnW, achBtnH, DEPTH_BUTTONS);
     fillPanel(achP, R, 0x001a00, 0x336633, 2);
     const achLabel = this.add.text(cx, achBtnY, '🏆 ACHIEVEMENTS', {
