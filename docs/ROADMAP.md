@@ -2398,8 +2398,8 @@ Non-blocking items surfaced during code review:
 - **Tower disable visual lacks ⚡ icon**: The task notes suggest "dim + ⚡ icon or grey overlay". Currently only alpha dimming is applied — no icon or text indicator. Adding a small icon/text above the disabled tower would improve clarity.
 
 <!-- HEALTH_CHECK_START -->
-Last run: 2026-03-03 02:00:05
-Findings: 113 total (60 new task files created, 53 already tracked)
+Last run: 2026-03-04 02:00:07
+Findings: 121 total (121 new task files created, 0 already tracked)
 Task files: /home/dmichael/projects/greentd/tasks/health/pending/
 <!-- HEALTH_CHECK_END -->
 
@@ -2610,3 +2610,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 - **Missing higher-tier lifetime gold achievement** — task suggested earn 100,000 gold total; only 5,000 and 25,000 tiers were implemented. Consider adding `earn-gold-100000-total` as a hidden achievement for long-term players.
 - **Missing higher-tier crystal spend achievement** — task suggested spend 2,500 crystals; only 500 was added (alongside the pre-existing 250 and 1,000 tiers). Consider adding `spend-2500-crystals` as a hidden achievement.
 - **Commander section comment says "(8)" but contains 9 entries** — pre-existing inaccuracy in `achievementDefs.ts` header comment at the Commander section. Cosmetic only.
+
+### TASK-028 Review Findings (Creep Visual Variety)
+
+- **Waabooz mini-copy 0.6× scale not explicitly enforced** — AC mentions "0.6× scale" for boss mini-copies, but the implementation uses wave-based scaling (0.85–1.15×) for non-boss creeps. Mini-copies spawned via the boss split mechanic inherit wave scaling rather than a fixed 0.6× factor. Visually they are smaller than the boss but not exactly 60%. Consider adding a `MINI_COPY_SCALE = 0.6` constant if precise sizing matters.
+- **Container-local shadow for air creeps is redundant with scene-level shadow** — air creeps now have both a container-local `_airShadow` (for wing-flap pulse animation) and a scene-level `_sceneShadow` (for correct depth sorting). The container-local shadow is kept at low alpha (0.15) for the legacy wing animation but is visually redundant. Consider removing it if the wing-flap pulse animation is refactored to use the scene-level shadow.

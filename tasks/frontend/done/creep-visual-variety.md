@@ -1,7 +1,7 @@
 ---
 id: TASK-028
 title: Creep Visual Variety
-status: pending
+status: done
 priority: medium
 category: frontend
 phase: 13
