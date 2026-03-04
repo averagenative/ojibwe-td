@@ -1,7 +1,7 @@
 ---
 id: TASK-136
 title: Boss Escape Should Cost More Lives
-status: in-progress
+status: done
 priority: medium
 category: backend
 phase: balance
