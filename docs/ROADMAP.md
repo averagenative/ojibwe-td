@@ -2619,3 +2619,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 ### TASK-132 Review Findings (Rush Button Gold Bonus)
 
 - **Overlapping rush bonus feedback text on rapid clicks** — `_showRushBonusFeedback()` creates a new floating text on every call without cancelling previous instances. Rapid consecutive rushes stack multiple overlapping "+25 RUSH BONUS" texts. Consider destroying the previous feedback text before creating a new one, or reusing a single text object.
+
+### TASK-138 Review Findings (Savannah Wave 1 Clearability)
+
+- **`creepTraversalSec` does not accept a region difficulty parameter** — the balance helper computes traversal time using only wave speed mults, ignoring the region's `creepSpeedMult`. Tests work around this with a manual `savannahGruntTraversal()` helper. Consider adding an optional `regionSpeedMult` parameter to `creepTraversalSec` for accurate per-region traversal calculations in future balance tooling.
+- **`SAVANNAH_PATH_LENGTH_PX` is a manually-derived constant** — the 1640px value is computed by hand from map-03 waypoints. If the map layout changes, this constant can silently drift out of sync. Consider deriving it at build time or in a test from the actual `map-03.json` waypoints.

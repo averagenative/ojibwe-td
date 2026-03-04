@@ -1,7 +1,7 @@
 ---
 id: TASK-138
 title: Savannah Wave 1 Clearability & Armor Bear Balance
-status: pending
+status: done
 priority: high
 category: backend
 phase: balance
