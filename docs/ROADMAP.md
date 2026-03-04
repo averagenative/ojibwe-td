@@ -2713,3 +2713,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 - **No BootScene preload for environment sprites** — Since the implementation uses graphics primitives, no sprite preloading is needed. When sprites are generated, add `this.load.image('env-pine', ...)` etc. to `BootScene._loadAssets()`.
 - **SCENERY tile buildability was silently changed** — The old `isBuildable` only returned true for `TILE.BUILDABLE`. The new version excluded `PATH`, `TREE`, `BIRCH`, and `ROCK` but initially missed `SCENERY` (value 2), which would have been a regression. Fixed during review to also exclude `SCENERY`.
 - **Environment tile density** — Both maps have ~19% environment decoration on non-path tiles, exceeding the 10–15% spec minimum. Consider reducing density in central build areas if playtesting shows too many blocked tiles.
+
+### TASK-157 Review Findings (Commander Clan Realignment)
+
+- **DALL-E 3 portraits not generated** — The acceptance criteria call for 6 DALL-E 3 generated portraits (256×256 PNG) in `public/assets/portraits/`. The code already references `portrait-*` keys and BootScene preloads from `assets/portraits/`. The data changes (clans, aura names, portrait keys) are complete, but the actual image files need to be generated and placed. When art is prioritised, generate using the prompt strategy in the task file.
+- **Fish Clan unused** — The traditional 7-clan system includes Fish Clan (Giigoonh) but no commander maps to it. If a 7th commander is ever added, Fish Clan is the natural fit (scholars, teachers, mediators).

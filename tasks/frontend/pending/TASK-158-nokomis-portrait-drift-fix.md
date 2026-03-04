@@ -1,7 +1,7 @@
 ---
 id: TASK-158
 title: Commander Portraits Drift Off-Screen Due to Stacking Expression Tweens
-status: pending
+status: in-progress
 priority: critical
 category: frontend
 phase: polish
