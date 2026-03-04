@@ -16,6 +16,8 @@ import {
 import type { RegionDef, StageDef } from '../data/stageDefs';
 import { PAL } from '../ui/palette';
 import { renderMoonRating } from '../ui/MoonRatingDisplay';
+import { pickQuickPlay } from '../systems/QuickPlay';
+import type { QuickPlaySelection } from '../systems/QuickPlay';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -761,6 +763,13 @@ export class MainMenuScene extends Phaser.Scene {
     const btnW = this._isMobile ? 280 : 240;
     const btnH = this._isMobile ? 60  : 48;
 
+    // ── Quick Play button sizing ────────────────────────────────────────────
+    // These constants drive both the layout math and the button rendering.
+    const quickBtnH   = this._isMobile ? 44  : 38;  // meets 44px touch target on mobile
+    const quickBtnW   = this._isMobile ? 240 : 200;
+    const quickGap    = 6;   // px between START GAME bottom edge and QUICK PLAY top
+    const quickPostGap = this._isMobile ? 10 : 8;   // px between QUICK PLAY and bottom row
+
     // ── Resume Game button (only shown when a save exists) ──────────────────
     const hasResume   = !!this._autoSave && this._autoSave.currentWave > 0;
     const resumeBtnH  = this._isMobile ? 52 : 44;  // meets 44 px touch target
@@ -768,6 +777,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Calculate vertical positions — when a resume button is present the
     // two-button block is positioned together so neither overlaps stage cards.
+    // maxStartY is tightened to leave room for quick play + bottom rows.
     let startY: number;
     let resumeY = 0;
 
@@ -776,15 +786,15 @@ export class MainMenuScene extends Phaser.Scene {
       const blockTopY   = stageBottom + blockTopGap;
       resumeY = blockTopY + resumeBtnH / 2;
       startY  = resumeY + resumeBtnH / 2 + resumeGap + btnH / 2;
-      // Cap to ensure bottom rows still fit.
-      const maxStartY = height - (this._isMobile ? 158 : 134);
+      // Cap to ensure quick play + bottom rows still fit.
+      const maxStartY = height - (this._isMobile ? 174 : 148);
       if (startY > maxStartY) {
         startY  = maxStartY;
         resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2;
       }
     } else {
-      // Original single-button position.
-      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 130 : 110));
+      // Tightened cap: quick play + bottom rows must fit below startY.
+      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 174 : 148));
     }
 
     if (hasResume && this._autoSave) {
@@ -840,10 +850,55 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
+    // ── QUICK PLAY button ──────────────────────────────────────────────────
+    const quickPlayY = startY + btnH / 2 + quickGap + quickBtnH / 2;
+    const quickP = makePanel(this, cx, quickPlayY, quickBtnW, quickBtnH, DEPTH_BUTTONS);
+    fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
+    const quickLabel = this.add.text(cx, quickPlayY, 'QUICK PLAY', {
+      fontSize: this._fs(this._isMobile ? 16 : 17),
+      color: '#d4a840',
+      fontFamily: PAL.fontBody,
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+    quickP.zone.on('pointerover',  () => {
+      fillPanel(quickP, R, 0x2a1c00, PAL.goldN, 2);
+      quickLabel.setColor('#f0c060');
+      this.tweens.add({ targets: quickLabel, scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
+    });
+    quickP.zone.on('pointerout',   () => {
+      fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
+      quickLabel.setColor('#d4a840');
+      this.tweens.add({ targets: quickLabel, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
+    });
+    quickP.zone.on('pointerdown',  () => fillPanel(quickP, R, 0x0f0900, PAL.goldN, 2));
+    quickP.zone.on('pointerup',    () => {
+      const sel = pickQuickPlay(SaveManager.getInstance());
+      if (hasResume) {
+        this._showOverwriteConfirm(() => {
+          this._showQuickPlaySplash(sel, () => {
+            this._go('GameScene', {
+              commanderId: sel.commanderId,
+              stageId:     sel.stageId,
+              mapId:       sel.mapId,
+            });
+          });
+        });
+      } else {
+        this._showQuickPlaySplash(sel, () => {
+          this._go('GameScene', {
+            commanderId: sel.commanderId,
+            stageId:     sel.stageId,
+            mapId:       sel.mapId,
+          });
+        });
+      }
+    });
+
     // Bottom row: UPGRADES | CHALLENGES | CODEX
     const bottomBtnW = this._isMobile ? 120 : 100;
     const bottomBtnH = this._isMobile ? 48  : 38;
-    const bottomBtnY = startY + btnH / 2 + (this._isMobile ? 32 : 26);
+    const bottomBtnY = quickPlayY + quickBtnH / 2 + quickPostGap;
     const bottomGap  = 8;
 
     // UPGRADES
@@ -913,7 +968,7 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     // ACHIEVEMENTS — third row, centered
-    const achBtnY = bottomBtnY + bottomBtnH / 2 + (this._isMobile ? 24 : 18);
+    const achBtnY = bottomBtnY + bottomBtnH / 2 + (this._isMobile ? 16 : 14);
     const achBtnW = this._isMobile ? 140 : 120;
     const achBtnH = bottomBtnH;
     const achP = makePanel(this, cx, achBtnY, achBtnW, achBtnH, DEPTH_BUTTONS);
@@ -1007,6 +1062,56 @@ export class MainMenuScene extends Phaser.Scene {
     cancelBg.on('pointerout',  () => cancelBg.setFillStyle(PAL.bgPanel));
     cancelBg.on('pointerup',   () => container.destroy());
     backdrop.on('pointerup',   () => container.destroy());
+  }
+
+  // ── Quick Play splash ──────────────────────────────────────────────────────
+
+  /**
+   * Show a brief auto-dismissing splash (750 ms) revealing which commander
+   * and map were auto-selected, then call onDone to navigate.
+   */
+  private _showQuickPlaySplash(sel: QuickPlaySelection, onDone: () => void): void {
+    const { width, height } = this.scale;
+    const cx = width  / 2;
+    const cy = height / 2;
+
+    const container = this.add.container(0, 0).setDepth(250);
+
+    // Semi-transparent backdrop.
+    const backdrop = this.add.rectangle(cx, cy, width, height, 0x000000, 0.5)
+      .setInteractive();
+    container.add(backdrop);
+
+    // Card.
+    const cardW = this._isMobile ? 340 : 380;
+    const cardH = this._isMobile ? 130 : 120;
+    const card  = this.add.rectangle(cx, cy, cardW, cardH, 0x100d00)
+      .setStrokeStyle(2, PAL.goldN);
+    container.add(card);
+
+    // Header label.
+    const header = this.add.text(cx, cy - cardH / 2 + 20, 'QUICK PLAY', {
+      fontSize: this._fs(13), color: '#d4a840', fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5);
+    container.add(header);
+
+    // Commander line.
+    const cmdLine = this.add.text(cx, cy - 8, `Commander: ${sel.commanderName}`, {
+      fontSize: this._fs(16), color: PAL.textPrimary, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5);
+    container.add(cmdLine);
+
+    // Stage line.
+    const mapLine = this.add.text(cx, cy + 20, `Map: ${sel.stageName}`, {
+      fontSize: this._fs(13), color: PAL.textSecondary, fontFamily: PAL.fontBody,
+    }).setOrigin(0.5);
+    container.add(mapLine);
+
+    // Auto-dismiss after 750 ms.
+    this.time.delayedCall(750, () => {
+      if (container.active) container.destroy();
+      onDone();
+    });
   }
 
   private createAudioButton(width: number, height: number): void {
