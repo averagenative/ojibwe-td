@@ -59,6 +59,7 @@ import {
 } from '../data/cutsceneDefs';
 import { AscensionSystem } from '../systems/AscensionSystem';
 import { applyTowerMetaToStats } from '../data/towerMetaUpgradeDefs';
+import { Rng } from '../systems/Rng';
 
 const DEFAULT_TOTAL_WAVES = 20;
 /** Flat gold bonus awarded when the player rushes the next wave early. */
@@ -559,7 +560,8 @@ export class GameScene extends Phaser.Scene {
     );
 
     // Roguelike offer system
-    this.offerManager = new OfferManager();
+    const runSeed = Date.now();
+    this.offerManager = new OfferManager(new Rng(runSeed));
     this.offerManager.setCurrentLives(this.lives);
 
     // Wave system
@@ -600,7 +602,7 @@ export class GameScene extends Phaser.Scene {
 
     this.waveManager = new WaveManager(
       this, this.waypointPaths, this.activeCreeps, creepTypeDefs, waveDefs, airPaths,
-      regionDifficulty, ascensionConfig,
+      regionDifficulty, ascensionConfig, new Rng(runSeed + 1),
     );
     this.waveManager.on('wave-complete', this.onWaveComplete, this);
 

@@ -18,6 +18,7 @@ import {
 } from '../data/gearDefs';
 import { SaveManager } from './SaveManager';
 import type { GearSaveItem } from './SaveManager';
+import { Rng } from '../systems/Rng';
 
 const MAX_INVENTORY = 50;
 
@@ -32,6 +33,7 @@ export class InventoryManager {
 
   private inventory: GearInstance[] = [];
   private equipped: EquipMap = {};
+  private readonly _rng = new Rng(Date.now());
 
   private constructor() {
     this._load();
@@ -281,7 +283,7 @@ export class InventoryManager {
     if (candidates.length === 0) return false;
 
     // Evolve: change defId to next-rarity version, reset enhancement
-    const evolved = candidates[Math.floor(Math.random() * candidates.length)];
+    const evolved = this._rng.nextItem(candidates);
     item.defId = evolved.id;
     item.enhanceLevel = 0;
     item.rune = undefined; // rune is lost on evolution

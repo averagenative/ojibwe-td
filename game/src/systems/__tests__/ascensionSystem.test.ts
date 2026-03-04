@@ -522,7 +522,8 @@ describe('WaveManager — ascension integration', () => {
   });
 
   it('applies armored early with 40% chance on ground creeps', () => {
-    expect(waveManagerSrc).toContain('Math.random() < 0.40');
+    // Uses injected Rng — Math.random() replaced with this.rng.next()
+    expect(waveManagerSrc).toContain('this.rng.next() < 0.40');
   });
 
   it('applies regen per sec to non-boss creeps', () => {

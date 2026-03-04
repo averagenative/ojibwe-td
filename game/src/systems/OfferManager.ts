@@ -14,6 +14,7 @@
 
 import { ALL_OFFERS } from '../data/offerDefs';
 import type { OfferDef } from '../data/offerDefs';
+import { Rng } from './Rng';
 
 /**
  * Targeting domain for each tower type.
@@ -51,6 +52,7 @@ export function canSynergize(towerKeyA: string, towerKeyB: string): boolean {
 }
 
 export class OfferManager {
+  private readonly rng: Rng;
   private readonly activeIds = new Set<string>();
 
   // ── kill tracking (combat offers) ─────────────────────────────────────────
@@ -71,6 +73,10 @@ export class OfferManager {
 
   // ── bounty state (first-escape mechanic) ──────────────────────────────────
   private _bountyActive       = false;  // set when first creep escapes a wave
+
+  constructor(rng?: Rng) {
+    this.rng = rng ?? new Rng(Date.now());
+  }
 
   // ── State setters (called by GameScene) ───────────────────────────────────
 
@@ -131,7 +137,7 @@ export class OfferManager {
       if (candidates.length === 0) return false;
 
       const total = candidates.reduce((s, o) => s + o.weight, 0);
-      let   roll  = Math.random() * total;
+      let   roll  = this.rng.next() * total;
 
       for (const offer of candidates) {
         roll -= offer.weight;
@@ -213,7 +219,7 @@ export class OfferManager {
   /** Jackpot: 20% chance of +200 bonus gold each wave. Returns 0 if not active. */
   getJackpotBonus(): number {
     if (!this.activeIds.has('jackpot')) return 0;
-    return Math.random() < 0.20 ? 200 : 0;
+    return this.rng.next() < 0.20 ? 200 : 0;
   }
 
   /** Resourceful: respec costs nothing (full refund). */
@@ -328,7 +334,7 @@ export class OfferManager {
    * Returns true on a crit roll.
    */
   critRoll(): boolean {
-    return this.activeIds.has('critical-strike') && Math.random() < 0.10;
+    return this.activeIds.has('critical-strike') && this.rng.next() < 0.10;
   }
 
   // ── Synergy multipliers (called per-attack inside Tower) ──────────────────
@@ -409,7 +415,7 @@ export class OfferManager {
    * Returns true when the arc should fire.
    */
   reaperMarkRoll(): boolean {
-    return this.activeIds.has('reapers-mark') && Math.random() < 0.05;
+    return this.activeIds.has('reapers-mark') && this.rng.next() < 0.05;
   }
 
   /**
