@@ -2665,3 +2665,15 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Placeholder sprites** — The 12 PNG assets are programmatically generated placeholders (300-800 bytes each), not actual DALL-E 3 generated art. They satisfy the structural requirements but will need to be replaced with real artwork before a visual polish pass. Consider adding a task for DALL-E 3 sprite generation once the art direction is finalised.
 - **`bodyColor` field unused at runtime** — Tower defs still carry `bodyColor` (used by old Arc rendering + `setFillStyle` flash effects), but it is no longer referenced in Tower.ts. It is still referenced by other systems (e.g. tower-palette tests, offer panels). Keep for now but could be cleaned up if no external consumers remain.
+
+### TASK-152 Review Findings (Tower Icons DALL-E 3 Overhaul)
+
+- **Dead SVG file** — `public/assets/icons/icon-rock-hurler.svg` is no longer referenced by BootScene (migrated to `.png`) but still exists on disk. Should be deleted to avoid confusion.
+- **Icon dimensions are 64×64, not 96×96** — The acceptance criteria specified "96×96px minimum (downscaled to 48×48 for HUD use)" but all tower icons (including existing ones) are 64×64. This is consistent across all icons and works fine at HUD sizes; no code change needed unless higher-res art is generated later.
+- **Only rock-hurler format changed** — The other 5 tower icons were already PNG. This task's code scope was limited to the SVG→PNG migration for `icon-rock-hurler`. The acceptance criterion "6 new tower icon PNGs generated via DALL-E 3" refers to art generation (outside code review scope), not format conversion.
+
+### TASK-134 Review Findings (Air Creep Path Diversity)
+
+- **Duplicate air-lane normalisation** — Both `getAirWaypointPaths()` (MapData.ts) and WaveManager's constructor independently normalise air waypoint input. GameScene calls `getAirWaypointPaths`, converts to pixel coords, then passes `Waypoint[][]` to WaveManager which normalises again. The WaveManager normalisation is harmless (backward compat for any direct callers) but could be simplified to trust its caller.
+- **Air path visual indicators** — The acceptance criterion "air paths should be distinguishable if shown on map" is satisfied by path diversity, but no debug/UI overlay currently renders air lanes on the game map. Consider adding a debug toggle or semi-transparent flight-path overlay in a future polish pass.
+- **`getAirWaypointPaths` empty groundPath guard** — Fixed during review: the fallback branch now returns `[]` instead of `[[undefined, undefined]]` when `groundPath.length < 2`. WaveManager's own default-lane construction (`[this.waypoints[0], this.waypoints[this.waypoints.length - 1]]`) still doesn't guard an empty `this.waypoints`, but this is unreachable in practice since maps always have ground waypoints.

@@ -1,7 +1,7 @@
 ---
 id: TASK-152
 title: Tower Icons Overhaul — Regenerate All With DALL-E 3
-status: pending
+status: done
 priority: high
 category: frontend
 phase: polish

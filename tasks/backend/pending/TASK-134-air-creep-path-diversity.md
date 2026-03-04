@@ -1,7 +1,7 @@
 ---
 id: TASK-134
 title: Air Creep Path Diversity — Not Just Diagonal
-status: pending
+status: in-progress
 priority: medium
 category: backend
 phase: balance
