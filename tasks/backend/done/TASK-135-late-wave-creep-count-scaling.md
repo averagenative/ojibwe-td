@@ -1,7 +1,7 @@
 ---
 id: TASK-135
 title: Increase Creep Count on Later Waves — Overwhelm Weak Defenses
-status: pending
+status: done
 priority: medium
 category: backend
 phase: balance

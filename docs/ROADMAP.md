@@ -2677,3 +2677,12 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 - **Duplicate air-lane normalisation** — Both `getAirWaypointPaths()` (MapData.ts) and WaveManager's constructor independently normalise air waypoint input. GameScene calls `getAirWaypointPaths`, converts to pixel coords, then passes `Waypoint[][]` to WaveManager which normalises again. The WaveManager normalisation is harmless (backward compat for any direct callers) but could be simplified to trust its caller.
 - **Air path visual indicators** — The acceptance criterion "air paths should be distinguishable if shown on map" is satisfied by path diversity, but no debug/UI overlay currently renders air lanes on the game map. Consider adding a debug toggle or semi-transparent flight-path overlay in a future polish pass.
 - **`getAirWaypointPaths` empty groundPath guard** — Fixed during review: the fallback branch now returns `[]` instead of `[[undefined, undefined]]` when `groundPath.length < 2`. WaveManager's own default-lane construction (`[this.waypoints[0], this.waypoints[this.waypoints.length - 1]]`) still doesn't guard an empty `this.waypoints`, but this is unreachable in practice since maps always have ground waypoints.
+
+### TASK-135 Review Findings (Late-Wave Creep Count Scaling)
+
+- **`WAVE_CREEP_COUNTS` is a test-time mirror, not a runtime source** — The game reads creep counts from `public/data/waves.json` at runtime via WaveManager's `waveDef.count`. The `WAVE_CREEP_COUNTS` array in `scalingConfig.ts` duplicates these values for test assertions. If wave counts are tuned in the future, both files must be updated in sync. Consider a build-time or test-time validation that asserts `WAVE_CREEP_COUNTS[i] === wavesJson[i].count` for all waves to prevent drift.
+
+### TASK-136 Review Findings (Boss Escape Higher Life Penalty)
+
+- **Normal creep escape still hardcodes `liveCost: 1`** — The `creep-escaped` event for normal creeps (in `_spawnOneForWave`) emits `{ liveCost: 1, reward: creep.reward }` without `isBoss`. This is correct but consider extracting a `NORMAL_ESCAPE_LIVE_COST` constant for parity with the boss constants and easier future tuning.
+- **Waabooz split mini-creep escapes emit normal `liveCost: 1`** — Mini-copies spawned from Waabooz's split-on-death use the regular creep `reached-exit` handler, so each mini-escape costs 1 life. This is intentional (mini-copies aren't bosses), but worth noting that a Waabooz escape + all 3 splits escaping costs 5 + 3 = 8 total lives on wave 15.
