@@ -127,10 +127,10 @@ export class Tower extends Phaser.GameObjects.Container {
   private _multiSelGfx?: Phaser.GameObjects.Graphics;
   /** Handle to the currently running fire-animation tween (kill to interrupt). */
   private _fireAnimTween?: Phaser.Tweens.Tween;
-  /** Direct reference to the tower body disc (Arc, stored in buildBody). */
-  private _bodyRef?:     Phaser.GameObjects.Arc;
-  /** Direct reference to the tower icon Image (stored in buildBody, if present). */
-  private _iconRef?:     Phaser.GameObjects.Image;
+  /** Static base sprite — never rotates. Represents the tower platform/foundation. */
+  private _baseSprite?:   Phaser.GameObjects.Image;
+  /** Rotating turret sprite — faces target. Represents the weapon/barrel/emitter. */
+  private _turretSprite?: Phaser.GameObjects.Image;
 
   constructor(
     scene: Phaser.Scene,
@@ -231,8 +231,9 @@ export class Tower extends Phaser.GameObjects.Container {
     const prevScale = tierSizeScale(this._animTier);
     const newScale  = tierSizeScale(tier);
     this._animTier  = tier;
-    if (prevScale !== newScale && this._bodyRef) {
-      this._bodyRef.setScale(newScale);
+    if (prevScale !== newScale) {
+      this._baseSprite?.setScale(newScale);
+      this._turretSprite?.setScale(newScale);
     }
   }
 
@@ -870,24 +871,21 @@ export class Tower extends Phaser.GameObjects.Container {
   }
 
   private buildBody(): void {
-    // Use a circle (Arc) instead of a Rectangle so that when the tower container
-    // rotates to track targets the body disc has no visible corners — eliminating
-    // the "rotating box" artefact while preserving all fire-animation effects
-    // (setFillStyle flash, setScale recoil/pulse, y bob).
-    const body = new Phaser.GameObjects.Arc(
-      this.scene, 0, 0, BODY_SIZE / 2, 0, 360, false, this.def.bodyColor,
-    );
-    this._bodyRef = body;
+    // Sprite-based rendering: base sprite (static platform) + turret sprite (rotating weapon).
+    // Both are 64×64 PNG assets rendered at BODY_SIZE via setDisplaySize.
+    const baseKey   = `tower-${this.def.key}-base`;
+    const turretKey = `tower-${this.def.key}-turret`;
 
-    const iconKey = `icon-${this.def.key}`;
-    if (this.scene.textures.exists(iconKey)) {
-      const icon = new Phaser.GameObjects.Image(this.scene, 0, 0, iconKey);
-      icon.setDisplaySize(20, 20);
-      this._iconRef = icon;
-      this.add([body, icon]);
-    } else {
-      this.add([body]);
-    }
+    const base = new Phaser.GameObjects.Image(this.scene, 0, 0, baseKey);
+    base.setDisplaySize(BODY_SIZE, BODY_SIZE);
+    this._baseSprite = base;
+
+    const turret = new Phaser.GameObjects.Image(this.scene, 0, 0, turretKey);
+    turret.setDisplaySize(BODY_SIZE, BODY_SIZE);
+    this._turretSprite = turret;
+
+    // Base is added first (below), turret on top.
+    this.add([base, turret]);
 
     // Tesla: create a persistent Graphics object for idle arc sparks.
     if (this.def.key === 'tesla') {
@@ -951,8 +949,9 @@ export class Tower extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Lerp the container's rotation angle toward the last-known visual target.
+   * Lerp the turret sprite's rotation angle toward the last-known visual target.
    * Used by Rock Hurler to smoothly aim its barrel.
+   * The base sprite and container are never rotated — only the turret sprite.
    */
   private _stepBarrelTracking(): void {
     // Sentinel: (0, 0) means no target has been acquired yet.
@@ -967,29 +966,30 @@ export class Tower extends Phaser.GameObjects.Container {
       targetAngle,
       this._animDef.lerpDegPerFrame,
     );
-    this.setAngle(this._barrelAngle);
+    this._turretSprite?.setAngle(this._barrelAngle);
   }
 
   /**
    * Cannon idle: slow ±sweepDeg oscillation while no target is in sight.
    * Defers to barrel-tracking when a visual target is present.
+   * Rotation applies to turret sprite only.
    */
   private _stepSweepIdle(intensity: number): void {
     // Only sweep when there is no active tracking target.
     if (this._visualTargetX !== 0 || this._visualTargetY !== 0) return;
     const sweepAngle = Math.sin(this._idlePhase) * this._animDef.sweepDeg * intensity;
-    this.setAngle(sweepAngle);
     this._barrelAngle = sweepAngle;
+    this._turretSprite?.setAngle(sweepAngle);
   }
 
   /**
-   * Frost/Arrow idle: subtle scale pulse (breathing effect) on the body rect.
+   * Frost/Arrow idle: subtle scale pulse (breathing effect) on the turret sprite.
    */
   private _stepPulseIdle(intensity: number): void {
-    if (!this._bodyRef) return;
+    if (!this._turretSprite) return;
     const base  = tierSizeScale(this._animTier);
     const pulse = 1 + Math.sin(this._idlePhase) * this._animDef.pulseScale * intensity;
-    this._bodyRef.setScale(base * pulse);
+    this._turretSprite.setScale(base * pulse);
   }
 
   /**
@@ -1033,13 +1033,13 @@ export class Tower extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Mortar idle: slow vertical Y bob on the body (simulates barrel elevation).
+   * Rock Hurler idle: slow vertical Y bob on the turret (simulates barrel elevation).
    * Also defers to barrel-tracking when a visual target is present.
    */
   private _stepBobIdle(intensity: number): void {
-    if (!this._bodyRef) return;
+    if (!this._turretSprite) return;
     const bobY = Math.sin(this._idlePhase) * this._animDef.bobAmpY * intensity;
-    this._bodyRef.y = bobY;
+    this._turretSprite.y = bobY;
   }
 
   /**
@@ -1071,21 +1071,24 @@ export class Tower extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Tesla idle: subtle lean (rotation) of the container toward the target.
+   * Tesla idle: subtle lean (rotation) of the turret sprite toward the target.
    * Maximum lean = leanDeg × intensity, reset to 0 when no target.
+   * The base sprite and container never rotate.
    */
   private _stepTeslaLean(intensity: number): void {
     const leanMax = this._animDef.leanDeg * intensity;
     if (this._visualTargetX === 0 && this._visualTargetY === 0) {
       // Ease back to upright.
-      this.setAngle(lerpAngleDeg(this.angle, 0, 1.5));
+      this._barrelAngle = lerpAngleDeg(this._barrelAngle, 0, 1.5);
+      this._turretSprite?.setAngle(this._barrelAngle);
       return;
     }
     // Lean in the horizontal direction of the target, clamped to ±leanMax.
     const dx           = this._visualTargetX - this.x;
     const normalised   = Math.max(-1, Math.min(1, dx / 200));
     const targetLean   = normalised * leanMax;
-    this.setAngle(lerpAngleDeg(this.angle, targetLean, 1.5));
+    this._barrelAngle = lerpAngleDeg(this._barrelAngle, targetLean, 1.5);
+    this._turretSprite?.setAngle(this._barrelAngle);
   }
 
   // ── Fire animations ────────────────────────────────────────────────────────
@@ -1104,22 +1107,21 @@ export class Tower extends Phaser.GameObjects.Container {
     }
   }
 
-  /** Rock Hurler: barrel kicks +kickDeg on firing, eases back over kickMs. */
+  /** Rock Hurler: turret kicks +kickDeg on firing, eases back over kickMs. */
   private _playRockHurlerKick(): void {
+    if (!this._turretSprite) return;
     this._fireAnimTween?.stop();
     const base      = tierSizeScale(this._animTier);
     const kickAngle = this._barrelAngle + this._animDef.kickDeg;
-    this.setAngle(kickAngle);
-    if (this._bodyRef) {
-      this._bodyRef.setScale(base * 1.0, base * 0.9);
-    }
+    this._turretSprite.setAngle(kickAngle);
+    this._turretSprite.setScale(base * 1.0, base * 0.9);
     this._fireAnimTween = this.scene.tweens.add({
-      targets:  this,
+      targets:  this._turretSprite,
       angle:    this._barrelAngle,
       duration: this._animDef.kickMs,
       ease:     'Cubic.Out',
       onComplete: () => {
-        if (this._bodyRef) this._bodyRef.setScale(base);
+        this._turretSprite?.setScale(base);
         this._fireAnimTween = undefined;
       },
     });
@@ -1130,14 +1132,14 @@ export class Tower extends Phaser.GameObjects.Container {
    * + scatter of small ice crystal particles.
    */
   private _playFrostFire(): void {
-    if (!this._bodyRef) return;
+    if (!this._turretSprite) return;
     this._fireAnimTween?.stop();
     const base  = tierSizeScale(this._animTier);
     const peak  = base * (1 + this._animDef.firePulseScale);
-    this._bodyRef.setScale(peak);
+    this._turretSprite.setScale(peak);
     this._spawnFrostCrystals();
     this._fireAnimTween = this.scene.tweens.add({
-      targets:  this._bodyRef,
+      targets:  this._turretSprite,
       scaleX:   base,
       scaleY:   base,
       duration: this._animDef.fireFlashMs,
@@ -1169,70 +1171,66 @@ export class Tower extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Tesla: entire tower body flashes white for fireFlashMs, body shakes
-   * horizontally on the body rect.
+   * Tesla: turret sprite flashes white for fireFlashMs, then shakes horizontally.
    */
   private _playTeslaFlash(): void {
-    if (!this._bodyRef) return;
+    if (!this._turretSprite) return;
     this._fireAnimTween?.stop();
 
-    // Flash body to white (Rectangle uses setFillStyle, not setTint).
-    this._bodyRef.setFillStyle(0xffffff);
-    // Icon tint (Image supports setTint).
-    this._iconRef?.setTint(0xffffff);
+    // Flash turret to white via tint (Image supports setTint).
+    this._turretSprite.setTint(0xffffff);
 
     this._fireAnimTween = this.scene.tweens.add({
       targets:  {},       // dummy target — we just need an onComplete timer
       duration: this._animDef.fireFlashMs,
       onComplete: () => {
-        this._bodyRef?.setFillStyle(this.def.bodyColor);
-        this._iconRef?.clearTint();
+        this._turretSprite?.clearTint();
         this._fireAnimTween = undefined;
       },
     });
 
-    // Rapid shake of body rect along X axis.
-    const origX = this._bodyRef.x;
+    // Rapid shake of turret sprite along X axis.
+    const origX = this._turretSprite.x;
     this.scene.tweens.add({
-      targets:  this._bodyRef,
+      targets:  this._turretSprite,
       x:        origX + 2,
       duration: 20,
       yoyo:     true,
       repeat:   2,
       onComplete: () => {
-        if (this._bodyRef) this._bodyRef.x = origX;
+        if (this._turretSprite) this._turretSprite.x = origX;
       },
     });
   }
 
 
   /**
-   * Poison: tower briefly glows bright green when firing a blob.
+   * Poison: turret sprite briefly glows bright green when firing a blob.
    */
   private _playPoisonGlow(): void {
-    if (!this._bodyRef) return;
+    if (!this._turretSprite) return;
     this._fireAnimTween?.stop();
-    this._bodyRef.setFillStyle(0x88ff44);
+    this._turretSprite.setTint(0x88ff44);
     this._fireAnimTween = this.scene.tweens.add({
       targets:  {},
       duration: 200,
       onComplete: () => {
-        this._bodyRef?.setFillStyle(this.def.bodyColor);
+        this._turretSprite?.clearTint();
         this._fireAnimTween = undefined;
       },
     });
   }
 
   /**
-   * Arrow: snappier recoil than Cannon (lighter recoilScale, shorter recoilMs).
+   * Arrow: snappier recoil on turret sprite (lighter recoilScale, shorter recoilMs).
    */
   private _playArrowRecoil(): void {
-    if (!this._bodyRef) return;
+    if (!this._turretSprite) return;
     this._fireAnimTween?.stop();
     const base = tierSizeScale(this._animTier);
-    this._bodyRef.setScale(base * this._animDef.recoilScale);
+    this._turretSprite.setScale(base * this._animDef.recoilScale);
     this._fireAnimTween = this.scene.tweens.add({
-      targets:  this._bodyRef,
+      targets:  this._turretSprite,
       scaleX:   base,
       scaleY:   base,
       duration: this._animDef.recoilMs,

@@ -430,12 +430,12 @@ describe('Tower.ts structural checks', () => {
     expect(TOWER_SRC).toContain('_visualTargetY');
   });
 
-  it('has _bodyRef field (body Rectangle reference)', () => {
-    expect(TOWER_SRC).toContain('_bodyRef');
+  it('has _baseSprite field (static tower base sprite)', () => {
+    expect(TOWER_SRC).toContain('_baseSprite');
   });
 
-  it('has _iconRef field (icon Image reference)', () => {
-    expect(TOWER_SRC).toContain('_iconRef');
+  it('has _turretSprite field (rotating turret sprite)', () => {
+    expect(TOWER_SRC).toContain('_turretSprite');
   });
 
   it('has _sparkGfx field (tesla idle arc graphics)', () => {
@@ -498,12 +498,12 @@ describe('Tower.ts structural checks', () => {
     expect(callCount).toBeGreaterThanOrEqual(2);
   });
 
-  it('Rectangle body color restored via setFillStyle (not setTint — Rect lacks tint)', () => {
-    expect(TOWER_SRC).toContain('setFillStyle(this.def.bodyColor)');
+  it('turret sprite uses clearTint to restore after flash effects', () => {
+    expect(TOWER_SRC).toContain('clearTint');
   });
 
-  it('Image icon uses setTint/clearTint for flash effects', () => {
-    expect(TOWER_SRC).toContain('clearTint');
+  it('turret sprite uses setTint for flash effects (Image supports setTint)', () => {
+    expect(TOWER_SRC).toContain('setTint(0xffffff)');
   });
 
   it('tryAttack clears _visualTargetX/Y when no target found', () => {
