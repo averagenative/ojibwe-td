@@ -55,6 +55,14 @@ export interface RegionDifficulty {
 
   /** Boss stat/ability overrides keyed by boss key (e.g. 'makwa'). */
   bossOverrides: Readonly<Record<string, BossRegionOverride>>;
+
+  /**
+   * First wave number (1-indexed) at which armored ground creeps can appear.
+   * Waves before this number are exempt from armoredFraction rolls, ensuring
+   * early waves are clearable with basic Arrow towers.
+   * Defaults to 1 (armor applies from wave 1) when absent.
+   */
+  armoredStartWave?: number;
 }
 
 // ── Region Difficulty Definitions ─────────────────────────────────────────────
@@ -126,6 +134,7 @@ const MITIGOMIZH: RegionDifficulty = {
   regionId:            'mitigomizh',
   creepHpMult:         1.30,
   creepSpeedMult:      1.10,
+  armoredStartWave:    3,   // wave 1-2 have no armored creeps; armor appears from wave 3 with brutes
   poolReplacements: {
     3: ['grunt', 'swarm', 'brute'],
     4: ['grunt', 'runner', 'brute', 'scout'],

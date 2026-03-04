@@ -111,6 +111,13 @@ export const CREEP_BASE_SPEED: Readonly<Record<string, number>> = {
  */
 export const MAP_PATH_LENGTH_PX = 2400;
 
+/**
+ * Total path length in pixels for map-03 (Oak Savanna Run).
+ * Waypoints: (0,5)→(20,5) = 20 tiles, (20,5)→(20,13) = 8 tiles, (20,13)→(33,13) = 13 tiles.
+ * Total = 41 tiles × 40px/tile = 1640px.
+ */
+export const SAVANNAH_PATH_LENGTH_PX = 1640;
+
 // ── Balance validation bands ──────────────────────────────────────────────────
 
 /**

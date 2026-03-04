@@ -495,13 +495,17 @@ export class WaveManager extends Phaser.Events.EventEmitter {
    * Apply per-creep regional traits (armor, slow/poison immunity) to a
    * freshly-built CreepConfig.  Uses random rolls against the region's
    * configured fractions.  Skips bosses and already-armored brutes.
+   *
+   * @param waveNumber 1-based wave number; used to gate armoredStartWave.
    */
-  private applyRegionTraits(config: CreepConfig, typeKey: string): void {
+  private applyRegionTraits(config: CreepConfig, typeKey: string, waveNumber: number): void {
     const rd = this.regionDifficulty;
     if (!rd) return;
 
-    // Armor: apply to non-brute ground creeps that aren't already armored.
-    if (!config.isArmored && config.type === 'ground' && typeKey !== 'brute') {
+    // Armor: apply to non-brute ground creeps that aren't already armored,
+    // but only once the region's armoredStartWave threshold is reached.
+    const armoredStartWave = rd.armoredStartWave ?? 1;
+    if (!config.isArmored && config.type === 'ground' && typeKey !== 'brute' && waveNumber >= armoredStartWave) {
       if (rd.armoredFraction > 0 && Math.random() < rd.armoredFraction) {
         config.isArmored        = true;
         config.physicalResistPct = rd.armorResistPct;
@@ -591,7 +595,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         spriteKey:  CREEP_SPRITE_KEYS[base.key],
         waveNumber,
       };
-      this.applyRegionTraits(cfg, typeKey);
+      this.applyRegionTraits(cfg, typeKey, waveNumber);
       this.applyAscensionTraits(cfg, typeKey);
       queue.push(cfg);
     }
@@ -625,7 +629,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
         spriteKey:  CREEP_SPRITE_KEYS[base.key],
         waveNumber,
       };
-      this.applyRegionTraits(cfg, typeKey);
+      this.applyRegionTraits(cfg, typeKey, waveNumber);
       this.applyAscensionTraits(cfg, typeKey);
       queue.push(cfg);
     }
