@@ -263,6 +263,7 @@ export class CommanderSelectScene extends Phaser.Scene {
         duration: 380,
         delay: i * 60,
         ease: 'Back.easeOut',
+        onComplete: () => { state.portrait.x = state.baseX; },
       });
     }
   }
@@ -826,6 +827,12 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     const expr = pickExpression(state.animDef.expressionPool);
     const { portrait } = state;
+
+    // Kill any in-flight expression tweens and snap back to base position
+    // to prevent cumulative drift from stacking yoyo tweens.
+    this.tweens.killTweensOf(portrait);
+    portrait.x = state.baseX;
+    portrait.y = state.baseY;
 
     switch (expr) {
       case 'blink':
