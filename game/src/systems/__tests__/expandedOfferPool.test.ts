@@ -201,12 +201,13 @@ describe('OfferManager — synergy gating', () => {
     expect(ids).not.toContain('shatter');
   });
 
-  it('conductor offered when poison and tesla are placed', () => {
+  it('conductor NOT offered even when poison and tesla are placed (air+ground incompatible)', () => {
     for (const o of ALL_OFFERS) {
       if (o.id !== 'conductor') om.applyOffer(o.id);
     }
+    // conductor requires poison+tesla but tesla=air and poison=ground — canSynergize returns false
     const drawn = om.drawOffers(3, ['poison', 'tesla']);
-    expect(drawn.map(o => o.id)).toContain('conductor');
+    expect(drawn.map(o => o.id)).not.toContain('conductor');
   });
 
   it('siege-mode offered when cannon and aura are placed', () => {
