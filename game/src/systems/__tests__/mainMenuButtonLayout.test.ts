@@ -20,8 +20,8 @@ const mainMenuSrc = readFileSync(
 // ── QUICK PLAY is on the right side (not centre column) ─────────────────────
 
 describe('TASK-163: QUICK PLAY is right-side square button', () => {
-  it('quickPlayX uses width offset (not cx)', () => {
-    expect(mainMenuSrc).toContain('width - (this._isMobile');
+  it('quickPlayX is right of stage card (not cx)', () => {
+    expect(mainMenuSrc).toContain('STAGE_W / 2) + 120');
     expect(mainMenuSrc).not.toContain('const quickPlayX = cx;');
   });
 

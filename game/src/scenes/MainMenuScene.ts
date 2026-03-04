@@ -212,18 +212,13 @@ export class MainMenuScene extends Phaser.Scene {
     this._embers = [];
     this._cardParticles = [];
 
-    // Vertical flow: [logo] → label → regions → label → stage → buttons → footer
-    // Reserve extra vertical space at top when logo image is available.
-    const hasLogo   = this.textures.exists('logo');
-    const logoMaxH  = this._isMobile ? 70 : 120;
-    const logoAreaH = hasLogo ? logoMaxH + (this._isMobile ? 10 : 15) : 0;
-
-    const labelY = TOP_PAD + logoAreaH;
+    // Vertical flow: label → regions → label → stage → buttons → footer
+    // Logo/shield is in the LEFT panel (not in the vertical flow).
+    const labelY = TOP_PAD;
     this.regionRowY = labelY + 16 + this._regionH / 2;
     this.stageRowY  = this.regionRowY + this._regionH / 2 + 28 + this._stageH / 2;
 
-    // Logo centre y: middle of logo area, or original text position when no logo.
-    const logoTitleY = hasLogo ? TOP_PAD + logoAreaH / 2 : labelY - 14;
+    const logoTitleY = labelY - 14;  // passed to _buildLogoTitle but unused for positioning
 
     this._audioPanel = null;
 
@@ -346,30 +341,35 @@ export class MainMenuScene extends Phaser.Scene {
 
   // ── Logo title with breathing glow ────────────────────────────────────────
 
-  private _buildLogoTitle(cx: number, y: number): void {
+  private _buildLogoTitle(_cx: number, _y: number): void {
+    // Logo/shield is positioned in the LEFT panel beside the stage cards,
+    // vertically centred with the stage row area. This keeps the centre
+    // column clean for regions → stage → buttons.
+    const { width } = this.scale;
+    // Position logo just left of the stage card area (cx - STAGE_W/2 - gap - logoW/2)
+    const logoX = this._isMobile ? width / 2 - 180 : width / 2 - (STAGE_W / 2) - 120;
+    const logoY = this.stageRowY;
+
     const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
     glowGfx.fillStyle(0x2a1205, 0.45);
 
     if (this.textures.exists('logo')) {
-      // ── Logo image ─────────────────────────────────────────────────────────
-      const logoImg = this.add.image(cx, y, 'logo')
+      // ── Logo image — left panel ───────────────────────────────────────────
+      const logoImg = this.add.image(logoX, logoY, 'logo')
         .setOrigin(0.5)
         .setDepth(DEPTH_BG + 5);
 
-      // Scale: respect Math.min(width * 0.7, 512) formula but cap height so
-      // the layout isn't disrupted.
-      const { width } = this.scale;
-      const aspect   = logoImg.width / logoImg.height;          // natural texture ratio
-      const maxH     = this._isMobile ? 70 : 120;
-      const desiredW = Math.min(width * 0.7, 512);
-      const finalH   = Math.min(desiredW / aspect, maxH);
+      // Scale to fit left gutter — taller than before since it's not
+      // competing with the vertical header flow.
+      const aspect   = logoImg.width / logoImg.height;
+      const maxH     = this._isMobile ? 100 : 180;
+      const maxW     = this._isMobile ? 90  : 200;
+      const finalH   = Math.min(maxH, maxW / aspect);
       const finalW   = finalH * aspect;
       logoImg.setDisplaySize(finalW, finalH);
 
-      // Subtle warm glow behind the logo
-      glowGfx.fillEllipse(cx, y, finalW + 60, finalH * 0.45);
+      glowGfx.fillEllipse(logoX, logoY, finalW + 60, finalH * 0.45);
 
-      // Breathing pulse
       this.tweens.add({
         targets:  [logoImg, glowGfx],
         alpha:    { from: 0.85, to: 1.0 },
@@ -379,10 +379,10 @@ export class MainMenuScene extends Phaser.Scene {
         ease:     'Sine.easeInOut',
       });
     } else {
-      // ── Fallback: text title (shown when logo.png is missing) ──────────────
-      glowGfx.fillEllipse(cx, y, 300, 24);
+      // ── Fallback: text title — left panel ─────────────────────────────────
+      glowGfx.fillEllipse(logoX, logoY, 160, 24);
 
-      const logoText = this.add.text(cx, y, 'OJIBWE TD', {
+      const logoText = this.add.text(logoX, logoY, 'OJIBWE TD', {
         fontSize:   this._fs(14),
         color:      PAL.gold,
         fontFamily: PAL.fontTitle,
@@ -805,7 +805,7 @@ export class MainMenuScene extends Phaser.Scene {
     // IMPORTANT: Quick Play is deliberately positioned on the RIGHT side of
     // the screen, separate from the main button stack. Keep it isolated so
     // the centre column stays clean and uncluttered.
-    const quickBtnSize = this._isMobile ? 56 : 48;   // square button, meets 44px touch target
+    const quickBtnSize = this._isMobile ? 140 : 120;  // large square button (2.5x original)
     const bottomDropGap = this._isMobile ? 16 : 20;  // vertical gap: START bottom → bottom row top
 
     // ── Resume Game button (only shown when a save exists) ──────────────────
@@ -888,23 +888,25 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
-    // ── QUICK PLAY — square button, RIGHT side, intentionally separate ──────
+    // ── QUICK PLAY — large square button, RIGHT panel, intentionally separate ─
     // Keep this isolated from the main centre column. It's a secondary feature
     // button, not part of the primary play flow. Do NOT move it back to centre.
-    // Positioned in the empty right panel next to the stage card area.
-    const quickPlayX = width - (this._isMobile ? 60 : 90);
-    const quickPlayY = this.stageRowY + (this._isMobile ? 20 : 30);
+    // Mirrors the logo/shield on the left — positioned in the right panel area.
+    // Position QUICK PLAY just right of the stage card area (mirrors logo on left)
+    const quickPlayX = this._isMobile ? width / 2 + 180 : width / 2 + (STAGE_W / 2) + 120;
+    const quickPlayY = this.stageRowY;
     const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnSize, quickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
-    // Two-line label: ⚡ icon on top, "QUICK" below
-    const quickIcon = this.add.text(quickPlayX, quickPlayY - 8, '⚡', {
-      fontSize: this._fs(18),
+    // Two-line label: ⚡ icon on top, "QUICK PLAY" below
+    const quickIcon = this.add.text(quickPlayX, quickPlayY - 16, '⚡', {
+      fontSize: this._fs(32),
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
-    const quickLabel = this.add.text(quickPlayX, quickPlayY + 10, 'QUICK', {
-      fontSize: this._fs(this._isMobile ? 9 : 8),
+    const quickLabel = this.add.text(quickPlayX, quickPlayY + 20, 'QUICK\nPLAY', {
+      fontSize: this._fs(this._isMobile ? 16 : 14),
       color: '#d4a840',
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
+      align: 'center',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
     quickP.zone.on('pointerover',  () => {

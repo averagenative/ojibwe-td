@@ -1,7 +1,7 @@
 ---
 id: TASK-164
 title: Regenerate All Environment Tiles — Consistent DALL-E 3 Top-Down Style
-status: pending
+status: in-progress
 priority: high
 category: frontend
 phase: polish

@@ -2737,3 +2737,12 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 ### TASK-166 Review Findings (Elder Portraits Regeneration)
 
 - **portrait-oshkaabewis.png was also regenerated** — The script regenerated Oshkaabewis's commander portrait alongside the 6 elder portraits. This wasn't in scope but is harmless since the same script owns all PIL-generated portraits. If DALL-E 3 commander portraits are generated separately (TASK-157), this file may get overwritten again.
+
+### TASK-164 Review Findings (Environment Tiles Regeneration)
+
+- **Generation script location** — `game/scripts/gen-environment-tiles.py` lives under `game/` while other generation scripts (e.g. `gen_icons.py`, `generate-assets.js`) live in the repo-root `scripts/` directory. Consider consolidating all asset-generation scripts in one location for discoverability.
+- **No birch/cattail tile regeneration** — TILE.BIRCH and TILE.CATTAIL exist in the type system and have preload keys in BootScene, but were not part of this task's scope. If those tiles also have style inconsistencies they should be addressed in a follow-up task.
+
+### TASK-165 Review Findings (Tower Icons — Consistent DALL-E 3 Style)
+
+- **Non-tower icons still 64×64** — icon-cannon, icon-dice, icon-mortar, and icon-mystery remain at 64×64 while the 6 tower selector icons are now 96×96. If visual consistency across all game icons is desired, consider regenerating these at 96×96 in a future pass.

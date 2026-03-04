@@ -2,8 +2,8 @@
  * Logo Integration — TASK-040 (Generate & Integrate Ojibwe TD Logo).
  *
  * Structural source-pattern tests verifying the logo is loaded in BootScene,
- * displayed in MainMenuScene with proper scaling, and falls back to text when
- * the texture is missing.
+ * displayed in MainMenuScene in the LEFT panel with proper scaling, and falls
+ * back to text when the texture is missing.
  */
 import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
@@ -49,7 +49,7 @@ describe('BootScene logo preload', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 3. MainMenuScene — logo image display
+// 3. MainMenuScene — logo image display (left panel)
 // ═══════════════════════════════════════════════════════════════════════════
 describe('MainMenuScene logo display', () => {
   it("checks texture existence with textures.exists('logo')", () => {
@@ -61,10 +61,9 @@ describe('MainMenuScene logo display', () => {
   });
 
   it('sets origin to (0.5) for centre alignment', () => {
-    // Inside the logo-image branch
     const logoBlock = mainMenuSrc.slice(
-      mainMenuSrc.indexOf("this.add.image(cx, y, 'logo')"),
-      mainMenuSrc.indexOf("this.add.image(cx, y, 'logo')") + 200,
+      mainMenuSrc.indexOf("this.add.image(logoX, logoY, 'logo')"),
+      mainMenuSrc.indexOf("this.add.image(logoX, logoY, 'logo')") + 200,
     );
     expect(logoBlock).toContain('.setOrigin(0.5)');
   });
@@ -72,31 +71,26 @@ describe('MainMenuScene logo display', () => {
   it('uses setDisplaySize for final sizing', () => {
     expect(mainMenuSrc).toContain('logoImg.setDisplaySize(finalW, finalH)');
   });
+
+  it('logo is positioned just left of stage card area', () => {
+    expect(mainMenuSrc).toContain('STAGE_W / 2) - 120');
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 4. MainMenuScene — scaling formula matches acceptance criteria
+// 4. MainMenuScene — scaling formula (left panel, larger than before)
 // ═══════════════════════════════════════════════════════════════════════════
 describe('MainMenuScene logo scaling', () => {
-  it('computes desiredW via Math.min(width * 0.7, 512)', () => {
-    expect(mainMenuSrc).toContain('Math.min(width * 0.7, 512)');
-  });
-
   it('calculates aspect ratio from texture dimensions', () => {
     expect(mainMenuSrc).toMatch(/aspect\s*=\s*logoImg\.width\s*\/\s*logoImg\.height/);
   });
 
-  it('caps height at 70px on mobile', () => {
-    expect(mainMenuSrc).toMatch(/this\._isMobile\s*\?\s*70\s*:\s*120/);
+  it('caps height at maxH', () => {
+    expect(mainMenuSrc).toMatch(/maxH\s*=\s*this\._isMobile/);
   });
 
-  it('caps height at 120px on desktop', () => {
-    // Same line as above — just verify 120 is present
-    expect(mainMenuSrc).toContain(': 120');
-  });
-
-  it('finalH is min of desired height and maxH', () => {
-    expect(mainMenuSrc).toContain('Math.min(desiredW / aspect, maxH)');
+  it('finalH is min of maxH and maxW/aspect', () => {
+    expect(mainMenuSrc).toContain('Math.min(maxH, maxW / aspect)');
   });
 
   it('finalW preserves aspect ratio', () => {
@@ -109,7 +103,6 @@ describe('MainMenuScene logo scaling', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 describe('MainMenuScene text fallback', () => {
   it("renders 'OJIBWE TD' text in the else branch", () => {
-    // The else branch should contain the OJIBWE TD text
     const elseIdx = mainMenuSrc.indexOf('Fallback: text title');
     expect(elseIdx).toBeGreaterThan(-1);
     const fallbackBlock = mainMenuSrc.slice(elseIdx, elseIdx + 300);
@@ -130,22 +123,20 @@ describe('MainMenuScene text fallback', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 6. Layout offset — logo area pushes content down
+// 6. Layout — logo is in left panel, not in vertical flow
 // ═══════════════════════════════════════════════════════════════════════════
-describe('MainMenuScene layout offset for logo', () => {
-  it('computes logoAreaH only when logo texture exists', () => {
-    expect(mainMenuSrc).toMatch(/logoAreaH\s*=\s*hasLogo\s*\?/);
+describe('MainMenuScene layout — logo in left panel', () => {
+  it('logo is no longer in the vertical header flow', () => {
+    // No logoAreaH in the vertical layout computation
+    expect(mainMenuSrc).not.toMatch(/labelY\s*=\s*TOP_PAD\s*\+\s*logoAreaH/);
   });
 
-  it('logoAreaH is 0 when logo is missing (no layout disruption)', () => {
-    expect(mainMenuSrc).toContain(': 0');
-    // Verify the ternary ends with : 0
-    const match = mainMenuSrc.match(/logoAreaH\s*=\s*hasLogo\s*\?[^;]*:\s*0/);
-    expect(match).not.toBeNull();
+  it('labelY starts directly from TOP_PAD', () => {
+    expect(mainMenuSrc).toContain('const labelY = TOP_PAD;');
   });
 
-  it('labelY accounts for logoAreaH offset', () => {
-    expect(mainMenuSrc).toContain('TOP_PAD + logoAreaH');
+  it('logoY is aligned with stageRowY', () => {
+    expect(mainMenuSrc).toContain('const logoY = this.stageRowY');
   });
 });
 
@@ -154,7 +145,6 @@ describe('MainMenuScene layout offset for logo', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 describe('MainMenuScene breathing glow on logo', () => {
   it('logo image branch has Sine.easeInOut breathing tween', () => {
-    // Get the logo image block (between "Logo image" and "Fallback")
     const startIdx = mainMenuSrc.indexOf('Logo image');
     const endIdx   = mainMenuSrc.indexOf('Fallback: text title');
     const block = mainMenuSrc.slice(startIdx, endIdx);

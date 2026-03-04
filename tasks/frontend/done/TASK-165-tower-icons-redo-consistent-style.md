@@ -1,7 +1,7 @@
 ---
 id: TASK-165
 title: Tower Selector Icons — Regenerate ALL 6 With Consistent DALL-E 3 Style
-status: pending
+status: done
 priority: critical
 category: frontend
 phase: polish

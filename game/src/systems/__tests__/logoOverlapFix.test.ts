@@ -91,8 +91,8 @@ describe('layout cleanup', () => {
     expect(mainMenuSrc).not.toMatch(/const\s+iconY\s*=/);
   });
 
-  it('labelY is computed directly from TOP_PAD + logoAreaH', () => {
-    expect(mainMenuSrc).toMatch(/const\s+labelY\s*=\s*TOP_PAD\s*\+\s*logoAreaH/);
+  it('labelY is computed directly from TOP_PAD (logo in left panel now)', () => {
+    expect(mainMenuSrc).toMatch(/const\s+labelY\s*=\s*TOP_PAD/);
   });
 
   it('no 28px icon-row offset in labelY computation', () => {

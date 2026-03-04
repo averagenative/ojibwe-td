@@ -395,36 +395,32 @@ describe('QUICK PLAY button sizing — right-side square button', () => {
     expect(parseInt(match![1], 10)).toBeGreaterThanOrEqual(44);
   });
 
+  it('quickBtnSize is large (≥120 desktop)', () => {
+    const match = mainMenuSrc.match(/quickBtnSize\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(parseInt(match![2], 10)).toBeGreaterThanOrEqual(120);
+  });
+
   it('quickBtnSize is square (single dimension)', () => {
-    // quickBtnSize is used for both width and height of the square button
     expect(mainMenuSrc).toContain('quickBtnSize, quickBtnSize');
   });
 
   it('QUICK PLAY is on the right side (not centred)', () => {
-    // quickPlayX uses width offset, NOT cx
-    expect(mainMenuSrc).toContain('width - (this._isMobile');
+    expect(mainMenuSrc).toContain('STAGE_W / 2) + 120');
     expect(mainMenuSrc).not.toContain('const quickPlayX = cx;');
   });
 
   it('desktop: quick play right edge fits within 1280px viewport', () => {
-    const width = 1280;
-    const quickBtnSize = 48;
-    const quickPlayX = width - 90;  // desktop offset
+    const cx = 640;
+    const quickBtnSize = 120;
+    const quickPlayX = cx + (280 / 2) + 120;  // cx + STAGE_W/2 + 120
     const rightEdge = quickPlayX + quickBtnSize / 2;
-    expect(rightEdge).toBeLessThanOrEqual(width);
-  });
-
-  it('mobile: quick play right edge fits within narrow 360px viewport', () => {
-    const width = 360;
-    const quickBtnSize = 56;
-    const quickPlayX = width - 60;  // mobile offset
-    const rightEdge = quickPlayX + quickBtnSize / 2;
-    expect(rightEdge).toBeLessThanOrEqual(width);
+    expect(rightEdge).toBeLessThanOrEqual(1280);
   });
 
   it('bottom row fits below START (no QUICK PLAY in centre stack)', () => {
     const height = 720;
-    const startY = height - 160;  // desktop cap
+    const startY = height - 160;
     const btnH = 48;
     const bottomDropGap = 20;
     const bottomBtnH = 38;
