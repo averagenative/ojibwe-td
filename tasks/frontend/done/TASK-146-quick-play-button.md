@@ -1,7 +1,7 @@
 ---
 id: TASK-146
 title: Quick Play / "Just Play" Button — Auto-Select and Go
-status: pending
+status: done
 priority: medium
 category: frontend
 phase: polish
