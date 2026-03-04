@@ -118,6 +118,28 @@ export const MAP_PATH_LENGTH_PX = 2400;
  */
 export const SAVANNAH_PATH_LENGTH_PX = 1640;
 
+// ── Creep count per wave (mirrors public/data/waves.json) ─────────────────────
+
+/**
+ * Number of main-pool creeps spawned each wave (boss escorts are separate).
+ * Index 0 = wave 1, index 19 = wave 20.
+ *
+ * Waves 1–9 establish the early-game baseline (8–18 creeps).
+ * Waves 10–14 step up significantly (22–30) to overwhelm thin mid-game defences.
+ * Waves 15–19 escalate further (32–48) forcing wider tower coverage.
+ * Wave 20 peaks at 50 for a climactic final push.
+ */
+export const WAVE_CREEP_COUNTS: readonly number[] = [
+  //  w1   w2   w3   w4   w5
+       8,  10,  12,  12,  14,
+  //  w6   w7   w8   w9  w10
+      14,  16,  16,  18,  22,
+  // w11  w12  w13  w14  w15
+      24,  26,  28,  30,  32,
+  // w16  w17  w18  w19  w20
+      36,  40,  44,  48,  50,
+];
+
 // ── Balance validation bands ──────────────────────────────────────────────────
 
 /**
