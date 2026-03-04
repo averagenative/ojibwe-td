@@ -17,7 +17,7 @@ import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
 import type { MapData } from '../types/MapData';
-import { TILE, getWaypointPaths, getAirWaypointPaths } from '../types/MapData';
+import { TILE, getWaypointPaths, getAirWaypointPaths, isBuildable as tileIsBuildable } from '../types/MapData';
 import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
 import { getStageDef, getStageByPathFile, getRegionDef } from '../data/stageDefs';
@@ -1681,7 +1681,17 @@ export class GameScene extends Phaser.Scene {
   private tryPlaceTower(worldX: number, worldY: number): void {
     if (!this.placementDef) return;
     const { col, row } = this.worldToTile(worldX, worldY);
-    if (!this.isBuildable(col, row)) return;
+    if (!this.isBuildable(col, row)) {
+      // Show feedback for TREE / ROCK tiles that block construction.
+      const { cols, rows, tiles } = this.mapData;
+      if (col >= 0 && col < cols && row >= 0 && row < rows) {
+        const t = tiles[row][col];
+        if (t === TILE.TREE || t === TILE.BIRCH || t === TILE.ROCK) {
+          this.showTemporaryMessage("Can't build here", 1200);
+        }
+      }
+      return;
+    }
     if (this.isTileOccupied(col, row)) return;
 
     // Compute actual cost with all active offer modifiers (Merchant's Favor, etc.).
@@ -2052,7 +2062,7 @@ export class GameScene extends Phaser.Scene {
   private isBuildable(col: number, row: number): boolean {
     const { cols, rows, tiles } = this.mapData;
     if (col < 0 || col >= cols || row < 0 || row >= rows) return false;
-    return tiles[row][col] === TILE.BUILDABLE;
+    return tileIsBuildable(tiles[row][col]);
   }
 
   private isTileOccupied(col: number, row: number): boolean {

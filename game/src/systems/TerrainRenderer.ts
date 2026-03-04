@@ -271,6 +271,243 @@ function drawGrassTuft(
   }
 }
 
+// ── Environment tile seed helper ────────────────────────────────────────────
+
+/**
+ * Deterministic seed for a tile grid position.
+ * Uses col * 31337 + row * 7919 as specified in the design notes.
+ * @internal
+ */
+export function tilePosSeed(col: number, row: number): number {
+  return (col * 31337 + row * 7919) | 0;
+}
+
+// ── Environment tile drawing ─────────────────────────────────────────────────
+
+/** Draw a TREE tile — dark green circle cluster (2–3 overlapping circles). */
+function drawTreeClusterTile(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  tileSize: number, pal: SeasonPalette,
+  seed: number,
+): void {
+  const h0 = posHash(seed, 0, 0, 0);
+  const h1 = posHash(seed, 0, 0, 1);
+  const h2 = posHash(seed, 0, 0, 2);
+  const h3 = posHash(seed, 0, 0, 3);
+  const h4 = posHash(seed, 0, 0, 4);
+
+  const colorIdx = Math.floor(h0 * pal.treeColors.length);
+  const baseColor = pal.treeColors[colorIdx];
+  const r1 = tileSize * (0.22 + h1 * 0.12);
+  const r2 = tileSize * (0.16 + h2 * 0.10);
+  const r3 = tileSize * (0.13 + h3 * 0.08);
+
+  // Main canopy circle
+  gfx.fillStyle(baseColor, 0.88);
+  gfx.fillCircle(cx + (h0 - 0.5) * tileSize * 0.2, cy + (h1 - 0.5) * tileSize * 0.15, r1);
+
+  // Second circle (overlapping)
+  const darker = shiftBrightness(baseColor, 0.75);
+  gfx.fillStyle(darker, 0.80);
+  gfx.fillCircle(
+    cx + (h2 - 0.5) * tileSize * 0.35,
+    cy + (h3 - 0.5) * tileSize * 0.25,
+    r2,
+  );
+
+  // Optional third circle
+  if (h4 > 0.35) {
+    const alt = pal.treeColors[(colorIdx + 1) % pal.treeColors.length];
+    gfx.fillStyle(shiftBrightness(alt, 0.85), 0.72);
+    gfx.fillCircle(
+      cx + (h3 - 0.5) * tileSize * 0.3,
+      cy + (h4 - 0.5) * tileSize * 0.3,
+      r3,
+    );
+  }
+
+  // Trunk hint
+  gfx.fillStyle(pal.trunkColor, 0.6);
+  gfx.fillRect(cx - 1.5, cy + r1 * 0.5, 3, 4);
+}
+
+/** Draw a BRUSH tile — light green irregular polygon (seeded randomisation). */
+function drawBrushTile(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  tileSize: number,
+  seed: number,
+): void {
+  const vertexCount = 5 + (posHash(seed, 0, 0, 10) > 0.5 ? 1 : 0);
+  const baseR = tileSize * 0.32;
+  const xs: number[] = [];
+  const ys: number[] = [];
+
+  for (let i = 0; i < vertexCount; i++) {
+    const angle = (i / vertexCount) * Math.PI * 2;
+    const jitter = posHash(seed, 0, i, 11);
+    const r = baseR * (0.65 + jitter * 0.55);
+    xs.push(cx + Math.cos(angle) * r + (posHash(seed, i, 0, 12) - 0.5) * tileSize * 0.08);
+    ys.push(cy + Math.sin(angle) * r + (posHash(seed, 0, i, 13) - 0.5) * tileSize * 0.08);
+  }
+
+  // Cattail marsh green, slightly brighter than ground
+  const brushColor = 0x6B8F3E;
+  gfx.fillStyle(brushColor, 0.70);
+  gfx.fillPoints(
+    xs.map((x, i) => ({ x, y: ys[i] })),
+    true,
+  );
+
+  // Lighter highlight spot
+  gfx.fillStyle(shiftBrightness(brushColor, 1.25), 0.35);
+  gfx.fillCircle(
+    cx + (posHash(seed, 0, 0, 14) - 0.5) * tileSize * 0.15,
+    cy + (posHash(seed, 0, 0, 15) - 0.5) * tileSize * 0.15,
+    tileSize * 0.12,
+  );
+}
+
+/** Draw a ROCK tile — grey irregular polygon (5–7 vertices). */
+function drawRockPolygonTile(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  tileSize: number,
+  seed: number,
+): void {
+  const vertexCount = 5 + Math.floor(posHash(seed, 0, 0, 20) * 3); // 5-7
+  const baseR = tileSize * 0.36;
+  const xs: number[] = [];
+  const ys: number[] = [];
+
+  for (let i = 0; i < vertexCount; i++) {
+    const angle = (i / vertexCount) * Math.PI * 2 + posHash(seed, 0, 0, 21) * 0.4;
+    const jitter = posHash(seed, 0, i, 22);
+    const r = baseR * (0.55 + jitter * 0.6);
+    xs.push(cx + Math.cos(angle) * r);
+    ys.push(cy + Math.sin(angle) * r);
+  }
+
+  // Granite grey (#8C8070) as specified in notes
+  const rockBase = 0x8C8070;
+  gfx.fillStyle(rockBase, 0.80);
+  gfx.fillPoints(
+    xs.map((x, i) => ({ x, y: ys[i] })),
+    true,
+  );
+
+  // Darker shadow edge
+  gfx.fillStyle(shiftBrightness(rockBase, 0.65), 0.45);
+  gfx.fillPoints(
+    xs.map((x, i) => ({
+      x: x + (posHash(seed, i, 0, 23) - 0.5) * 2,
+      y: ys[i] + 1.5 + posHash(seed, 0, i, 24) * 2,
+    })),
+    true,
+  );
+
+  // Highlight
+  gfx.fillStyle(shiftBrightness(rockBase, 1.35), 0.30);
+  gfx.fillCircle(
+    cx + (posHash(seed, 0, 0, 25) - 0.5) * tileSize * 0.18,
+    cy - tileSize * 0.1 + (posHash(seed, 0, 0, 26) - 0.5) * tileSize * 0.1,
+    tileSize * 0.10,
+  );
+}
+
+/** Draw a WATER tile — blue rectangle with lighter horizontal ripple stripe. */
+function drawWaterTile(
+  gfx: Phaser.GameObjects.Graphics,
+  x: number, y: number,
+  tileSize: number,
+): void {
+  // Lake blue (#4A7FA5) base
+  const waterBase  = 0x4A7FA5;
+  const rippleColor = 0x6FA8C4;
+
+  gfx.fillStyle(waterBase, 0.82);
+  gfx.fillRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+
+  // 2 subtle horizontal ripple stripes
+  const stripeH = Math.max(1, Math.floor(tileSize * 0.07));
+  const stripe1Y = y + Math.floor(tileSize * 0.3);
+  const stripe2Y = y + Math.floor(tileSize * 0.62);
+  const insetX   = Math.floor(tileSize * 0.12);
+
+  gfx.fillStyle(rippleColor, 0.45);
+  gfx.fillRect(x + insetX, stripe1Y, tileSize - insetX * 2, stripeH);
+  gfx.fillRect(x + insetX, stripe2Y, tileSize - insetX * 2 - 2, stripeH);
+}
+
+/** Draw a BIRCH tile — white/tan circle cluster (birch grove). */
+function drawBirchTile(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  tileSize: number,
+  seed: number,
+): void {
+  const h0 = posHash(seed, 0, 0, 30);
+  const h1 = posHash(seed, 0, 0, 31);
+  const h2 = posHash(seed, 0, 0, 32);
+  const h3 = posHash(seed, 0, 0, 33);
+
+  const barkWhite = 0xE8DCC8;
+  const leafGreen = 0x7CA850;
+
+  // Main canopy
+  const r1 = tileSize * (0.20 + h0 * 0.10);
+  gfx.fillStyle(leafGreen, 0.80);
+  gfx.fillCircle(cx + (h0 - 0.5) * tileSize * 0.2, cy + (h1 - 0.5) * tileSize * 0.15, r1);
+
+  // Second canopy
+  gfx.fillStyle(shiftBrightness(leafGreen, 1.15), 0.70);
+  gfx.fillCircle(
+    cx + (h2 - 0.5) * tileSize * 0.3,
+    cy + (h3 - 0.5) * tileSize * 0.2,
+    tileSize * (0.15 + h1 * 0.08),
+  );
+
+  // White bark trunk hint
+  gfx.fillStyle(barkWhite, 0.7);
+  gfx.fillRect(cx - 1, cy + r1 * 0.4, 2.5, 5);
+  if (h2 > 0.4) {
+    gfx.fillRect(cx + (h3 - 0.5) * tileSize * 0.2, cy + r1 * 0.3, 2, 4);
+  }
+}
+
+/** Draw a CATTAIL tile — marsh green base with brown vertical stalks. */
+function drawCattailTile(
+  gfx: Phaser.GameObjects.Graphics,
+  cx: number, cy: number,
+  tileSize: number,
+  seed: number,
+): void {
+  const marshGreen = 0x6B8F3E;
+  const stalkBrown = 0x6B4226;
+
+  // Marsh base — soft green oval
+  const baseR = tileSize * 0.30;
+  gfx.fillStyle(marshGreen, 0.55);
+  gfx.fillEllipse(cx, cy, baseR * 2, baseR * 1.4);
+
+  // 2-3 cattail stalks
+  const count = 2 + (posHash(seed, 0, 0, 40) > 0.5 ? 1 : 0);
+  for (let i = 0; i < count; i++) {
+    const h = posHash(seed, 0, i, 41);
+    const sx = cx + (h - 0.5) * tileSize * 0.4;
+    const stalkH = tileSize * (0.35 + posHash(seed, i, 0, 42) * 0.15);
+
+    // Thin green stalk
+    gfx.fillStyle(shiftBrightness(marshGreen, 0.8), 0.75);
+    gfx.fillRect(sx - 0.5, cy - stalkH * 0.4, 1.2, stalkH);
+
+    // Brown cattail head
+    gfx.fillStyle(stalkBrown, 0.80);
+    gfx.fillEllipse(sx, cy - stalkH * 0.4, 3, 5);
+  }
+}
+
 // ── Path detail drawing ─────────────────────────────────────────────────────
 
 /** Draw a cluster of 2-4 tiny pebbles on a path tile. */
@@ -437,18 +674,31 @@ export function renderTerrain(
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      if (tiles[row][col] === TILE.PATH) continue;
+      const tileType = tiles[row][col];
+      if (tileType === TILE.PATH) continue;
 
       const x = col * ts;
       const y = row * ts;
 
-      // ── Ground tile (BUILDABLE or SCENERY) ──
+      // ── WATER tiles get a distinct blue base rather than ground green ──
+      if (tileType === TILE.WATER) {
+        baseGfx.fillStyle(0x1e4a6a, 1);
+        baseGfx.fillRect(x, y, ts, ts);
+        // No grid line / accent overlay for water
+        continue;
+      }
+
+      // ── Ground tile (BUILDABLE, SCENERY, TREE, BRUSH, ROCK) ──
       const noise = posHash(seed, row, col, 0);
       const edgeDist = Math.min(row, rows - 1 - row, col, cols - 1 - col);
 
       let brightnessFactor = 0.9 + noise * 0.2;
       if (edgeDist === 0)      brightnessFactor *= 0.82;
       else if (edgeDist === 1) brightnessFactor *= 0.91;
+
+      // TREE and ROCK tiles get a slightly darker ground base
+      if (tileType === TILE.TREE || tileType === TILE.BIRCH) brightnessFactor *= 0.80;
+      if (tileType === TILE.ROCK) brightnessFactor *= 0.88;
 
       const color = shiftBrightness(pal.groundBase, brightnessFactor);
       baseGfx.fillStyle(color, 1);
@@ -611,7 +861,57 @@ export function renderTerrain(
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      if (tiles[row][col] !== TILE.BUILDABLE) continue;
+      const tileType = tiles[row][col];
+
+      // ── Explicit environment tiles ──
+      // These render deterministically based on tile position seed.
+      if (tileType === TILE.TREE) {
+        const tileSeed = tilePosSeed(col, row);
+        const cx = col * ts + ts / 2;
+        const cy = row * ts + ts / 2;
+        drawTreeClusterTile(decoGfx, cx, cy, ts, pal, tileSeed);
+        continue;
+      }
+
+      if (tileType === TILE.BIRCH) {
+        const tileSeed = tilePosSeed(col, row);
+        const cx = col * ts + ts / 2;
+        const cy = row * ts + ts / 2;
+        drawBirchTile(decoGfx, cx, cy, ts, tileSeed);
+        continue;
+      }
+
+      if (tileType === TILE.BRUSH) {
+        const tileSeed = tilePosSeed(col, row);
+        const cx = col * ts + ts / 2;
+        const cy = row * ts + ts / 2;
+        drawBrushTile(decoGfx, cx, cy, ts, tileSeed);
+        continue;
+      }
+
+      if (tileType === TILE.ROCK) {
+        const tileSeed = tilePosSeed(col, row);
+        const cx = col * ts + ts / 2;
+        const cy = row * ts + ts / 2;
+        drawRockPolygonTile(decoGfx, cx, cy, ts, tileSeed);
+        continue;
+      }
+
+      if (tileType === TILE.WATER) {
+        drawWaterTile(decoGfx, col * ts, row * ts, ts);
+        continue;
+      }
+
+      if (tileType === TILE.CATTAIL) {
+        const tileSeed = tilePosSeed(col, row);
+        const cx = col * ts + ts / 2;
+        const cy = row * ts + ts / 2;
+        drawCattailTile(decoGfx, cx, cy, ts, tileSeed);
+        continue;
+      }
+
+      // ── Probabilistic scatter decoration on plain BUILDABLE tiles ──
+      if (tileType !== TILE.BUILDABLE) continue;
       if (isNearSpawnOrExit(row, col, spawnWp, exitWp)) continue;
 
       const edgeDist = Math.min(row, rows - 1 - row, col, cols - 1 - col);

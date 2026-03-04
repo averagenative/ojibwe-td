@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import type { MapData } from '../types/MapData';
+import { TILE } from '../types/MapData';
 import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
 import { MobileManager } from '../systems/MobileManager';
@@ -161,6 +163,16 @@ export class MainMenuScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'MainMenuScene' });
+  }
+
+  preload(): void {
+    // Load map JSON files for stage card thumbnail previews.
+    const mapIds = new Set(ALL_STAGES.map(s => s.pathFile));
+    for (const mapId of mapIds) {
+      if (!this.cache.json.has(mapId)) {
+        this.load.json(mapId, `data/maps/${mapId}.json`);
+      }
+    }
   }
 
   create(): void {
@@ -643,6 +655,31 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(DEPTH_STAGE + 1);
     created.push(desc);
 
+    // ── Map thumbnail preview ──────────────────────────────────────────────
+    const mapData = this.cache.json.has(stage.pathFile)
+      ? (this.cache.json.get(stage.pathFile) as MapData)
+      : null;
+    if (mapData) {
+      const tileScale = this._isMobile ? 2 : 1;
+      const thumbW    = mapData.cols * tileScale;
+      const thumbH    = mapData.rows * tileScale;
+      const thumbTop  = by - sh / 2 + 100;
+      const thumbLeft = bx - thumbW / 2;
+      const thumbGfx  = this.add.graphics().setDepth(DEPTH_STAGE + 1);
+
+      // Subtle dark backdrop for contrast
+      thumbGfx.fillStyle(0x000000, 0.3);
+      thumbGfx.fillRect(thumbLeft - 1, thumbTop - 1, thumbW + 2, thumbH + 2);
+
+      this._drawMapThumbnail(thumbGfx, thumbLeft, thumbTop, mapData, tileScale);
+
+      // Thin border
+      thumbGfx.lineStyle(1, 0x445544, 0.6);
+      thumbGfx.strokeRect(thumbLeft - 1, thumbTop - 1, thumbW + 2, thumbH + 2);
+
+      created.push(thumbGfx);
+    }
+
     if (isLocked) {
       const unlockNode = stage.unlockId
         ? UNLOCK_NODES.find(n => n.id === stage.unlockId)
@@ -1104,6 +1141,55 @@ export class MainMenuScene extends Phaser.Scene {
         );
         p.life = 0;
         p.maxLife = 2200 + Math.random() * 1500;
+      }
+    }
+  }
+
+  // ── Map thumbnail ───────────────────────────────────────────────────────────
+
+  /**
+   * Draw a tiny tile-grid thumbnail of a map onto a Graphics object.
+   *
+   * Uses coloured dots (1–2 px per tile) to represent tile types including
+   * environment tiles (TREE, BRUSH, ROCK, WATER).
+   *
+   * @param gfx     Graphics object to draw into (caller owns lifetime).
+   * @param left    Left edge of the thumbnail in scene coordinates.
+   * @param top     Top edge of the thumbnail in scene coordinates.
+   * @param mapData The loaded MapData to render.
+   * @param scale   Pixels per tile (1 = tiny, 2 = compact).
+   */
+  private _drawMapThumbnail(
+    gfx: Phaser.GameObjects.Graphics,
+    left: number, top: number,
+    mapData: MapData,
+    scale: number,
+  ): void {
+    const { cols, rows, tiles } = mapData;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const t    = tiles[row][col];
+        const x    = left + col * scale;
+        const y    = top  + row * scale;
+        let color: number;
+        let alpha = 1.0;
+
+        switch (t) {
+          case TILE.PATH:      color = 0x6b5535; break;
+          case TILE.TREE:      color = 0x2D5016; break;
+          case TILE.BIRCH:     color = 0xC8B898; break;
+          case TILE.BRUSH:     color = 0x6B8F3E; break;
+          case TILE.ROCK:      color = 0x8C8070; break;
+          case TILE.WATER:     color = 0x4A7FA5; break;
+          case TILE.CATTAIL:   color = 0x5A7A34; break;
+          case TILE.SCENERY:
+          case TILE.BUILDABLE:
+          default:             color = 0x2a4020; alpha = 0.7; break;
+        }
+
+        gfx.fillStyle(color, alpha);
+        gfx.fillRect(x, y, scale, scale);
       }
     }
   }
