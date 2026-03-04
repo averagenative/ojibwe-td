@@ -2646,3 +2646,13 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Give-up quit skips GameOverScene** — `_quitToMainMenu()` goes directly to MainMenuScene per the AC, so the player doesn't see their run stats or earn run currency. Consider offering a "Quit Summary" screen (or routing through GameOverScene with a `gaveUp: true` flag) so players still see kills/waves/currency earned before returning to the menu.
 - **No game-over audio on quit** — `triggerGameOver()` plays `AudioManager.playGameOver()`, but `_quitToMainMenu()` does not play any audio cue. A subtle "quit" sound or reusing the game-over jingle would provide auditory feedback that the action was successful.
+
+### TASK-149 Review Findings (Debuff Effects Sprite-Bounded)
+
+- **`_bodyGfx` and `bodyRect` paths missing shocked/shredded tint** — `refreshStatusVisual()` now applies shocked and shredded tints for `bodyImage` creeps, but the `_bodyGfx` (Graphics body) and `bodyRect` (Rectangle body) branches still only handle slowed, poisoned, and burning. Non-sprite creeps rely on rectangle overlays from `_syncOverlay` for those effects, which works, but adding direct body colour changes would be more consistent across all rendering paths.
+- **Poison stack intensity lost for sprite-path creeps** — The overlay-based approach used `poisonOverlayAlpha(dotStacks)` to scale opacity with stack count (0.15–0.6). The new tint-based approach applies a flat tint regardless of stack count. Consider using `setTintFill()` with alpha blending or cycling tint intensity to restore visual feedback for poison stack depth.
+
+### TASK-150 Review Findings (Tower Projectile Visual Overhaul)
+
+- **`_tumblePhase` grows unboundedly** — The Rock Hurler tumble rotation accumulates without a modulo wrap. Over a very long session this float could lose precision. A periodic `% (2 * Math.PI)` wrap in `advanceTumble()` would be cleaner, though Phaser's `setRotation` handles large values correctly so this is cosmetic.
+- **No impact effects for aura tower** — The task spec mentions a periodic pulse ring for aura towers, but since aura doesn't fire projectiles (confirmed in task notes), this is correctly omitted from Projectile.ts. If aura pulse visuals are desired, they belong in Tower.ts or a dedicated AuraPulse system, not in the projectile pipeline.

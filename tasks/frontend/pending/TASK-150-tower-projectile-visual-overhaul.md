@@ -1,7 +1,7 @@
 ---
 id: TASK-150
 title: Tower Projectile Visual Overhaul — Distinct Attack Visuals Per Tower Type
-status: pending
+status: in-progress
 priority: high
 category: frontend
 phase: polish

@@ -1,7 +1,7 @@
 ---
 id: TASK-149
 title: Debuff Visual Effects Should Cover Creep Sprite Only, Not Full Box
-status: pending
+status: done
 priority: high
 category: frontend
 phase: polish
