@@ -135,6 +135,31 @@ export function tickRegen(
   };
 }
 
+// ── Boss escape penalty ───────────────────────────────────────────────────────
+
+/**
+ * Base lives lost when a boss creep escapes (wave 5, the first boss).
+ * Each subsequent boss wave (every 5 waves) adds 1 extra life, up to
+ * BOSS_ESCAPE_MAX_LIVES.
+ *
+ * Penalty table:
+ *   Wave 5  → 5 lives   Wave 10 → 6 lives
+ *   Wave 15 → 7 lives   Wave 20 → 8 lives
+ *   Wave 25 → 9 lives   Wave 30+ → 10 lives (capped)
+ */
+export const BOSS_ESCAPE_BASE_LIVES = 5;
+export const BOSS_ESCAPE_MAX_LIVES  = 10;
+
+/**
+ * Compute the life penalty for a boss creep that escapes on `waveNumber`.
+ * Scales from BOSS_ESCAPE_BASE_LIVES (5) at wave 5 to BOSS_ESCAPE_MAX_LIVES
+ * (10) at wave 30+, adding 1 per boss tier (every 5 waves).
+ */
+export function bossEscapeLiveCost(waveNumber: number): number {
+  const tier = Math.floor((waveNumber - 5) / 5); // 0 at w5, 1 at w10, …
+  return Math.min(BOSS_ESCAPE_BASE_LIVES + Math.max(0, tier), BOSS_ESCAPE_MAX_LIVES);
+}
+
 // ── Boss archetypes ───────────────────────────────────────────────────────────
 
 /**

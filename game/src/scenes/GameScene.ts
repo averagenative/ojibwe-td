@@ -672,11 +672,12 @@ export class GameScene extends Phaser.Scene {
       // Achievement: show any newly unlocked toasts (kills are committed on run end, not per-kill)
     });
 
-    // liveCost is 1 for normal creeps; boss escape emits 3.
-    this.events.on('creep-escaped', (data: { liveCost: number; reward: number }) => {
+    // liveCost: 1 for normal creeps; boss escapes use scaling penalty (5–10 lives).
+    this.events.on('creep-escaped', (data: { liveCost: number; reward: number; isBoss?: boolean }) => {
       AudioManager.getInstance().playCreepEscaped();
       const liveCost = data?.liveCost ?? 1;
       const reward   = data?.reward   ?? 0;
+      const isBoss   = data?.isBoss   ?? false;
 
       // Tax Collector: escaped creeps refund 50% of their gold value.
       const taxRefund = this.offerManager.getEscapeRefund(reward);
@@ -697,6 +698,9 @@ export class GameScene extends Phaser.Scene {
 
       // Track life loss for Act 4 ending variant.
       if (effectiveCost > 0) this.vignetteManager.recordLifeLost();
+
+      // Show prominent visual feedback when a boss escapes.
+      if (isBoss && effectiveCost > 0) this._showBossEscapeFeedback(effectiveCost);
 
       if (this.lives <= 0) this.triggerGameOver();
     });
@@ -2209,6 +2213,36 @@ export class GameScene extends Phaser.Scene {
       y:        fy - 40,
       alpha:    0,
       duration: 1200,
+      ease:     'Quad.easeOut',
+      onComplete: () => feedbackText.destroy(),
+    });
+  }
+
+  /**
+   * Show a prominent floating "BOSS ESCAPED! -N ♥" warning near the lives
+   * counter when a boss creep reaches the exit.  The larger text and red
+   * colour make the heavy life penalty immediately visible.
+   */
+  private _showBossEscapeFeedback(liveCost: number): void {
+    // Lives text is at PADDING=16 from left, HUD_HEIGHT/2 vertically.
+    const fx = 80;
+    const fy = getHudHeight() / 2;
+
+    const feedbackText = this.add.text(fx, fy - 10, `BOSS ESCAPED!\n-${liveCost} ♥`, {
+      fontSize:        '20px',
+      color:           '#ff2222',
+      fontFamily:      'Georgia, serif',
+      fontStyle:       'bold',
+      stroke:          '#000000',
+      strokeThickness: 4,
+      align:           'center',
+    }).setOrigin(0.5, 1).setDepth(200);
+
+    this.tweens.add({
+      targets:  feedbackText,
+      y:        fy - 70,
+      alpha:    0,
+      duration: 1800,
       ease:     'Quad.easeOut',
       onComplete: () => feedbackText.destroy(),
     });

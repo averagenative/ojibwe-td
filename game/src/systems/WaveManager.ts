@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Creep } from '../entities/Creep';
 import type { CreepConfig, CreepType, BossKilledData } from '../entities/Creep';
 import { calculateWaveBonus } from './EconomyManager';
-import { BOSS_DEFS, computeWaaboozSplitConfig } from '../data/bossDefs';
+import { BOSS_DEFS, computeWaaboozSplitConfig, bossEscapeLiveCost } from '../data/bossDefs';
 import type { BossDef } from '../data/bossDefs';
 import type { RegionDifficulty } from '../data/regionDifficulty';
 
@@ -709,8 +709,9 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
     creep.once('reached-exit', () => {
       this.activeCreeps.delete(creep);
-      // Boss escape costs 3 lives; reward passed for Tax Collector.
-      this.scene.events.emit('creep-escaped', { liveCost: 3, reward: creep.reward });
+      // Boss escape penalty scales with wave number (5–10 lives).
+      const liveCost = bossEscapeLiveCost(wave.waveNumber);
+      this.scene.events.emit('creep-escaped', { liveCost, reward: creep.reward, isBoss: true });
       this._onSettledForWave(wave);
     });
 
