@@ -2686,3 +2686,11 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Normal creep escape still hardcodes `liveCost: 1`** — The `creep-escaped` event for normal creeps (in `_spawnOneForWave`) emits `{ liveCost: 1, reward: creep.reward }` without `isBoss`. This is correct but consider extracting a `NORMAL_ESCAPE_LIVE_COST` constant for parity with the boss constants and easier future tuning.
 - **Waabooz split mini-creep escapes emit normal `liveCost: 1`** — Mini-copies spawned from Waabooz's split-on-death use the regular creep `reached-exit` handler, so each mini-escape costs 1 life. This is intentional (mini-copies aren't bosses), but worth noting that a Waabooz escape + all 3 splits escaping costs 5 + 3 = 8 total lives on wave 15.
+
+### TASK-147 Review Findings (Seeded Random Map Generation)
+
+- **All non-path tiles are buildable** — The acceptance criteria say "buildable tiles placed adjacent to path segments," but the current implementation marks ALL non-path tiles as `TILE.BUILDABLE`. This works well for a Phase 1 prototype and arguably gives players more strategic variety; Phase 2 could introduce a distance-from-path heuristic to restrict buildable area if maps feel too easy.
+- **TILE.SCENERY (2) is never generated** — Generated maps only produce `TILE.BUILDABLE` (0) and `TILE.PATH` (1). Hand-crafted maps use `TILE.SCENERY` (2) for decoration. A future polish pass could scatter scenery tiles in corners or edges far from the path to add visual variety.
+- **`Rng.nextInt(min, max)` does not guard `min > max`** — Callers always pass valid ranges, but the method silently produces incorrect values if `min > max`. Consider adding a debug assertion.
+- **Phase 2 integration not yet wired** — `MapGenerator.ts` and `Rng.ts` are standalone (not imported by any scene). Phase 2 tasks (Quick Play integration, seed input field, seed display on HUD) are required before the feature is player-facing.
+- **No TASK-030 predecessor** — The task lists TASK-030 (seeded RNG) as a dependency, but Rng.ts was delivered inline with TASK-147. This is fine — the dependency is satisfied by the code itself.

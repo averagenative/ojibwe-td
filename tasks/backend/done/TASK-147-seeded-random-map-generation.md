@@ -1,7 +1,7 @@
 ---
 id: TASK-147
 title: Seeded Random Map & Path Generation (Binding of Isaac Style)
-status: pending
+status: done
 priority: medium
 category: backend
 phase: replayability
