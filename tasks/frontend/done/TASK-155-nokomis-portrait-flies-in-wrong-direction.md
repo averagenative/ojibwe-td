@@ -1,7 +1,7 @@
 ---
 id: TASK-155
 title: Nokomis Commander Portrait Flies Right-to-Left on Scene Entry
-status: pending
+status: done
 priority: high
 category: frontend
 phase: polish
