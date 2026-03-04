@@ -564,8 +564,10 @@ describe('HUD — ascension badge', () => {
   });
 });
 
+// TASK-137: Ascension picker UI removed from CommanderSelectScene (hidden pending design pass).
+// These structural tests are skipped until the picker is re-enabled.
 describe('CommanderSelectScene — ascension picker', () => {
-  it('imports ASCENSION_DEFS', () => {
+  it.skip('imports ASCENSION_DEFS', () => {
     expect(commanderSelectSrc).toContain("import { ASCENSION_DEFS }");
   });
 
@@ -577,19 +579,19 @@ describe('CommanderSelectScene — ascension picker', () => {
     expect(commanderSelectSrc).toContain('ascensionLevel: this._selectedAscension');
   });
 
-  it('shows Standard Run label for level 0', () => {
+  it.skip('shows Standard Run label for level 0', () => {
     expect(commanderSelectSrc).toContain("'Standard Run'");
   });
 
-  it('accesses ASCENSION_DEFS[_selectedAscension - 1] for level names', () => {
+  it.skip('accesses ASCENSION_DEFS[_selectedAscension - 1] for level names', () => {
     expect(commanderSelectSrc).toContain('ASCENSION_DEFS[this._selectedAscension - 1]');
   });
 
-  it('persists selection via setCurrentAscension', () => {
+  it.skip('persists selection via setCurrentAscension', () => {
     expect(commanderSelectSrc).toContain('setCurrentAscension(this._selectedAscension)');
   });
 
-  it('picker only shown when maxAvailable >= 1', () => {
+  it.skip('picker only shown when maxAvailable >= 1', () => {
     expect(commanderSelectSrc).toContain('if (maxAvailable >= 1)');
   });
 });
