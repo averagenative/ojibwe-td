@@ -1,7 +1,7 @@
 ---
 id: TASK-153
 title: Turret Rotation Box Still Visible — Regression from TASK-119
-status: pending
+status: done
 priority: high
 category: frontend
 phase: polish

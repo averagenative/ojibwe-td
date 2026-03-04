@@ -2656,3 +2656,7 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **`_tumblePhase` grows unboundedly** — The Rock Hurler tumble rotation accumulates without a modulo wrap. Over a very long session this float could lose precision. A periodic `% (2 * Math.PI)` wrap in `advanceTumble()` would be cleaner, though Phaser's `setRotation` handles large values correctly so this is cosmetic.
 - **No impact effects for aura tower** — The task spec mentions a periodic pulse ring for aura towers, but since aura doesn't fire projectiles (confirmed in task notes), this is correctly omitted from Projectile.ts. If aura pulse visuals are desired, they belong in Tower.ts or a dedicated AuraPulse system, not in the projectile pipeline.
+
+### TASK-153 Review Findings (Turret Rotation Box Regression)
+
+- **Stale test description in `towerIdleAnims.test.ts:433`** — Says "body Rectangle reference" but the body is now an `Arc`. The assertion (`toContain('_bodyRef')`) is correct; only the `it()` description string needs updating.
