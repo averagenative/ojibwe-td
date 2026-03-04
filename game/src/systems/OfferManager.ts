@@ -15,6 +15,41 @@
 import { ALL_OFFERS } from '../data/offerDefs';
 import type { OfferDef } from '../data/offerDefs';
 
+/**
+ * Targeting domain for each tower type.
+ * Used by canSynergize() to validate synergy offer compatibility.
+ * Unknown keys fall back to 'both' (permissive) so future towers don't
+ * silently break synergy offers.
+ */
+export const TOWER_TARGET_DOMAIN: Record<string, 'ground' | 'air' | 'both'> = {
+  'arrow':       'both',
+  'rock-hurler': 'ground',
+  'frost':       'both',
+  'poison':      'ground',
+  'tesla':       'air',
+  'aura':        'both',
+  'cannon':      'ground',
+  'mortar':      'ground',
+};
+
+/**
+ * Returns true when towerKeyA and towerKeyB can meaningfully interact — i.e.
+ * there exists at least one creep category (ground or air) that BOTH towers
+ * can target.  Unknown keys are treated as 'both' (permissive) so future
+ * tower types don't silently break existing synergy offers.
+ *
+ * Examples:
+ *   canSynergize('frost', 'rock-hurler') → true  (frost=both overlaps ground)
+ *   canSynergize('frost', 'tesla')       → true  (frost=both overlaps air)
+ *   canSynergize('tesla', 'poison')      → false (air ∩ ground = ∅)
+ */
+export function canSynergize(towerKeyA: string, towerKeyB: string): boolean {
+  const domainA = TOWER_TARGET_DOMAIN[towerKeyA] ?? 'both';
+  const domainB = TOWER_TARGET_DOMAIN[towerKeyB] ?? 'both';
+  if (domainA === 'both' || domainB === 'both') return true;
+  return domainA === domainB; // both 'ground' or both 'air'
+}
+
 export class OfferManager {
   private readonly activeIds = new Set<string>();
 
@@ -68,7 +103,24 @@ export class OfferManager {
       return o.synergyRequires.every(key => towerSet.has(key));
     };
 
-    const eligible   = ALL_OFFERS.filter(o => !this.activeIds.has(o.id) && synergyMet(o));
+    /**
+     * True when every pair of tower keys in synergyRequires can actually
+     * interact (share at least one targetable creep category).
+     * Offers referencing incompatible tower combos (e.g. air-only + ground-only)
+     * are excluded from the eligible pool so the player never sees a useless card.
+     */
+    const synergyCompatible = (o: OfferDef): boolean => {
+      if (!o.synergyRequires || o.synergyRequires.length < 2) return true;
+      const keys = o.synergyRequires;
+      for (let i = 0; i < keys.length; i++) {
+        for (let j = i + 1; j < keys.length; j++) {
+          if (!canSynergize(keys[i], keys[j])) return false;
+        }
+      }
+      return true;
+    };
+
+    const eligible   = ALL_OFFERS.filter(o => !this.activeIds.has(o.id) && synergyMet(o) && synergyCompatible(o));
     const fallback   = ALL_OFFERS.filter(o =>  this.activeIds.has(o.id));
 
     const result:  OfferDef[]    = [];
