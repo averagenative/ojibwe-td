@@ -200,7 +200,7 @@ describe('tooltip line generation', () => {
     const lines = buildTooltipLines({
       name: 'Nokomis',
       role: 'Sustain',
-      clan: 'Marten Clan',
+      clan: 'Crane Clan',
       aura: { name: 'Gitigaan', nameEnglish: 'Garden', description: 'Heal from kills.' },
       ability: { name: 'Medicine Bundle', nameEnglish: 'Medicine Bundle', description: 'Restore lives.' },
     }, false);
@@ -208,7 +208,7 @@ describe('tooltip line generation', () => {
     expect(lines).toHaveLength(10);
     expect(lines[0].text).toBe('Nokomis');
     expect(lines[0].bold).toBe(true);
-    expect(lines[1].text).toBe('Sustain · Marten Clan');
+    expect(lines[1].text).toBe('Sustain · Crane Clan');
     expect(lines[4].text).toBe('"Garden"');
     expect(lines[4].italic).toBe(true);
     expect(lines[7].text).toContain('(READY)');
@@ -258,7 +258,7 @@ describe('tooltip line generation', () => {
     const lines = buildTooltipLines({
       name: 'Nokomis',
       role: 'Sustain',
-      clan: 'Marten Clan',
+      clan: 'Crane Clan',
       aura: { name: 'Gitigaan', nameEnglish: 'Garden', description: 'Desc.' },
       ability: { name: 'Mashkiki', nameEnglish: 'Medicine Bundle', description: 'Desc.' },
     }, false);
