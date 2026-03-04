@@ -2733,3 +2733,7 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Layout fits exactly at the limit** — Both desktop (achBottom=706) and mobile (achBottom=706) hit exactly the 720−14=706 pixel cap. Any future addition of a button row or increased gap would overflow. Consider increasing the maxStartY offset if more vertical room is needed.
 - **TASK-162 side-by-side note is now obsolete** — TASK-163 switched QUICK PLAY to centred-below on both desktop and mobile, superseding the TASK-162 finding above.
+
+### TASK-166 Review Findings (Elder Portraits Regeneration)
+
+- **portrait-oshkaabewis.png was also regenerated** — The script regenerated Oshkaabewis's commander portrait alongside the 6 elder portraits. This wasn't in scope but is harmless since the same script owns all PIL-generated portraits. If DALL-E 3 commander portraits are generated separately (TASK-157), this file may get overwritten again.

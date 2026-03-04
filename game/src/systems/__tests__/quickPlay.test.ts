@@ -388,114 +388,49 @@ describe('MainMenuScene — _showQuickPlaySplash', () => {
 
 // ── Arithmetic tests — button sizing ─────────────────────────────────────────
 
-describe('QUICK PLAY button sizing', () => {
-  it('mobile height is exactly 44px (minimum touch target)', () => {
-    const match = mainMenuSrc.match(/quickBtnH\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
+describe('QUICK PLAY button sizing — right-side square button', () => {
+  it('quickBtnSize meets 44px touch target on mobile', () => {
+    const match = mainMenuSrc.match(/quickBtnSize\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
     expect(match).not.toBeNull();
-    const mobile = parseInt(match![1], 10);
-    expect(mobile).toBe(44);
-    expect(mobile).toBeGreaterThanOrEqual(44);
+    expect(parseInt(match![1], 10)).toBeGreaterThanOrEqual(44);
   });
 
-  it('desktop height is 38px', () => {
-    const match = mainMenuSrc.match(/quickBtnH\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
-    expect(match).not.toBeNull();
-    const desktop = parseInt(match![2], 10);
-    expect(desktop).toBe(38);
+  it('quickBtnSize is square (single dimension)', () => {
+    // quickBtnSize is used for both width and height of the square button
+    expect(mainMenuSrc).toContain('quickBtnSize, quickBtnSize');
   });
 
-  it('desktop: QUICK PLAY is centred below START GAME', () => {
-    const cx         = 640;   // 1280 / 2
-    const btnH       = 48;    // desktop
-    const quickBtnH  = 38;
-    const quickDropGap = 20;  // desktop gap
-    const startY     = 490;
-
-    const quickPlayX = cx;    // always centred
-    const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-
-    expect(quickPlayX).toBe(cx);                  // centred with START
-    expect(quickPlayY).toBeGreaterThan(startY);    // below START
-    // Gap between START bottom edge and QUICK PLAY top edge = quickDropGap
-    const startBottom  = startY + btnH / 2;
-    const quickTop     = quickPlayY - quickBtnH / 2;
-    expect(quickTop - startBottom).toBe(quickDropGap);
-  });
-
-  it('mobile: QUICK PLAY is centred below START GAME', () => {
-    const cx         = 180;   // 360 / 2
-    const btnH       = 60;    // mobile
-    const quickBtnH  = 44;
-    const quickDropGap = 16;  // mobile gap
-    const startY     = 490;
-
-    const quickPlayX = cx;    // always centred
-    const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-
-    expect(quickPlayX).toBe(cx);               // centred
-    expect(quickPlayY).toBeGreaterThan(startY); // below START
-    // Gap between START bottom edge and QUICK PLAY top edge = quickDropGap
-    const startBottom = startY + btnH / 2;
-    const quickTop    = quickPlayY - quickBtnH / 2;
-    expect(quickTop - startBottom).toBe(quickDropGap);
-  });
-
-  it('mobile: quick play right edge fits within narrow 360px viewport', () => {
-    const cx        = 180;
-    const quickBtnW = 240;
-
-    const quickPlayX = cx;   // centred
-    const rightEdge  = quickPlayX + quickBtnW / 2;
-
-    expect(rightEdge).toBeLessThanOrEqual(360);
+  it('QUICK PLAY is on the right side (not centred)', () => {
+    // quickPlayX uses width offset, NOT cx
+    expect(mainMenuSrc).toContain('width - (this._isMobile');
+    expect(mainMenuSrc).not.toContain('const quickPlayX = cx;');
   });
 
   it('desktop: quick play right edge fits within 1280px viewport', () => {
-    const cx        = 640;
-    const quickBtnW = 200;
-
-    const quickPlayX = cx;   // centred
-    const rightEdge  = quickPlayX + quickBtnW / 2;
-
-    expect(rightEdge).toBeLessThanOrEqual(1280);
+    const width = 1280;
+    const quickBtnSize = 48;
+    const quickPlayX = width - 90;  // desktop offset
+    const rightEdge = quickPlayX + quickBtnSize / 2;
+    expect(rightEdge).toBeLessThanOrEqual(width);
   });
 
-  it('mobile: bottom row + ach row fit below quick play within canvas', () => {
-    const height      = 720;
-    const maxStartY   = height - 232;  // mobile cap
-    const startY      = maxStartY;
-
-    const btnH         = 60;
-    const quickBtnH    = 44;
-    const quickDropGap = 16;  // mobile
-    const bottomDropGap = 16; // mobile
-    const bottomBtnH   = 48;
-
-    const quickPlayY  = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-    const bottomBtnY  = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
-    // achBtnY = bottomBtnY + bottomBtnH/2 + 16 + achBtnH/2 (achBtnH = bottomBtnH)
-    const achBottom   = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH;
-
-    // Must fit above footer (height - 14)
-    expect(achBottom).toBeLessThanOrEqual(height - 14);
+  it('mobile: quick play right edge fits within narrow 360px viewport', () => {
+    const width = 360;
+    const quickBtnSize = 56;
+    const quickPlayX = width - 60;  // mobile offset
+    const rightEdge = quickPlayX + quickBtnSize / 2;
+    expect(rightEdge).toBeLessThanOrEqual(width);
   });
 
-  it('desktop: bottom row + ach row fit below quick play within canvas', () => {
-    const height      = 720;
-    const maxStartY   = height - 208;  // desktop cap
-    const startY      = maxStartY;
+  it('bottom row fits below START (no QUICK PLAY in centre stack)', () => {
+    const height = 720;
+    const startY = height - 160;  // desktop cap
+    const btnH = 48;
+    const bottomDropGap = 20;
+    const bottomBtnH = 38;
 
-    const btnH          = 48;
-    const quickBtnH     = 38;
-    const quickDropGap  = 20;  // desktop
-    const bottomDropGap = 20;  // desktop
-    const bottomBtnH    = 38;
-
-    const quickPlayY  = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-    const bottomBtnY  = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
-    // achBtnY = bottomBtnY + bottomBtnH/2 + 16 + achBtnH/2 (achBtnH = bottomBtnH)
-    const achBottom   = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH;
-
+    const bottomBtnY = startY + btnH / 2 + bottomDropGap + bottomBtnH / 2;
+    const achBottom = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH;
     expect(achBottom).toBeLessThanOrEqual(height - 14);
   });
 });

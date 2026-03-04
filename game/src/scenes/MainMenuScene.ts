@@ -796,16 +796,17 @@ export class MainMenuScene extends Phaser.Scene {
   // ── Buttons ────────────────────────────────────────────────────────────────
 
   private createButtons(cx: number, height: number): void {
+    const { width } = this.scale;
     const stageBottom = this.stageRowY + this._stageH / 2 + 36;
     const btnW = this._isMobile ? 280 : 240;
     const btnH = this._isMobile ? 60  : 48;
 
     // ── Quick Play button sizing ────────────────────────────────────────────
-    // These constants drive both the layout math and the button rendering.
-    const quickBtnH    = this._isMobile ? 44  : 38;  // meets 44px touch target on mobile
-    const quickBtnW    = this._isMobile ? 240 : 200;
-    const quickDropGap = this._isMobile ? 16 : 20;   // vertical gap: START bottom → QUICK PLAY top
-    const bottomDropGap = this._isMobile ? 16 : 20;  // vertical gap: QUICK PLAY bottom → bottom row top
+    // IMPORTANT: Quick Play is deliberately positioned on the RIGHT side of
+    // the screen, separate from the main button stack. Keep it isolated so
+    // the centre column stays clean and uncluttered.
+    const quickBtnSize = this._isMobile ? 56 : 48;   // square button, meets 44px touch target
+    const bottomDropGap = this._isMobile ? 16 : 20;  // vertical gap: START bottom → bottom row top
 
     // ── Resume Game button (only shown when a save exists) ──────────────────
     const hasResume   = !!this._autoSave && this._autoSave.currentWave > 0;
@@ -823,15 +824,15 @@ export class MainMenuScene extends Phaser.Scene {
       const blockTopY   = stageBottom + blockTopGap;
       resumeY = blockTopY + resumeBtnH / 2;
       startY  = resumeY + resumeBtnH / 2 + resumeGap + btnH / 2;
-      // Cap to ensure quick play + bottom rows still fit.
-      const maxStartY = height - (this._isMobile ? 232 : 208);
+      // Cap to ensure bottom rows still fit (no QUICK PLAY in center stack).
+      const maxStartY = height - (this._isMobile ? 180 : 160);
       if (startY > maxStartY) {
         startY  = maxStartY;
         resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2;
       }
     } else {
       // Cap: bottom rows must fit below startY.
-      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 232 : 208));
+      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 180 : 160));
     }
 
     if (hasResume && this._autoSave) {
@@ -887,13 +888,20 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
-    // ── QUICK PLAY button — centred below START GAME (both mobile and desktop) ──
-    const quickPlayX = cx;
-    const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-    const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnW, quickBtnH, DEPTH_BUTTONS);
+    // ── QUICK PLAY — square button, RIGHT side, intentionally separate ──────
+    // Keep this isolated from the main centre column. It's a secondary feature
+    // button, not part of the primary play flow. Do NOT move it back to centre.
+    // Positioned in the empty right panel next to the stage card area.
+    const quickPlayX = width - (this._isMobile ? 60 : 90);
+    const quickPlayY = this.stageRowY + (this._isMobile ? 20 : 30);
+    const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnSize, quickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
-    const quickLabel = this.add.text(quickPlayX, quickPlayY, 'QUICK PLAY', {
-      fontSize: this._fs(this._isMobile ? 16 : 17),
+    // Two-line label: ⚡ icon on top, "QUICK" below
+    const quickIcon = this.add.text(quickPlayX, quickPlayY - 8, '⚡', {
+      fontSize: this._fs(18),
+    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+    const quickLabel = this.add.text(quickPlayX, quickPlayY + 10, 'QUICK', {
+      fontSize: this._fs(this._isMobile ? 9 : 8),
       color: '#d4a840',
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
@@ -902,12 +910,12 @@ export class MainMenuScene extends Phaser.Scene {
     quickP.zone.on('pointerover',  () => {
       fillPanel(quickP, R, 0x2a1c00, PAL.goldN, 2);
       quickLabel.setColor('#f0c060');
-      this.tweens.add({ targets: quickLabel, scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: [quickIcon, quickLabel], scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
     });
     quickP.zone.on('pointerout',   () => {
       fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
       quickLabel.setColor('#d4a840');
-      this.tweens.add({ targets: quickLabel, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
+      this.tweens.add({ targets: [quickIcon, quickLabel], scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
     });
     quickP.zone.on('pointerdown',  () => fillPanel(quickP, R, 0x0f0900, PAL.goldN, 2));
     quickP.zone.on('pointerup',    () => {
@@ -936,8 +944,8 @@ export class MainMenuScene extends Phaser.Scene {
     // Bottom row: UPGRADES | CHALLENGES | CODEX
     const bottomBtnW = this._isMobile ? 120 : 100;
     const bottomBtnH = this._isMobile ? 48  : 38;
-    // Always below QUICK PLAY (≥16px gap between edges)
-    const bottomBtnY = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
+    // Directly below START GAME (no QUICK PLAY in between now)
+    const bottomBtnY = startY + btnH / 2 + bottomDropGap + bottomBtnH / 2;
     const bottomGap  = 16;  // horizontal gap between button edges (≥12px requirement)
 
     // UPGRADES

@@ -1,7 +1,7 @@
 ---
 id: TASK-166
 title: Elder Portraits — Regenerate ALL via DALL-E 3 Consistent Style
-status: pending
+status: done
 priority: critical
 category: frontend
 phase: polish

@@ -3,6 +3,9 @@
  *
  * Verifies acceptance criteria for button positioning, spacing, and
  * visual hierarchy after the layout fix.
+ *
+ * QUICK PLAY is a square button on the RIGHT side of the screen,
+ * deliberately separated from the main centre column. Do NOT move it back.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -14,38 +17,30 @@ const mainMenuSrc = readFileSync(
   'utf-8',
 );
 
-// ── Source-level structural assertions ──────────────────────────────────────
+// ── QUICK PLAY is on the right side (not centre column) ─────────────────────
 
-describe('TASK-163: QUICK PLAY is centred (not side-by-side)', () => {
-  it('quickPlayX = cx (centred, not offset)', () => {
-    // After TASK-163, QUICK PLAY is always centred below START
-    expect(mainMenuSrc).toContain('const quickPlayX = cx;');
+describe('TASK-163: QUICK PLAY is right-side square button', () => {
+  it('quickPlayX uses width offset (not cx)', () => {
+    expect(mainMenuSrc).toContain('width - (this._isMobile');
+    expect(mainMenuSrc).not.toContain('const quickPlayX = cx;');
   });
 
-  it('quickPlayY is computed from startY + btnH/2 + quickDropGap + quickBtnH/2', () => {
-    expect(mainMenuSrc).toContain(
-      'const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;',
-    );
+  it('quickBtnSize is square (used for both w and h)', () => {
+    expect(mainMenuSrc).toContain('quickBtnSize, quickBtnSize');
   });
 
   it('no side-by-side layout code remains (quickSideGap removed)', () => {
     expect(mainMenuSrc).not.toContain('quickSideGap');
   });
+
+  it('comment warns to keep QUICK PLAY separate from centre', () => {
+    expect(mainMenuSrc).toContain('Do NOT move it back to centre');
+  });
 });
 
+// ── Vertical gap constants meet ≥16px requirement ───────────────────────────
+
 describe('TASK-163: vertical gap constants meet ≥16px requirement', () => {
-  it('quickDropGap is ≥16 on mobile', () => {
-    const m = mainMenuSrc.match(/quickDropGap\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
-    expect(m).not.toBeNull();
-    expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(16);
-  });
-
-  it('quickDropGap is ≥16 on desktop', () => {
-    const m = mainMenuSrc.match(/quickDropGap\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
-    expect(m).not.toBeNull();
-    expect(parseInt(m![2], 10)).toBeGreaterThanOrEqual(16);
-  });
-
   it('bottomDropGap is ≥16 on mobile', () => {
     const m = mainMenuSrc.match(/bottomDropGap\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
     expect(m).not.toBeNull();
@@ -69,55 +64,23 @@ describe('TASK-163: horizontal gap between bottom buttons ≥12px', () => {
 
 describe('TASK-163: achievements row has 16px gap below bottom row', () => {
   it('achBtnY formula includes + 16 +', () => {
-    // achBtnY = bottomBtnY + bottomBtnH / 2 + 16 + achBtnH / 2
     expect(mainMenuSrc).toContain('bottomBtnY + bottomBtnH / 2 + 16 + achBtnH / 2');
   });
 });
 
-// ── Visual hierarchy: START > QUICK PLAY ────────────────────────────────────
+// ── Arithmetic: centre stack fits 720px (no QUICK PLAY in stack) ────────────
 
-describe('TASK-163: START GAME is larger than QUICK PLAY', () => {
-  it('desktop: START width (240) > QUICK PLAY width (200)', () => {
-    const btnWM = mainMenuSrc.match(/const btnW\s*=\s*this\._isMobile\s*\?\s*\d+\s*:\s*(\d+)/);
-    const qBtnWM = mainMenuSrc.match(/quickBtnW\s*=\s*this\._isMobile\s*\?\s*\d+\s*:\s*(\d+)/);
-    expect(btnWM).not.toBeNull();
-    expect(qBtnWM).not.toBeNull();
-    expect(parseInt(btnWM![1], 10)).toBeGreaterThan(parseInt(qBtnWM![1], 10));
-  });
-
-  it('desktop: START height (48) > QUICK PLAY height (38)', () => {
-    const btnHM = mainMenuSrc.match(/const btnH\s*=\s*this\._isMobile\s*\?\s*\d+\s*:\s*(\d+)/);
-    const qBtnHM = mainMenuSrc.match(/quickBtnH\s*=\s*this\._isMobile\s*\?\s*\d+\s*:\s*(\d+)/);
-    expect(btnHM).not.toBeNull();
-    expect(qBtnHM).not.toBeNull();
-    expect(parseInt(btnHM![1], 10)).toBeGreaterThan(parseInt(qBtnHM![1], 10));
-  });
-
-  it('mobile: START width (280) > QUICK PLAY width (240)', () => {
-    const btnWM = mainMenuSrc.match(/const btnW\s*=\s*this\._isMobile\s*\?\s*(\d+)/);
-    const qBtnWM = mainMenuSrc.match(/quickBtnW\s*=\s*this\._isMobile\s*\?\s*(\d+)/);
-    expect(btnWM).not.toBeNull();
-    expect(qBtnWM).not.toBeNull();
-    expect(parseInt(btnWM![1], 10)).toBeGreaterThan(parseInt(qBtnWM![1], 10));
-  });
-});
-
-// ── Arithmetic: full layout stack fits 720px ────────────────────────────────
-
-describe('TASK-163: full button stack fits 720px canvas', () => {
-  // Shared helper that computes the bottom pixel of the achievements row.
+describe('TASK-163: centre button stack fits 720px canvas', () => {
   function computeAchBottom(params: {
     height: number;
     maxStartYOffset: number;
     btnH: number;
-    quickBtnH: number;
-    quickDropGap: number;
     bottomDropGap: number;
     bottomBtnH: number;
   }): number {
     const startY = params.height - params.maxStartYOffset;
-    const quickPlayY = startY + params.btnH / 2 + params.quickDropGap + params.quickBtnH / 2;
-    const bottomBtnY = quickPlayY + params.quickBtnH / 2 + params.bottomDropGap + params.bottomBtnH / 2;
+    // Bottom row is directly below START (QUICK PLAY is on the right side)
+    const bottomBtnY = startY + params.btnH / 2 + params.bottomDropGap + params.bottomBtnH / 2;
     // achBtnY = bottomBtnY + bottomBtnH/2 + 16 + achBtnH/2 (achBtnH = bottomBtnH)
     return bottomBtnY + params.bottomBtnH / 2 + 16 + params.bottomBtnH;
   }
@@ -125,10 +88,8 @@ describe('TASK-163: full button stack fits 720px canvas', () => {
   it('desktop: ach bottom ≤ 706 (720 - 14)', () => {
     const achBottom = computeAchBottom({
       height: 720,
-      maxStartYOffset: 208,
+      maxStartYOffset: 160,
       btnH: 48,
-      quickBtnH: 38,
-      quickDropGap: 20,
       bottomDropGap: 20,
       bottomBtnH: 38,
     });
@@ -138,39 +99,37 @@ describe('TASK-163: full button stack fits 720px canvas', () => {
   it('mobile: ach bottom ≤ 706 (720 - 14)', () => {
     const achBottom = computeAchBottom({
       height: 720,
-      maxStartYOffset: 232,
+      maxStartYOffset: 180,
       btnH: 60,
-      quickBtnH: 44,
-      quickDropGap: 16,
       bottomDropGap: 16,
       bottomBtnH: 48,
     });
     expect(achBottom).toBeLessThanOrEqual(706);
   });
 
-  it('desktop: every gap between rows is ≥16px', () => {
-    const startY = 720 - 208;
-    const quickPlayY = startY + 48 / 2 + 20 + 38 / 2;
-    const bottomBtnY = quickPlayY + 38 / 2 + 20 + 38 / 2;
-    const achBtnY = bottomBtnY + 38 / 2 + 16 + 38 / 2;
+  it('desktop: gap between START and bottom row is ≥16px', () => {
+    const startY = 720 - 160;
+    const btnH = 48;
+    const bottomDropGap = 20;
+    const bottomBtnH = 38;
+    const bottomBtnY = startY + btnH / 2 + bottomDropGap + bottomBtnH / 2;
 
-    // Gap 1: START bottom → QUICK PLAY top
-    expect((quickPlayY - 38 / 2) - (startY + 48 / 2)).toBeGreaterThanOrEqual(16);
-    // Gap 2: QUICK PLAY bottom → bottom row top
-    expect((bottomBtnY - 38 / 2) - (quickPlayY + 38 / 2)).toBeGreaterThanOrEqual(16);
-    // Gap 3: bottom row bottom → achievements top
-    expect((achBtnY - 38 / 2) - (bottomBtnY + 38 / 2)).toBeGreaterThanOrEqual(16);
+    const startBottom = startY + btnH / 2;
+    const bottomTop = bottomBtnY - bottomBtnH / 2;
+    expect(bottomTop - startBottom).toBeGreaterThanOrEqual(16);
   });
 
-  it('mobile: every gap between rows is ≥16px', () => {
-    const startY = 720 - 232;
-    const quickPlayY = startY + 60 / 2 + 16 + 44 / 2;
-    const bottomBtnY = quickPlayY + 44 / 2 + 16 + 48 / 2;
-    const achBtnY = bottomBtnY + 48 / 2 + 16 + 48 / 2;
+  it('desktop: gap between bottom row and achievements is 16px', () => {
+    const startY = 720 - 160;
+    const btnH = 48;
+    const bottomDropGap = 20;
+    const bottomBtnH = 38;
+    const bottomBtnY = startY + btnH / 2 + bottomDropGap + bottomBtnH / 2;
+    const achBtnY = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH / 2;
 
-    expect((quickPlayY - 44 / 2) - (startY + 60 / 2)).toBeGreaterThanOrEqual(16);
-    expect((bottomBtnY - 48 / 2) - (quickPlayY + 44 / 2)).toBeGreaterThanOrEqual(16);
-    expect((achBtnY - 48 / 2) - (bottomBtnY + 48 / 2)).toBeGreaterThanOrEqual(16);
+    const bottomBottom = bottomBtnY + bottomBtnH / 2;
+    const achTop = achBtnY - bottomBtnH / 2;
+    expect(achTop - bottomBottom).toBeGreaterThanOrEqual(16);
   });
 });
 
@@ -186,20 +145,17 @@ describe('TASK-163: bottom row buttons do not overlap horizontally', () => {
     const chalX = cx;
     const codexX = cx + bottomBtnW + bottomGap;
 
-    // Right edge of UPGRADES vs left edge of CHALLENGES
     const metaRight = metaX + bottomBtnW / 2;
     const chalLeft = chalX - bottomBtnW / 2;
     expect(chalLeft - metaRight).toBeGreaterThanOrEqual(12);
 
-    // Right edge of CHALLENGES vs left edge of CODEX
     const chalRight = chalX + bottomBtnW / 2;
     const codexLeft = codexX - bottomBtnW / 2;
     expect(codexLeft - chalRight).toBeGreaterThanOrEqual(12);
   });
 
   it('mobile: 3 buttons (120px each, 16px gap) fit within 1280px canvas', () => {
-    // Canvas is always 1280×720; _isMobile only changes button sizes for touch targets.
-    const cx = 640;  // 1280 / 2
+    const cx = 640;
     const bottomBtnW = 120;
     const bottomGap = 16;
 
@@ -211,64 +167,52 @@ describe('TASK-163: bottom row buttons do not overlap horizontally', () => {
     expect(rightEdge).toBeLessThanOrEqual(1280);
     expect(leftEdge).toBeGreaterThanOrEqual(0);
 
-    // Also verify buttons don't overlap (gap between edges ≥12px)
     const metaRight = metaX + bottomBtnW / 2;
     const chalLeft = cx - bottomBtnW / 2;
     expect(chalLeft - metaRight).toBeGreaterThanOrEqual(12);
   });
 });
 
-// ── With resume: 4-row layout still fits ────────────────────────────────────
+// ── With resume: layout still fits ──────────────────────────────────────────
 
-describe('TASK-163: layout with RESUME GAME (4 rows) fits 720px', () => {
-  it('desktop: resume + start + quick play + bottom + ach all fit', () => {
+describe('TASK-163: layout with RESUME GAME fits 720px', () => {
+  it('desktop: resume + start + bottom + ach all fit', () => {
     const height = 720;
     const resumeBtnH = 44;
     const resumeGap = 10;
     const btnH = 48;
-    const quickBtnH = 38;
-    const quickDropGap = 20;
     const bottomDropGap = 20;
     const bottomBtnH = 38;
 
-    // Simulate cap path
-    const maxStartY = height - 208;
+    const maxStartY = height - 160;
     const startY = maxStartY;
     const resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2;
 
-    // Resume must be above START
     expect(resumeY).toBeLessThan(startY);
-    // Resume top must be on screen (> 0)
     expect(resumeY - resumeBtnH / 2).toBeGreaterThan(0);
 
-    const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-    const bottomBtnY = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
+    const bottomBtnY = startY + btnH / 2 + bottomDropGap + bottomBtnH / 2;
     const achBottom = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH;
-
     expect(achBottom).toBeLessThanOrEqual(706);
   });
 
-  it('mobile: resume + start + quick play + bottom + ach all fit', () => {
+  it('mobile: resume + start + bottom + ach all fit', () => {
     const height = 720;
     const resumeBtnH = 52;
     const resumeGap = 10;
     const btnH = 60;
-    const quickBtnH = 44;
-    const quickDropGap = 16;
     const bottomDropGap = 16;
     const bottomBtnH = 48;
 
-    const maxStartY = height - 232;
+    const maxStartY = height - 180;
     const startY = maxStartY;
     const resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2;
 
     expect(resumeY).toBeLessThan(startY);
     expect(resumeY - resumeBtnH / 2).toBeGreaterThan(0);
 
-    const quickPlayY = startY + btnH / 2 + quickDropGap + quickBtnH / 2;
-    const bottomBtnY = quickPlayY + quickBtnH / 2 + bottomDropGap + bottomBtnH / 2;
+    const bottomBtnY = startY + btnH / 2 + bottomDropGap + bottomBtnH / 2;
     const achBottom = bottomBtnY + bottomBtnH / 2 + 16 + bottomBtnH;
-
     expect(achBottom).toBeLessThanOrEqual(706);
   });
 });
