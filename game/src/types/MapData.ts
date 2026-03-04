@@ -8,7 +8,35 @@ export const TILE = {
   BUILDABLE: 0,
   PATH: 1,
   SCENERY: 2,
+  /** Dense tree/conifer cluster — blocks tower placement. */
+  TREE: 3,
+  /** Low brush / marsh grass — allows tower placement. */
+  BRUSH: 4,
+  /** Granite rock outcrop — blocks tower placement. */
+  ROCK: 5,
+  /** Water / lake tile — allows tower placement. */
+  WATER: 6,
+  /** Birch grove — blocks tower placement. */
+  BIRCH: 7,
+  /** Cattail marsh — allows tower placement. */
+  CATTAIL: 8,
 } as const;
+
+/**
+ * Returns true if a tower can be placed on a tile of the given type.
+ *
+ * PATH is the creep trail. SCENERY, TREE, BIRCH, and ROCK are impassable
+ * terrain that blocks construction. All other types allow building.
+ */
+export function isBuildable(tileType: number): boolean {
+  return (
+    tileType !== TILE.PATH &&
+    tileType !== TILE.SCENERY &&
+    tileType !== TILE.TREE &&
+    tileType !== TILE.BIRCH &&
+    tileType !== TILE.ROCK
+  );
+}
 
 export interface MapData {
   id: string;
