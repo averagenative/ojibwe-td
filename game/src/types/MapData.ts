@@ -28,11 +28,20 @@ export interface MapData {
    */
   waypoints: MapWaypoint[] | MapWaypoint[][];
   /**
-   * Optional custom air route waypoints in tile coords.
-   * If absent, air creeps fly directly from spawn to exit (first → last ground waypoint).
-   * Map designers can define a gentle arc or specific air lane here.
+   * Optional custom air route waypoints in tile coords (single path, legacy).
+   * Superseded by `airWaypointPaths`; kept for backward compatibility.
+   * If absent and `airWaypointPaths` is also absent, air creeps fly directly
+   * from spawn to exit (first → last ground waypoint).
    */
   airWaypoints?: MapWaypoint[];
+  /**
+   * Optional list of 2–3 distinct air lanes (each a sequence of tile-coord
+   * waypoints).  When present, each air creep randomly picks one of these
+   * lanes, encouraging players to spread anti-air coverage across the map.
+   *
+   * Each sub-array must have ≥ 2 waypoints (spawn … exit).
+   */
+  airWaypointPaths?: MapWaypoint[][];
   startingLives: number;
   startingGold: number;
 }
@@ -50,4 +59,33 @@ export function getWaypointPaths(data: MapData): MapWaypoint[][] {
   }
   // Single-path (legacy).
   return [data.waypoints as MapWaypoint[]];
+}
+
+/**
+ * Normalise a map's air path definitions into an array of paths.
+ *
+ * Priority order:
+ *  1. `airWaypointPaths` — explicit multi-lane definitions (preferred).
+ *  2. `airWaypoints`     — single-lane legacy field (wrapped in an array).
+ *  3. Fallback           — direct line using the supplied ground waypoints
+ *     (first spawn → last exit of path A).
+ *
+ * Every returned path is guaranteed to have ≥ 2 waypoints.
+ */
+export function getAirWaypointPaths(
+  data: MapData,
+  groundPath: MapWaypoint[],
+): MapWaypoint[][] {
+  if (data.airWaypointPaths && data.airWaypointPaths.length >= 1) {
+    const valid = data.airWaypointPaths.filter(p => p.length >= 2);
+    if (valid.length >= 1) return valid;
+  }
+  if (data.airWaypoints && data.airWaypoints.length >= 2) {
+    return [data.airWaypoints];
+  }
+  // Default: spawn-to-exit straight line.
+  if (groundPath.length < 2) return [];
+  const first = groundPath[0];
+  const last  = groundPath[groundPath.length - 1];
+  return [[first, last]];
 }

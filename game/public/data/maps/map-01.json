@@ -653,6 +653,29 @@
       "row": 13
     }
   ],
+  "airWaypointPaths": [
+    [
+      { "col": 0,  "row": 1 },
+      { "col": 8,  "row": 2 },
+      { "col": 16, "row": 1 },
+      { "col": 24, "row": 2 },
+      { "col": 33, "row": 1 }
+    ],
+    [
+      { "col": 0,  "row": 7 },
+      { "col": 8,  "row": 3 },
+      { "col": 16, "row": 8 },
+      { "col": 24, "row": 3 },
+      { "col": 33, "row": 8 }
+    ],
+    [
+      { "col": 0,  "row": 15 },
+      { "col": 8,  "row": 13 },
+      { "col": 16, "row": 16 },
+      { "col": 24, "row": 13 },
+      { "col": 33, "row": 16 }
+    ]
+  ],
   "startingLives": 20,
   "startingGold": 200
 }

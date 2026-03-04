@@ -123,8 +123,12 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   private waypoints:    Waypoint[];
   /** All ground paths — length 1 for single-path maps, 2+ for multi-path maps. */
   private waypointPaths: Waypoint[][];
-  /** Simplified route for air creeps (spawn → exit or custom air lane). */
-  private airWaypoints: Waypoint[];
+  /**
+   * All distinct air lanes available for this map.  Each air creep randomly
+   * picks one lane when spawned, spreading anti-air pressure across the map.
+   * Length is always ≥ 1 (falls back to a direct spawn→exit path).
+   */
+  private airWaypointPaths: Waypoint[][];
   private activeCreeps: Set<Creep>;
 
   private creepTypeDefs: CreepTypeDef[] = [];
@@ -162,7 +166,13 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     activeCreeps: Set<Creep>,
     creepTypeDefs: CreepTypeDef[],
     waveDefs:      WaveDef[],
-    airWaypoints?: Waypoint[],
+    /**
+     * Air lane(s) for this map.
+     *   • `Waypoint[][]` — multiple distinct air lanes (preferred).
+     *   • `Waypoint[]`   — single lane (legacy; wrapped in an array internally).
+     *   • `undefined`    — defaults to direct spawn→exit of ground path A.
+     */
+    airWaypoints?: Waypoint[] | Waypoint[][],
     regionDifficulty?: RegionDifficulty,
     ascensionConfig?: {
       hpMult:       number;
@@ -193,11 +203,31 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     }
     this.waypoints = this.waypointPaths[0] ?? [];
 
-    // Default air path: direct line from spawn to exit of path A.
-    // A custom air lane can be supplied via the optional parameter (from map JSON).
-    this.airWaypoints = (airWaypoints && airWaypoints.length >= 2)
-      ? airWaypoints
-      : [this.waypoints[0], this.waypoints[this.waypoints.length - 1]];
+    // Normalise air waypoints to an array of lanes.
+    const defaultLane = [this.waypoints[0], this.waypoints[this.waypoints.length - 1]];
+    if (airWaypoints && airWaypoints.length >= 1) {
+      if (Array.isArray(airWaypoints[0])) {
+        // Already an array of lanes — validate each has ≥ 2 waypoints.
+        const lanes = (airWaypoints as Waypoint[][]).filter(l => l.length >= 2);
+        this.airWaypointPaths = lanes.length >= 1 ? lanes : [defaultLane];
+      } else {
+        // Single lane provided as flat array.
+        const single = airWaypoints as Waypoint[];
+        this.airWaypointPaths = single.length >= 2 ? [single] : [defaultLane];
+      }
+    } else {
+      this.airWaypointPaths = [defaultLane];
+    }
+  }
+
+  /**
+   * Pick a random air lane for the next creep to spawn on.
+   * With a single lane this always returns that lane; with multiple lanes
+   * each creep independently picks one, distributing pressure across zones.
+   */
+  private _pickAirPath(): Waypoint[] {
+    const idx = Math.floor(Math.random() * this.airWaypointPaths.length);
+    return this.airWaypointPaths[idx];
   }
 
   /** Returns true if one or more waves are currently active (creeps spawning or alive). */
@@ -673,7 +703,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       waveNumber:         wave.waveNumber,
     };
 
-    const bossWp = config.type === 'air' ? this.airWaypoints : this.waypoints;
+    const bossWp = config.type === 'air' ? this._pickAirPath() : this.waypoints;
     const creep = new Creep(this.scene, bossWp, config);
     this.activeCreeps.add(creep);
 
@@ -761,11 +791,10 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
   private _spawnOneForWave(config: CreepConfig, wave: ActiveWave): void {
     wave.spawned++;
-    // Air creeps fly a simplified direct route (always path A for single or multi-path).
-    // Ground creeps alternate between paths on multi-path maps.
+    // Air creeps pick a random air lane; ground creeps alternate between paths.
     let wp: Waypoint[];
     if (config.type === 'air') {
-      wp = this.airWaypoints;
+      wp = this._pickAirPath();
     } else if (this.waypointPaths.length > 1) {
       wp = this.waypointPaths[wave.spawnPathIndex % this.waypointPaths.length];
       wave.spawnPathIndex++;
