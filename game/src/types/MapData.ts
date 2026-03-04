@@ -90,13 +90,38 @@ export function getWaypointPaths(data: MapData): MapWaypoint[][] {
 }
 
 /**
+ * Row offsets applied to each ground-path waypoint to create air lanes.
+ * Produces 3 lanes: 2 rows above the path, on the path, and 2 rows below.
+ */
+export const AIR_LANE_OFFSETS = [-2, 0, 2] as const;
+
+/**
+ * Auto-derive 3 air lanes from a ground path by applying row offsets.
+ * Each lane is a copy of the ground path with every row shifted by the offset,
+ * clamped to [0, maxRow].  Returns an empty array if the ground path has fewer
+ * than 2 waypoints.
+ */
+export function deriveAirPathsFromGround(
+  groundPath: MapWaypoint[],
+  maxRow: number,
+): MapWaypoint[][] {
+  if (groundPath.length < 2) return [];
+  return AIR_LANE_OFFSETS.map(offset =>
+    groundPath.map(wp => ({
+      col: wp.col,
+      row: Math.max(0, Math.min(maxRow, wp.row + offset)),
+    }))
+  );
+}
+
+/**
  * Normalise a map's air path definitions into an array of paths.
  *
  * Priority order:
  *  1. `airWaypointPaths` — explicit multi-lane definitions (preferred).
  *  2. `airWaypoints`     — single-lane legacy field (wrapped in an array).
- *  3. Fallback           — direct line using the supplied ground waypoints
- *     (first spawn → last exit of path A).
+ *  3. Fallback           — auto-derive 3 lanes from the ground path using
+ *     row offsets [-2, 0, +2] (shadows the ground path with vertical spread).
  *
  * Every returned path is guaranteed to have ≥ 2 waypoints.
  */
@@ -111,9 +136,6 @@ export function getAirWaypointPaths(
   if (data.airWaypoints && data.airWaypoints.length >= 2) {
     return [data.airWaypoints];
   }
-  // Default: spawn-to-exit straight line.
-  if (groundPath.length < 2) return [];
-  const first = groundPath[0];
-  const last  = groundPath[groundPath.length - 1];
-  return [[first, last]];
+  // Auto-derive 3 lanes shadowing the ground path with ±2 row offsets.
+  return deriveAirPathsFromGround(groundPath, data.rows - 1);
 }

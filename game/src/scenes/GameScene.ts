@@ -16,7 +16,7 @@ import { MobileManager } from '../systems/MobileManager';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
-import type { MapData } from '../types/MapData';
+import type { MapData, MapWaypoint } from '../types/MapData';
 import { TILE, getWaypointPaths, getAirWaypointPaths, isBuildable as tileIsBuildable } from '../types/MapData';
 import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
 import type { CommanderDef, CommanderRunState, AbilityContext } from '../data/commanderDefs';
@@ -1320,16 +1320,21 @@ export class GameScene extends Phaser.Scene {
   /**
    * Build the pixel-space air waypoint paths for the current map.
    *
-   * Checks `airWaypointPaths` (multi-lane) → `airWaypoints` (single-lane
-   * legacy) → direct spawn→exit fallback.  Returns an array of 1–3 paths,
-   * each expressed as pixel-space `PixelWaypoint[]`.  WaveManager randomly
-   * picks one path per air creep to create lane diversity.
+   * Auto-derives 3 offset lanes per ground-path entrance (rows −2, 0, +2).
+   * Multi-entrance maps (map-05+) produce lanes for each entrance, so air
+   * creeps spread pressure across the full map width.  Explicit
+   * `airWaypointPaths` in the map JSON still take priority when present.
+   *
+   * Returns an array of lanes each expressed as pixel-space `PixelWaypoint[]`.
+   * WaveManager randomly picks one per air creep for visual diversity.
    */
   private buildAllAirWaypointPaths(): PixelWaypoint[][] {
     const ts = this.mapData.tileSize;
-    // groundPath is already in tile coords (MapWaypoint with col/row).
-    const groundPath = getWaypointPaths(this.mapData)[0] ?? [];
-    const mapPaths = getAirWaypointPaths(this.mapData, groundPath);
+    const groundPaths = getWaypointPaths(this.mapData);
+    const mapPaths: MapWaypoint[][] = [];
+    for (const groundPath of groundPaths) {
+      mapPaths.push(...getAirWaypointPaths(this.mapData, groundPath));
+    }
     return mapPaths.map(path =>
       path.map(wp => ({ x: wp.col * ts + ts / 2, y: wp.row * ts + ts / 2 }))
     );
