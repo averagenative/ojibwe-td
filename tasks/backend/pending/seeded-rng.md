@@ -2,7 +2,7 @@
 id: TASK-030
 title: Seeded RNG — Replace Math.random()
 status: pending
-priority: low
+priority: medium
 category: backend
 phase: 13
 openspec_ref: ""

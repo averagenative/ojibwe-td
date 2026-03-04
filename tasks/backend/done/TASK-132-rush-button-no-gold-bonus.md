@@ -1,7 +1,7 @@
 ---
 id: TASK-132
 title: Rush Button Not Awarding Additional Gold
-status: pending
+status: done
 priority: high
 category: backend
 phase: polish

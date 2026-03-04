@@ -2615,3 +2615,7 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Waabooz mini-copy 0.6× scale not explicitly enforced** — AC mentions "0.6× scale" for boss mini-copies, but the implementation uses wave-based scaling (0.85–1.15×) for non-boss creeps. Mini-copies spawned via the boss split mechanic inherit wave scaling rather than a fixed 0.6× factor. Visually they are smaller than the boss but not exactly 60%. Consider adding a `MINI_COPY_SCALE = 0.6` constant if precise sizing matters.
 - **Container-local shadow for air creeps is redundant with scene-level shadow** — air creeps now have both a container-local `_airShadow` (for wing-flap pulse animation) and a scene-level `_sceneShadow` (for correct depth sorting). The container-local shadow is kept at low alpha (0.15) for the legacy wing animation but is visually redundant. Consider removing it if the wing-flap pulse animation is refactored to use the scene-level shadow.
+
+### TASK-132 Review Findings (Rush Button Gold Bonus)
+
+- **Overlapping rush bonus feedback text on rapid clicks** — `_showRushBonusFeedback()` creates a new floating text on every call without cancelling previous instances. Rapid consecutive rushes stack multiple overlapping "+25 RUSH BONUS" texts. Consider destroying the previous feedback text before creating a new one, or reusing a single text object.
