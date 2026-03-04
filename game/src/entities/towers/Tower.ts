@@ -127,8 +127,8 @@ export class Tower extends Phaser.GameObjects.Container {
   private _multiSelGfx?: Phaser.GameObjects.Graphics;
   /** Handle to the currently running fire-animation tween (kill to interrupt). */
   private _fireAnimTween?: Phaser.Tweens.Tween;
-  /** Direct reference to the tower body Rectangle (stored in buildBody). */
-  private _bodyRef?:     Phaser.GameObjects.Rectangle;
+  /** Direct reference to the tower body disc (Arc, stored in buildBody). */
+  private _bodyRef?:     Phaser.GameObjects.Arc;
   /** Direct reference to the tower icon Image (stored in buildBody, if present). */
   private _iconRef?:     Phaser.GameObjects.Image;
 
@@ -870,8 +870,12 @@ export class Tower extends Phaser.GameObjects.Container {
   }
 
   private buildBody(): void {
-    const body = new Phaser.GameObjects.Rectangle(
-      this.scene, 0, 0, BODY_SIZE, BODY_SIZE, this.def.bodyColor,
+    // Use a circle (Arc) instead of a Rectangle so that when the tower container
+    // rotates to track targets the body disc has no visible corners — eliminating
+    // the "rotating box" artefact while preserving all fire-animation effects
+    // (setFillStyle flash, setScale recoil/pulse, y bob).
+    const body = new Phaser.GameObjects.Arc(
+      this.scene, 0, 0, BODY_SIZE / 2, 0, 360, false, this.def.bodyColor,
     );
     this._bodyRef = body;
 
