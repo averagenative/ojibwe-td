@@ -1,7 +1,7 @@
 ---
 id: TASK-159
 title: Tower Map Sprites Must Visually Match Selector Panel Icons
-status: pending
+status: done
 priority: critical
 category: frontend
 phase: polish

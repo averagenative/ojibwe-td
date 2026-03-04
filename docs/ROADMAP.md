@@ -2718,3 +2718,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **DALL-E 3 portraits not generated** — The acceptance criteria call for 6 DALL-E 3 generated portraits (256×256 PNG) in `public/assets/portraits/`. The code already references `portrait-*` keys and BootScene preloads from `assets/portraits/`. The data changes (clans, aura names, portrait keys) are complete, but the actual image files need to be generated and placed. When art is prioritised, generate using the prompt strategy in the task file.
 - **Fish Clan unused** — The traditional 7-clan system includes Fish Clan (Giigoonh) but no commander maps to it. If a 7th commander is ever added, Fish Clan is the natural fit (scholars, teachers, mediators).
+
+### TASK-161 Review Findings (Remove Cannon References)
+
+- **`CANNON_DEF` is dead code** — `evaluate-map.ts` was updated to use `ROCK_HURLER_DEF`, but `CANNON_DEF` (with `@deprecated`) is still exported from `towerDefs.ts` with no consumers. Can be safely removed in a future cleanup pass.
+- **`docs/map-evaluation-rubric.md` still references cannon** — Lines 41, 44, 46, 48, 95 mention cannon/CANNON_DEF. Should be updated to say rock-hurler/ROCK_HURLER_DEF to match the code change in `evaluate-map.ts`.

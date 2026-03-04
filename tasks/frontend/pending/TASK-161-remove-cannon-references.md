@@ -1,7 +1,7 @@
 ---
 id: TASK-161
 title: Remove All Cannon Tower References — Remap Offers, Gear, and Logic
-status: pending
+status: in-progress
 priority: critical
 category: frontend
 phase: polish
