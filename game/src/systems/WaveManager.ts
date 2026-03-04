@@ -415,7 +415,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
 
       // Build escort queue using this wave's scaling (may be empty).
       const escortQueue = waveDef.escorts
-        ? this.buildEscortQueue(waveDef, waveDef.escorts)
+        ? this.buildEscortQueue(waveDef, waveDef.escorts, waveNumber)
         : [];
 
       wave.totalToSpawn = 1 + escortQueue.length;
@@ -465,7 +465,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     } else {
       // ── Normal wave ──────────────────────────────────────────────────────
       wave.totalToSpawn = waveDef.count;
-      wave.spawnQueue   = this.buildSpawnQueue(waveDef);
+      wave.spawnQueue   = this.buildSpawnQueue(waveDef, waveNumber);
 
       wave.spawnTimer = this.scene.time.addEvent({
         delay:    waveDef.intervalMs,
@@ -574,7 +574,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
     };
   }
 
-  private buildSpawnQueue(waveDef: WaveDef): CreepConfig[] {
+  private buildSpawnQueue(waveDef: WaveDef, waveNumber: number): CreepConfig[] {
     const queue: CreepConfig[] = [];
 
     for (let i = 0; i < waveDef.count; i++) {
@@ -583,12 +583,13 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       if (!base) continue;
 
       const cfg: CreepConfig = {
-        hp:        Math.round(base.hp     * waveDef.hpMult * this.ascensionHpMult),
-        speed:     Math.round(base.speed  * waveDef.speedMult),
-        type:      base.type,
-        reward:    base.reward,
-        isArmored: typeKey === 'brute',
-        spriteKey: CREEP_SPRITE_KEYS[base.key],
+        hp:         Math.round(base.hp     * waveDef.hpMult * this.ascensionHpMult),
+        speed:      Math.round(base.speed  * waveDef.speedMult),
+        type:       base.type,
+        reward:     base.reward,
+        isArmored:  typeKey === 'brute',
+        spriteKey:  CREEP_SPRITE_KEYS[base.key],
+        waveNumber,
       };
       this.applyRegionTraits(cfg, typeKey);
       this.applyAscensionTraits(cfg, typeKey);
@@ -606,6 +607,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   private buildEscortQueue(
     waveDef: WaveDef,
     escorts: NonNullable<WaveDef['escorts']>,
+    waveNumber: number,
   ): CreepConfig[] {
     const queue: CreepConfig[] = [];
 
@@ -615,12 +617,13 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       if (!base) continue;
 
       const cfg: CreepConfig = {
-        hp:        Math.round(base.hp    * waveDef.hpMult * this.ascensionHpMult),
-        speed:     Math.round(base.speed * waveDef.speedMult),
-        type:      base.type,
-        reward:    base.reward,
-        isArmored: typeKey === 'brute',
-        spriteKey: CREEP_SPRITE_KEYS[base.key],
+        hp:         Math.round(base.hp    * waveDef.hpMult * this.ascensionHpMult),
+        speed:      Math.round(base.speed * waveDef.speedMult),
+        type:       base.type,
+        reward:     base.reward,
+        isArmored:  typeKey === 'brute',
+        spriteKey:  CREEP_SPRITE_KEYS[base.key],
+        waveNumber,
       };
       this.applyRegionTraits(cfg, typeKey);
       this.applyAscensionTraits(cfg, typeKey);
@@ -663,6 +666,7 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       // Use the boss-specific sprite (e.g. 'boss-makwa') if defined,
       // falling back to the derived convention 'boss-{key}'.
       spriteKey:          bossDef.spriteKey ?? `boss-${bossDef.key}`,
+      waveNumber:         wave.waveNumber,
     };
 
     const bossWp = config.type === 'air' ? this.airWaypoints : this.waypoints;
