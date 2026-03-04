@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ALL_STAGES, getStageDef } from '../src/data/stageDefs';
 import { creepEffectiveHP, towerEffectiveDPS } from '../src/systems/BalanceCalc';
-import { CANNON_DEF } from '../src/data/towerDefs';
+import { ROCK_HURLER_DEF } from '../src/data/towerDefs';
 import { WAVE_SPEED_MULTS, CREEP_BASE_SPEED } from '../src/data/scalingConfig';
 
 // ── Types from MapData (duplicated to avoid Phaser import) ────────────────────
@@ -109,14 +109,14 @@ function checkDifficultyBand(stageId: string, map: MapData, waveCount: number): 
   const name = 'Difficulty band (wave-1 TTK)';
 
   const pathLengthPx = computePathLengthPx(map.waypoints, map.tileSize);
-  const cannonDPS    = towerEffectiveDPS(CANNON_DEF, { tiers: { A: 0, B: 0, C: 0 }, totalSpent: 0, pathLocked: null }, 1);
+  const hurlerDPS    = towerEffectiveDPS(ROCK_HURLER_DEF, { tiers: { A: 0, B: 0, C: 0 }, totalSpent: 0, pathLocked: null }, 1);
   const wave1GruntHP = creepEffectiveHP(1, 'grunt');
-  const ttk          = cannonDPS > 0 ? wave1GruntHP / cannonDPS : Infinity;
+  const ttk          = hurlerDPS > 0 ? wave1GruntHP / hurlerDPS : Infinity;
 
   const gruntSpeed   = CREEP_BASE_SPEED['grunt'] * (WAVE_SPEED_MULTS[0] ?? 1);
   const traversalSec = pathLengthPx / gruntSpeed;
 
-  // Kill-potential: how many times could a single cannon kill the creep before it exits?
+  // Kill-potential: how many times could a single rock hurler kill the creep before it exits?
   const killPotential = traversalSec / ttk;
 
   // Target band: [1.5, 30] — must be possible to kill (> 1) but not trivial (< 30)
@@ -169,11 +169,11 @@ function checkBossWaveFit(map: MapData): CheckResult {
   const BOSS_HP_MULT = 8;
   const bossHP       = creepEffectiveHP(5, 'grunt') * BOSS_HP_MULT;
 
-  // Cannon DPS (unupgraded) at wave 5
-  const cannonDPS = towerEffectiveDPS(CANNON_DEF, { tiers: { A: 0, B: 0, C: 0 }, totalSpent: 0, pathLocked: null }, 5);
-  if (cannonDPS <= 0) return fail(name, 'Cannon DPS is 0, cannot evaluate.');
+  // Rock Hurler DPS (unupgraded) at wave 5
+  const hurlerDPS = towerEffectiveDPS(ROCK_HURLER_DEF, { tiers: { A: 0, B: 0, C: 0 }, totalSpent: 0, pathLocked: null }, 5);
+  if (hurlerDPS <= 0) return fail(name, 'Rock Hurler DPS is 0, cannot evaluate.');
 
-  const ttkSeconds = bossHP / cannonDPS;
+  const ttkSeconds = bossHP / hurlerDPS;
 
   // Boss speed at wave 5 (grunt speed × wave-5 speed mult)
   const GRUNT_SPEED_BASE = CREEP_BASE_SPEED['grunt'] ?? 75;

@@ -10,7 +10,7 @@ const AUDIO_LOAD_DEFS: ReadonlyArray<[key: string, path: string]> = [
   // SFX — no mp3 files yet; procedural synthesis handles all SFX.
   // Uncomment each line as the corresponding .mp3 is added:
   // ['sfx-tower-place',    'assets/audio/sfx/tower-place.mp3'],
-  // ['sfx-cannon',         'assets/audio/sfx/cannon-fire.mp3'],
+  // ['sfx-rock-hurler',    'assets/audio/sfx/rock-hurler-fire.mp3'],
   // ['sfx-frost',          'assets/audio/sfx/frost-fire.mp3'],
   // ['sfx-tesla',          'assets/audio/sfx/tesla-fire.mp3'],
   // ['sfx-mortar',         'assets/audio/sfx/mortar-fire.mp3'],

@@ -204,8 +204,8 @@ export class AchievementManager {
       save.addLifetimeStat(seenKey, 1);
       const total = this._addStat('maxUpgradedTypes', 1);
       this._setProgress('max-upgrade-3-types', total);
-      // 8 tower types: cannon, frost, mortar, poison, tesla, aura, arrow, rock-hurler
-      if (total >= 8) this._unlock('max-upgrade-every-type');
+      // 7 tower types: frost, mortar, poison, tesla, aura, arrow, rock-hurler
+      if (total >= 7) this._unlock('max-upgrade-every-type');
     }
   }
 
@@ -326,7 +326,7 @@ export class AchievementManager {
     // Tower diversity achievements
     if (data.towerTypesUsed.length === 1) this._unlock('mono-tower');
 
-    const allTowerTypes = ['cannon', 'frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow', 'rock-hurler'];
+    const allTowerTypes = ['frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow', 'rock-hurler'];
     const hasAllTypes = allTowerTypes.every(k => data.towerTypesUsed.includes(k));
     if (hasAllTypes) this._unlock('all-tower-types-in-run');
 

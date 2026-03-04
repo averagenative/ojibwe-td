@@ -18,7 +18,7 @@ interface BetweenWaveData {
   /**
    * Tower type keys currently placed on the field.  Used to gate synergy
    * offers that require specific tower combinations.
-   * e.g. ['frost', 'mortar', 'cannon']
+   * e.g. ['frost', 'mortar', 'rock-hurler']
    */
   placedTowerKeys?:  string[];
   /**

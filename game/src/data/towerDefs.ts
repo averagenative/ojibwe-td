@@ -167,6 +167,7 @@ export function defaultUpgradeStats(def: TowerDef): TowerUpgradeStats {
 
 // ── Tower definitions ─────────────────────────────────────────────────────────
 
+/** @deprecated Cannon was replaced by rock-hurler (TASK-098). Only kept for evaluate-map.ts script. */
 export const CANNON_DEF: TowerDef = {
   key: 'cannon',  name: 'Cannon',  cost: 100,
   range: 160,  damage: 40,  attackIntervalMs: 1000,  projectileSpeed: 300,

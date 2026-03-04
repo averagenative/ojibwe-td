@@ -279,7 +279,7 @@ export class Creep extends Phaser.GameObjects.Container {
   /** Status icon bar drawn above the HP bar (container child). */
   private _iconBarGfx?: Phaser.GameObjects.Graphics;
 
-  // Burn state — new effect (applicable when cannon/mortar enables burn splash)
+  // Burn state — new effect (applicable when mortar enables burn splash)
   private _burnActive  = false;
   private _burnTimer?: Phaser.Time.TimerEvent;
 
@@ -747,7 +747,7 @@ export class Creep extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Apply a burn DoT visual effect.  Burn is triggered by cannon / mortar
+   * Apply a burn DoT visual effect.  Burn is triggered by mortar
    * splash towers when the burn-splash mechanic is active.
    * Re-application replaces the existing timer (extends the duration).
    */

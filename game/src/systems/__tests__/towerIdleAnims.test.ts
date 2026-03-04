@@ -58,7 +58,7 @@ describe('getTowerAnimDef — idle types', () => {
   it('tesla → spark', () => {
     expect(getTowerAnimDef('tesla').idleType).toBe('spark');
   });
-  it('cannon → sweep (legacy def still present)', () => {
+  it('cannon → sweep (@deprecated legacy def still present for save compat)', () => {
     expect(getTowerAnimDef('cannon').idleType).toBe('sweep');
   });
   it('poison → bubble', () => {

@@ -428,7 +428,7 @@ describe('OfferManager', () => {
   });
 
   describe('getBrittleIceMult', () => {
-    it('returns 1.20 for slowed cannon targets', () => {
+    it('returns 1.20 for slowed targets', () => {
       om.applyOffer('brittle-ice');
       expect(om.getBrittleIceMult(true)).toBe(1.20);
     });

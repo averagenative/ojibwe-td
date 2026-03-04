@@ -466,7 +466,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'glass-cannon',
     name:        'Glass Cannon',
-    description: 'Cannon towers deal +100% damage but have -50% range.',
+    description: 'Rock Hurler towers deal +100% damage but have -50% range.',
     category:    'combat',
     weight:      3,
     rarity:      'epic',
@@ -536,11 +536,11 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:            'siege-mode',
     name:          'Siege Mode',
-    description:   'Cannon towers near an Aura tower have attack speed halved but damage tripled.',
+    description:   'Rock Hurlers near an Aura tower have attack speed halved but damage tripled.',
     category:      'synergy',
     weight:        3,
     rarity:        'epic',
-    synergyRequires: ['cannon', 'aura'],
+    synergyRequires: ['rock-hurler', 'aura'],
   },
   {
     id:            'arctic-shrapnel',

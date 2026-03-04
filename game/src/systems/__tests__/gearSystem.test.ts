@@ -91,9 +91,9 @@ describe('gearDefs', () => {
   });
 
   it('getGearDefsByType filters correctly', () => {
-    const cannons = getGearDefsByType('barrel-mod');
-    expect(cannons.length).toBeGreaterThan(0);
-    for (const d of cannons) {
+    const barrels = getGearDefsByType('barrel-mod');
+    expect(barrels.length).toBeGreaterThan(0);
+    for (const d of barrels) {
       expect(d.gearType).toBe('barrel-mod');
     }
   });

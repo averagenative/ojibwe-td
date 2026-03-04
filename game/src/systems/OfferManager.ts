@@ -29,7 +29,6 @@ export const TOWER_TARGET_DOMAIN: Record<string, 'ground' | 'air' | 'both'> = {
   'poison':      'ground',
   'tesla':       'air',
   'aura':        'both',
-  'cannon':      'ground',
   'mortar':      'ground',
 };
 
@@ -513,14 +512,14 @@ export class OfferManager {
   }
 
   /**
-   * Glass Cannon: Cannon towers deal +100% damage but have -50% range.
+   * Glass Cannon: Rock Hurler towers deal +100% damage but have -50% range.
    * @param towerKey The tower's type key.
    */
   getGlassCannonDamageMult(towerKey: string): number {
-    return (this.activeIds.has('glass-cannon') && towerKey === 'cannon') ? 2.0 : 1.0;
+    return (this.activeIds.has('glass-cannon') && towerKey === 'rock-hurler') ? 2.0 : 1.0;
   }
   getGlassCannonRangeMult(towerKey: string): number {
-    return (this.activeIds.has('glass-cannon') && towerKey === 'cannon') ? 0.5 : 1.0;
+    return (this.activeIds.has('glass-cannon') && towerKey === 'rock-hurler') ? 0.5 : 1.0;
   }
 
   /**
@@ -574,11 +573,11 @@ export class OfferManager {
   }
 
   /**
-   * Siege Mode: Cannon towers near an Aura tower have interval×2 (halved speed),
+   * Siege Mode: Rock Hurler towers near an Aura tower have interval×2 (halved speed),
    * damage×3.  Returns modifiers — caller supplies whether conditions are met.
    */
   getSiegeModeModifiers(towerKey: string, nearAura: boolean): { intervalMult: number; damageMult: number } {
-    if (!this.activeIds.has('siege-mode') || towerKey !== 'cannon' || !nearAura) {
+    if (!this.activeIds.has('siege-mode') || towerKey !== 'rock-hurler' || !nearAura) {
       return { intervalMult: 1.0, damageMult: 1.0 };
     }
     return { intervalMult: 2.0, damageMult: 3.0 };
