@@ -338,7 +338,7 @@ describe('Edge cases', () => {
     expect(ctx.setLives).toHaveBeenCalledWith(0);
   });
 
-  it('Bizhiw attack speed multipliers do not affect non-cannon/frost keys', () => {
+  it('Bizhiw attack speed multipliers do not affect non-rock-hurler/frost keys', () => {
     const state = defaultCommanderRunState('bizhiw');
     getCommanderDef('bizhiw')!.aura.apply(state);
     expect(state.attackSpeedMultByKey['tesla']).toBeUndefined();

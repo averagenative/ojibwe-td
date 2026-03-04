@@ -210,11 +210,11 @@ describe('OfferManager — synergy gating', () => {
     expect(drawn.map(o => o.id)).not.toContain('conductor');
   });
 
-  it('siege-mode offered when cannon and aura are placed', () => {
+  it('siege-mode offered when rock-hurler and aura are placed', () => {
     for (const o of ALL_OFFERS) {
       if (o.id !== 'siege-mode') om.applyOffer(o.id);
     }
-    const drawn = om.drawOffers(3, ['cannon', 'aura']);
+    const drawn = om.drawOffers(3, ['rock-hurler', 'aura']);
     expect(drawn.map(o => o.id)).toContain('siege-mode');
   });
 
@@ -230,7 +230,7 @@ describe('OfferManager — synergy gating', () => {
     for (const o of ALL_OFFERS) {
       if (o.id !== 'voltaic-venom') om.applyOffer(o.id);
     }
-    const drawn = om.drawOffers(3, ['cannon']);
+    const drawn = om.drawOffers(3, ['rock-hurler']);
     expect(drawn.map(o => o.id)).not.toContain('voltaic-venom');
   });
 
@@ -366,15 +366,15 @@ describe('OfferManager — Phase 14 query methods', () => {
 
   describe('getGlassCannonDamageMult / getGlassCannonRangeMult', () => {
     it('returns 1.0 without offer', () => {
-      expect(om.getGlassCannonDamageMult('cannon')).toBe(1.0);
-      expect(om.getGlassCannonRangeMult('cannon')).toBe(1.0);
+      expect(om.getGlassCannonDamageMult('rock-hurler')).toBe(1.0);
+      expect(om.getGlassCannonRangeMult('rock-hurler')).toBe(1.0);
     });
-    it('returns 2.0 damage / 0.5 range for cannon with offer', () => {
+    it('returns 2.0 damage / 0.5 range for rock-hurler with offer', () => {
       om.applyOffer('glass-cannon');
-      expect(om.getGlassCannonDamageMult('cannon')).toBe(2.0);
-      expect(om.getGlassCannonRangeMult('cannon')).toBe(0.5);
+      expect(om.getGlassCannonDamageMult('rock-hurler')).toBe(2.0);
+      expect(om.getGlassCannonRangeMult('rock-hurler')).toBe(0.5);
     });
-    it('returns 1.0 for non-cannon towers', () => {
+    it('returns 1.0 for non-rock-hurler towers', () => {
       om.applyOffer('glass-cannon');
       expect(om.getGlassCannonDamageMult('frost')).toBe(1.0);
       expect(om.getGlassCannonRangeMult('mortar')).toBe(1.0);
@@ -467,17 +467,17 @@ describe('OfferManager — Phase 14 query methods', () => {
 
   describe('getSiegeModeModifiers', () => {
     it('returns no-op without offer', () => {
-      const r = om.getSiegeModeModifiers('cannon', true);
+      const r = om.getSiegeModeModifiers('rock-hurler', true);
       expect(r.intervalMult).toBe(1.0);
       expect(r.damageMult).toBe(1.0);
     });
-    it('returns 2× interval, 3× damage for cannon near aura with offer', () => {
+    it('returns 2× interval, 3× damage for rock-hurler near aura with offer', () => {
       om.applyOffer('siege-mode');
-      const r = om.getSiegeModeModifiers('cannon', true);
+      const r = om.getSiegeModeModifiers('rock-hurler', true);
       expect(r.intervalMult).toBe(2.0);
       expect(r.damageMult).toBe(3.0);
     });
-    it('no-op for non-cannon tower', () => {
+    it('no-op for non-rock-hurler tower', () => {
       om.applyOffer('siege-mode');
       const r = om.getSiegeModeModifiers('frost', true);
       expect(r.intervalMult).toBe(1.0);
@@ -485,7 +485,7 @@ describe('OfferManager — Phase 14 query methods', () => {
     });
     it('no-op when not near aura', () => {
       om.applyOffer('siege-mode');
-      const r = om.getSiegeModeModifiers('cannon', false);
+      const r = om.getSiegeModeModifiers('rock-hurler', false);
       expect(r.intervalMult).toBe(1.0);
       expect(r.damageMult).toBe(1.0);
     });
@@ -571,7 +571,7 @@ describe('OfferManager — Phase 14 query methods', () => {
     it('bulk-discount reduces cost by 5% per same-type tower', () => {
       om.applyOffer('bulk-discount');
       // 1 of same type already placed → 5% off
-      expect(om.applyPlacementCost(100, 'cannon', 1)).toBe(95);
+      expect(om.applyPlacementCost(100, 'rock-hurler', 1)).toBe(95);
     });
     it('bulk-discount with 4 same-type → 20% off', () => {
       const om2 = new OfferManager();
@@ -581,7 +581,7 @@ describe('OfferManager — Phase 14 query methods', () => {
     it('tower-tax increases cost by 20%', () => {
       om.applyOffer('tower-tax');
       // first call: no same-type
-      expect(om.applyPlacementCost(100, 'cannon', 0)).toBe(120);
+      expect(om.applyPlacementCost(100, 'rock-hurler', 0)).toBe(120);
     });
     it('tower-tax and bulk-discount compose: tax applied after discount', () => {
       // bulk-discount: -5% for 1 same-type → 95g then tower-tax +20% → 114g
@@ -589,7 +589,7 @@ describe('OfferManager — Phase 14 query methods', () => {
       om2.applyOffer('bulk-discount');
       om2.applyOffer('tower-tax');
       // floor(floor(100 * 0.95) * 1.20) = floor(95 * 1.20) = floor(114) = 114
-      expect(om2.applyPlacementCost(100, 'cannon', 1)).toBe(114);
+      expect(om2.applyPlacementCost(100, 'rock-hurler', 1)).toBe(114);
     });
   });
 

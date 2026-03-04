@@ -124,6 +124,7 @@ export interface TowerAnimDef {
 // ── Per-tower animation definitions ──────────────────────────────────────────
 
 const TOWER_ANIM_DEFS: Readonly<Record<string, TowerAnimDef>> = {
+  // @deprecated — cannon was replaced by rock-hurler (TASK-098); kept for legacy save compatibility
   cannon: {
     idleType:        'sweep',
     sweepDeg:        10,
@@ -261,7 +262,7 @@ const TOWER_ANIM_DEFS: Readonly<Record<string, TowerAnimDef>> = {
     idleFreq:        0.7,
     lerpDegPerFrame: 0,
     leanDeg:         0,
-    recoilScale:     0.92,       // snappier recoil than cannon
+    recoilScale:     0.92,       // snappier recoil than rock-hurler
     recoilMs:        100,
     fireFlashMs:     0,
     firePulseScale:  0,

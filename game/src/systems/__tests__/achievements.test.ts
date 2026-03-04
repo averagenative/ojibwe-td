@@ -499,14 +499,14 @@ describe('AchievementManager', () => {
   describe('addTowerBuilt()', () => {
     it('increments lifetime tower stat', () => {
       const am = AchievementManager.getInstance();
-      am.addTowerBuilt(1, 'cannon');
+      am.addTowerBuilt(1, 'rock-hurler');
       am.addTowerBuilt(2, 'frost');
       expect(SaveManager.getInstance().getLifetimeStat('towersBuilt')).toBe(2);
     });
 
     it('unlocks build-25-towers-run at threshold', () => {
       const am = AchievementManager.getInstance();
-      am.addTowerBuilt(25, 'cannon');
+      am.addTowerBuilt(25, 'rock-hurler');
       expect(am.isUnlocked('build-25-towers-run')).toBe(true);
     });
 
@@ -514,7 +514,7 @@ describe('AchievementManager', () => {
       const am = AchievementManager.getInstance();
       // Seed lifetime to 499
       SaveManager.getInstance().addLifetimeStat('towersBuilt', 499);
-      am.addTowerBuilt(1, 'cannon'); // 499 + 1 = 500
+      am.addTowerBuilt(1, 'rock-hurler'); // 499 + 1 = 500
       expect(am.isUnlocked('build-500-towers-total')).toBe(true);
     });
   });
@@ -524,14 +524,14 @@ describe('AchievementManager', () => {
   describe('onTowerPathMaxed()', () => {
     it('unlocks max-upgrade-first on first call', () => {
       const am = AchievementManager.getInstance();
-      am.onTowerPathMaxed('cannon');
+      am.onTowerPathMaxed('rock-hurler');
       expect(am.isUnlocked('max-upgrade-first')).toBe(true);
     });
 
     it('tracks distinct tower types maxed', () => {
       const am = AchievementManager.getInstance();
-      am.onTowerPathMaxed('cannon');
-      am.onTowerPathMaxed('cannon'); // duplicate — should not double-count
+      am.onTowerPathMaxed('rock-hurler');
+      am.onTowerPathMaxed('rock-hurler'); // duplicate — should not double-count
       am.onTowerPathMaxed('frost');
       am.onTowerPathMaxed('mortar');
       expect(am.isUnlocked('max-upgrade-3-types')).toBe(true);
@@ -539,14 +539,14 @@ describe('AchievementManager', () => {
 
     it('does not double-count same tower type', () => {
       const am = AchievementManager.getInstance();
-      am.onTowerPathMaxed('cannon');
-      am.onTowerPathMaxed('cannon');
+      am.onTowerPathMaxed('rock-hurler');
+      am.onTowerPathMaxed('rock-hurler');
       expect(SaveManager.getInstance().getLifetimeStat('maxUpgradedTypes')).toBe(1);
     });
 
-    it('unlocks max-upgrade-every-type when all 8 types maxed', () => {
+    it('unlocks max-upgrade-every-type when all 7 types maxed', () => {
       const am = AchievementManager.getInstance();
-      const types = ['cannon', 'frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow', 'rock-hurler'];
+      const types = ['frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow', 'rock-hurler'];
       for (const t of types) am.onTowerPathMaxed(t);
       expect(am.isUnlocked('max-upgrade-every-type')).toBe(true);
     });
@@ -837,21 +837,21 @@ describe('AchievementManager', () => {
     it('unlocks place-50-towers-total at lifetime threshold', () => {
       const am = AchievementManager.getInstance();
       SaveManager.getInstance().addLifetimeStat('towersBuilt', 49);
-      am.addTowerBuilt(1, 'cannon'); // 49 + 1 = 50
+      am.addTowerBuilt(1, 'rock-hurler'); // 49 + 1 = 50
       expect(am.isUnlocked('place-50-towers-total')).toBe(true);
     });
 
     it('unlocks place-200-towers-total at lifetime threshold', () => {
       const am = AchievementManager.getInstance();
       SaveManager.getInstance().addLifetimeStat('towersBuilt', 199);
-      am.addTowerBuilt(1, 'cannon');
+      am.addTowerBuilt(1, 'rock-hurler');
       expect(am.isUnlocked('place-200-towers-total')).toBe(true);
     });
 
     it('unlocks place-1000-towers-total at lifetime threshold', () => {
       const am = AchievementManager.getInstance();
       SaveManager.getInstance().addLifetimeStat('towersBuilt', 999);
-      am.addTowerBuilt(1, 'cannon');
+      am.addTowerBuilt(1, 'rock-hurler');
       expect(am.isUnlocked('place-1000-towers-total')).toBe(true);
     });
   });
@@ -919,7 +919,7 @@ describe('AchievementManager', () => {
         commanderId:       'nokomis',
         livesLeft:         20,
         maxLives:          20,
-        towerTypesUsed:    ['cannon', 'frost'],
+        towerTypesUsed:    ['rock-hurler', 'frost'],
         allTowersUpgraded: false,
         goldEarned:        500,
         consumablesUsed:   [],
@@ -977,19 +977,19 @@ describe('AchievementManager', () => {
 
     it('unlocks mono-tower when only one tower type used', () => {
       const am = AchievementManager.getInstance();
-      am.onVictory(makeVictoryData({ towerTypesUsed: ['cannon'] }));
+      am.onVictory(makeVictoryData({ towerTypesUsed: ['rock-hurler'] }));
       expect(am.isUnlocked('mono-tower')).toBe(true);
     });
 
     it('does not unlock mono-tower with multiple types', () => {
       const am = AchievementManager.getInstance();
-      am.onVictory(makeVictoryData({ towerTypesUsed: ['cannon', 'frost'] }));
+      am.onVictory(makeVictoryData({ towerTypesUsed: ['rock-hurler', 'frost'] }));
       expect(am.isUnlocked('mono-tower')).toBe(false);
     });
 
-    it('unlocks all-tower-types-in-run when all 8 types used', () => {
+    it('unlocks all-tower-types-in-run when all 7 types used', () => {
       const am = AchievementManager.getInstance();
-      const allTypes = ['cannon', 'frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow', 'rock-hurler'];
+      const allTypes = ['frost', 'mortar', 'poison', 'tesla', 'aura', 'arrow', 'rock-hurler'];
       am.onVictory(makeVictoryData({ towerTypesUsed: allTypes }));
       expect(am.isUnlocked('all-tower-types-in-run')).toBe(true);
     });

@@ -459,7 +459,7 @@ describe('AudioManager', () => {
 
     it('after registerBuffer, SFX play method uses buffer source (not oscillator)', async () => {
       const am = AudioManager.getInstance();
-      await am.registerBuffer('sfx-cannon', new ArrayBuffer(8));
+      await am.registerBuffer('sfx-rock-hurler', new ArrayBuffer(8));
 
       mockCtx.createOscillator.mockClear();
       mockCtx.createBufferSource.mockClear();
@@ -620,8 +620,8 @@ describe('AudioManager', () => {
   describe('registerBuffer edge cases', () => {
     it('registerBuffer with same key twice overwrites the first', async () => {
       const am = AudioManager.getInstance();
-      await am.registerBuffer('sfx-cannon', new ArrayBuffer(8));
-      await am.registerBuffer('sfx-cannon', new ArrayBuffer(16));
+      await am.registerBuffer('sfx-rock-hurler', new ArrayBuffer(8));
+      await am.registerBuffer('sfx-rock-hurler', new ArrayBuffer(16));
 
       // Should still work — second registration overwrites the first
       mockCtx.createBufferSource.mockClear();

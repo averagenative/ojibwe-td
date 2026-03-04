@@ -20,12 +20,8 @@ describe('canSynergize — same-domain overlaps', () => {
     expect(canSynergize('rock-hurler', 'poison')).toBe(true);
   });
 
-  it('ground + ground → true (rock-hurler + cannon)', () => {
-    expect(canSynergize('rock-hurler', 'cannon')).toBe(true);
-  });
-
-  it('ground + ground → true (cannon + mortar)', () => {
-    expect(canSynergize('cannon', 'mortar')).toBe(true);
+  it('ground + ground → true (rock-hurler + mortar)', () => {
+    expect(canSynergize('rock-hurler', 'mortar')).toBe(true);
   });
 
   it('ground + ground → true (poison + mortar)', () => {
@@ -88,10 +84,6 @@ describe('canSynergize — incompatible domains', () => {
     expect(canSynergize('tesla', 'rock-hurler')).toBe(false);
   });
 
-  it('air + ground → false (tesla + cannon)', () => {
-    expect(canSynergize('tesla', 'cannon')).toBe(false);
-  });
-
   it('air + ground → false (tesla + mortar)', () => {
     expect(canSynergize('tesla', 'mortar')).toBe(false);
   });
@@ -121,7 +113,6 @@ describe('TOWER_TARGET_DOMAIN — all tower keys defined', () => {
     'poison':      'ground',
     'tesla':       'air',
     'aura':        'both',
-    'cannon':      'ground',
     'mortar':      'ground',
   };
 

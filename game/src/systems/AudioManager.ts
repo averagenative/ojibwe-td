@@ -256,7 +256,7 @@ export class AudioManager {
    * file). Decoding is async; once resolved, the buffer is available for all
    * play methods which will prefer it over procedural synthesis.
    *
-   * @param key        AudioManager key, e.g. 'sfx-cannon', 'music-gameplay'
+   * @param key        AudioManager key, e.g. 'sfx-rock-hurler', 'music-gameplay'
    * @param arrayBuffer Raw audio data (e.g. from Phaser's audio cache)
    */
   async registerBuffer(key: string, arrayBuffer: ArrayBuffer): Promise<void> {
@@ -350,7 +350,7 @@ export class AudioManager {
    */
   playProjectileFired(towerKey: string): void {
     switch (towerKey) {
-      case 'rock-hurler': if (this._playBufferSfx('sfx-cannon')) return; this._sfxCannon(); break;
+      case 'rock-hurler': if (this._playBufferSfx('sfx-rock-hurler')) return; this._sfxRockHurler(); break;
       case 'frost':       if (this._playBufferSfx('sfx-frost'))  return; this._sfxFrost();  break;
       case 'tesla':       if (this._playBufferSfx('sfx-tesla'))  return; this._sfxTesla();  break;
       case 'poison':      if (this._playBufferSfx('sfx-poison')) return; this._sfxPoison(); break;
@@ -702,7 +702,7 @@ export class AudioManager {
     osc2.onended = () => { osc2.disconnect(); g2.disconnect(); };
   }
 
-  private _sfxCannon(): void {
+  private _sfxRockHurler(): void {
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
     const t = ctx.currentTime;
@@ -742,7 +742,7 @@ export class AudioManager {
     bpf.frequency.linearRampToValueAtTime(650, t + 0.13);
     bpf.Q.value = 1.5;
 
-    // Soft envelope: 8 ms attack, decays to silence; peak well below cannon (0.4) / tesla (0.2)
+    // Soft envelope: 8 ms attack, decays to silence; peak well below rock-hurler (0.4) / tesla (0.2)
     const gWind = ctx.createGain();
     gWind.gain.setValueAtTime(0, t);
     gWind.gain.linearRampToValueAtTime(0.085, t + 0.008);

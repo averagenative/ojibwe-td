@@ -56,8 +56,9 @@ export interface ProjectileVisualConfig {
 
 /**
  * Indexed by tower `def.key`.
- * All six gameplay tower types are represented; cannon and mortar fall back to 'none'
- * since they are removed from the main build pool (replaced by rock-hurler).
+ * All six gameplay tower types are represented; mortar falls back to 'none'
+ * since it is removed from the main build pool.
+ * Cannon entry kept for legacy save compatibility (@deprecated).
  */
 export const PROJECTILE_VISUAL_CONFIGS: Readonly<Record<string, ProjectileVisualConfig>> = {
   arrow:         { shape: 'arrow',        color: 0xc4a265, rotates: true,  size: 10 },
@@ -66,8 +67,9 @@ export const PROJECTILE_VISUAL_CONFIGS: Readonly<Record<string, ProjectileVisual
   poison:        { shape: 'poison-blob',  color: 0x55ff99, rotates: false, size: 6  },
   tesla:         { shape: 'none',         color: 0xffff44, rotates: false, size: 4  },
   aura:          { shape: 'none',         color: 0xffcc22, rotates: false, size: 0  },
-  // Legacy / fallback tower types
+  // @deprecated — cannon replaced by rock-hurler (TASK-098); kept for legacy save compatibility
   cannon:        { shape: 'none',         color: 0xffdd00, rotates: false, size: 5  },
+  // Legacy / fallback tower type
   mortar:        { shape: 'none',         color: 0xff8800, rotates: false, size: 7  },
 };
 

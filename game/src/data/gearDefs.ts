@@ -192,7 +192,7 @@ export const ALL_GEAR_DEFS: GearDef[] = [
     id: 'barrel-frozen-lakebed', name: 'Frozen Lakebed Barrel', gearType: 'barrel-mod', rarity: 'rare',
     description: 'Ice-tempered steel hits harder and chills on impact.',
     stats: { damagePct: 0.20, rangePct: 0.10 },
-    specialEffect: { id: 'cannon-chill', description: 'Cannon shots slow targets by 10% for 1s' },
+    specialEffect: { id: 'hurler-chill', description: 'Rock Hurler shots slow targets by 10% for 1s' },
   },
   {
     id: 'barrel-makwas-claw', name: "Makwa's Claw", gearType: 'barrel-mod', rarity: 'legendary',
