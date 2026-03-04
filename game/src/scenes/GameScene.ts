@@ -857,10 +857,8 @@ export class GameScene extends Phaser.Scene {
     // Show wave 1 announcement banner after a brief delay so all UI is built.
     this.time.delayedCall(200, () => this.showWaveBanner(1));
 
-    // Endless-mode: Give Up button so players can end the session gracefully.
-    if (this.isEndlessMode) {
-      this.hud.createGiveUpButton(() => this.triggerGameOver());
-    }
+    // Give Up / Quit button — always visible so players can exit a run early.
+    this.hud.createGiveUpButton(() => this._quitToMainMenu());
 
     // Input
     this.input.on('pointermove', this.onPointerMove, this);
@@ -2809,6 +2807,19 @@ export class GameScene extends Phaser.Scene {
       `DPS   : ${dps.toFixed(1)}\n` +
       `Nearest creep HP: ${nearestHpStr}`,
     );
+  }
+
+  /**
+   * Give Up / Quit — clears autosave and returns immediately to main menu.
+   * Used by the Give Up button (all game modes).
+   */
+  private _quitToMainMenu(): void {
+    if (this.gameState === 'over') return;
+    this.gameState = 'over';
+    SessionManager.getInstance().clear();
+    this._commitRunAchievements(false);
+    this.waveManager.cleanup();
+    this.scene.start('MainMenuScene');
   }
 
   private triggerGameOver(): void {
