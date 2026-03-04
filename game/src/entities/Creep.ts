@@ -1230,6 +1230,10 @@ export class Creep extends Phaser.GameObjects.Container {
         this.bodyImage.setTint(0x44ff66);
       } else if (burning) {
         this.bodyImage.setTint(0xff8833);
+      } else if (shocked) {
+        this.bodyImage.setTint(EFFECT_CONFIGS.tesla.tintColor);
+      } else if (shredded) {
+        this.bodyImage.setTint(EFFECT_CONFIGS.armorShred.tintColor);
       } else {
         if (this.baseSpriteTint !== 0xffffff) {
           this.bodyImage.setTint(this.baseSpriteTint);
@@ -1404,6 +1408,16 @@ export class Creep extends Phaser.GameObjects.Container {
   ): void {
     // Guard: scene may be torn down while a dot timer callback is still pending.
     if (!this.scene) return;
+
+    // For sprite-path creeps, tint is applied directly to bodyImage in
+    // refreshStatusVisual() — only opaque pixels are affected so the effect is
+    // correctly bounded to the sprite shape.  Rectangle overlays would bleed
+    // into the transparent regions around the sprite, so skip them entirely.
+    if (this.bodyImage) {
+      const existing = this._effectOverlays.get(key);
+      if (existing) existing.setVisible(false);
+      return;
+    }
 
     let overlay = this._effectOverlays.get(key);
 
