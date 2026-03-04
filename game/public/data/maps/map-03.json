@@ -637,26 +637,6 @@
       "row": 13
     }
   ],
-  "airWaypointPaths": [
-    [
-      { "col": 0,  "row": 2 },
-      { "col": 10, "row": 1 },
-      { "col": 20, "row": 3 },
-      { "col": 33, "row": 2 }
-    ],
-    [
-      { "col": 0,  "row": 5 },
-      { "col": 12, "row": 9 },
-      { "col": 24, "row": 6 },
-      { "col": 33, "row": 13 }
-    ],
-    [
-      { "col": 0,  "row": 14 },
-      { "col": 10, "row": 16 },
-      { "col": 20, "row": 13 },
-      { "col": 33, "row": 15 }
-    ]
-  ],
   "startingLives": 20,
   "startingGold": 250
 }

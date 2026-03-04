@@ -1,14 +1,21 @@
 /**
- * Air Creep Path Diversity — TASK-134 tests.
+ * Air Creep Path Diversity — TASK-134 / TASK-160 tests.
  *
  * Covers:
- *   1. `getAirWaypointPaths()` — pure logic tests (priority, validation, fallback).
- *   2. Structural tests (GameScene ?raw, WaveManager ?raw) — verify multi-lane
+ *   1. `deriveAirPathsFromGround()` — pure logic tests for offset derivation.
+ *   2. `getAirWaypointPaths()` — priority, validation, fallback.
+ *   3. Structural tests (GameScene ?raw, WaveManager ?raw) — verify multi-lane
  *      wiring, random lane selection, and ascension modifier applied per lane.
+ *   4. Map data — auto-derived air lanes per ground path entrance.
  */
 
 import { describe, it, expect } from 'vitest';
-import { getAirWaypointPaths } from '../../types/MapData';
+import {
+  getAirWaypointPaths,
+  getWaypointPaths,
+  deriveAirPathsFromGround,
+  AIR_LANE_OFFSETS,
+} from '../../types/MapData';
 import type { MapData, MapWaypoint } from '../../types/MapData';
 
 import gameSceneSrc from '../../scenes/GameScene.ts?raw';
@@ -39,7 +46,72 @@ function stubMap(overrides: Partial<MapData> = {}): MapData {
 
 const defaultGroundPath: MapWaypoint[] = [wp(0, 5), wp(10, 5), wp(33, 5)];
 
-// ── 1. getAirWaypointPaths() — pure logic ──────────────────────────────────
+// ── 1. deriveAirPathsFromGround() — pure logic ────────────────────────────
+
+describe('deriveAirPathsFromGround', () => {
+  it('returns exactly 3 lanes (one per AIR_LANE_OFFSET)', () => {
+    const result = deriveAirPathsFromGround(defaultGroundPath, 17);
+    expect(result.length).toBe(AIR_LANE_OFFSETS.length);
+    expect(result.length).toBe(3);
+  });
+
+  it('each lane has the same number of waypoints as the ground path', () => {
+    const result = deriveAirPathsFromGround(defaultGroundPath, 17);
+    for (const lane of result) {
+      expect(lane.length).toBe(defaultGroundPath.length);
+    }
+  });
+
+  it('col values are unchanged across all lanes', () => {
+    const result = deriveAirPathsFromGround(defaultGroundPath, 17);
+    for (let li = 0; li < result.length; li++) {
+      for (let wi = 0; wi < defaultGroundPath.length; wi++) {
+        expect(result[li][wi].col).toBe(defaultGroundPath[wi].col);
+      }
+    }
+  });
+
+  it('lane rows are ground row + offset for each offset', () => {
+    const result = deriveAirPathsFromGround(defaultGroundPath, 17);
+    for (let li = 0; li < AIR_LANE_OFFSETS.length; li++) {
+      const offset = AIR_LANE_OFFSETS[li];
+      for (let wi = 0; wi < defaultGroundPath.length; wi++) {
+        const expected = Math.max(0, Math.min(17, defaultGroundPath[wi].row + offset));
+        expect(result[li][wi].row).toBe(expected);
+      }
+    }
+  });
+
+  it('clamps rows to [0, maxRow] for offset -2 when row is 0', () => {
+    const path = [wp(0, 0), wp(33, 0)];
+    const result = deriveAirPathsFromGround(path, 17);
+    // Offset -2 would give row = -2, should clamp to 0.
+    expect(result[0][0].row).toBe(0);
+    expect(result[0][1].row).toBe(0);
+  });
+
+  it('clamps rows to [0, maxRow] for offset +2 when row is near maxRow', () => {
+    const path = [wp(0, 16), wp(33, 16)];
+    const result = deriveAirPathsFromGround(path, 17);
+    // Offset +2 would give row = 18, should clamp to 17.
+    expect(result[2][0].row).toBe(17);
+    expect(result[2][1].row).toBe(17);
+  });
+
+  it('returns empty array when groundPath has fewer than 2 waypoints', () => {
+    expect(deriveAirPathsFromGround([wp(5, 5)], 17)).toEqual([]);
+    expect(deriveAirPathsFromGround([], 17)).toEqual([]);
+  });
+
+  it('middle lane (offset 0) follows ground path exactly when not clamped', () => {
+    const result = deriveAirPathsFromGround(defaultGroundPath, 17);
+    // Offset 0 is AIR_LANE_OFFSETS[1].
+    const midLane = result[1];
+    expect(midLane).toEqual(defaultGroundPath);
+  });
+});
+
+// ── 2. getAirWaypointPaths() — pure logic ──────────────────────────────────
 
 describe('getAirWaypointPaths', () => {
   // ── Priority 1: airWaypointPaths ──────────────────────────────────────
@@ -82,15 +154,23 @@ describe('getAirWaypointPaths', () => {
 
   it('ignores legacy airWaypoints with fewer than 2 waypoints', () => {
     const result = getAirWaypointPaths(stubMap({ airWaypoints: [wp(0, 3)] }), defaultGroundPath);
-    // Should fall through to ground-path fallback.
-    expect(result).toEqual([[defaultGroundPath[0], defaultGroundPath[2]]]);
+    // Should fall through to auto-derived lanes (3 lanes from ground path).
+    expect(result.length).toBe(3);
   });
 
-  // ── Priority 3: Fallback — ground-path derived ────────────────────────
+  // ── Priority 3: Auto-derive from ground path ──────────────────────────
 
-  it('returns spawn→exit from ground path when no air fields are defined', () => {
+  it('returns 3 derived lanes when no air fields are defined', () => {
     const result = getAirWaypointPaths(stubMap(), defaultGroundPath);
-    expect(result).toEqual([[wp(0, 5), wp(33, 5)]]);
+    expect(result.length).toBe(3);
+  });
+
+  it('derived lanes shadow the ground path with row offsets [-2, 0, +2]', () => {
+    const result = getAirWaypointPaths(stubMap(), defaultGroundPath);
+    // stubMap rows=18, maxRow=17; ground row=5 → lanes at 3, 5, 7.
+    expect(result[0][0].row).toBe(3); // offset -2
+    expect(result[1][0].row).toBe(5); // offset  0
+    expect(result[2][0].row).toBe(7); // offset +2
   });
 
   it('returns empty array when groundPath has fewer than 2 waypoints', () => {
@@ -128,7 +208,7 @@ describe('getAirWaypointPaths', () => {
     }
   });
 
-  it('every returned path has at least 2 waypoints (fallback)', () => {
+  it('every returned path has at least 2 waypoints (auto-derived)', () => {
     const result = getAirWaypointPaths(stubMap(), defaultGroundPath);
     for (const p of result) {
       expect(p.length).toBeGreaterThanOrEqual(2);
@@ -136,7 +216,7 @@ describe('getAirWaypointPaths', () => {
   });
 });
 
-// ── 2. Structural tests — GameScene ────────────────────────────────────────
+// ── 3. Structural tests — GameScene ────────────────────────────────────────
 
 describe('GameScene — air path diversity wiring (structural)', () => {
   it('imports getAirWaypointPaths from MapData', () => {
@@ -159,9 +239,15 @@ describe('GameScene — air path diversity wiring (structural)', () => {
     // The 6th argument to WaveManager constructor should be airPaths.
     expect(gameSceneSrc).toMatch(/new WaveManager\([^)]*airPaths/);
   });
+
+  it('iterates all ground paths when building air lanes', () => {
+    // buildAllAirWaypointPaths iterates groundPaths for multi-entrance support.
+    expect(gameSceneSrc).toContain('getWaypointPaths(this.mapData)');
+    expect(gameSceneSrc).toContain('for (const groundPath of groundPaths)');
+  });
 });
 
-// ── 3. Structural tests — WaveManager ──────────────────────────────────────
+// ── 4. Structural tests — WaveManager ──────────────────────────────────────
 
 describe('WaveManager — air lane diversity (structural)', () => {
   it('stores airWaypointPaths as an array of lanes', () => {
@@ -191,14 +277,13 @@ describe('WaveManager — air lane diversity (structural)', () => {
   });
 });
 
-// ── 4. Map data — all maps have airWaypointPaths ────────────────────────────
+// ── 5. Map data — auto-derived air lanes per ground path entrance ──────────
 
-describe('Map data — airWaypointPaths defined', () => {
+describe('Map data — air lanes auto-derived from ground path', () => {
   const mapIds = ['01', '02', '03', '04', '05'];
 
   for (const id of mapIds) {
-    it(`map-${id} has airWaypointPaths with 2-3 lanes`, async () => {
-      // Use dynamic import to load the JSON.
+    it(`map-${id} generates 3 air lanes per ground path entrance`, async () => {
       const fs = await import('fs');
       const path = await import('path');
       const mapPath = path.resolve(
@@ -208,17 +293,36 @@ describe('Map data — airWaypointPaths defined', () => {
       const raw = fs.readFileSync(mapPath, 'utf-8');
       const data = JSON.parse(raw) as MapData;
 
-      expect(data.airWaypointPaths).toBeDefined();
-      expect(data.airWaypointPaths!.length).toBeGreaterThanOrEqual(2);
-      expect(data.airWaypointPaths!.length).toBeLessThanOrEqual(3);
+      const allGroundPaths = getWaypointPaths(data);
 
-      // Each lane has ≥ 2 waypoints.
-      for (const lane of data.airWaypointPaths!) {
-        expect(lane.length).toBeGreaterThanOrEqual(2);
-        // Each waypoint has col and row.
-        for (const wp of lane) {
-          expect(typeof wp.col).toBe('number');
-          expect(typeof wp.row).toBe('number');
+      // Each entrance produces exactly 3 auto-derived lanes.
+      for (const groundPath of allGroundPaths) {
+        const lanes = getAirWaypointPaths(data, groundPath);
+        expect(lanes.length).toBe(3);
+
+        // Each lane has ≥ 2 waypoints.
+        for (const lane of lanes) {
+          expect(lane.length).toBeGreaterThanOrEqual(2);
+          // Each waypoint has col and row.
+          for (const wpt of lane) {
+            expect(typeof wpt.col).toBe('number');
+            expect(typeof wpt.row).toBe('number');
+          }
+        }
+
+        // Lanes shadow the ground path — same col values at each waypoint.
+        for (const lane of lanes) {
+          for (let i = 0; i < groundPath.length; i++) {
+            expect(lane[i].col).toBe(groundPath[i].col);
+          }
+        }
+
+        // Lane rows are close to the ground path (within 2 rows).
+        for (const lane of lanes) {
+          for (let i = 0; i < groundPath.length; i++) {
+            const rowDiff = Math.abs(lane[i].row - groundPath[i].row);
+            expect(rowDiff).toBeLessThanOrEqual(2);
+          }
         }
       }
     });
