@@ -1,7 +1,7 @@
 ---
 id: TASK-162
 title: Reposition Quick Play Button — Move Away From Start/Resume Stack
-status: in-progress
+status: done
 priority: high
 category: frontend
 phase: polish
