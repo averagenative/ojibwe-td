@@ -3121,7 +3121,7 @@ export class GameScene extends Phaser.Scene {
       metaStatBonuses: this._towerMetaUpgrades,
       seenDialogs:     Array.from(this._seenDialogIds),
       isChallenge:     this.isChallengeRun || undefined,
-      challengeId:     this.isChallengeRun ? this._challengeId : undefined,
+      challengeId:     this.isChallengeRun ? (this._challengeId ?? undefined) : undefined,
     });
   }
 

@@ -69,6 +69,10 @@ interface SeasonPalette {
   pathAccentColor: number | null;
   pathAccentAlpha: number;
   pathAccentChance: number;
+  /** Base colour for BRUSH tile polygons. */
+  brushColor: number;
+  /** Canopy colour for BIRCH tree foliage. */
+  birchLeafColor: number;
 }
 
 /** @internal */
@@ -91,6 +95,8 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     pathAccentColor:  null,
     pathAccentAlpha:  0,
     pathAccentChance: 0,
+    brushColor:       0x6B8F3E,  // cattail marsh green
+    birchLeafColor:   0x7CA850,  // green canopy
   },
   spring: {
     groundBase:    0x1e3518,   // fresh green, cooler
@@ -110,25 +116,29 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     pathAccentColor:  0x204060,  // muddy puddles
     pathAccentAlpha:  0.15,
     pathAccentChance: 0.12,
+    brushColor:       0x6B8F3E,  // cattail marsh green
+    birchLeafColor:   0x7CA850,  // green canopy
   },
   autumn: {
-    groundBase:    0x3a2a10,   // golden-brown ground
-    pathBase:      0x2a2010,
+    groundBase:    0x321e08,   // dark brown dried earth
+    pathBase:      0x2a1e0c,   // packed-dirt path
     pathEdge:      0x1e1808,
     pathCenter:    0x382c18,
     gridLine:      0x2e2008,
     gridAlpha:     0.25,
-    treeColors:    [0xbb6622, 0xcc7733, 0xaa5518],  // orange-red foliage
-    trunkColor:    0x4a3020,
-    rockColor:     0x6a5a4a,   // brownish granite
-    grassColor:    0x887730,   // dried grass
-    accentOverlay: null,
-    accentAlpha:   0,
-    accentChance:  0,
+    treeColors:    [0xaa2200, 0xcc5500, 0xbb6622, 0x884418],  // deep red, burnt orange, dark amber, russet brown
+    trunkColor:    0x3a2010,   // dark brown trunk
+    rockColor:     0x6a5a4a,   // warm grey-brown granite
+    grassColor:    0x9a8530,   // golden-brown dried tan
+    accentOverlay: 0x993311,   // scattered fallen leaves (reds, oranges)
+    accentAlpha:   0.15,
+    accentChance:  0.12,
     pathStoneColor:   0x6a5a4a,  // brownish stones
     pathAccentColor:  0x884420,  // fallen leaf litter
     pathAccentAlpha:  0.18,
-    pathAccentChance: 0.14,
+    pathAccentChance: 0.16,
+    brushColor:       0x8B7530,  // dried golden-brown brush
+    birchLeafColor:   0xCC8820,  // orange-yellow autumn foliage
   },
   winter: {
     groundBase:    0xb0bcc8,   // pale blue-grey snow
@@ -148,6 +158,8 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     pathAccentColor:  0xd0dde8,  // frost / ice patches
     pathAccentAlpha:  0.20,
     pathAccentChance: 0.16,
+    brushColor:       0x6B8F3E,  // cattail marsh green
+    birchLeafColor:   0x7CA850,  // green canopy (dormant in winter but still rendered)
   },
 };
 
@@ -332,12 +344,13 @@ function drawTreeClusterTile(
   gfx.fillRect(cx - 1.5, cy + r1 * 0.5, 3, 4);
 }
 
-/** Draw a BRUSH tile — light green irregular polygon (seeded randomisation). */
+/** Draw a BRUSH tile — irregular polygon in palette brush colour (seeded randomisation). */
 function drawBrushTile(
   gfx: Phaser.GameObjects.Graphics,
   cx: number, cy: number,
   tileSize: number,
   seed: number,
+  pal: SeasonPalette,
 ): void {
   const vertexCount = 5 + (posHash(seed, 0, 0, 10) > 0.5 ? 1 : 0);
   const baseR = tileSize * 0.32;
@@ -352,8 +365,7 @@ function drawBrushTile(
     ys.push(cy + Math.sin(angle) * r + (posHash(seed, 0, i, 13) - 0.5) * tileSize * 0.08);
   }
 
-  // Cattail marsh green, slightly brighter than ground
-  const brushColor = 0x6B8F3E;
+  const brushColor = pal.brushColor;
   gfx.fillStyle(brushColor, 0.70);
   gfx.fillPoints(
     xs.map((x, i) => ({ x, y: ys[i] })),
@@ -446,6 +458,7 @@ function drawBirchTile(
   cx: number, cy: number,
   tileSize: number,
   seed: number,
+  pal: SeasonPalette,
 ): void {
   const h0 = posHash(seed, 0, 0, 30);
   const h1 = posHash(seed, 0, 0, 31);
@@ -453,7 +466,7 @@ function drawBirchTile(
   const h3 = posHash(seed, 0, 0, 33);
 
   const barkWhite = 0xE8DCC8;
-  const leafGreen = 0x7CA850;
+  const leafGreen = pal.birchLeafColor;
 
   // Main canopy
   const r1 = tileSize * (0.20 + h0 * 0.10);
@@ -709,15 +722,28 @@ export function renderTerrain(
       baseGfx.lineStyle(1, pal.gridLine, pal.gridAlpha);
       baseGfx.strokeRect(x, y, ts, ts);
 
-      // Season-specific accent overlay (wet patches / snow patches)
+      // Season-specific accent overlay (wet patches / snow patches / fallen leaves)
       if (pal.accentOverlay !== null) {
         const accentHash = posHash(seed, row, col, 10);
         if (accentHash < pal.accentChance) {
-          baseGfx.fillStyle(pal.accentOverlay, pal.accentAlpha);
-          const ax = x + posHash(seed, row, col, 11) * (ts * 0.3);
-          const ay = y + posHash(seed, row, col, 12) * (ts * 0.3);
-          const ar = 6 + posHash(seed, row, col, 13) * 8;
-          baseGfx.fillCircle(ax + ts * 0.35, ay + ts * 0.35, ar);
+          if (season === 'autumn') {
+            // Scattered fallen leaf dots — small red, orange, brown shapes
+            const leafColors = [0xaa2200, 0xcc5500, 0x993311, 0x884418];
+            const leafCount = 3 + Math.floor(posHash(seed, row, col, 11) * 4);
+            for (let li = 0; li < leafCount; li++) {
+              const lx = x + posHash(seed, row, col, 12 + li * 2) * ts;
+              const ly = y + posHash(seed, row, col, 13 + li * 2) * ts;
+              const lc = leafColors[Math.floor(posHash(seed, row + li, col, 14) * leafColors.length)];
+              baseGfx.fillStyle(lc, pal.accentAlpha + posHash(seed, row, col + li, 15) * 0.08);
+              baseGfx.fillCircle(lx, ly, 1.0 + posHash(seed, row, col, 16 + li) * 1.2);
+            }
+          } else {
+            baseGfx.fillStyle(pal.accentOverlay, pal.accentAlpha);
+            const ax = x + posHash(seed, row, col, 11) * (ts * 0.3);
+            const ay = y + posHash(seed, row, col, 12) * (ts * 0.3);
+            const ar = 6 + posHash(seed, row, col, 13) * 8;
+            baseGfx.fillCircle(ax + ts * 0.35, ay + ts * 0.35, ar);
+          }
         }
       }
     }
@@ -902,7 +928,7 @@ export function renderTerrain(
         const tileSeed = tilePosSeed(col, row);
         const cx = col * ts + ts / 2;
         const cy = row * ts + ts / 2;
-        drawBirchTile(decoGfx, cx, cy, ts, tileSeed);
+        drawBirchTile(decoGfx, cx, cy, ts, tileSeed, pal);
         continue;
       }
 
@@ -917,7 +943,7 @@ export function renderTerrain(
           const tileSeed = tilePosSeed(col, row);
           const cx = col * ts + ts / 2;
           const cy = row * ts + ts / 2;
-          drawBrushTile(decoGfx, cx, cy, ts, tileSeed);
+          drawBrushTile(decoGfx, cx, cy, ts, tileSeed, pal);
         }
         continue;
       }

@@ -81,6 +81,22 @@ export const UNLOCK_NODES: UnlockNode[] = [
     effect:      { type: 'stage', stageId: 'mitigomizh-01' },
   },
   {
+    id:          'unlock-stage-mitigomizh-02',
+    label:       'Mitigomizh \u2014 Firebreak Trail',
+    description: 'Unlock the Firebreak Trail stage: a hook-shaped path through scorched oak savanna.',
+    cost:        600,
+    prereqs:     ['unlock-stage-mitigomizh-01'],
+    effect:      { type: 'stage', stageId: 'mitigomizh-02' },
+  },
+  {
+    id:          'unlock-stage-mitigomizh-03',
+    label:       'Mitigomizh \u2014 Burnt Ridge',
+    description: 'Unlock the Burnt Ridge stage: creeps descend from the ridge into charred lowlands.',
+    cost:        750,
+    prereqs:     ['unlock-stage-mitigomizh-02'],
+    effect:      { type: 'stage', stageId: 'mitigomizh-03' },
+  },
+  {
     id:          'unlock-stage-biboon-aki-01',
     label:       'Biboon-aki \u2014 Frozen Crossing',
     description: 'Unlock the Frozen Crossing stage: a challenging winter map where frost towers are amplified.',

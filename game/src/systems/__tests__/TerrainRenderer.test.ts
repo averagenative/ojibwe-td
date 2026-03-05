@@ -238,9 +238,13 @@ describe('PALETTES', () => {
     expect(PALETTES.winter.accentChance).toBeGreaterThan(0);
   });
 
-  it('summer and autumn have no accent overlays', () => {
+  it('summer has no accent overlay', () => {
     expect(PALETTES.summer.accentOverlay).toBeNull();
-    expect(PALETTES.autumn.accentOverlay).toBeNull();
+  });
+
+  it('autumn has non-null accentOverlay (leaf litter patches)', () => {
+    expect(PALETTES.autumn.accentOverlay).not.toBeNull();
+    expect(PALETTES.autumn.accentChance).toBeGreaterThan(0);
   });
 
   it('every palette has at least one tree colour', () => {
