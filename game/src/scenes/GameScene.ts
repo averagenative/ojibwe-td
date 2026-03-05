@@ -635,9 +635,7 @@ export class GameScene extends Phaser.Scene {
       if (bountyMult > 1) this.offerManager.consumeBounty();
       // Oshkaabewis: +1 gold per creep kill (stacks with base reward)
       const cmdBonus    = this.commanderState?.killGoldBonus ?? 0;
-      // Ascension 10: gold income penalty (0.9 = 10% reduction).
-      const ascGoldMult = this._ascensionSystem?.getGoldIncomeMultiplier() ?? 1;
-      const killGold    = Math.round(data.reward * rewardMult * bountyMult * ascGoldMult) + cmdBonus;
+      const killGold    = Math.round(data.reward * rewardMult * bountyMult * this._getAscGoldMult()) + cmdBonus;
       this.gold += killGold;
       this._totalKills++;
       this._goldEarned += killGold;
@@ -738,7 +736,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on('wave-bonus', (bonus: number) => {
       // Gold Rush offer: wave completion bonus +50%; challenge gold multiplier.
       const challengeGoldMult = this.challengeModifier?.goldMult ?? 1;
-      const adjustedBonus = Math.round(bonus * this.offerManager.getWaveBonusMult() * challengeGoldMult);
+      const adjustedBonus = Math.round(bonus * this.offerManager.getWaveBonusMult() * challengeGoldMult * this._getAscGoldMult());
       this.gold += adjustedBonus;
       this._goldEarned += adjustedBonus;
       this.hud.setGold(this.gold);
@@ -761,7 +759,7 @@ export class GameScene extends Phaser.Scene {
 
       // Bonus gold reward (in addition to normal kill gold from 'creep-killed').
       // War Chest offer: +200 additional gold on boss kills.
-      const bossGold = data.rewardGold + this.offerManager.getBossKillBonus();
+      const bossGold = Math.round((data.rewardGold + this.offerManager.getBossKillBonus()) * this._getAscGoldMult());
       this.gold += bossGold;
       this._goldEarned += bossGold;
       this.hud.setGold(this.gold);
@@ -1796,6 +1794,13 @@ export class GameScene extends Phaser.Scene {
     this.exitPlacementMode();
   }
 
+  // ── ascension helpers ─────────────────────────────────────────────────────
+
+  /** Ascension 10: gold income penalty (0.9 = 10% reduction). Returns 1 when inactive. */
+  private _getAscGoldMult(): number {
+    return this._ascensionSystem?.getGoldIncomeMultiplier() ?? 1;
+  }
+
   // ── tower management ──────────────────────────────────────────────────────
 
   /**
@@ -2470,14 +2475,14 @@ export class GameScene extends Phaser.Scene {
     this.offerManager.resetWavePlacements();
 
     // Interest: bonus gold = 2% of current gold each wave.
-    const interestBonus = this.offerManager.getInterestBonus(this.gold);
+    const interestBonus = Math.round(this.offerManager.getInterestBonus(this.gold) * this._getAscGoldMult());
     if (interestBonus > 0) {
       this.gold += interestBonus;
       this.hud.setGold(this.gold);
     }
 
     // Jackpot: 20% chance of +200 bonus gold each wave.
-    const jackpotBonus = this.offerManager.getJackpotBonus();
+    const jackpotBonus = Math.round(this.offerManager.getJackpotBonus() * this._getAscGoldMult());
     if (jackpotBonus > 0) {
       this.gold += jackpotBonus;
       this.hud.setGold(this.gold);
