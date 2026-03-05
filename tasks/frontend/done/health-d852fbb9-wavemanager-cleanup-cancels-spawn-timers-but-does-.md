@@ -1,7 +1,7 @@
 ---
 id: HEALTH-d852fbb9
 title: "WaveManager.cleanup() cancels spawn timers but does not call removeAllListeners()"
-status: in-progress
+status: done
 category: health
 severity: low
 source: health-check
