@@ -2398,8 +2398,8 @@ Non-blocking items surfaced during code review:
 - **Tower disable visual lacks ⚡ icon**: The task notes suggest "dim + ⚡ icon or grey overlay". Currently only alpha dimming is applied — no icon or text indicator. Adding a small icon/text above the disabled tower would improve clarity.
 
 <!-- HEALTH_CHECK_START -->
-Last run: 2026-03-04 02:00:07
-Findings: 121 total (121 new task files created, 0 already tracked)
+Last run: 2026-03-04 21:56:35
+Findings: 145 total (104 new task files created, 41 already tracked)
 Task files: /home/dmichael/projects/greentd/tasks/health/pending/
 <!-- HEALTH_CHECK_END -->
 
@@ -2746,3 +2746,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 ### TASK-165 Review Findings (Tower Icons — Consistent DALL-E 3 Style)
 
 - **Non-tower icons still 64×64** — icon-cannon, icon-dice, icon-mortar, and icon-mystery remain at 64×64 while the 6 tower selector icons are now 96×96. If visual consistency across all game icons is desired, consider regenerating these at 96×96 in a future pass.
+
+### TASK-168 Review Findings (Autumn Maps — Brown Terrain)
+
+- **No `stageId` field on VignetteDef** — The two new mitigomizh vignettes (wave 5 and 15) fire for all 3 mitigomizh stages since `VignetteDef` only supports `regionId` gating, not per-stage. Adding an optional `stageId` filter would allow stage-specific narrative for regions with multiple stages.
+- **Winter palette birchLeafColor still green** — `PALETTES.winter.birchLeafColor` is `0x7CA850` (green). Dormant winter birches could use a grey/bare brown tone for seasonal realism. Non-blocking since birch rendering still works correctly.

@@ -180,6 +180,35 @@ if [ -f "$WLOG" ]; then
 fi
 
 _R ""
+
+# ── Blocked tasks ──────────────────────────────────────────────────────
+_R "$(printf "${BOLD}Blocked tasks${RESET}")"
+_R "$(sep_l)"
+
+BLOCKED=$(find "$TASKS" -name "*.md" -not -path "*/done/*" -not -path "*/health/*" \
+  -exec grep -l "^status: blocked$" {} \; 2>/dev/null | sort) || true
+
+if [ -n "$BLOCKED" ]; then
+  while IFS= read -r f; do
+    id=$(grep "^id:" "$f" 2>/dev/null | head -1 | awk '{print $2}' || echo "?")
+    title=$(grep "^title:" "$f" 2>/dev/null | head -1 | sed 's/^title: //' || echo "?")
+    reason=$(grep "^blocked_reason:" "$f" 2>/dev/null | head -1 | sed 's/^blocked_reason: //' || echo "")
+    max_title=$((COL_W - 16))
+    short_title="$title"
+    [ ${#short_title} -gt "$max_title" ] && short_title="${short_title:0:$((max_title-1))}…"
+    _R "$(printf "  ${RED}⊘${RESET} ${BOLD}%-9s${RESET} %s" "$id" "$short_title")"
+    if [ -n "$reason" ]; then
+      max_reason=$((COL_W - 6))
+      short_reason="$reason"
+      [ ${#short_reason} -gt "$max_reason" ] && short_reason="${short_reason:0:$((max_reason-1))}…"
+      _R "$(printf "    ${DIM}%s${RESET}" "$short_reason")"
+    fi
+  done <<< "$BLOCKED"
+else
+  _R "$(printf "  ${DIM}none${RESET}")"
+fi
+
+_R ""
 _R "$(printf "  ${DIM}%s${RESET}" "$(date '+%Y-%m-%d %H:%M:%S %Z')")"
 
 # ── Render two columns side by side ─────────────────────────────────────────
