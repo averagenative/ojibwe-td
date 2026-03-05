@@ -257,6 +257,15 @@ export class BootScene extends Phaser.Scene {
     this.load.image('tile-rock',  'assets/tiles/tile-rock.png');
     this.load.image('tile-water', 'assets/tiles/tile-water.png');
 
+    // Teaching codex icons (32x32)
+    this.load.image('teaching-balance',   'assets/icons/teaching-balance.png');
+    this.load.image('teaching-fire',      'assets/icons/teaching-fire.png');
+    this.load.image('teaching-seasons',   'assets/icons/teaching-seasons.png');
+    this.load.image('teaching-listening', 'assets/icons/teaching-listening.png');
+    this.load.image('teaching-medicine',  'assets/icons/teaching-medicine.png');
+    this.load.image('teaching-harmony',   'assets/icons/teaching-harmony.png');
+    this.load.image('teaching-grief',     'assets/icons/teaching-grief.png');
+
     // Projectile sprites (32x32) — replace procedural Graphics during flight
     this.load.image('proj-arrow',  'assets/projectiles/proj-arrow.png');
     this.load.image('proj-rock',   'assets/projectiles/proj-rock.png');

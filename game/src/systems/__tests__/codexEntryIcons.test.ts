@@ -73,11 +73,9 @@ describe('codexDefs — icon data integrity (TASK-101)', () => {
     }
   });
 
-  it('iconKey is optional — some entries may omit it', () => {
+  it('iconKey is optional but all current entries have one', () => {
     const withIcon = ALL_CODEX_ENTRIES.filter(e => e.iconKey);
-    const withoutIcon = ALL_CODEX_ENTRIES.filter(e => !e.iconKey);
-    expect(withIcon.length).toBeGreaterThan(0);
-    expect(withoutIcon.length).toBeGreaterThan(0);
+    expect(withIcon.length).toBe(ALL_CODEX_ENTRIES.length);
   });
 
   it('commander entries with iconKey reference portrait-* keys', () => {

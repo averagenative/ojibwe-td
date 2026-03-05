@@ -308,6 +308,7 @@ const TEACHINGS: CodexEntryDef[] = [
     section:   CodexSection.TEACHINGS,
     title:     'On Balance',
     tileColor: 0x44aa88,
+    iconKey:   'teaching-balance',
     lines: [
       'In Anishinaabe teaching, the world exists in balance.',
       'When one part is disturbed, all parts feel it.',
@@ -321,6 +322,7 @@ const TEACHINGS: CodexEntryDef[] = [
     section:   CodexSection.TEACHINGS,
     title:     'On Fire',
     tileColor: 0xff6633,
+    iconKey:   'teaching-fire',
     lines: [
       'Fire is not the enemy of the forest.',
       'For generations, controlled burns renewed the land —',
@@ -335,6 +337,7 @@ const TEACHINGS: CodexEntryDef[] = [
     section:   CodexSection.TEACHINGS,
     title:     'On the Seasons',
     tileColor: 0x77bbee,
+    iconKey:   'teaching-seasons',
     lines: [
       'Each season carries a teaching.',
       'Spring is renewal. Summer is growth.',
@@ -349,6 +352,7 @@ const TEACHINGS: CodexEntryDef[] = [
     section:   CodexSection.TEACHINGS,
     title:     'On Listening',
     tileColor: 0x88aa88,
+    iconKey:   'teaching-listening',
     lines: [
       'The Anishinaabe way begins with listening.',
       'Before you speak, listen. Before you act, observe.',
@@ -363,6 +367,7 @@ const TEACHINGS: CodexEntryDef[] = [
     section:   CodexSection.TEACHINGS,
     title:     'On Medicine',
     tileColor: 0x448844,
+    iconKey:   'teaching-medicine',
     lines: [
       'Mashkiki — medicine — is more than what heals the body.',
       'It is the relationship between the plant, the land, and the one who gathers.',
@@ -377,6 +382,7 @@ const TEACHINGS: CodexEntryDef[] = [
     section:   CodexSection.TEACHINGS,
     title:     'On Harmony',
     tileColor: 0x66cc66,
+    iconKey:   'teaching-harmony',
     lines: [
       'Harmony is not the absence of conflict.',
       'It is the willingness to restore what was broken.',
@@ -391,6 +397,7 @@ const TEACHINGS: CodexEntryDef[] = [
     section:   CodexSection.TEACHINGS,
     title:     'On Grief',
     tileColor: 0x556688,
+    iconKey:   'teaching-grief',
     lines: [
       'To grieve is not weakness — it is love.',
       'The Anishinaabe carry their losses openly,',

@@ -35,7 +35,6 @@ const ENTRY_W = 260;
 const ENTRY_H = 50;
 const ENTRY_GAP = 6;
 
-const ENTRIES_PER_COL = 8;
 const COL_GAP = 16;
 
 interface CodexSceneData {
@@ -250,8 +249,14 @@ export class CodexScene extends Phaser.Scene {
     const entries = getCodexEntriesBySection(this.activeSection);
     const save = SaveManager.getInstance();
     const startY = 130;
+    const { height } = this.scale;
     // On mobile: single column to avoid overlapping the detail panel.
     const entryH = this._isMobile ? Math.max(ENTRY_H, 56) : ENTRY_H;
+
+    // Cap entries per column so they don't overlap the bottom buttons.
+    const btnAreaH = 60; // reserve space for BACK + MARK ALL READ buttons
+    const availableH = height - startY - btnAreaH;
+    const maxPerCol = Math.max(1, Math.floor(availableH / (entryH + ENTRY_GAP)));
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
@@ -263,8 +268,8 @@ export class CodexScene extends Phaser.Scene {
         col = 0;
         row = i;
       } else {
-        col = Math.floor(i / ENTRIES_PER_COL);
-        row = i % ENTRIES_PER_COL;
+        col = Math.floor(i / maxPerCol);
+        row = i % maxPerCol;
       }
 
       const bx = 160 + col * (ENTRY_W + COL_GAP);
