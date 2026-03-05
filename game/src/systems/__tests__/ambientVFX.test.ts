@@ -10,6 +10,15 @@ import { describe, it, expect } from 'vitest';
 import ambientSrc    from '../AmbientVFX.ts?raw';
 import gameSceneSrc  from '../../scenes/GameScene.ts?raw';
 
+/** Local copy of posHash to avoid importing Phaser via TerrainRenderer. */
+function posHash(seed: number, row: number, col: number, salt: number): number {
+  let h = seed ^ (row * 7919 + col * 104729 + salt * 15731);
+  h ^= h << 13;
+  h ^= h >>> 17;
+  h ^= h << 5;
+  return ((h >>> 0) % 10000) / 10000;
+}
+
 // ── AMBIENT_VFX_DEPTH constant ────────────────────────────────────────────────
 
 describe('AmbientVFX — depth constant', () => {
@@ -530,5 +539,91 @@ describe('AmbientVFX — deterministic randomness', () => {
 
   it('derives seed from mapData.id', () => {
     expect(ambientSrc).toContain('mapIdToSeed(mapData.id)');
+  });
+});
+
+// ── _randomTile salt independence ─────────────────────────────────────────────
+
+describe('AmbientVFX — _randomTile uses per-effect salt', () => {
+  it('_randomTile accepts a salt parameter (not arr.length)', () => {
+    // The signature must include a salt parameter
+    expect(ambientSrc).toContain('_randomTile<T>(arr: T[], salt: number): T');
+  });
+
+  it('_randomTile passes salt to _rng, not arr.length', () => {
+    // Must use the salt argument, not arr.length, as the rng salt
+    expect(ambientSrc).toContain('this._rng(salt)');
+    // Must NOT use arr.length as the rng salt
+    expect(ambientSrc).not.toContain('this._rng(arr.length)');
+  });
+
+  it('shimmer uses unique salt 100', () => {
+    expect(ambientSrc).toContain('this._randomTile(this._waterEdgeTiles, 100)');
+  });
+
+  it('vine glow uses unique salt 101', () => {
+    expect(ambientSrc).toContain('this._randomTile(this._buildableTiles, 101)');
+  });
+
+  it('bubbles uses unique salt 102', () => {
+    expect(ambientSrc).toContain('this._randomTile(this._pathTiles, 102)');
+  });
+
+  it('snow twinkle uses unique salt 103', () => {
+    expect(ambientSrc).toContain('this._randomTile(this._buildableTiles, 103)');
+  });
+
+  it('all four salts (100-103) are distinct', () => {
+    const salts = [100, 101, 102, 103];
+    expect(new Set(salts).size).toBe(salts.length);
+  });
+});
+
+// ── _randomTile arithmetic (uses posHash directly) ────────────────────────────
+
+describe('AmbientVFX — _randomTile arithmetic', () => {
+  // Replicate the _rng + _randomTile logic outside of Phaser
+  const rng = (seed: number, elapsed: number, salt: number) =>
+    posHash(seed, Math.floor(elapsed * 0.01) | 0, salt, 0);
+
+  const randomTileIndex = (seed: number, elapsed: number, salt: number, len: number) =>
+    Math.floor(rng(seed, elapsed, salt) * len) % len;
+
+  it('different salts yield different indices for same-length arrays', () => {
+    const seed = 42;
+    const len = 20; // same array length for both
+    // With a good hash, different salts should differ across time buckets
+    let differ = false;
+    for (let t = 0; t < 100; t++) {
+      if (randomTileIndex(seed, t * 100, 100, len) !== randomTileIndex(seed, t * 100, 101, len)) {
+        differ = true;
+        break;
+      }
+    }
+    expect(differ).toBe(true);
+  });
+
+  it('index is always within [0, arr.length)', () => {
+    const seed = 99;
+    for (let salt = 100; salt <= 103; salt++) {
+      for (let t = 0; t < 50; t++) {
+        const idx = randomTileIndex(seed, t * 100, salt, 15);
+        expect(idx).toBeGreaterThanOrEqual(0);
+        expect(idx).toBeLessThan(15);
+      }
+    }
+  });
+
+  it('single-element array always returns index 0', () => {
+    const idx = randomTileIndex(7, 1000, 100, 1);
+    expect(idx).toBe(0);
+  });
+
+  it('posHash returns values in [0, 1)', () => {
+    for (let salt = 100; salt <= 103; salt++) {
+      const v = rng(42, 5000, salt);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
   });
 });

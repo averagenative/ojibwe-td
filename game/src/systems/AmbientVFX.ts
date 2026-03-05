@@ -329,7 +329,7 @@ export class AmbientVFX {
     const shimmerInterval = this._mobile ? 1200 : 700;
     if (this._sa.shimmer >= shimmerInterval && this._waterEdgeTiles.length > 0) {
       this._sa.shimmer = 0;
-      const tile = this._randomTile(this._waterEdgeTiles);
+      const tile = this._randomTile(this._waterEdgeTiles, 100);
       const ox = (this._rng(1) - 0.5) * 12;
       const oy = (this._rng(2) - 0.5) * 12;
       this._emitArc(
@@ -345,7 +345,7 @@ export class AmbientVFX {
     const vineInterval = this._mobile ? 2000 : 1200;
     if (this._sa.vineGlow >= vineInterval && this._buildableTiles.length > 0) {
       this._sa.vineGlow = 0;
-      const tile = this._randomTile(this._buildableTiles);
+      const tile = this._randomTile(this._buildableTiles, 101);
       this._emitArc(
         tile.x, tile.y,
         0, 0,
@@ -416,7 +416,7 @@ export class AmbientVFX {
     const bubbleInterval = this._mobile ? 2500 : 1400;
     if (this._sa.bubbles >= bubbleInterval && this._pathTiles.length > 0) {
       this._sa.bubbles = 0;
-      const tile = this._randomTile(this._pathTiles);
+      const tile = this._randomTile(this._pathTiles, 102);
       this._emitArc(
         tile.x + (this._rng(5) - 0.5) * 10,
         tile.y,
@@ -572,7 +572,7 @@ export class AmbientVFX {
     const twinkleInterval = this._mobile ? 1000 : 550;
     if (this._sa.snowTwinkle >= twinkleInterval && this._buildableTiles.length > 0) {
       this._sa.snowTwinkle = 0;
-      const tile = this._randomTile(this._buildableTiles);
+      const tile = this._randomTile(this._buildableTiles, 103);
       this._emitArc(
         tile.x + (this._rng(15) - 0.5) * 14,
         tile.y + (this._rng(16) - 0.5) * 14,
@@ -781,7 +781,7 @@ export class AmbientVFX {
     return posHash(this._seed, index, salt, 777);
   }
 
-  private _randomTile<T>(arr: T[]): T {
-    return arr[Math.floor(this._rng(arr.length) * arr.length) % arr.length];
+  private _randomTile<T>(arr: T[], salt: number): T {
+    return arr[Math.floor(this._rng(salt) * arr.length) % arr.length];
   }
 }
