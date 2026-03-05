@@ -186,20 +186,20 @@ function createManager(waveDefs?: ReturnType<typeof makeWaveDefs>) {
 // ── Tests: generateEndlessWave ─────────────────────────────────────────────
 
 describe('WaveManager.generateEndlessWave()', () => {
-  it('wave 21 applies correct HP scaling (overflow=1)', () => {
+  it('wave 21 applies correct HP scaling (overflow=1, exponential)', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(21);
-    // hpMult = 6.0 × (1 + 0.12 × 1) = 6.0 × 1.12 = 6.72
-    expect(wave.hpMult).toBeCloseTo(6.72, 4);
+    // hpMult = 6.0 × 1.08^1 = 6.48
+    expect(wave.hpMult).toBeCloseTo(6.0 * 1.08, 2);
   });
 
   it('wave 21 applies correct speed scaling (overflow=1)', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(21);
-    // speedMult = 1.7 × (1 + 0.03 × 1) = 1.7 × 1.03 = 1.751
-    expect(wave.speedMult).toBeCloseTo(1.751, 4);
+    // speedMult = 1.7 × (1 + 0.02 × 1) = 1.7 × 1.02 = 1.734
+    expect(wave.speedMult).toBeCloseTo(1.7 * 1.02, 4);
   });
 
   it('wave 21 is NOT a boss wave', () => {
@@ -209,13 +209,21 @@ describe('WaveManager.generateEndlessWave()', () => {
     expect(wave.boss).toBeUndefined();
   });
 
-  it('wave 21 inherits count, intervalMs, and pool from wave 20', () => {
+  it('wave 21 count increases by 2 per overflow wave', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(21);
-    expect(wave.count).toBe(10);
-    expect(wave.intervalMs).toBe(500);
+    // count = 10 + 2 × 1 = 12
+    expect(wave.count).toBe(12);
     expect(wave.pool).toEqual(['grunt', 'runner']);
+  });
+
+  it('wave 21 intervalMs shrinks by 5 per overflow', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    const wave = wm.generateEndlessWave(21);
+    // intervalMs = max(200, 500 - 5 × 1) = 495
+    expect(wave.intervalMs).toBe(495);
   });
 
   it('wave 25 is a boss wave (first endless boss)', () => {
@@ -225,12 +233,12 @@ describe('WaveManager.generateEndlessWave()', () => {
     expect(wave.boss).toBe('makwa-ew25');
   });
 
-  it('wave 25 HP scales correctly (overflow=5)', () => {
+  it('wave 25 HP scales exponentially (overflow=5)', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(25);
-    // hpMult = 6.0 × (1 + 0.12 × 5) = 6.0 × 1.6 = 9.6
-    expect(wave.hpMult).toBeCloseTo(9.6, 4);
+    // hpMult = 6.0 × 1.08^5 ≈ 8.816
+    expect(wave.hpMult).toBeCloseTo(6.0 * Math.pow(1.08, 5), 2);
   });
 
   it('boss rotation cycles correctly: 25→makwa, 30→migizi, 35→waabooz, 40→animikiins', () => {
@@ -264,16 +272,43 @@ describe('WaveManager.generateEndlessWave()', () => {
     }
   });
 
-  it('large wave number scales correctly (wave 100, overflow=80)', () => {
+  it('large wave number scales exponentially (wave 100, overflow=80)', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(100);
-    // hpMult = 6.0 × (1 + 0.12 × 80) = 6.0 × 10.6 = 63.6
-    expect(wave.hpMult).toBeCloseTo(63.6, 4);
-    // speedMult = 1.7 × (1 + 0.03 × 80) = 1.7 × 3.4 = 5.78
-    expect(wave.speedMult).toBeCloseTo(5.78, 4);
+    // hpMult = 6.0 × 1.08^80 ≈ 6.0 × 471.95 ≈ 2831.7
+    expect(wave.hpMult).toBeCloseTo(6.0 * Math.pow(1.08, 80), 0);
+    // speedMult = 1.7 × min(2.5, 1 + 0.02 × 80) = 1.7 × 2.5 = 4.25 (capped)
+    expect(wave.speedMult).toBeCloseTo(1.7 * 2.5, 4);
+    // count = 10 + 2 × 80 = 170
+    expect(wave.count).toBe(170);
+    // intervalMs = max(200, 500 - 5 × 80) = 200 (floored)
+    expect(wave.intervalMs).toBe(200);
     // wave 100 is a boss wave (100 % 5 === 0)
     expect(wave.boss).toBeDefined();
+  });
+
+  it('creep count grows linearly (+2 per wave)', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    expect(wm.generateEndlessWave(30).count).toBe(10 + 2 * 10); // 30
+    expect(wm.generateEndlessWave(50).count).toBe(10 + 2 * 30); // 70
+  });
+
+  it('intervalMs floors at 200ms', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    // overflow = 80 → 500 - 400 = 100 → clamped to 200
+    expect(wm.generateEndlessWave(100).intervalMs).toBe(200);
+  });
+
+  it('speed multiplier caps at 2.5× base', () => {
+    const { wm } = createManager();
+    wm.enableEndless();
+    // overflow = 80 → 1 + 0.02 × 80 = 2.6 → capped to 2.5
+    expect(wm.generateEndlessWave(100).speedMult).toBeCloseTo(1.7 * 2.5, 4);
+    // overflow = 75 → 1 + 0.02 × 75 = 2.5 → exactly at cap
+    expect(wm.generateEndlessWave(95).speedMult).toBeCloseTo(1.7 * 2.5, 4);
   });
 });
 
@@ -284,24 +319,24 @@ describe('WaveManager endless escort generation', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(25);
-    // count = 4 + floor((25-25)/5) = 4
+    // count = 4 + floor((25-25)/5) × 2 = 4
     expect(wave.escorts?.count).toBe(4);
   });
 
-  it('wave 30 has escort count = 5', () => {
+  it('wave 30 has escort count = 6', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(30);
-    // count = 4 + floor((30-25)/5) = 5
-    expect(wave.escorts?.count).toBe(5);
+    // count = 4 + floor((30-25)/5) × 2 = 4 + 2 = 6
+    expect(wave.escorts?.count).toBe(6);
   });
 
-  it('wave 50 has escort count = 9', () => {
+  it('wave 50 has escort count = 14', () => {
     const { wm } = createManager();
     wm.enableEndless();
     const wave = wm.generateEndlessWave(50);
-    // count = 4 + floor((50-25)/5) = 9
-    expect(wave.escorts?.count).toBe(9);
+    // count = 4 + floor((50-25)/5) × 2 = 4 + 10 = 14
+    expect(wave.escorts?.count).toBe(14);
   });
 
   it('non-boss endless waves have no escorts', () => {
@@ -318,11 +353,15 @@ describe('WaveManager endless escort generation', () => {
     expect(wave.escorts?.types).toEqual(['runner', 'brute']);
   });
 
-  it('endless escort intervalMs is 1000', () => {
+  it('escort intervalMs shrinks with overflow', () => {
     const { wm } = createManager();
     wm.enableEndless();
-    const wave = wm.generateEndlessWave(25);
-    expect(wave.escorts?.intervalMs).toBe(1000);
+    // wave 25: max(400, 1000 - 10 × 5) = max(400, 950) = 950
+    expect(wm.generateEndlessWave(25).escorts?.intervalMs).toBe(950);
+    // wave 50: max(400, 1000 - 10 × 30) = max(400, 700) = 700
+    expect(wm.generateEndlessWave(50).escorts?.intervalMs).toBe(700);
+    // wave 100: max(400, 1000 - 10 × 80) = max(400, 200) = 400 (floored)
+    expect(wm.generateEndlessWave(100).escorts?.intervalMs).toBe(400);
   });
 });
 
@@ -337,12 +376,12 @@ describe('WaveManager endless mode integration', () => {
     expect(wm.isActive()).toBe(false);
   });
 
-  it('with endless enabled, startWave(21) spawns creeps', () => {
+  it('with endless enabled, startWave(21) spawns creeps (count grows)', () => {
     const { wm, activeCreeps } = createManager();
     wm.enableEndless();
     wm.startWave(21);
-    // Wave 20 baseline has count=10, so wave 21 should also have count=10
-    expect(activeCreeps.size).toBe(10);
+    // Wave 21: count = 10 + 2 × 1 = 12
+    expect(activeCreeps.size).toBe(12);
     expect(wm.isActive()).toBe(true);
   });
 
@@ -350,8 +389,7 @@ describe('WaveManager endless mode integration', () => {
     const { wm, activeCreeps } = createManager();
     wm.enableEndless();
     wm.startWave(25);
-    // Wave 25 endless boss: 1 boss + 4 escorts (count = 4 + floor((25-25)/5) = 4)
-    // Escort pool ['runner', 'brute'] — both exist in CREEP_TYPE_DEFS.
+    // Wave 25 endless boss: 1 boss + 4 escorts (count = 4 + floor((25-25)/5) × 2 = 4)
     expect(activeCreeps.size).toBe(5);
     expect(wm.isActive()).toBe(true);
   });
@@ -380,20 +418,22 @@ describe('WaveManager endless mode integration', () => {
     expect(wm.isActive()).toBe(false);
   });
 
-  it('consecutive endless waves work correctly', () => {
+  it('consecutive endless waves work correctly with growing counts', () => {
     const { wm, activeCreeps } = createManager();
     wm.enableEndless();
 
     let completeCount = 0;
     wm.on('wave-complete', () => { completeCount++; });
 
-    // Wave 21
+    // Wave 21: count = 10 + 2 = 12
     wm.startWave(21);
+    expect(activeCreeps.size).toBe(12);
     [...activeCreeps].forEach((c: MockCreepLike) => c.emit('died'));
     expect(completeCount).toBe(1);
 
-    // Wave 22
+    // Wave 22: count = 10 + 4 = 14
     wm.startWave(22);
+    expect(activeCreeps.size).toBe(14);
     [...activeCreeps].forEach((c: MockCreepLike) => c.emit('died'));
     expect(completeCount).toBe(2);
   });

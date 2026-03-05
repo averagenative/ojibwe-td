@@ -705,23 +705,34 @@ export class MainMenuScene extends Phaser.Scene {
         created.push(bestText);
       }
 
-      // ENDLESS button — taller on mobile for better touch target
+      // ENDLESS button — only unlocked after completing the stage at least once
+      const stageCleared = SaveManager.getInstance().getStageMoons(stage.id) > 0;
       const eBtnH = this._isMobile ? 36 : 26;
       const eBtnY = by + sh / 2 + (this._isMobile ? 22 : 18);
       const ePanel = makePanel(this, bx, eBtnY, 160, eBtnH, DEPTH_STAGE + 1);
-      fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1);
-      const eLabel = this.add.text(bx, eBtnY, '∞ ENDLESS', {
-        fontSize: this._fs(12), color: PAL.accentBlue, fontFamily: PAL.fontBody, fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(DEPTH_STAGE + 2);
-      created.push(ePanel.gfx, ePanel.zone, eLabel);
 
-      ePanel.zone.on('pointerover', () => { fillPanel(ePanel, R, PAL.bgEndlessBtnHover, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlueLight); });
-      ePanel.zone.on('pointerout',  () => { fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlue); });
-      ePanel.zone.on('pointerup',   () => {
-        this.selectedStageId = stage.id;
-        this.highlightStage(stage.id);
-        this._go('CommanderSelectScene', { stageId: stage.id, isEndless: true });
-      });
+      if (stageCleared) {
+        fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1);
+        const eLabel = this.add.text(bx, eBtnY, '∞ ENDLESS', {
+          fontSize: this._fs(12), color: PAL.accentBlue, fontFamily: PAL.fontBody, fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(DEPTH_STAGE + 2);
+        created.push(ePanel.gfx, ePanel.zone, eLabel);
+
+        ePanel.zone.on('pointerover', () => { fillPanel(ePanel, R, PAL.bgEndlessBtnHover, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlueLight); });
+        ePanel.zone.on('pointerout',  () => { fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlue); });
+        ePanel.zone.on('pointerup',   () => {
+          this.selectedStageId = stage.id;
+          this.highlightStage(stage.id);
+          this._go('CommanderSelectScene', { stageId: stage.id, isEndless: true });
+        });
+      } else {
+        fillPanel(ePanel, R, PAL.bgPanelLocked, PAL.borderLocked, 1);
+        const eLabel = this.add.text(bx, eBtnY, '∞ ENDLESS', {
+          fontSize: this._fs(12), color: PAL.textLocked, fontFamily: PAL.fontBody, fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(DEPTH_STAGE + 2);
+        created.push(ePanel.gfx, ePanel.zone, eLabel);
+        // No interaction — locked
+      }
 
       panel.zone.on('pointerover', () => fillPanel(panel, R, PAL.bgPanelHover, PAL.borderInactive, 2));
       panel.zone.on('pointerout', () => {

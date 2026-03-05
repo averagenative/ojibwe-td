@@ -4,7 +4,7 @@ import type { CreepDiedPoisonedData, BossKilledData } from '../entities/Creep';
 import { Tower, ALL_TOWER_DEFS } from '../entities/towers/Tower';
 import type { TowerDef } from '../entities/towers/Tower';
 import { Projectile } from '../entities/Projectile';
-import { WaveManager } from '../systems/WaveManager';
+import { WaveManager, ENDLESS_MAX_WAVE } from '../systems/WaveManager';
 import type { CreepKilledData, WaveAnnouncementInfo } from '../systems/WaveManager';
 import { UpgradeManager } from '../systems/UpgradeManager';
 import { OfferManager } from '../systems/OfferManager';
@@ -2299,8 +2299,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const nextWave = this.currentWave + 1;
-    // Hide if there's no next wave (non-endless) or if it's a boss wave.
-    if ((!this.isEndlessMode && nextWave > this.totalWaves) || nextWave % 5 === 0) {
+    // Hide if there's no next wave, at the endless cap, or if it's a boss wave.
+    if ((!this.isEndlessMode && nextWave > this.totalWaves) || (this.isEndlessMode && nextWave > ENDLESS_MAX_WAVE) || nextWave % 5 === 0) {
       this.hud.setRushWaveVisible(false);
       return;
     }
@@ -2377,7 +2377,8 @@ export class GameScene extends Phaser.Scene {
     // Re-evaluate the rush button — it may re-appear now that a wave settled.
     this._updateRushButton();
 
-    if (!isConcurrent && this.currentWave >= this.totalWaves && !this.isEndlessMode) {
+    const endlessComplete = this.isEndlessMode && this.currentWave >= ENDLESS_MAX_WAVE;
+    if (!isConcurrent && (endlessComplete || (this.currentWave >= this.totalWaves && !this.isEndlessMode))) {
       // Cancel any remaining spawn timers (boss escorts may still be queued).
       this.waveManager.cleanup();
 

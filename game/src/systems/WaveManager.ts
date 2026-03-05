@@ -100,6 +100,13 @@ export interface CreepKilledData {
 const ENDLESS_BOSS_ROTATION = ['makwa', 'migizi', 'waabooz', 'animikiins'] as const;
 
 /**
+ * Maximum wave number in endless mode. After this wave completes, the run
+ * ends as a victory. The exponential scaling makes the game practically
+ * unbeatable well before this cap, but it provides a clean ending.
+ */
+export const ENDLESS_MAX_WAVE = 100;
+
+/**
  * Per-wave tracking record used to support multiple concurrent active waves.
  * Each call to startWave() creates one ActiveWave pushed onto _activeWaves[].
  */
@@ -277,18 +284,24 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   /**
    * Generate a procedural WaveDef for endless wave `n` (n > 20).
    *
-   * Scaling formula applied on top of wave-20 base stats:
-   *   HP    = wave20.hpMult    × (1 + 0.12 × (n − 20))
-   *   Speed = wave20.speedMult × (1 + 0.03 × (n − 20))
+   * Scaling uses exponential growth so the difficulty accelerates over time
+   * and players are eventually overwhelmed:
+   *
+   *   HP    = wave20.hpMult    × 1.08^(n − 20)     (~8% compound per wave)
+   *   Speed = wave20.speedMult × (1 + 0.02 × (n − 20))   (linear, capped at 2.5×)
+   *   Count = wave20.count     + 2 × (n − 20)      (+2 creeps per wave)
+   *   Interval shrinks gently:  max(200, wave20.intervalMs − 5 × (n − 20))
    *
    * Boss waves occur at every 5th wave (25, 30, 35 …), cycling through the
-   * four existing boss archetypes with stats scaled by the same formula.
+   * four existing boss archetypes with exponential HP scaling.
    */
   generateEndlessWave(n: number): WaveDef {
     const overflow   = n - 20;
     const base       = this.waveDefs[19]; // wave 20 is the baseline
-    const hpMult     = base.hpMult    * (1 + 0.12 * overflow);
-    const speedMult  = base.speedMult * (1 + 0.03 * overflow);
+    const hpMult     = base.hpMult    * Math.pow(1.08, overflow);
+    const speedMult  = base.speedMult * Math.min(2.5, 1 + 0.02 * overflow);
+    const count      = base.count + 2 * overflow;
+    const intervalMs = Math.max(200, base.intervalMs - 5 * overflow);
     const isBossWave = n % 5 === 0;
 
     if (isBossWave) {
@@ -301,28 +314,28 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       this.endlessBossOverrides.set(endlessKey, {
         ...baseBoss,
         key:   endlessKey,
-        hp:    Math.round(baseBoss.hp    * (1 + 0.12 * overflow)),
-        speed: Math.round(baseBoss.speed * (1 + 0.03 * overflow)),
+        hp:    Math.round(baseBoss.hp    * Math.pow(1.08, overflow)),
+        speed: Math.round(baseBoss.speed * Math.min(2.5, 1 + 0.02 * overflow)),
       });
 
       return {
-        count:      base.count,
-        intervalMs: base.intervalMs,
+        count,
+        intervalMs,
         hpMult,
         speedMult,
         pool:       base.pool,
         boss:       endlessKey,
         escorts: {
-          count:      4 + Math.floor((n - 25) / 5),
+          count:      4 + Math.floor((n - 25) / 5) * 2,
           types:      ['runner', 'brute'],
-          intervalMs: 1000,
+          intervalMs: Math.max(400, 1000 - 10 * overflow),
         },
       };
     }
 
     return {
-      count:      base.count,
-      intervalMs: base.intervalMs,
+      count,
+      intervalMs,
       hpMult,
       speedMult,
       pool:       base.pool,
