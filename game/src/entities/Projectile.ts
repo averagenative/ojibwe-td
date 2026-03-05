@@ -582,38 +582,66 @@ export class Projectile extends Phaser.GameObjects.Arc {
     }
   }
 
-  /** Frost impact: expanding burst ring and a sparkle cross. */
+  /** Frost impact: snowflake burst with 6 radiating crystal arms. */
   private impactFrostBurst(cx: number, cy: number): void {
-    // Expanding ring — Graphics positioned AT the impact point so that the
-    // scale tween expands outward from (cx, cy) rather than from (0, 0).
-    const ring = this.scene.add.graphics({ x: cx, y: cy });
-    ring.lineStyle(2, 0x88ccff, 0.9);
-    ring.strokeCircle(0, 0, 5);
-    ring.setDepth(25);
+    // 6-armed snowflake crystal
+    const flake = this.scene.add.graphics({ x: cx, y: cy });
+    flake.setDepth(25);
+    const armLen = 8;
+    const branchLen = 3;
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      const ax = Math.cos(angle) * armLen;
+      const ay = Math.sin(angle) * armLen;
+      // Main arm
+      flake.lineStyle(1.5, 0xcceeff, 0.9);
+      flake.beginPath();
+      flake.moveTo(0, 0);
+      flake.lineTo(ax, ay);
+      flake.strokePath();
+      // Branch near tip (at 60% of arm)
+      const bx = Math.cos(angle) * armLen * 0.6;
+      const by = Math.sin(angle) * armLen * 0.6;
+      const perpA = angle + Math.PI / 3;
+      const perpB = angle - Math.PI / 3;
+      flake.lineStyle(1, 0x88ccff, 0.7);
+      flake.beginPath();
+      flake.moveTo(bx + Math.cos(perpA) * branchLen, by + Math.sin(perpA) * branchLen);
+      flake.lineTo(bx, by);
+      flake.lineTo(bx + Math.cos(perpB) * branchLen, by + Math.sin(perpB) * branchLen);
+      flake.strokePath();
+    }
+    // Centre dot
+    flake.fillStyle(0xffffff, 0.8);
+    flake.fillCircle(0, 0, 1.5);
+
     this.scene.tweens.add({
-      targets:    ring,
-      scaleX:     3.5,
-      scaleY:     3.5,
+      targets:    flake,
+      scaleX:     1.8,
+      scaleY:     1.8,
       alpha:      0,
-      duration:   180,
-      ease:       'Power1',
-      onComplete: () => ring.destroy(),
+      angle:      30,
+      duration:   250,
+      ease:       'Sine.easeOut',
+      onComplete: () => flake.destroy(),
     });
 
-    // Sparkle cross (ice-crystal hint) — also positioned at impact.
-    const spark = this.scene.add.graphics({ x: cx, y: cy });
-    spark.lineStyle(1.5, 0xcceeff, 0.85);
-    spark.beginPath();
-    spark.moveTo(-5, 0); spark.lineTo(5, 0);
-    spark.moveTo(0, -5); spark.lineTo(0, 5);
-    spark.strokePath();
-    spark.setDepth(25);
-    this.scene.tweens.add({
-      targets:    spark,
-      alpha:      0,
-      duration:   160,
-      onComplete: () => spark.destroy(),
-    });
+    // Scatter a few tiny ice sparkles
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const dist = 4 + Math.random() * 8;
+      const dot  = this.scene.add.circle(cx, cy, 1, 0xddeeff, 0.8);
+      dot.setDepth(24);
+      this.scene.tweens.add({
+        targets:    dot,
+        x:          cx + Math.cos(a) * dist,
+        y:          cy + Math.sin(a) * dist,
+        alpha:      0,
+        duration:   200,
+        ease:       'Power1',
+        onComplete: () => dot.destroy(),
+      });
+    }
   }
 
   /** Poison impact: 4 lingering splatter blobs around impact point. */
