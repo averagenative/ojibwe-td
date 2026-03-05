@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { TowerDef } from '../entities/towers/Tower';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { formatDmgLine, clampTooltipX } from './tooltipFormat';
 
@@ -245,7 +245,7 @@ export class TowerPanel {
 
         // Button pointerup: fires when the pointer lifts *over* the button.
         // If no drag was detected, treat it as a normal click.
-        btn.on('pointerup', () => {
+        btn.on(TAP_EVENT, () => {
           const wasDrag = dragFired;
           dragFired = false;
           cleanupSceneListeners();

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { Tower } from '../entities/towers/Tower';
 import type { UpgradeManager } from '../systems/UpgradeManager';
+import { TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -114,7 +115,7 @@ export class MultiTowerPanel {
 
     this._deselectBg.on('pointerover', () => this._deselectBg.setFillStyle(0x320c0c));
     this._deselectBg.on('pointerout',  () => this._deselectBg.setFillStyle(0x200808));
-    this._deselectBg.on('pointerup',   () => this.onDeselectAll?.());
+    this._deselectBg.on(TAP_EVENT,   () => this.onDeselectAll?.());
 
     // ── Three upgrade columns ──────────────────────────────────────────────
     const colsTop = panelTop + COLS_TOP_OFFSET;
@@ -181,7 +182,7 @@ export class MultiTowerPanel {
 
       buyBg.on('pointerover', () => buyBg.setFillStyle(PAL.bgUpgradeBuyHover));
       buyBg.on('pointerout',  () => buyBg.setFillStyle(PAL.bgUpgradeBuy));
-      buyBg.on('pointerup',   () => this.onBuyBatch?.(pathId));
+      buyBg.on(TAP_EVENT,   () => this.onBuyBatch?.(pathId));
 
       this._cols.push({ path: pathId, headerText, descText, tierText, costText, buyBg, buyLabel, sep });
     }
@@ -212,7 +213,7 @@ export class MultiTowerPanel {
 
     this._selectAllBg.on('pointerover', () => this._selectAllBg.setFillStyle(PAL.bgStartBtnHover));
     this._selectAllBg.on('pointerout',  () => this._selectAllBg.setFillStyle(PAL.bgStartBtn));
-    this._selectAllBg.on('pointerup',   () => {
+    this._selectAllBg.on(TAP_EVENT,   () => {
       // Callback receives type key stored in _currentTypeKey (set during refresh)
       if (this._currentTypeKey) this.onSelectAllType?.(this._currentTypeKey);
     });

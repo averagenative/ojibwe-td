@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
 
 /** A single selectable reward shown in the boss offer panel. */
@@ -106,7 +107,7 @@ export class BossOfferPanel {
         btnBg.setFillStyle(PAL.bgBossCard).setStrokeStyle(1, PAL.borderBossCard);
         btnLabel.setColor(PAL.textBossCardLabel);
       });
-      btnBg.on('pointerup', () => {
+      btnBg.on(TAP_EVENT, () => {
         offer.onChoose();
         this.close();
         onClosed?.();

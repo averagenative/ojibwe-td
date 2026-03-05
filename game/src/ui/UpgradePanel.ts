@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { Tower } from '../entities/towers/Tower';
 import type { UpgradeManager } from '../systems/UpgradeManager';
 import { calculateSellRefund } from '../systems/EconomyManager';
+import { TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { buildStatsLine } from './statsLine';
 
@@ -133,7 +134,7 @@ export class UpgradePanel {
 
     this.sellBg.on('pointerover', () => this.sellBg.setFillStyle(0x4a3a10));
     this.sellBg.on('pointerout',  () => this.sellBg.setFillStyle(0x3a2a00));
-    this.sellBg.on('pointerup',   () => {
+    this.sellBg.on(TAP_EVENT,   () => {
       if (this.currentTower) this.onSell?.(this.currentTower);
     });
 
@@ -154,7 +155,7 @@ export class UpgradePanel {
 
     this.respecBg.on('pointerover', () => this.respecBg.setFillStyle(PAL.bgGiveUpHover));
     this.respecBg.on('pointerout',  () => this.respecBg.setFillStyle(PAL.bgGiveUp));
-    this.respecBg.on('pointerup',   () => this.handleRespec());
+    this.respecBg.on(TAP_EVENT,   () => this.handleRespec());
 
     // "Select All [Type]" button — placed left of Respec
     const selectAllW = 180;
@@ -173,7 +174,7 @@ export class UpgradePanel {
 
     this._selectAllBg.on('pointerover', () => this._selectAllBg.setFillStyle(PAL.bgStartBtnHover));
     this._selectAllBg.on('pointerout',  () => this._selectAllBg.setFillStyle(PAL.bgStartBtn));
-    this._selectAllBg.on('pointerup',   () => this.onSelectAllType?.());
+    this._selectAllBg.on(TAP_EVENT,   () => this.onSelectAllType?.());
 
     // ── Three path columns ─────────────────────────────────────────────────
     const colsTop  = py + HEADER_H;
@@ -249,7 +250,7 @@ export class UpgradePanel {
 
       buyBg.on('pointerover', () => buyBg.setFillStyle(PAL.bgUpgradeBuyHover));
       buyBg.on('pointerout',  () => buyBg.setFillStyle(PAL.bgUpgradeBuy));
-      buyBg.on('pointerup',   () => this.handleBuy(pathId));
+      buyBg.on(TAP_EVENT,   () => this.handleBuy(pathId));
 
       // Locked overlay
       const lockOverlay = scene.add.rectangle(

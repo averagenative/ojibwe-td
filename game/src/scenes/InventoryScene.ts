@@ -15,6 +15,7 @@ import type { GearInstance, GearRarity } from '../data/gearDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { matchesGearInventoryFilter, resolveGearDisplayTowerKey, UNIVERSAL_GEAR_FILTER } from '../ui/gearTowerAssociation';
 import { PAL } from '../ui/palette';
+import { TAP_EVENT } from '../systems/MobileManager';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -153,7 +154,7 @@ export class InventoryScene extends Phaser.Scene {
 
       bg.on('pointerover', () => { if (!isActive) bg.setFillStyle(PAL.bgCardHover); });
       bg.on('pointerout',  () => { if (!isActive) bg.setFillStyle(PAL.bgPanel); });
-      bg.on('pointerup', () => {
+      bg.on(TAP_EVENT, () => {
         this.activeFilter = opt.towerKey;
         this.scrollOffset = 0;
         this.selectedUid = null;
@@ -266,7 +267,7 @@ export class InventoryScene extends Phaser.Scene {
       }).setOrigin(0.5);
 
       // Click handler
-      bg.on('pointerup', () => {
+      bg.on(TAP_EVENT, () => {
         this.selectedUid = item.uid;
         this._buildGrid();
         this._showDetail(item);
@@ -575,7 +576,7 @@ export class InventoryScene extends Phaser.Scene {
 
       runeBg.on('pointerover', () => runeBg.setFillStyle(PAL.bgCardHover));
       runeBg.on('pointerout',  () => runeBg.setFillStyle(PAL.bgPanel));
-      runeBg.on('pointerup', () => {
+      runeBg.on(TAP_EVENT, () => {
         this.inv.socketRune(item.uid, rune);
         const updated = this.inv.getItem(item.uid);
         if (updated) {
@@ -662,7 +663,7 @@ export class InventoryScene extends Phaser.Scene {
     }).setOrigin(0.5);
     bg.on('pointerover', () => bg.setFillStyle(bgColor + 0x111111));
     bg.on('pointerout',  () => bg.setFillStyle(bgColor));
-    bg.on('pointerup', onClick);
+    bg.on(TAP_EVENT, onClick);
   }
 
   private _makeDetailButton(
@@ -678,7 +679,7 @@ export class InventoryScene extends Phaser.Scene {
     }).setOrigin(0.5);
     bg.on('pointerover', () => bg.setFillStyle(bgColor + 0x111111));
     bg.on('pointerout',  () => bg.setFillStyle(bgColor));
-    bg.on('pointerup', onClick);
+    bg.on(TAP_EVENT, onClick);
     this.detailObjects.push(bg, txt);
   }
 }

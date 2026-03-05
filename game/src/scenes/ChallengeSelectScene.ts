@@ -15,6 +15,7 @@ import { ALL_CHALLENGES, getFeaturedChallengeId, getUnlockedChallenges } from '.
 import type { ChallengeDef } from '../data/challengeDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { PAL } from '../ui/palette';
+import { TAP_EVENT } from '../systems/MobileManager';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -400,7 +401,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
       cardBg.setInteractive({ useHandCursor: true });
       cardBg.on('pointerover', () => cardBg.setFillStyle(PAL.bgCardHover));
       cardBg.on('pointerout',  () => cardBg.setFillStyle(bgColor));
-      cardBg.on('pointerup', () => {
+      cardBg.on(TAP_EVENT, () => {
         this.scene.start('GameScene', {
           stageId:     undefined,
           mapId:       challenge.pathFile,
@@ -449,6 +450,6 @@ export class ChallengeSelectScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(204);
     bg.on('pointerover', () => bg.setFillStyle(bgColor + 0x111111));
     bg.on('pointerout',  () => bg.setFillStyle(bgColor));
-    bg.on('pointerup', onClick);
+    bg.on(TAP_EVENT, onClick);
   }
 }

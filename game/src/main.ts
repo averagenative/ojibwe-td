@@ -13,10 +13,15 @@ import { ChallengeSelectScene } from './scenes/ChallengeSelectScene';
 import { TowerEquipScene } from './scenes/TowerEquipScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { CutsceneScene } from './scenes/CutsceneScene';
+import { initCapacitorNative } from './capacitor-init';
 
 // Initialise mobile detection early — sets window.__OJIBWE_MOBILE and
 // toggles the 'mobile' body class used by CSS.
 MobileManager.getInstance();
+
+// Activate native shell features (status bar, splash screen) when running
+// inside Capacitor.  No-ops gracefully in a browser.
+initCapacitorNative();
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

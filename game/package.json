@@ -1,7 +1,7 @@
 {
   "name": "ojibwe-td",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -15,7 +15,8 @@
     "balance": "esbuild scripts/generate-balance-table.ts --bundle --platform=node --format=esm | node --input-type=module",
     "preevaluate-map": "esbuild scripts/evaluate-map.ts --bundle --platform=node --format=esm --outfile=dist/evaluate-map.mjs",
     "evaluate-map": "node dist/evaluate-map.mjs",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "build:ios": "npm run build && bash scripts/sync-ios-version.sh && npx cap sync ios"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
@@ -30,6 +31,13 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/haptics": "^8.0.1",
+    "@capacitor/ios": "^8.1.0",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.1",
     "phaser": "^3.90.0"
   }
 }

@@ -15,7 +15,7 @@
 
 import Phaser from 'phaser';
 import type { VignetteDef } from '../data/vignetteDefs';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
 
 const DEPTH          = 400;
@@ -102,7 +102,7 @@ export class VignetteOverlay {
     this.objects.push(bg);
 
     // Intercept clicks on the panel.
-    bg.on('pointerup', () => this.handleClick());
+    bg.on(TAP_EVENT, () => this.handleClick());
 
     // ── Portrait: real image when available, coloured placeholder otherwise ──
     const portraitSize = 64;
@@ -233,7 +233,7 @@ export class VignetteOverlay {
 
     skipBg.on('pointerover', () => skipLabel.setColor('#ffffff'));
     skipBg.on('pointerout',  () => skipLabel.setColor('#999999'));
-    skipBg.on('pointerup',   () => this.dismiss());
+    skipBg.on(TAP_EVENT,   () => this.dismiss());
 
     // ── Start typewriter ────────────────────────────────────────────────
     this.typeTimer = this.scene.time.addEvent({

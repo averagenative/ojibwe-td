@@ -6,7 +6,7 @@ import { PAL } from '../ui/palette';
 import { rollLoot, getGearDef, RARITY_COLORS } from '../data/gearDefs';
 import { InventoryManager } from '../meta/InventoryManager';
 import { calculateRunXp, levelFromXp } from '../data/enhancementDefs';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { AudioManager } from '../systems/AudioManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { AchievementToast } from '../ui/AchievementToast';
@@ -430,6 +430,6 @@ export class GameOverScene extends Phaser.Scene {
     bg.on('pointerover',  () => { bg.setFillStyle(hoverBg); text.setColor('#ffffff'); });
     bg.on('pointerout',   () => { bg.setFillStyle(bgColor); text.setColor(textColorStr); });
     bg.on('pointerdown',  () => bg.setFillStyle(bgColor - 0x0a0000));
-    bg.on('pointerup',    onClick);
+    bg.on(TAP_EVENT,    onClick);
   }
 }

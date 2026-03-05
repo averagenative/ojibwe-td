@@ -3,7 +3,7 @@ import { SaveManager, CONSUMABLE_COSTS, GOLD_BOOST_AMOUNT } from '../meta/SaveMa
 import type { ConsumablePending } from '../meta/SaveManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
 import type { UnlockNode } from '../meta/unlockDefs';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import { PAL } from '../ui/palette';
 import { MetaAmbiance } from '../systems/MetaAmbiance';
@@ -300,14 +300,14 @@ export class MetaMenuScene extends Phaser.Scene {
       const upArrow = this.add.text(arrowX, startY + 8, '▲', {
         fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      upArrow.on('pointerup', () => applyScroll(-(NODE_H_COMPACT + NODE_GAP)));
+      upArrow.on(TAP_EVENT, () => applyScroll(-(NODE_H_COMPACT + NODE_GAP)));
       upArrow.on('pointerover', () => upArrow.setColor('#55aa55'));
       upArrow.on('pointerout',  () => upArrow.setColor('#335533'));
 
       const downArrow = this.add.text(arrowX, startY + visibleH - 8, '▼', {
         fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      downArrow.on('pointerup', () => applyScroll(NODE_H_COMPACT + NODE_GAP));
+      downArrow.on(TAP_EVENT, () => applyScroll(NODE_H_COMPACT + NODE_GAP));
       downArrow.on('pointerover', () => downArrow.setColor('#55aa55'));
       downArrow.on('pointerout',  () => downArrow.setColor('#335533'));
     }
@@ -389,7 +389,7 @@ export class MetaMenuScene extends Phaser.Scene {
         panel.setInteractive({ useHandCursor: true });
         panel.on('pointerover',  () => panel.setFillStyle(0x003355));
         panel.on('pointerout',   () => panel.setFillStyle(bgColor));
-        panel.on('pointerup', () => {
+        panel.on(TAP_EVENT, () => {
           const ok = save.purchaseConsumable(item.key);
           if (ok) {
             AchievementManager.getInstance().addCrystalsSpent(CONSUMABLE_COSTS[item.key]);
@@ -515,7 +515,7 @@ export class MetaMenuScene extends Phaser.Scene {
             rowBg.setInteractive({ useHandCursor: true });
             rowBg.on('pointerover',  () => rowBg.setFillStyle(0x1a3322));
             rowBg.on('pointerout',   () => rowBg.setFillStyle(0x0d1a0d));
-            rowBg.on('pointerup', () => {
+            rowBg.on(TAP_EVENT, () => {
               const ok = save.purchaseTowerMetaUpgrade(towerDef.towerKey, track.key);
               if (ok) {
                 AchievementManager.getInstance().addCrystalsSpent(cost);
@@ -563,14 +563,14 @@ export class MetaMenuScene extends Phaser.Scene {
       const upArrow = this.add.text(arrowX, startY + 8, '▲', {
         fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      upArrow.on('pointerup',   () => applyScroll(-44));
+      upArrow.on(TAP_EVENT,   () => applyScroll(-44));
       upArrow.on('pointerover', () => upArrow.setColor('#55aa55'));
       upArrow.on('pointerout',  () => upArrow.setColor('#335533'));
 
       const downArrow = this.add.text(arrowX, startY + visibleH - 8, '▼', {
         fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      downArrow.on('pointerup',   () => applyScroll(44));
+      downArrow.on(TAP_EVENT,   () => applyScroll(44));
       downArrow.on('pointerover', () => downArrow.setColor('#55aa55'));
       downArrow.on('pointerout',  () => downArrow.setColor('#335533'));
     }
@@ -712,7 +712,7 @@ export class MetaMenuScene extends Phaser.Scene {
       panel.setInteractive({ useHandCursor: true });
       panel.on('pointerover',  () => panel.setFillStyle(0x003355));
       panel.on('pointerout',   () => panel.setFillStyle(bgColor));
-      panel.on('pointerup', () => {
+      panel.on(TAP_EVENT, () => {
         const purchased = save.purchaseUnlock(node.id, node.cost);
         if (purchased) {
           AchievementManager.getInstance().addCrystalsSpent(node.cost);
@@ -751,7 +751,7 @@ export class MetaMenuScene extends Phaser.Scene {
     if (!active) {
       bg.on('pointerover',  () => { bg.setFillStyle(0x223322); text.setColor('#00ff44'); });
       bg.on('pointerout',   () => { bg.setFillStyle(fillColor); text.setColor(textColor); });
-      bg.on('pointerup',    onClick);
+      bg.on(TAP_EVENT,    onClick);
     }
   }
 
@@ -769,6 +769,6 @@ export class MetaMenuScene extends Phaser.Scene {
 
     bg.on('pointerover',  () => { bg.setFillStyle(0x223322); text.setColor('#00ff44'); });
     bg.on('pointerout',   () => { bg.setFillStyle(0x111111); text.setColor('#44aa44'); });
-    bg.on('pointerup',    onClick);
+    bg.on(TAP_EVENT,    onClick);
   }
 }

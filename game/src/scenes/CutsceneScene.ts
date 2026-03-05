@@ -18,7 +18,7 @@
 import Phaser from 'phaser';
 import type { CutsceneDef } from '../data/cutsceneDefs';
 import { PAL } from '../ui/palette';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ export class CutsceneScene extends Phaser.Scene {
     this.overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.75)
       .setDepth(DEPTH)
       .setInteractive();
-    this.overlay.on('pointerup', () => this.handleTap());
+    this.overlay.on(TAP_EVENT, () => this.handleTap());
 
     // ── Skip button (top-right) ───────────────────────────────────────────
     const skipW = this._isMobile ? 90 : 80;
@@ -127,7 +127,7 @@ export class CutsceneScene extends Phaser.Scene {
 
     this.skipBtn.on('pointerover', () => this.skipLabel.setColor('#ffffff'));
     this.skipBtn.on('pointerout',  () => this.skipLabel.setColor('#aaaaaa'));
-    this.skipBtn.on('pointerup',   () => this.finish());
+    this.skipBtn.on(TAP_EVENT,   () => this.finish());
 
     // ── Show first frame ──────────────────────────────────────────────────
     this.showFrame(0);

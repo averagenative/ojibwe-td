@@ -10,7 +10,7 @@ import {
 import type { CommanderAnimDef, CommanderElement } from '../data/commanderAnimDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { getCommanderUnlockNode } from '../meta/unlockDefs';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { getStageDef, getRegionDef, SEASON_PALETTE } from '../data/stageDefs';
 import { getCommanderIntroCutsceneId, getCutsceneDef } from '../data/cutsceneDefs';
 import { PAL } from '../ui/palette';
@@ -198,7 +198,7 @@ export class CommanderSelectScene extends Phaser.Scene {
       this.confirmBtn.setFillStyle(PAL.bgStartBtn);
       this.confirmLabel.setColor(PAL.accentGreen);
     });
-    this.confirmBtn.on('pointerup', () => {
+    this.confirmBtn.on(TAP_EVENT, () => {
       const gameData = {
         commanderId:    this.selectedId,
         stageId:        this.selectedStageId,
@@ -240,7 +240,7 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     backBg.on('pointerover', () => backLabel.setColor(PAL.textPrimary));
     backBg.on('pointerout', () => backLabel.setColor(PAL.textDim));
-    backBg.on('pointerup', () => this._go('MainMenuScene'));
+    backBg.on(TAP_EVENT, () => this._go('MainMenuScene'));
 
     // Ascension picker is hidden pending a design pass (TASK-137).
     // _selectedAscension stays at 0 (standard run).
@@ -422,7 +422,7 @@ export class CommanderSelectScene extends Phaser.Scene {
     }
 
     // Click handler — first click selects; second click on the same card opens the sheet.
-    bg.on('pointerup', () => {
+    bg.on(TAP_EVENT, () => {
       if (isLocked) {
         if (unlockNode) {
           this.showLockedPopup(unlockNode.cost);
@@ -643,10 +643,10 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     closeBg.on('pointerover', () => closeBg.setFillStyle(PAL.bgPanelHover));
     closeBg.on('pointerout', () => closeBg.setFillStyle(PAL.bgPanel));
-    closeBg.on('pointerup', () => this.closeCharacterSheet());
+    closeBg.on(TAP_EVENT, () => this.closeCharacterSheet());
 
     // Also close on overlay click
-    overlay.on('pointerup', () => this.closeCharacterSheet());
+    overlay.on(TAP_EVENT, () => this.closeCharacterSheet());
   }
 
   // ── Locked Commander Popup ──────────────────────────────────────────────
@@ -699,7 +699,7 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     confirmBg.on('pointerover', () => confirmBg.setFillStyle(PAL.bgPanelHover));
     confirmBg.on('pointerout', () => confirmBg.setFillStyle(PAL.bgMetaBtn));
-    confirmBg.on('pointerup', () => {
+    confirmBg.on(TAP_EVENT, () => {
       this._go('MetaMenuScene');
     });
 
@@ -717,10 +717,10 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     cancelBg.on('pointerover', () => cancelLabel.setColor(PAL.textPrimary));
     cancelBg.on('pointerout', () => cancelLabel.setColor(PAL.textDim));
-    cancelBg.on('pointerup', () => this.closeCharacterSheet());
+    cancelBg.on(TAP_EVENT, () => this.closeCharacterSheet());
 
     // Close on overlay click
-    overlay.on('pointerup', () => this.closeCharacterSheet());
+    overlay.on(TAP_EVENT, () => this.closeCharacterSheet());
   }
 
   private showComingSoonPopup(): void {
@@ -763,8 +763,8 @@ export class CommanderSelectScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
     this.sheetContainer.add([dismissBg, dismissLabel]);
 
-    dismissBg.on('pointerup', () => this.closeCharacterSheet());
-    overlay.on('pointerup', () => this.closeCharacterSheet());
+    dismissBg.on(TAP_EVENT, () => this.closeCharacterSheet());
+    overlay.on(TAP_EVENT, () => this.closeCharacterSheet());
   }
 
   private closeCharacterSheet(): void {

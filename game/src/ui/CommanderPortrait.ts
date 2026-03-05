@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { PAL, roleBorderColour } from './palette';
 import type { CommanderDef, CommanderRunState } from '../data/commanderDefs';
 
@@ -109,7 +109,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
           this.showTooltip();
         }, 400);
       });
-      hitZone.on('pointerup', () => {
+      hitZone.on(TAP_EVENT, () => {
         clearTimeout(this._longPressTimer);
         if (this._longPressTriggered) {
           // Long-press just showed tooltip — hide it, don't activate
@@ -126,7 +126,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
       });
     } else {
       // Desktop: hover shows tooltip; click activates ability
-      hitZone.on('pointerup', () => {
+      hitZone.on(TAP_EVENT, () => {
         if (!this.abilityUsed && !this.commanderState.abilityUsed) {
           this.onActivateAbility();
         }

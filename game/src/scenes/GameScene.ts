@@ -12,7 +12,7 @@ import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyMan
 import { towerEffectiveDPS } from '../systems/BalanceCalc';
 import { HUD, getHudHeight } from '../ui/HUD';
 import { TowerPanel, PANEL_HEIGHT } from '../ui/TowerPanel';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
@@ -25,6 +25,7 @@ import type { StageDef } from '../data/stageDefs';
 import { getRegionDifficulty, applyRegionToWaveDefs } from '../data/regionDifficulty';
 import { SaveManager, GOLD_BOOST_AMOUNT } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
+import { hapticLight, keepScreenAwake } from '../capacitor-init';
 import { WaveBanner } from '../ui/WaveBanner';
 import { renderTerrain } from '../systems/TerrainRenderer';
 import { VignetteManager } from '../systems/VignetteManager';
@@ -400,6 +401,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    keepScreenAwake();
     this.mapData       = this.cache.json.get(this.selectedMapId) as MapData;
     this.lives         = this.mapData.startingLives;
     this.gold          = this.mapData.startingGold;
@@ -1738,6 +1740,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       am.playTowerPlaced();
     }
+    hapticLight();
 
     const tower = new Tower(
       this,
@@ -3190,7 +3193,7 @@ export class GameScene extends Phaser.Scene {
     container.add(yesBg);
     container.add(yesLabel);
 
-    yesBg.on('pointerup', () => {
+    yesBg.on(TAP_EVENT, () => {
       container.destroy();
       this._restoreFromAutoSave(autoSave);
     });
@@ -3205,7 +3208,7 @@ export class GameScene extends Phaser.Scene {
     container.add(noBg);
     container.add(noLabel);
 
-    noBg.on('pointerup', () => {
+    noBg.on(TAP_EVENT, () => {
       container.destroy();
       // Clear save so the normal wave-1 flow proceeds.
       SessionManager.getInstance().clear();

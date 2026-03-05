@@ -74,4 +74,16 @@ export class MobileManager {
   particleScale(): number {
     return this._isMobile ? 0.5 : 1.0;
   }
+
+  /**
+   * Phaser pointer event name for button taps.
+   * Mobile uses 'pointerdown' for instant feedback (no press-release delay).
+   * Desktop uses 'pointerup' for standard click behavior.
+   */
+  tapEvent(): string {
+    return this._isMobile ? 'pointerdown' : 'pointerup';
+  }
 }
+
+/** Shorthand: the Phaser pointer event name for button taps. */
+export const TAP_EVENT = MobileManager.getInstance().tapEvent();

@@ -3,7 +3,7 @@ import type { OfferManager } from '../systems/OfferManager';
 import type { OfferDef } from '../data/offerDefs';
 import type { WaveAnnouncementInfo } from '../systems/WaveManager';
 import { PAL } from '../ui/palette';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { cbGroundBadgeFill, cbBossBadgeFill } from '../ui/colorblindPalette';
 
 /** Data passed from GameScene when launching this scene. */
@@ -207,7 +207,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     this._rerollBg.on('pointerout', () => {
       if (this._rerollsLeft > 0) this._rerollBg?.setFillStyle(0x221100);
     });
-    this._rerollBg.on('pointerup', () => {
+    this._rerollBg.on(TAP_EVENT, () => {
       if (this._rerollsLeft <= 0) return;
       this._rerollsLeft--;
       this._rerollsUsed++;
@@ -391,7 +391,7 @@ export class BetweenWaveScene extends Phaser.Scene {
     card.on('pointerout', () => {
       card.setFillStyle(bgFill).setStrokeStyle(2, stroke, 0.6);
     });
-    card.on('pointerup', () => this.pickOffer(offer, offerManager));
+    card.on(TAP_EVENT, () => this.pickOffer(offer, offerManager));
   }
 
   /**

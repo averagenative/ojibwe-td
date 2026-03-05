@@ -19,7 +19,7 @@ import {
   getCodexEntriesBySection,
 } from '../data/codexDefs';
 import type { CodexEntryDef, CodexSection } from '../data/codexDefs';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -209,7 +209,7 @@ export class CodexScene extends Phaser.Scene {
       bg.on('pointerout', () => {
         bg.setFillStyle(this.activeSection === section ? 0x1a2a1a : 0x111111);
       });
-      bg.on('pointerup', () => this.selectSection(section));
+      bg.on(TAP_EVENT, () => this.selectSection(section));
     }
 
     this.highlightTab(this.activeSection);
@@ -359,7 +359,7 @@ export class CodexScene extends Phaser.Scene {
     if (isUnlocked) {
       bg.on('pointerover', () => bg.setFillStyle(0x1a2a1a));
       bg.on('pointerout', () => bg.setFillStyle(0x111a11));
-      bg.on('pointerup', () => this.showDetail(entry));
+      bg.on(TAP_EVENT, () => this.showDetail(entry));
     }
 
     return created;
@@ -489,8 +489,8 @@ export class CodexScene extends Phaser.Scene {
 
       closeBg.on('pointerover', () => { closeBg.setFillStyle(0x330000); closeLabel.setColor('#ffffff'); });
       closeBg.on('pointerout',  () => { closeBg.setFillStyle(0x1a0000); closeLabel.setColor('#ff4444'); });
-      closeBg.on('pointerup', () => this.clearDetail());
-      overlay.on('pointerup', () => this.clearDetail());
+      closeBg.on(TAP_EVENT, () => this.clearDetail());
+      overlay.on(TAP_EVENT, () => this.clearDetail());
 
       this.detailObjects.push(closeBg, closeLabel);
     } else {
@@ -500,7 +500,7 @@ export class CodexScene extends Phaser.Scene {
       const clickAway = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
         .setInteractive()
         .setDepth(DEPTH_DETAIL - 1);
-      clickAway.on('pointerup', () => this.clearDetail());
+      clickAway.on(TAP_EVENT, () => this.clearDetail());
       this.detailObjects.push(clickAway);
 
       const cx = width / 2 + 120;
@@ -639,7 +639,7 @@ export class CodexScene extends Phaser.Scene {
 
     markBg.on('pointerover', () => { markBg.setFillStyle(0x1a2a1a); markLabel.setColor('#00ff44'); });
     markBg.on('pointerout',  () => { markBg.setFillStyle(0x0a1a0a); markLabel.setColor('#668866'); });
-    markBg.on('pointerup',   () => {
+    markBg.on(TAP_EVENT,   () => {
       const save = SaveManager.getInstance();
       const allUnlockedIds = ALL_CODEX_ENTRIES
         .filter(e => e.defaultUnlocked || save.isCodexUnlocked(e.id))
@@ -660,7 +660,7 @@ export class CodexScene extends Phaser.Scene {
 
     bg.on('pointerover', () => { bg.setFillStyle(0x330000); label.setColor('#ffffff'); });
     bg.on('pointerout',  () => { bg.setFillStyle(0x1a0000); label.setColor('#ff4444'); });
-    bg.on('pointerup',   () => {
+    bg.on(TAP_EVENT,   () => {
       this._go(this.returnTo, this.returnData);
     });
   }

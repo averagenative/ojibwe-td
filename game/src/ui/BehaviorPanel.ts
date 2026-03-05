@@ -5,6 +5,7 @@ import {
   ALL_PRIORITIES,
   PRIORITY_LABEL,
 } from '../data/targeting';
+import { TAP_EVENT } from '../systems/MobileManager';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -113,7 +114,7 @@ export class BehaviorPanel {
       const btn: PriorityBtn = { priority, bg: btnBg, label: btnTxt };
       this.priorityBtns.push(btn);
 
-      btnBg.on('pointerup', () => this.handlePrioritySelect(priority));
+      btnBg.on(TAP_EVENT, () => this.handlePrioritySelect(priority));
       btnBg.on('pointerover', () => {
         if (this.currentTower?.priority !== priority) btnBg.setFillStyle(0x002200);
       });
@@ -145,7 +146,7 @@ export class BehaviorPanel {
     this.allObjects.push(this.toggleTxt);
     this.row2Objects.push(this.toggleTxt);
 
-    this.toggleBg.on('pointerup',   () => this.handleToggle());
+    this.toggleBg.on(TAP_EVENT,   () => this.handleToggle());
     this.toggleBg.on('pointerover', () => this.toggleBg.setFillStyle(0x002222));
     this.toggleBg.on('pointerout',  () => this.toggleBg.setFillStyle(0x001111));
 

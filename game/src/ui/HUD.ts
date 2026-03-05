@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { PANEL_HEIGHT as TOWER_PANEL_H } from './TowerPanel';
 import { CommanderPortrait } from './CommanderPortrait';
@@ -172,7 +172,7 @@ export class HUD extends Phaser.GameObjects.Container {
       btnBg.on('pointerout', () => {
         if (this.activeSpeed !== mult) btnBg.setFillStyle(PAL.bgSpeedBtn);
       });
-      btnBg.on('pointerup', () => {
+      btnBg.on(TAP_EVENT, () => {
         this.setActiveSpeed(mult);
         onSpeedChange(mult);
       });
@@ -232,7 +232,7 @@ export class HUD extends Phaser.GameObjects.Container {
 
     this.nextWaveBg.on('pointerover', () => this.nextWaveBg?.setFillStyle(PAL.bgNextWaveHover));
     this.nextWaveBg.on('pointerout',  () => this.nextWaveBg?.setFillStyle(PAL.bgNextWave));
-    this.nextWaveBg.on('pointerup', onClick);
+    this.nextWaveBg.on(TAP_EVENT, onClick);
   }
 
   /**
@@ -304,7 +304,7 @@ export class HUD extends Phaser.GameObjects.Container {
 
     bg.on('pointerover', () => { bg.setFillStyle(PAL.bgGiveUpHover); label.setColor(PAL.dangerLight); });
     bg.on('pointerout',  () => { bg.setFillStyle(PAL.bgGiveUp); label.setColor(PAL.danger); });
-    bg.on('pointerup',   () => this._showGiveUpConfirm(onClick));
+    bg.on(TAP_EVENT,   () => this._showGiveUpConfirm(onClick));
   }
 
   /**
@@ -379,11 +379,11 @@ export class HUD extends Phaser.GameObjects.Container {
 
     yesBg.on('pointerover', () => yesBg.setFillStyle(PAL.bgGiveUpHover));
     yesBg.on('pointerout',  () => yesBg.setFillStyle(PAL.bgGiveUp));
-    yesBg.on('pointerup',   () => { cleanup(); onConfirm(); });
+    yesBg.on(TAP_EVENT,   () => { cleanup(); onConfirm(); });
 
     noBg.on('pointerover', () => noBg.setFillStyle(0x333333));
     noBg.on('pointerout',  () => noBg.setFillStyle(0x222222));
-    noBg.on('pointerup',   () => cleanup());
+    noBg.on(TAP_EVENT,   () => cleanup());
   }
 
   // ── rush-wave button ──────────────────────────────────────────────────────
@@ -420,7 +420,7 @@ export class HUD extends Phaser.GameObjects.Container {
     this.rushWaveBg.on('pointerout', () => {
       if (this.rushWaveBg?.input?.enabled) this.rushWaveBg.setFillStyle(0x1a1200);
     });
-    this.rushWaveBg.on('pointerup', onClick);
+    this.rushWaveBg.on(TAP_EVENT, onClick);
   }
 
   /**
@@ -521,7 +521,7 @@ export class HUD extends Phaser.GameObjects.Container {
           this._showAbilityTooltip(btnX, cy);
         }, 400);
       });
-      this.abilityBtnBg.on('pointerup', () => {
+      this.abilityBtnBg.on(TAP_EVENT, () => {
         clearTimeout(this._abilityLongPressTimer);
         if (this._abilityLongPressTriggered) {
           this._hideAbilityTooltip();
@@ -547,7 +547,7 @@ export class HUD extends Phaser.GameObjects.Container {
         if (this.abilityBtnBg?.input?.enabled) this.abilityBtnBg.setFillStyle(PAL.bgAbilityBtn);
         this._hideAbilityTooltip();
       });
-      this.abilityBtnBg.on('pointerup', () => {
+      this.abilityBtnBg.on(TAP_EVENT, () => {
         onActivate();
       });
     }
@@ -650,7 +650,7 @@ export class HUD extends Phaser.GameObjects.Container {
 
     this.muteBtnBg.on('pointerover', () => this.muteBtnBg?.setFillStyle(PAL.bgBtnHover));
     this.muteBtnBg.on('pointerout',  () => this.muteBtnBg?.setFillStyle(PAL.bgSpeedBtn));
-    this.muteBtnBg.on('pointerup', () => {
+    this.muteBtnBg.on(TAP_EVENT, () => {
       const muted = onToggle();
       this.muteBtnLabel?.setText(muted ? '🔇' : '🔊');
     });
@@ -691,7 +691,7 @@ export class HUD extends Phaser.GameObjects.Container {
 
     bg.on('pointerover', () => bg.setFillStyle(PAL.bgBtnHover));
     bg.on('pointerout',  () => bg.setFillStyle(PAL.bgSpeedBtn));
-    bg.on('pointerup',   onOpen);
+    bg.on(TAP_EVENT,   onOpen);
   }
 
   // ── boss warning ──────────────────────────────────────────────────────────
@@ -834,7 +834,7 @@ export class HUD extends Phaser.GameObjects.Container {
 
     this._offersBtnBg.on('pointerover', () => this._offersBtnBg?.setFillStyle(0x162a16));
     this._offersBtnBg.on('pointerout',  () => this._offersBtnBg?.setFillStyle(0x0e1e0e));
-    this._offersBtnBg.on('pointerup', () => {
+    this._offersBtnBg.on(TAP_EVENT, () => {
       if (this._offersPanel) {
         this._closeOffersPanel();
       } else {
@@ -897,7 +897,7 @@ export class HUD extends Phaser.GameObjects.Container {
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 32);
-    closeBg.on('pointerup', () => this._closeOffersPanel());
+    closeBg.on(TAP_EVENT, () => this._closeOffersPanel());
     this._offersPanel.add(closeBg);
     this._offersPanel.add(closeLabel);
 

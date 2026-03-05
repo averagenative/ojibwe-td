@@ -15,7 +15,7 @@
 
 import Phaser from 'phaser';
 import { AudioManager } from '../systems/AudioManager';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { SaveManager } from '../meta/SaveManager';
 
@@ -108,7 +108,7 @@ export class AudioSettingsPanel {
         .setInteractive(),  // absorbs clicks
     );
     // Tap outside the panel to close
-    backdrop.on('pointerup', () => this.hide());
+    backdrop.on(TAP_EVENT, () => this.hide());
 
     // ── Panel background ───────────────────────────────────────────────────
     this._reg(
@@ -184,7 +184,7 @@ export class AudioSettingsPanel {
     masterBg.on('pointerout',  () => (masterBg as Phaser.GameObjects.Rectangle).setFillStyle(
       AudioManager.getInstance().isMuted() ? C_OFF_BG : C_ON_BG,
     ));
-    masterBg.on('pointerup', () => {
+    masterBg.on(TAP_EVENT, () => {
       const a = AudioManager.getInstance();
       a.toggleMute();
       this._syncMasterRow(a.isMuted());
@@ -217,7 +217,7 @@ export class AudioSettingsPanel {
     cbBg.on('pointerout', () => {
       cbBg.setFillStyle(SaveManager.getInstance().getColorblindMode() ? C_ON_BG : PAL.bgSpeedBtn);
     });
-    cbBg.on('pointerup', () => {
+    cbBg.on(TAP_EVENT, () => {
       const nowEnabled = !SaveManager.getInstance().getColorblindMode();
       SaveManager.getInstance().setColorblindMode(nowEnabled);
       cbBg.setFillStyle(nowEnabled ? C_ON_BG : PAL.bgSpeedBtn);
@@ -246,7 +246,7 @@ export class AudioSettingsPanel {
 
     closeBg.on('pointerover', () => (closeBg as Phaser.GameObjects.Rectangle).setFillStyle(PAL.bgBtnHover));
     closeBg.on('pointerout',  () => (closeBg as Phaser.GameObjects.Rectangle).setFillStyle(PAL.bgSpeedBtn));
-    closeBg.on('pointerup',   () => this.hide());
+    closeBg.on(TAP_EVENT,   () => this.hide());
   }
 
   /**
@@ -314,7 +314,7 @@ export class AudioSettingsPanel {
       const muted = toggleLabel.text === 'OFF';
       toggleBg.setFillStyle(muted ? C_OFF_BG : C_ON_BG);
     });
-    toggleBg.on('pointerup', () => {
+    toggleBg.on(TAP_EVENT, () => {
       const currentlyMuted = toggleLabel.text === 'OFF';
       const nowMuted = !currentlyMuted;
       onToggle(nowMuted);
@@ -340,7 +340,7 @@ export class AudioSettingsPanel {
 
     minusBg.on('pointerover', () => minusBg.setFillStyle(PAL.bgBtnHover));
     minusBg.on('pointerout',  () => minusBg.setFillStyle(PAL.bgSpeedBtn));
-    minusBg.on('pointerup', () => {
+    minusBg.on(TAP_EVENT, () => {
       const v = onAdjust(-VOL_STEP);
       this._updateVolText(volText, v);
     });
@@ -376,7 +376,7 @@ export class AudioSettingsPanel {
 
     plusBg.on('pointerover', () => plusBg.setFillStyle(PAL.bgBtnHover));
     plusBg.on('pointerout',  () => plusBg.setFillStyle(PAL.bgSpeedBtn));
-    plusBg.on('pointerup', () => {
+    plusBg.on(TAP_EVENT, () => {
       const v = onAdjust(+VOL_STEP);
       this._updateVolText(volText, v);
     });

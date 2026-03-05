@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { AudioManager } from '../systems/AudioManager';
 import { PAL } from '../ui/palette';
+import { TAP_EVENT } from '../systems/MobileManager';
 
 // SFX audio keys — loaded only when the mp3 files actually exist.
 // AudioManager falls back to procedural synthesis for any unregistered key,
@@ -164,7 +165,7 @@ export class BootScene extends Phaser.Scene {
     });
 
     // Click → enable audio, enter main menu
-    btnBg.on('pointerup', () => {
+    btnBg.on(TAP_EVENT, () => {
       AudioManager.getInstance().startMusicTrack('music-menu');
       this.scene.start('MainMenuScene');
     });

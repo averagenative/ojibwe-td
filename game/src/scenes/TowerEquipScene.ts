@@ -14,6 +14,7 @@ import { getGearDef, RARITY_COLORS, canEquipOnTower, GEAR_TYPE_TOWER } from '../
 import { ALL_TOWER_DEFS } from '../data/towerDefs';
 
 import { PAL } from '../ui/palette';
+import { TAP_EVENT } from '../systems/MobileManager';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -184,7 +185,7 @@ export class TowerEquipScene extends Phaser.Scene {
 
       bg.on('pointerover', () => { if (!isSelected) bg.setFillStyle(PAL.bgCardHover); });
       bg.on('pointerout',  () => { if (!isSelected) bg.setFillStyle(bgColor); });
-      bg.on('pointerup', () => {
+      bg.on(TAP_EVENT, () => {
         this.selectedTower = towerDef.key;
         this._buildTowerCards();
         this._buildSlots();
@@ -270,7 +271,7 @@ export class TowerEquipScene extends Phaser.Scene {
         // Click to unequip
         slotBg.on('pointerover', () => slotBg.setFillStyle(PAL.bgCardHover));
         slotBg.on('pointerout',  () => slotBg.setFillStyle(bgColor));
-        slotBg.on('pointerup', () => {
+        slotBg.on(TAP_EVENT, () => {
           this.inv.unequip(this.selectedTower!, s);
           this._buildSlots();
           this._buildCompatList();
@@ -364,7 +365,7 @@ export class TowerEquipScene extends Phaser.Scene {
         rowBg.setInteractive({ useHandCursor: true });
         rowBg.on('pointerover', () => rowBg.setFillStyle(PAL.bgCardHover));
         rowBg.on('pointerout',  () => rowBg.setFillStyle(PAL.bgPanel));
-        rowBg.on('pointerup', () => {
+        rowBg.on(TAP_EVENT, () => {
           this.inv.equip(this.selectedTower!, freeSlot, item.uid);
           this._buildSlots();
           this._buildCompatList();
@@ -457,6 +458,6 @@ export class TowerEquipScene extends Phaser.Scene {
     }).setOrigin(0.5);
     bg.on('pointerover', () => bg.setFillStyle(bgColor + 0x111111));
     bg.on('pointerout',  () => bg.setFillStyle(bgColor));
-    bg.on('pointerup', onClick);
+    bg.on(TAP_EVENT, onClick);
   }
 }

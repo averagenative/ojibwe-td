@@ -10,7 +10,7 @@
  */
 
 import Phaser from 'phaser';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { AchievementManager } from '../systems/AchievementManager';
 import {
   ACHIEVEMENT_CATEGORIES,
@@ -149,7 +149,7 @@ export class AchievementsScene extends Phaser.Scene {
     if (!active) {
       bg.on('pointerover', () => { bg.setFillStyle(0x223322); label.setColor('#00ff44'); });
       bg.on('pointerout',  () => { bg.setFillStyle(fillColor); label.setColor(textColor); });
-      bg.on('pointerup',   () => {
+      bg.on(TAP_EVENT,   () => {
         this.scene.restart({
           returnTo: this._returnTo,
           category,
@@ -281,8 +281,8 @@ export class AchievementsScene extends Phaser.Scene {
       const arrowX = cx + PANEL_W / 2 + 22;
       const upA  = this.add.text(arrowX, startY + 10, '▲', { fontSize: this._fs(18), color: '#335533', fontFamily: 'monospace' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       const downA = this.add.text(arrowX, startY + visibleH - 10, '▼', { fontSize: this._fs(18), color: '#335533', fontFamily: 'monospace' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      upA.on('pointerup',  () => applyScroll(-(ROW_H + ROW_GAP)));
-      downA.on('pointerup', () => applyScroll(ROW_H + ROW_GAP));
+      upA.on(TAP_EVENT,  () => applyScroll(-(ROW_H + ROW_GAP)));
+      downA.on(TAP_EVENT, () => applyScroll(ROW_H + ROW_GAP));
       upA.on('pointerover',   () => upA.setColor('#55aa55'));
       upA.on('pointerout',    () => upA.setColor('#335533'));
       downA.on('pointerover', () => downA.setColor('#55aa55'));
@@ -304,6 +304,6 @@ export class AchievementsScene extends Phaser.Scene {
     }).setOrigin(0.5);
     bg.on('pointerover',  () => { bg.setFillStyle(0x223322); txt.setColor('#00ff44'); });
     bg.on('pointerout',   () => { bg.setFillStyle(0x111111); txt.setColor('#44aa44'); });
-    bg.on('pointerup',    onClick);
+    bg.on(TAP_EVENT,    onClick);
   }
 }

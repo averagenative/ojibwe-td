@@ -3,7 +3,7 @@ import type { MapData } from '../types/MapData';
 import { TILE } from '../types/MapData';
 import { SaveManager } from '../meta/SaveManager';
 import { AudioManager } from '../systems/AudioManager';
-import { MobileManager } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { SessionManager } from '../systems/SessionManager';
 import type { AutoSave } from '../systems/SessionManager';
 import { UNLOCK_NODES } from '../meta/unlockDefs';
@@ -495,7 +495,7 @@ export class MainMenuScene extends Phaser.Scene {
       const sel = this.selectedRegionId === region.id;
       fillPanel(panel, R, sel ? pal.bg : pal.dim, pal.border, sel ? 2 : 1, sel ? 1.0 : 0.4);
     });
-    panel.zone.on('pointerup', () => {
+    panel.zone.on(TAP_EVENT, () => {
       this.selectRegion(region.id);
     });
   }
@@ -692,7 +692,7 @@ export class MainMenuScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
       created.push(lockLabel);
 
-      panel.zone.on('pointerup', () => this._go('MetaMenuScene'));
+      panel.zone.on(TAP_EVENT, () => this._go('MetaMenuScene'));
     } else {
       const dots = this.buildAffinityDots(bx, by + sh / 2 - 36, stage.towerAffinities);
       created.push(...dots);
@@ -720,7 +720,7 @@ export class MainMenuScene extends Phaser.Scene {
 
         ePanel.zone.on('pointerover', () => { fillPanel(ePanel, R, PAL.bgEndlessBtnHover, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlueLight); });
         ePanel.zone.on('pointerout',  () => { fillPanel(ePanel, R, PAL.bgEndlessBtn, PAL.borderEndless, 1); eLabel.setColor(PAL.accentBlue); });
-        ePanel.zone.on('pointerup',   () => {
+        ePanel.zone.on(TAP_EVENT,   () => {
           this.selectedStageId = stage.id;
           this.highlightStage(stage.id);
           this._go('CommanderSelectScene', { stageId: stage.id, isEndless: true });
@@ -738,7 +738,7 @@ export class MainMenuScene extends Phaser.Scene {
       panel.zone.on('pointerout', () => {
         if (this.selectedStageId !== stage.id) fillPanel(panel, R, PAL.bgPanel, PAL.borderInactive, 2);
       });
-      panel.zone.on('pointerup', () => {
+      panel.zone.on(TAP_EVENT, () => {
         this.selectedStageId = stage.id;
         this.highlightStage(stage.id);
       });
@@ -867,7 +867,7 @@ export class MainMenuScene extends Phaser.Scene {
       resumeP.zone.on('pointerover', () => fillPanel(resumeP, R, 0x143a18, PAL.borderActive, 2));
       resumeP.zone.on('pointerout',  () => fillPanel(resumeP, R, 0x0a2a10, PAL.borderActive, 2));
       resumeP.zone.on('pointerdown', () => fillPanel(resumeP, R, 0x061a0a, PAL.borderActive, 2));
-      resumeP.zone.on('pointerup',   () => {
+      resumeP.zone.on(TAP_EVENT,   () => {
         this._go('GameScene', {
           stageId:     save.stageId,
           commanderId: save.commanderId,
@@ -897,7 +897,7 @@ export class MainMenuScene extends Phaser.Scene {
       this.tweens.add({ targets: startLabel, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
     });
     startP.zone.on('pointerdown',  () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
-    startP.zone.on('pointerup',    () => {
+    startP.zone.on(TAP_EVENT,    () => {
       if (hasResume) {
         this._showOverwriteConfirm(() => this._go('CommanderSelectScene', { stageId: this.selectedStageId }));
       } else {
@@ -937,7 +937,7 @@ export class MainMenuScene extends Phaser.Scene {
       this.tweens.add({ targets: [quickIcon, quickLabel], scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
     });
     quickP.zone.on('pointerdown',  () => fillPanel(quickP, R, 0x0f0900, PAL.goldN, 2));
-    quickP.zone.on('pointerup',    () => {
+    quickP.zone.on(TAP_EVENT,    () => {
       const sel = pickQuickPlay(SaveManager.getInstance());
       if (hasResume) {
         this._showOverwriteConfirm(() => {
@@ -983,7 +983,7 @@ export class MainMenuScene extends Phaser.Scene {
       metaLabel.setColor(PAL.accentBlue);
       this.tweens.add({ targets: metaLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
     });
-    metaP.zone.on('pointerup',   () => this._go('MetaMenuScene'));
+    metaP.zone.on(TAP_EVENT,   () => this._go('MetaMenuScene'));
 
     // CHALLENGES
     const chalX = cx;
@@ -1001,7 +1001,7 @@ export class MainMenuScene extends Phaser.Scene {
       chalLabel.setColor(PAL.accentBlue);
       this.tweens.add({ targets: chalLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
     });
-    chalP.zone.on('pointerup',   () => this._go('ChallengeSelectScene'));
+    chalP.zone.on(TAP_EVENT,   () => this._go('ChallengeSelectScene'));
 
     // CODEX
     const codexX = cx + bottomBtnW + bottomGap;
@@ -1019,7 +1019,7 @@ export class MainMenuScene extends Phaser.Scene {
       codexLabel.setColor(PAL.textSecondary);
       this.tweens.add({ targets: codexLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
     });
-    codexP.zone.on('pointerup',   () => this._go('CodexScene', { returnTo: 'MainMenuScene' }));
+    codexP.zone.on(TAP_EVENT,   () => this._go('CodexScene', { returnTo: 'MainMenuScene' }));
 
     // Notification badge — shows count of unlocked-but-unread codex entries
     const save = SaveManager.getInstance();
@@ -1053,7 +1053,7 @@ export class MainMenuScene extends Phaser.Scene {
       achP.gfx.setAlpha(1);
       this.tweens.add({ targets: achLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
     });
-    achP.zone.on('pointerup',   () => this._go('AchievementsScene', { returnTo: 'MainMenuScene' }));
+    achP.zone.on(TAP_EVENT,   () => this._go('AchievementsScene', { returnTo: 'MainMenuScene' }));
   }
 
   // ── Overwrite confirmation dialog ──────────────────────────────────────────
@@ -1107,7 +1107,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     contBg.on('pointerover', () => contBg.setFillStyle(PAL.bgGiveUpHover));
     contBg.on('pointerout',  () => contBg.setFillStyle(PAL.bgGiveUp));
-    contBg.on('pointerup',   () => {
+    contBg.on(TAP_EVENT,   () => {
       container.destroy();
       SessionManager.getInstance().clear();
       onConfirm();
@@ -1126,8 +1126,8 @@ export class MainMenuScene extends Phaser.Scene {
 
     cancelBg.on('pointerover', () => cancelBg.setFillStyle(0x1a1a1a));
     cancelBg.on('pointerout',  () => cancelBg.setFillStyle(PAL.bgPanel));
-    cancelBg.on('pointerup',   () => container.destroy());
-    backdrop.on('pointerup',   () => container.destroy());
+    cancelBg.on(TAP_EVENT,   () => container.destroy());
+    backdrop.on(TAP_EVENT,   () => container.destroy());
   }
 
   // ── Quick Play splash ──────────────────────────────────────────────────────
@@ -1198,7 +1198,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     bg.on('pointerover', () => bg.setFillStyle(0x333333));
     bg.on('pointerout',  () => bg.setFillStyle(0x222222));
-    bg.on('pointerup',   () => {
+    bg.on(TAP_EVENT,   () => {
       if (!this._audioPanel) {
         this._audioPanel = new AudioSettingsPanel(this);
       }
