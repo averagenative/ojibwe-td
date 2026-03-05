@@ -154,9 +154,9 @@ describe('vignette portrait references', () => {
     }
   });
 
-  it('vignette portraits are all elder-* keys', () => {
+  it('vignette portraits are all known speaker keys', () => {
     for (const key of vignettePortraitKeys) {
-      expect(key).toMatch(/^elder-/);
+      expect(key).toMatch(/^(elder-|scout$)/);
     }
   });
 });

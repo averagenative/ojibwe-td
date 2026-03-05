@@ -123,6 +123,12 @@ const AIR_BODY_OFFSET_Y = -10;
 const AIR_WING_W = 10;
 const AIR_WING_H = 4;
 
+// ── Air creep lateral drift ──────────────────────────────────────────────────
+/** Max lateral offset in px (perpendicular to movement direction). */
+const AIR_DRIFT_AMPLITUDE = 18;
+/** Base angular frequency for the drift sine wave (rad/s). */
+const AIR_DRIFT_BASE_FREQ = 1.8;
+
 // ── Bobbing animation constants ───────────────────────────────────────────────
 /** Sine-wave amplitude in pixels (±). */
 const BOB_AMPLITUDE   = 1.5;
@@ -245,6 +251,14 @@ export class Creep extends Phaser.GameObjects.Container {
   private direction: CreepDirection = 'right';
   /** Accumulated phase (radians) for the bobbing sine wave. */
   private bobPhase = 0;
+  /** Accumulated time (seconds) for air creep lateral drift. */
+  private _driftTime = 0;
+  /** Per-instance random phase offset for air drift (0–2π). */
+  private _driftPhase = 0;
+  /** Per-instance random frequency multiplier (0.7–1.3) for drift variation. */
+  private _driftFreqMult = 1;
+  /** Previous frame's drift offset — used to apply the delta each frame. */
+  private _prevDriftOffset = 0;
   /** Small armour badge shown at the leading edge of armoured creeps. */
   private armorIndicator?: Phaser.GameObjects.Rectangle;
   /** Cached base position for the armour badge (avoids tuple alloc per frame). */
@@ -373,6 +387,12 @@ export class Creep extends Phaser.GameObjects.Container {
     // to float over the path and any ground units below them.
     // Ground: 15, Flying: 17 — still below projectiles (20) and UI (30+).
     this.setDepth(this.creepType === 'air' ? CREEP_DEPTH + 2 : CREEP_DEPTH);
+
+    // Air creeps get randomized drift parameters so they weave erratically.
+    if (this.creepType === 'air') {
+      this._driftPhase    = Math.random() * Math.PI * 2;
+      this._driftFreqMult = 0.7 + Math.random() * 0.6; // 0.7–1.3
+    }
   }
 
   // ── update ────────────────────────────────────────────────────────────────
@@ -456,6 +476,21 @@ export class Creep extends Phaser.GameObjects.Container {
     if (dist > 0) {
       this.x += (dx / dist) * stepDist;
       this.y += (dy / dist) * stepDist;
+    }
+
+    // ── Air creep lateral drift (perpendicular to movement direction) ─────────
+    if (this.creepType === 'air' && dist > 0) {
+      this._driftTime += delta / 1000;
+      const driftAngle = this._driftTime * AIR_DRIFT_BASE_FREQ * this._driftFreqMult + this._driftPhase;
+      const driftOffset = Math.sin(driftAngle) * AIR_DRIFT_AMPLITUDE;
+      // Apply the *change* in drift offset since last frame (position delta, not velocity)
+      const driftDelta = driftOffset - this._prevDriftOffset;
+      this._prevDriftOffset = driftOffset;
+      // Perpendicular to movement: rotate (dx,dy) by 90 degrees
+      const perpX = -dy / dist;
+      const perpY =  dx / dist;
+      this.x += perpX * driftDelta;
+      this.y += perpY * driftDelta;
     }
 
     // ── Animate status-effect particles ──────────────────────────────────────

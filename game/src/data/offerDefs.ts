@@ -633,7 +633,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'headstart',
     name:        'Headstart',
-    description: 'Place one free tower of your choice before wave 1 starts.',
+    description: 'Place your next tower for free (one-time use).',
     category:    'economy',
     weight:      3,
     rarity:      'epic',
