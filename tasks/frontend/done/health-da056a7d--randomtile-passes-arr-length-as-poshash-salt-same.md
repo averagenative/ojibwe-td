@@ -1,7 +1,7 @@
 ---
 id: HEALTH-da056a7d
 title: "_randomTile passes arr.length as posHash salt — same-length arrays always pick the same tile index"
-status: pending
+status: done
 category: health
 severity: low
 source: health-check

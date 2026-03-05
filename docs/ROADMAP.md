@@ -2780,3 +2780,7 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Duplicate gear/meta application code** — `tryPlaceTower` and `_placeRestoredTower` both contain identical blocks for `resolveGearBonuses` → `applyGearToStats` → `_applyTowerMetaBonuses` → `setTowerBonuses`. Consider extracting a shared `_applyAndStoreBonuses(tower, towerKey)` helper to reduce duplication.
 - **Gear condition guard asymmetry** — The gear-application `if` check (6 boolean conditions) is duplicated verbatim in both placement paths but `setTowerBonuses` always stores the full `gearBonuses` regardless of the check. This means an all-zero GearBonuses is stored and re-applied every upgrade (no-op but unnecessary work). A minor cleanup: store conditionally or simplify the guard.
+
+### HEALTH-da056a7d Review Findings (_randomTile salt fix)
+
+- **`posHash` lives inside `TerrainRenderer.ts`** — It's a pure utility function but importing it from test files pulls in Phaser transitively (via `TerrainRenderer`'s Phaser imports). Consider extracting `posHash` into a standalone `src/utils/posHash.ts` module so it can be imported without side effects in unit tests.
