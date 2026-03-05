@@ -84,6 +84,7 @@ export class UpgradeManager {
     const state = this.states.get(tower);
     const def   = this.defs.get(tower.def.key);
     if (!state || !def) return 0;
+    if (state.locked.has(path)) return 0;
     const tier = state.tiers[path];
     if (tier >= 5) return 0;
     return def.paths[path].tiers[tier]?.cost ?? 0;
