@@ -41,6 +41,8 @@ export interface AutoSave {
   consumedOffers:  string[];   // one-time offer IDs already consumed (e.g. 'salvage')
   metaStatBonuses: object;     // pre-computed stat bonuses snapshot (informational)
   seenDialogs:     string[];   // cutscene + vignette IDs shown during this run
+  isChallenge?:    boolean;    // true when this save is from a challenge run
+  challengeId?:    string;     // challenge def ID (e.g. 'challenge-01')
 }
 
 // ── SessionManager ─────────────────────────────────────────────────────────────

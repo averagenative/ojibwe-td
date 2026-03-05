@@ -194,6 +194,8 @@ export class GameScene extends Phaser.Scene {
   private isChallengeRun = false;
   /** Active challenge modifier (null for normal/endless runs). */
   private challengeModifier: ChallengeModifier | null = null;
+  /** Challenge def ID for autosave persistence (e.g. 'challenge-01'). */
+  private _challengeId: string | null = null;
 
   // ── debug overlay (dev builds only) ───────────────────────────────────────
   private debugOverlay: Phaser.GameObjects.Text | null = null;
@@ -303,6 +305,7 @@ export class GameScene extends Phaser.Scene {
     this._autoResume         = data?.autoResume     ?? false;
 
     // Resolve challenge modifier if applicable.
+    this._challengeId = data?.challengeId ?? null;
     if (this.isChallengeRun && data?.challengeId) {
       const cDef = getChallengeDef(data.challengeId);
       this.challengeModifier = cDef?.modifier ?? null;
@@ -311,7 +314,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Resolve stage: prefer stageId, fall back to mapId (backward compat), then default.
-    if (data?.stageId) {
+    // For challenge runs, always use the explicit mapId (challenge map) rather than
+    // deriving from stageId, which would point to a regular story-mode map.
+    if (this.isChallengeRun && data?.mapId) {
+      const stage = data.stageId ? getStageDef(data.stageId) : null;
+      this.activeStageDef    = stage ?? null;
+      this.selectedStageId   = data.stageId ?? 'zaagaiganing-01';
+      this.selectedMapId     = data.mapId;
+    } else if (data?.stageId) {
       const stage = getStageDef(data.stageId);
       this.activeStageDef    = stage ?? null;
       this.selectedStageId   = data.stageId;
@@ -3110,6 +3120,8 @@ export class GameScene extends Phaser.Scene {
       consumedOffers:  this.offerManager.getConsumedOneTimeOfferIds(),
       metaStatBonuses: this._towerMetaUpgrades,
       seenDialogs:     Array.from(this._seenDialogIds),
+      isChallenge:     this.isChallengeRun || undefined,
+      challengeId:     this.isChallengeRun ? this._challengeId : undefined,
     });
   }
 

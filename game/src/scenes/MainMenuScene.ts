@@ -861,6 +861,8 @@ export class MainMenuScene extends Phaser.Scene {
           stageId:     save.stageId,
           commanderId: save.commanderId,
           mapId:       save.mapId,
+          isChallenge: save.isChallenge ?? false,
+          challengeId: save.challengeId,
           autoResume:  true,
         });
       });
