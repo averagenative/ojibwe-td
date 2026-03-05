@@ -607,6 +607,21 @@ export class Projectile extends Phaser.GameObjects.Arc {
       ease:       'Sine.easeOut',
       onComplete: () => g.destroy(),
     });
+
+    // 2 tiny sparkle dots drift a short distance
+    for (let i = 0; i < 2; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const dot = this.scene.add.circle(cx, cy, 0.8, 0xddeeff, 0.7);
+      dot.setDepth(24);
+      this.scene.tweens.add({
+        targets: dot,
+        x: cx + Math.cos(a) * 4,
+        y: cy + Math.sin(a) * 4,
+        alpha: 0,
+        duration: 160,
+        onComplete: () => dot.destroy(),
+      });
+    }
   }
 
   /** Poison impact: compact + shape on the creep, fades quickly. */
@@ -630,6 +645,21 @@ export class Projectile extends Phaser.GameObjects.Arc {
       ease:       'Sine.easeOut',
       onComplete: () => g.destroy(),
     });
+
+    // 2 tiny sparkle dots drift a short distance
+    for (let i = 0; i < 2; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const dot = this.scene.add.circle(cx, cy, 0.8, 0x88ffbb, 0.6);
+      dot.setDepth(21);
+      this.scene.tweens.add({
+        targets: dot,
+        x: cx + Math.cos(a) * 4,
+        y: cy + Math.sin(a) * 4,
+        alpha: 0,
+        duration: 160,
+        onComplete: () => dot.destroy(),
+      });
+    }
   }
 
   /** Arrow impact: a brief stuck-arrow line that fades out quickly. */
