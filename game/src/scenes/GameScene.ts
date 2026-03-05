@@ -1935,16 +1935,13 @@ export class GameScene extends Phaser.Scene {
   private _batchBuyUpgrade(path: 'A' | 'B' | 'C'): void {
     if (this._selectedTowers.length < 2) return;
 
-    // Filter to towers that don't have this path locked — allows batch
-    // upgrade even when some towers went down a different path.
-    const eligible = this._selectedTowers.filter(
-      t => !this.upgradeManager.getState(t)?.locked.has(path),
-    );
-    if (eligible.length === 0) return;
+    // Block if ANY tower in the selection has this path locked — the group
+    // inherits locks from committed towers so uncommitted ones follow suit.
+    if (this._selectedTowers.some(t => this.upgradeManager.getState(t)?.locked.has(path))) return;
 
     // Sort by tier ascending so lowest-level towers upgrade first,
     // bringing them up to match higher-level ones before advancing further.
-    const sorted = [...eligible].sort((a, b) => {
+    const sorted = [...this._selectedTowers].sort((a, b) => {
       const ta = this.upgradeManager.getState(a)?.tiers[path] ?? 0;
       const tb = this.upgradeManager.getState(b)?.tiers[path] ?? 0;
       return ta - tb;

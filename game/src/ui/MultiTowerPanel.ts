@@ -289,6 +289,15 @@ export class MultiTowerPanel {
     const mgr     = this._manager;
     const firstDef = mgr.getDef(towers[0].def.key);
 
+    // Derive the group's lock set from any committed tower (one that has
+    // locked paths).  Uncommitted towers inherit these locks so the panel
+    // displays a consistent lock state for the entire selection.
+    const groupLocked = new Set<'A' | 'B' | 'C'>();
+    for (const t of towers) {
+      const s = mgr.getState(t);
+      if (s) for (const p of s.locked) groupLocked.add(p);
+    }
+
     for (const col of this._cols) {
       const pathId    = col.path;
       const pathName  = firstDef?.paths[pathId].name ?? pathId;
@@ -297,18 +306,16 @@ export class MultiTowerPanel {
       col.headerText.setText(`PATH ${pathId}: ${pathName.toUpperCase()}`);
       col.descText.setText(pathDesc);
 
-      // Filter to towers that don't have this path locked — towers on
-      // different upgrade paths are simply excluded from the batch, not blocked.
-      const unlocked    = towers.filter(t => !mgr.getState(t)?.locked.has(pathId));
-      const lockedCount = towers.length - unlocked.length;
-      const allLocked   = unlocked.length === 0;
+      // Use the group-level lock: if ANY committed tower has this path
+      // locked, treat it as locked for the whole selection.
+      const isGroupLocked = groupLocked.has(pathId);
 
-      // Compute eligible towers and total cost (only from unlocked towers)
+      // Compute eligible towers and total cost
       const eligibleCosts: number[] = [];
       let   allMaxed = true;
 
-      if (!allLocked) {
-        for (const tower of unlocked) {
+      if (!isGroupLocked) {
+        for (const tower of towers) {
           const cost = mgr.getUpgradeCost(tower, pathId);
           if (cost > 0) {
             eligibleCosts.push(cost);
@@ -324,34 +331,31 @@ export class MultiTowerPanel {
       const eligibleCount  = eligibleCosts.length;
       const canAffordBatch = totalCost > 0 && gold >= eligibleCosts[0]; // afford at least 1
 
-      if (allLocked || eligibleCount === 0) {
+      if (isGroupLocked || eligibleCount === 0) {
         // Nothing purchasable
-        const label = allLocked ? 'LOCKED' : allMaxed ? 'MAX TIER' : 'UNAVAILABLE';
+        const label = isGroupLocked ? 'LOCKED' : allMaxed ? 'MAX TIER' : 'UNAVAILABLE';
         col.tierText.setText('');
-        col.costText.setText(allLocked ? '' : lockedCount > 0 ? `${lockedCount} on other path` : '');
+        col.costText.setText('');
         col.buyBg.setFillStyle(PAL.bgPanelDark).setStrokeStyle(1, PAL.borderInactive);
-        col.buyLabel.setText(label).setColor(allLocked ? PAL.danger : PAL.textDim);
+        col.buyLabel.setText(label).setColor(isGroupLocked ? PAL.danger : PAL.textDim);
         col.buyBg.removeInteractive();
       } else {
-        // Compute "next tier" label (from unlocked towers only)
-        const tiers = unlocked
+        // Compute "next tier" label
+        const tiers = towers
           .map(t => mgr.getState(t)?.tiers[pathId] ?? 0)
-          .filter((_, i) => mgr.getUpgradeCost(unlocked[i], pathId) > 0);
+          .filter((_, i) => mgr.getUpgradeCost(towers[i], pathId) > 0);
         const minTier  = Math.min(...tiers);
         const maxTier  = Math.max(...tiers);
         const tierLabel = minTier === maxTier
           ? `Tier ${minTier} → ${minTier + 1}`
           : `Tiers ${minTier}–${maxTier} → +1`;
 
-        const perLabel = eligibleCount < unlocked.length
-          ? `${eligibleCount}/${unlocked.length} towers`
-          : lockedCount > 0
-            ? `${eligibleCount}/${towers.length} towers`
-            : `${eligibleCount} towers`;
+        const perLabel = eligibleCount < towers.length
+          ? `${eligibleCount}/${towers.length} towers`
+          : `${eligibleCount} towers`;
 
         col.tierText.setText(tierLabel);
-        const lockNote = lockedCount > 0 ? `  (${lockedCount} locked)` : '';
-        col.costText.setText(`${perLabel}  ·  ${totalCost}g total${lockNote}`);
+        col.costText.setText(`${perLabel}  ·  ${totalCost}g total`);
 
         // BUY button state
         if (canAffordBatch) {
