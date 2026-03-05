@@ -4,6 +4,9 @@ import type { TowerUpgradeStats } from '../data/towerDefs';
 import type { TowerUpgradeDef } from '../data/upgradeDefs';
 import { ALL_UPGRADE_DEFS } from '../data/upgradeDefs';
 import type { Creep } from '../entities/Creep';
+import type { GearBonuses } from './GearSystem';
+import { applyGearToStats } from './GearSystem';
+import { applyTowerMetaToStats } from '../data/towerMetaUpgradeDefs';
 
 /** Base spread radius for Poison C (Plague) on-death spread. Plague II adds 10px on top. */
 export const BASE_DOT_SPREAD_RADIUS = 80;
@@ -17,6 +20,13 @@ export interface TowerUpgradeState {
   locked:     Set<'A' | 'B' | 'C'>;
   /** Total gold spent on this tower's upgrades (used for respec calculation). */
   totalSpent: number;
+  /**
+   * Gear and meta bonuses stored at placement time so applyStatsToTower()
+   * can re-apply them after every buyUpgrade() / respec() call.
+   * Not set until GameScene calls setTowerBonuses().
+   */
+  gearBonuses?: GearBonuses;
+  metaTiers?:   Record<string, number>;
 }
 
 // ── UpgradeManager ────────────────────────────────────────────────────────────
@@ -59,6 +69,27 @@ export class UpgradeManager {
   /** Remove a sold/destroyed tower. */
   removeTower(tower: Tower): void {
     this.states.delete(tower);
+  }
+
+  /**
+   * Store the gear and meta-upgrade bonuses for a tower so that
+   * applyStatsToTower() can re-apply them after every buyUpgrade() / respec()
+   * call (which otherwise recomputes upgStats from base, erasing those bonuses).
+   *
+   * Call this from GameScene after the initial applyGearToStats() +
+   * _applyTowerMetaBonuses() calls — for both tryPlaceTower and
+   * _placeRestoredTower (after the buyUpgrade loop).
+   */
+  setTowerBonuses(
+    tower:      Tower,
+    gear:       GearBonuses,
+    metaTiers:  Record<string, number>,
+  ): void {
+    const state = this.states.get(tower);
+    if (state) {
+      state.gearBonuses = gear;
+      state.metaTiers   = metaTiers;
+    }
   }
 
   // ── Queries ───────────────────────────────────────────────────────────────
@@ -299,6 +330,11 @@ export class UpgradeManager {
     const state = this.states.get(tower);
     if (state) {
       tower.setAnimTier(Math.max(state.tiers.A, state.tiers.B, state.tiers.C));
+
+      // Re-apply gear and meta bonuses so they survive every buyUpgrade / respec.
+      // These are erased when applyUpgradeStats() replaces upgStats from base stats.
+      if (state.gearBonuses) applyGearToStats(tower.upgStats, state.gearBonuses);
+      if (state.metaTiers)   applyTowerMetaToStats(tower.upgStats, tower.def.key, state.metaTiers);
     }
 
     // Wire / unwire Tesla overload callback

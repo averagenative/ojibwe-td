@@ -1767,6 +1767,11 @@ export class GameScene extends Phaser.Scene {
     // Apply permanent meta-upgrade bonuses (after gear bonuses).
     this._applyTowerMetaBonuses(tower);
 
+    // Store gear+meta so every future buyUpgrade / respec re-applies them.
+    this.upgradeManager.setTowerBonuses(
+      tower, gearBonuses, this._towerMetaUpgrades[tower.def.key] ?? {},
+    );
+
     tower.on('pointerup', (ptr: Phaser.Input.Pointer) => {
       const shiftHeld = !MobileManager.getInstance().isMobile() &&
         ((ptr.event as MouseEvent)?.shiftKey ?? false);
@@ -3302,6 +3307,11 @@ export class GameScene extends Phaser.Scene {
 
     // Apply permanent meta-upgrade bonuses (after gear bonuses, after buyUpgrade loop).
     this._applyTowerMetaBonuses(tower);
+
+    // Store gear+meta so every future buyUpgrade / respec re-applies them.
+    this.upgradeManager.setTowerBonuses(
+      tower, gearBonuses, this._towerMetaUpgrades[tower.def.key] ?? {},
+    );
 
     tower.on('pointerup', (ptr: Phaser.Input.Pointer) => {
       const shiftHeld = !MobileManager.getInstance().isMobile() &&
