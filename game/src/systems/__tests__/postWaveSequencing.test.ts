@@ -329,16 +329,17 @@ describe('BetweenWaveScene — rendering depth and scene launch', () => {
     expect(betweenWaveSrc).toContain('this.scene.stop()');
   });
 
-  it('BetweenWaveScene emits between-wave-offer-picked before stopping', () => {
-    // The event must fire so GameScene advances the queue and shows the
-    // next-wave button.  Stopping the scene before emitting would swallow
-    // the event.
-    const emitIdx = betweenWaveSrc.indexOf("'between-wave-offer-picked'");
+  it('BetweenWaveScene stops before emitting between-wave-offer-picked', () => {
+    // Scene must stop BEFORE emitting — the emit handler may synchronously
+    // re-launch BetweenWaveScene for the next queued wave, and a subsequent
+    // scene.stop() would kill that new instance.
+    // Search for the actual emit call (not JSDoc mentions) and the stop call.
+    const emitIdx = betweenWaveSrc.indexOf("emit('between-wave-offer-picked'");
     const stopIdx  = betweenWaveSrc.indexOf('this.scene.stop()');
     expect(emitIdx).toBeGreaterThan(-1);
     expect(stopIdx).toBeGreaterThan(-1);
-    // emit must come before stop
-    expect(emitIdx).toBeLessThan(stopIdx);
+    // stop must come before emit
+    expect(stopIdx).toBeLessThan(emitIdx);
   });
 });
 

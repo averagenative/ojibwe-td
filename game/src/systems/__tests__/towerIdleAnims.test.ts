@@ -233,9 +233,9 @@ describe('tierIntensity', () => {
 describe('tierSizeScale', () => {
   it('tier 0 → 1.0', () => expect(tierSizeScale(0)).toBe(1.0));
   it('tier 2 → 1.0', () => expect(tierSizeScale(2)).toBe(1.0));
-  it('tier 3 → 1.08', () => expect(tierSizeScale(3)).toBe(1.08));
-  it('tier 4 → 1.08', () => expect(tierSizeScale(4)).toBe(1.08));
-  it('tier 5 → 1.16', () => expect(tierSizeScale(5)).toBe(1.16));
+  it('tier 3 → 1.03', () => expect(tierSizeScale(3)).toBe(1.03));
+  it('tier 4 → 1.03', () => expect(tierSizeScale(4)).toBe(1.03));
+  it('tier 5 → 1.06', () => expect(tierSizeScale(5)).toBe(1.06));
 
   it('monotonically non-decreasing', () => {
     const values = [0, 1, 2, 3, 4, 5].map(t => tierSizeScale(t));
@@ -557,9 +557,9 @@ describe('tierSizeScale — edge cases', () => {
     expect(tierSizeScale(-100)).toBe(1.0);
   });
 
-  it('tier > 5 returns max (1.16)', () => {
-    expect(tierSizeScale(6)).toBe(1.16);
-    expect(tierSizeScale(100)).toBe(1.16);
+  it('tier > 5 returns max (1.06)', () => {
+    expect(tierSizeScale(6)).toBe(1.06);
+    expect(tierSizeScale(100)).toBe(1.06);
   });
 });
 

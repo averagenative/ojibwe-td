@@ -418,7 +418,7 @@ export const ALL_OFFERS: OfferDef[] = [
   {
     id:          'ricochet-shot',
     name:        'Ricochet Shot',
-    description: 'Cannon projectiles bounce to a 2nd nearest creep at 50% damage.',
+    description: 'Rock Hurler projectiles bounce to a 2nd nearest creep at 50% damage.',
     category:    'combat',
     weight:      3,
     rarity:      'epic',

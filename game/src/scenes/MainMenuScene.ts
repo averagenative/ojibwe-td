@@ -218,8 +218,6 @@ export class MainMenuScene extends Phaser.Scene {
     this.regionRowY = labelY + 16 + this._regionH / 2;
     this.stageRowY  = this.regionRowY + this._regionH / 2 + 28 + this._stageH / 2;
 
-    const logoTitleY = labelY - 14;  // passed to _buildLogoTitle but unused for positioning
-
     this._audioPanel = null;
 
     // Detect mid-run autosave so Resume button can be shown.
@@ -228,7 +226,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.createBackground();
     this._buildParallaxLayers();
     this._buildTimeOfDayTint();
-    this._buildLogoTitle(cx, logoTitleY);
+    // Logo is built inside createButtons() where startY is known.
     this._buildEmbers();
     this.createHeader(cx, labelY);
     this.createRegionRow(cx);
@@ -341,14 +339,14 @@ export class MainMenuScene extends Phaser.Scene {
 
   // ── Logo title with breathing glow ────────────────────────────────────────
 
-  private _buildLogoTitle(_cx: number, _y: number): void {
-    // Logo/shield is positioned in the LEFT panel beside the stage cards,
-    // vertically centred with the stage row area. This keeps the centre
-    // column clean for regions → stage → buttons.
+  private _buildLogoTitle(anchorY: number): void {
+    // Logo/shield is in the LEFT panel, vertically aligned with the button
+    // area (RESUME / START). Kept below stage cards so it never overlaps
+    // when multiple stages are visible.
     const { width } = this.scale;
-    // Position logo just left of the stage card area (cx - STAGE_W/2 - gap - logoW/2)
-    const logoX = this._isMobile ? width / 2 - 180 : width / 2 - (STAGE_W / 2) - 120;
-    const logoY = this.stageRowY;
+    const cx = width / 2;
+    const logoX = this._isMobile ? cx - 180 : cx - (STAGE_W / 2) - 120;
+    const logoY = anchorY;
 
     const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
     glowGfx.fillStyle(0x2a1205, 0.45);
@@ -835,6 +833,12 @@ export class MainMenuScene extends Phaser.Scene {
       startY = Math.min(stageBottom + 44, height - (this._isMobile ? 180 : 160));
     }
 
+    // Build logo in left panel, aligned with BOTTOM button row so it never
+    // overlaps stage card extras (e.g. endless toggle).
+    const bottomBtnH_ = this._isMobile ? 48 : 38;
+    const sideAnchorY = startY + btnH / 2 + bottomDropGap + bottomBtnH_ / 2;
+    this._buildLogoTitle(sideAnchorY);
+
     if (hasResume && this._autoSave) {
       const save = this._autoSave;
       const resumeW = this._isMobile ? 280 : 240;
@@ -892,9 +896,9 @@ export class MainMenuScene extends Phaser.Scene {
     // Keep this isolated from the main centre column. It's a secondary feature
     // button, not part of the primary play flow. Do NOT move it back to centre.
     // Mirrors the logo/shield on the left — positioned in the right panel area.
-    // Position QUICK PLAY just right of the stage card area (mirrors logo on left)
+    // Position QUICK PLAY just right of stage card area, aligned with buttons.
     const quickPlayX = this._isMobile ? width / 2 + 180 : width / 2 + (STAGE_W / 2) + 120;
-    const quickPlayY = this.stageRowY;
+    const quickPlayY = sideAnchorY;
     const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnSize, quickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
     // Two-line label: ⚡ icon on top, "QUICK PLAY" below

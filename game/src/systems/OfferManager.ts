@@ -476,7 +476,7 @@ export class OfferManager {
 
   // ── Phase 14 — Mechanic-changing offer queries ─────────────────────────────
 
-  /** Ricochet Shot: Cannon projectiles bounce to a 2nd target at 50% damage. */
+  /** Ricochet Shot: Rock Hurler projectiles bounce to a 2nd target at 50% damage. */
   hasRicochetShot(): boolean { return this.activeIds.has('ricochet-shot'); }
 
   /**

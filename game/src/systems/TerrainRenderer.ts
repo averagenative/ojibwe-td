@@ -680,11 +680,12 @@ export function renderTerrain(
       const x = col * ts;
       const y = row * ts;
 
-      // ── WATER tiles get a distinct blue base rather than ground green ──
+      // ── WATER tiles: use ground color as base (sprite overlays the pond shape) ──
       if (tileType === TILE.WATER) {
-        baseGfx.fillStyle(0x1e4a6a, 1);
+        const wNoise = posHash(seed, row, col, 0);
+        const wBright = 0.9 + wNoise * 0.2;
+        baseGfx.fillStyle(shiftBrightness(pal.groundBase, wBright), 1);
         baseGfx.fillRect(x, y, ts, ts);
-        // No grid line / accent overlay for water
         continue;
       }
 
@@ -866,10 +867,18 @@ export function renderTerrain(
       // ── Explicit environment tiles ──
       // These render deterministically based on tile position seed.
       if (tileType === TILE.TREE) {
-        const tileSeed = tilePosSeed(col, row);
-        const cx = col * ts + ts / 2;
-        const cy = row * ts + ts / 2;
-        drawTreeClusterTile(decoGfx, cx, cy, ts, pal, tileSeed);
+        if (scene.textures.exists('tile-tree')) {
+          const tx = col * ts + ts / 2;
+          const ty = row * ts + ts / 2;
+          scene.add.image(tx, ty, 'tile-tree')
+            .setDisplaySize(ts, ts)
+            .setDepth(TERRAIN_DECO_DEPTH);
+        } else {
+          const tileSeed = tilePosSeed(col, row);
+          const cx = col * ts + ts / 2;
+          const cy = row * ts + ts / 2;
+          drawTreeClusterTile(decoGfx, cx, cy, ts, pal, tileSeed);
+        }
         continue;
       }
 
@@ -882,23 +891,47 @@ export function renderTerrain(
       }
 
       if (tileType === TILE.BRUSH) {
-        const tileSeed = tilePosSeed(col, row);
-        const cx = col * ts + ts / 2;
-        const cy = row * ts + ts / 2;
-        drawBrushTile(decoGfx, cx, cy, ts, tileSeed);
+        if (scene.textures.exists('tile-brush')) {
+          const bx = col * ts + ts / 2;
+          const by = row * ts + ts / 2;
+          scene.add.image(bx, by, 'tile-brush')
+            .setDisplaySize(ts, ts)
+            .setDepth(TERRAIN_DECO_DEPTH);
+        } else {
+          const tileSeed = tilePosSeed(col, row);
+          const cx = col * ts + ts / 2;
+          const cy = row * ts + ts / 2;
+          drawBrushTile(decoGfx, cx, cy, ts, tileSeed);
+        }
         continue;
       }
 
       if (tileType === TILE.ROCK) {
-        const tileSeed = tilePosSeed(col, row);
-        const cx = col * ts + ts / 2;
-        const cy = row * ts + ts / 2;
-        drawRockPolygonTile(decoGfx, cx, cy, ts, tileSeed);
+        if (scene.textures.exists('tile-rock')) {
+          const rx = col * ts + ts / 2;
+          const ry = row * ts + ts / 2;
+          scene.add.image(rx, ry, 'tile-rock')
+            .setDisplaySize(ts, ts)
+            .setDepth(TERRAIN_DECO_DEPTH);
+        } else {
+          const tileSeed = tilePosSeed(col, row);
+          const cx = col * ts + ts / 2;
+          const cy = row * ts + ts / 2;
+          drawRockPolygonTile(decoGfx, cx, cy, ts, tileSeed);
+        }
         continue;
       }
 
       if (tileType === TILE.WATER) {
-        drawWaterTile(decoGfx, col * ts, row * ts, ts);
+        if (scene.textures.exists('tile-water')) {
+          const wx = col * ts + ts / 2;
+          const wy = row * ts + ts / 2;
+          scene.add.image(wx, wy, 'tile-water')
+            .setDisplaySize(ts, ts)
+            .setDepth(TERRAIN_DECO_DEPTH);
+        } else {
+          drawWaterTile(decoGfx, col * ts, row * ts, ts);
+        }
         continue;
       }
 

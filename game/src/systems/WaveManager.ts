@@ -237,6 +237,9 @@ export class WaveManager extends Phaser.Events.EventEmitter {
   /** Returns true if one or more waves are currently active (creeps spawning or alive). */
   isActive(): boolean { return this._activeWaves.length > 0; }
 
+  /** Returns the number of currently active (not yet settled) waves. */
+  activeWaveCount(): number { return this._activeWaves.length; }
+
   /**
    * Returns true if the wave at `waveNum` contains any air-type creeps.
    * Used by GameScene to show an "Air wave incoming" HUD warning before the wave.

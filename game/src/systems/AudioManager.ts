@@ -144,9 +144,9 @@ export class AudioManager {
     this._musicMuted   = saved.musicMuted;
     this._sfxMuted     = saved.sfxMuted;
 
-    this.masterGain.gain.value = this._muted ? 0 : this._masterVolume;
-    this.sfxGain.gain.value    = this._sfxMuted   ? 0 : this._sfxVolume;
-    this.musicGain.gain.value  = this._musicMuted ? 0 : this._musicVolume;
+    this.masterGain.gain.value = this._muted      ? 0 : this._masterVolume ** 3;
+    this.sfxGain.gain.value    = this._sfxMuted   ? 0 : this._sfxVolume ** 3;
+    this.musicGain.gain.value  = this._musicMuted ? 0 : this._musicVolume ** 3;
 
     // Resume AudioContext on any user interaction. Keep listening until
     // the context is actually running (not just once).
@@ -350,11 +350,24 @@ export class AudioManager {
    */
   playProjectileFired(towerKey: string): void {
     switch (towerKey) {
-      case 'rock-hurler': if (this._playBufferSfx('sfx-rock-hurler')) return; this._sfxRockHurler(); break;
-      case 'frost':       if (this._playBufferSfx('sfx-frost'))  return; this._sfxFrost();  break;
-      case 'tesla':       if (this._playBufferSfx('sfx-tesla'))  return; this._sfxTesla();  break;
-      case 'poison':      if (this._playBufferSfx('sfx-poison')) return; this._sfxPoison(); break;
-      case 'aura':        if (this._playBufferSfx('sfx-aura'))   return; this._sfxAura();   break;
+      case 'arrow':       if (this._playBufferSfx('sfx-arrow-fire'))       return; break;
+      case 'rock-hurler': if (this._playBufferSfx('sfx-rock-hurler-fire')) return; this._sfxRockHurler(); break;
+      case 'frost':       if (this._playBufferSfx('sfx-frost-fire'))       return; this._sfxFrost();  break;
+      case 'tesla':       if (this._playBufferSfx('sfx-tesla-fire'))       return; this._sfxTesla();  break;
+      case 'poison':      if (this._playBufferSfx('sfx-poison-fire'))      return; this._sfxPoison(); break;
+      case 'aura':        if (this._playBufferSfx('sfx-aura'))             return; this._sfxAura();   break;
+      default: break;
+    }
+  }
+
+  /** Per-tower-type projectile impact sound. Falls back silently if no buffer loaded. */
+  playProjectileHit(towerKey: string): void {
+    switch (towerKey) {
+      case 'arrow':       this._playBufferSfx('sfx-arrow-hit');       break;
+      case 'rock-hurler': this._playBufferSfx('sfx-rock-hurler-hit'); break;
+      case 'frost':       this._playBufferSfx('sfx-frost-hit');       break;
+      case 'tesla':       this._playBufferSfx('sfx-tesla-hit');       break;
+      case 'poison':      this._playBufferSfx('sfx-poison-hit');      break;
       default: break;
     }
   }
@@ -588,9 +601,14 @@ export class AudioManager {
 
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
-    src.connect(this.sfxGain);
+    // Attenuate file-based SFX to match procedural SFX levels (~0.2–0.4).
+    // Without this, MP3 samples at full gain drown out music.
+    const g = this.ctx.createGain();
+    g.gain.value = 0.3;
+    src.connect(g);
+    g.connect(this.sfxGain);
     src.start();
-    src.onended = () => { src.disconnect(); };
+    src.onended = () => { src.disconnect(); g.disconnect(); };
     return true;
   }
 
@@ -1045,8 +1063,13 @@ export class AudioManager {
 
   // ── Private helpers ───────────────────────────────────────────────────────
 
+  /**
+   * Apply a perceptual (exponential) volume curve so the slider feels natural.
+   * Linear gain doesn't match human hearing — this maps 0–1 to an x³ curve
+   * so that midpoint (~0.5) sounds roughly "half as loud".
+   */
   private _applyGain(node: GainNode | null, value: number): void {
-    if (node) node.gain.value = value;
+    if (node) node.gain.value = value * value * value;
   }
 
   private _persist(): void {

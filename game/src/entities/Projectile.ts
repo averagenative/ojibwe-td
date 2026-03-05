@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Creep } from './Creep';
 import type { TrailPool } from '../systems/TrailPool';
+import { AudioManager } from '../systems/AudioManager';
 import {
   PROJECTILE_VISUAL_CONFIGS,
   travelAngle,
@@ -74,6 +75,11 @@ export class Projectile extends Phaser.GameObjects.Arc {
    * Destroyed in destroy() to prevent leaks.
    */
   private _shapeGfx:    Phaser.GameObjects.Graphics | null = null;
+  /**
+   * Optional sprite-based projectile (replaces _shapeGfx when a texture exists).
+   * Uses proj-arrow, proj-rock, proj-frost, proj-poison textures.
+   */
+  private _shapeSprite: Phaser.GameObjects.Image | null = null;
   /** Current direction of travel in radians. Updated each step. */
   private _travelAngle  = 0;
   /**
@@ -114,6 +120,14 @@ export class Projectile extends Phaser.GameObjects.Arc {
 
   // ── shape graphics ────────────────────────────────────────────────────────
 
+  /** Map tower key → projectile sprite texture key (loaded in BootScene). */
+  private static readonly SPRITE_KEYS: Record<string, string> = {
+    arrow:         'proj-arrow',
+    'rock-hurler': 'proj-rock',
+    frost:         'proj-frost',
+    poison:        'proj-poison',
+  };
+
   private _buildShapeGfx(): void {
     const key = this.opts.towerKey;
     if (!key) return;
@@ -124,6 +138,32 @@ export class Projectile extends Phaser.GameObjects.Arc {
     // Hide the underlying Arc — the shape replaces it entirely.
     this.setAlpha(0);
 
+    // Prefer sprite textures when available — fall back to procedural Graphics.
+    const spriteKey = Projectile.SPRITE_KEYS[key];
+    if (spriteKey && this.scene.textures.exists(spriteKey)) {
+      this._shapeSprite = this.scene.add.image(this.x, this.y, spriteKey)
+        .setDepth(20)
+        .setOrigin(0.5);
+      // Scale the 32×32 sprite to match the expected projectile visual size.
+      const displaySize = cfg.size * 2.2;
+      this._shapeSprite.setDisplaySize(displaySize, displaySize);
+
+      // Poison blob: wobble tween on the sprite.
+      if (cfg.shape === 'poison-blob') {
+        this.scene.tweens.add({
+          targets:  this._shapeSprite,
+          scaleX:   this._shapeSprite.scaleX * 0.82,
+          scaleY:   this._shapeSprite.scaleY * 1.18,
+          duration: 160,
+          yoyo:     true,
+          repeat:   -1,
+          ease:     'Sine.easeInOut',
+        });
+      }
+      return;
+    }
+
+    // Fallback: procedural Graphics shapes.
     this._shapeGfx = this.scene.add.graphics();
     this._shapeGfx.setDepth(20);
     this._shapeGfx.setPosition(this.x, this.y);
@@ -290,17 +330,22 @@ export class Projectile extends Phaser.GameObjects.Arc {
 
   // ── shape sync ────────────────────────────────────────────────────────────
 
-  /** Sync _shapeGfx position and rotation to current projectile position. */
+  /** Sync _shapeGfx / _shapeSprite position and rotation to current projectile position. */
   private _syncShapeGfx(): void {
+    if (this._shapeSprite) {
+      this._shapeSprite.setPosition(this.x, this.y);
+      const key = this.opts.towerKey;
+      if (key === 'arrow') this._shapeSprite.setRotation(this._travelAngle);
+      else if (key === 'rock-hurler') this._shapeSprite.setRotation(this._tumblePhase);
+      return;
+    }
     if (!this._shapeGfx) return;
     this._shapeGfx.setPosition(this.x, this.y);
 
     const key = this.opts.towerKey;
     if (key === 'arrow') {
-      // Arrow always faces direction of travel.
       this._shapeGfx.setRotation(this._travelAngle);
     } else if (key === 'rock-hurler') {
-      // Rock tumbles independently of travel direction.
       this._shapeGfx.setRotation(this._tumblePhase);
     }
     // frost-shard and poison-blob: no rotation applied (symmetric shapes)
@@ -311,6 +356,8 @@ export class Projectile extends Phaser.GameObjects.Arc {
   override destroy(fromScene?: boolean): void {
     this._shapeGfx?.destroy();
     this._shapeGfx = null;
+    this._shapeSprite?.destroy();
+    this._shapeSprite = null;
     super.destroy(fromScene);
   }
 
@@ -417,6 +464,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
     }
 
     this.showImpactEffect(creep.x, creep.y);
+    if (this.opts.towerKey) AudioManager.getInstance().playProjectileHit(this.opts.towerKey);
 
     // Tesla: draw the tower → primary-target lightning arc on impact.
     if (this.opts.towerKey === 'tesla') {
@@ -431,6 +479,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
     }
     this.opts.onImpact?.(cx, cy);
     this.showImpactEffect(cx, cy);
+    if (this.opts.towerKey) AudioManager.getInstance().playProjectileHit(this.opts.towerKey);
   }
 
   private applyAoe(cx: number, cy: number): void {

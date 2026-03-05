@@ -135,8 +135,8 @@ describe('MainMenuScene layout — logo in left panel', () => {
     expect(mainMenuSrc).toContain('const labelY = TOP_PAD;');
   });
 
-  it('logoY is aligned with stageRowY', () => {
-    expect(mainMenuSrc).toContain('const logoY = this.stageRowY');
+  it('logoY is aligned with anchorY (button area)', () => {
+    expect(mainMenuSrc).toContain('const logoY = anchorY');
   });
 });
 

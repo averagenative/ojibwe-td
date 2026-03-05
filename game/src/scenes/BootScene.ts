@@ -7,16 +7,21 @@ import { PAL } from '../ui/palette';
 // so missing SFX are silent (not broken). When SFX mp3s are added to
 // public/assets/audio/sfx/, uncomment the corresponding entry here.
 const AUDIO_LOAD_DEFS: ReadonlyArray<[key: string, path: string]> = [
-  // SFX — no mp3 files yet; procedural synthesis handles all SFX.
-  // Uncomment each line as the corresponding .mp3 is added:
+  // Tower fire SFX (ElevenLabs-generated)
+  ['sfx-arrow-fire',       'assets/audio/sfx-arrow-fire.mp3'],
+  ['sfx-rock-hurler-fire', 'assets/audio/sfx-rock-fire.mp3'],
+  ['sfx-frost-fire',       'assets/audio/sfx-frost-fire.mp3'],
+  ['sfx-poison-fire',      'assets/audio/sfx-poison-fire.mp3'],
+  ['sfx-tesla-fire',       'assets/audio/sfx-tesla-fire.mp3'],
+  // Tower hit / impact SFX
+  ['sfx-arrow-hit',        'assets/audio/sfx-arrow-hit.mp3'],
+  ['sfx-rock-hurler-hit',  'assets/audio/sfx-rock-hit.mp3'],
+  ['sfx-frost-hit',        'assets/audio/sfx-frost-hit.mp3'],
+  ['sfx-poison-hit',       'assets/audio/sfx-poison-hit.mp3'],
+  ['sfx-tesla-hit',        'assets/audio/sfx-tesla-hit.mp3'],
+  // Remaining SFX — uncomment as mp3s are added:
   // ['sfx-tower-place',    'assets/audio/sfx/tower-place.mp3'],
-  // ['sfx-rock-hurler',    'assets/audio/sfx/rock-hurler-fire.mp3'],
-  // ['sfx-frost',          'assets/audio/sfx/frost-fire.mp3'],
-  // ['sfx-tesla',          'assets/audio/sfx/tesla-fire.mp3'],
-  // ['sfx-mortar',         'assets/audio/sfx/mortar-fire.mp3'],
-  // ['sfx-poison',         'assets/audio/sfx/poison-fire.mp3'],
   // ['sfx-aura',           'assets/audio/sfx/aura-hum.mp3'],
-  // ['sfx-arrow',          'assets/audio/sfx/arrow-fire.mp3'],
   // ['sfx-creep-death-01', 'assets/audio/sfx/creep-death-01.mp3'],
   // ['sfx-creep-death-02', 'assets/audio/sfx/creep-death-02.mp3'],
   // ['sfx-creep-death-03', 'assets/audio/sfx/creep-death-03.mp3'],
@@ -250,6 +255,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image('tile-brush', 'assets/tiles/tile-brush.png');
     this.load.image('tile-rock',  'assets/tiles/tile-rock.png');
     this.load.image('tile-water', 'assets/tiles/tile-water.png');
+
+    // Projectile sprites (32x32) — replace procedural Graphics during flight
+    this.load.image('proj-arrow',  'assets/projectiles/proj-arrow.png');
+    this.load.image('proj-rock',   'assets/projectiles/proj-rock.png');
+    this.load.image('proj-frost',  'assets/projectiles/proj-frost.png');
+    this.load.image('proj-poison', 'assets/projectiles/proj-poison.png');
 
     // Rubble effect sprites (40x40) — shown on tiles where towers were sold
     this.load.image('rubble-01', 'assets/effects/rubble-01.png');

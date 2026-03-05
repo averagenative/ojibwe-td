@@ -51,7 +51,7 @@ export const ALL_CHALLENGES: ChallengeDef[] = [
   {
     id: 'challenge-makwas-den',
     name: "Makwa's Den",
-    description: 'All creeps armoured, 15 waves, no Cannon allowed.',
+    description: 'All creeps armoured, 15 waves, no Rock Hurler allowed.',
     pathFile: 'challenge-01',
     unlockThreshold: 200,
     modifier: {

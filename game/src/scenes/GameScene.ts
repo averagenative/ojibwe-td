@@ -63,7 +63,7 @@ import { Rng } from '../systems/Rng';
 
 const DEFAULT_TOTAL_WAVES = 20;
 /** Flat gold bonus awarded when the player rushes the next wave early. */
-const RUSH_GOLD_AMOUNT = 25;
+const RUSH_GOLD_AMOUNT = 150;
 
 type GameState = 'pregame' | 'wave' | 'between' | 'over';
 
@@ -2172,6 +2172,10 @@ export class GameScene extends Phaser.Scene {
   private rushNextWave(): void {
     if (this.gameState !== 'wave') return;
 
+    // Immediately hide the rush button — only one rush allowed at a time.
+    // The button reappears in onWaveComplete once all concurrent waves settle.
+    this.hud.setRushWaveVisible(false);
+
     // Track rush for achievement.
     this._achRushesRun++;
 
@@ -2215,13 +2219,18 @@ export class GameScene extends Phaser.Scene {
       this.hud.setRushWaveVisible(false);
       return;
     }
+    // Only allow rush when no concurrent waves are running — one rush at a
+    // time prevents the wave manager from stacking too many active waves.
+    if (this.waveManager.isActive() && this.waveManager.activeWaveCount() > 1) {
+      this.hud.setRushWaveVisible(false);
+      return;
+    }
     const nextWave = this.currentWave + 1;
     // Hide if there's no next wave (non-endless) or if it's a boss wave.
     if ((!this.isEndlessMode && nextWave > this.totalWaves) || nextWave % 5 === 0) {
       this.hud.setRushWaveVisible(false);
       return;
     }
-    // Always show enabled — no one-ahead limit with concurrent wave stacking.
     this.hud.setRushWaveVisible(true, true);
   }
 
@@ -2292,8 +2301,8 @@ export class GameScene extends Phaser.Scene {
     // final-wave victory processing (which waits until all waves settle).
     const isConcurrent = this.waveManager.isActive();
 
-    // Hide the rush button — it belongs only in 'wave' state.
-    this.hud.setRushWaveVisible(false);
+    // Re-evaluate the rush button — it may re-appear now that a wave settled.
+    this._updateRushButton();
 
     if (!isConcurrent && this.currentWave >= this.totalWaves && !this.isEndlessMode) {
       // Cancel any remaining spawn timers (boss escorts may still be queued).

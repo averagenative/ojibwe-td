@@ -175,11 +175,11 @@ describe('MainMenuScene logo and button hover polish', () => {
     const createStart = mainMenuSrc.indexOf('create():');
     const parallaxIdx = mainMenuSrc.indexOf('_buildParallaxLayers()', createStart);
     const timeTintIdx = mainMenuSrc.indexOf('_buildTimeOfDayTint()', createStart);
-    const logoIdx     = mainMenuSrc.indexOf('_buildLogoTitle(',    createStart);
     const embersIdx   = mainMenuSrc.indexOf('_buildEmbers()',       createStart);
     expect(parallaxIdx).toBeLessThan(timeTintIdx);
-    expect(timeTintIdx).toBeLessThan(logoIdx);
-    expect(logoIdx).toBeLessThan(embersIdx);
+    expect(timeTintIdx).toBeLessThan(embersIdx);
+    // _buildLogoTitle is called inside createButtons with sideAnchorY (below stage cards)
+    expect(mainMenuSrc).toContain('this._buildLogoTitle(sideAnchorY)');
   });
 });
 

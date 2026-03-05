@@ -239,6 +239,7 @@ sep_full
 done
 
 TOTAL=$(find "$TASKS" -name "*.md" -not -path "*/done/*" -not -path "*/health/*" \
+  -not -name "_template.md" \
   -exec grep -l "^status: pending$" {} \; 2>/dev/null | wc -l | tr -d ' ') || true
 printf "\n  ${DIM}%s pending total${RESET}\n" "$TOTAL"
 sep_full

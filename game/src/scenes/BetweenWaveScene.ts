@@ -404,15 +404,18 @@ export class BetweenWaveScene extends Phaser.Scene {
     // Windfall: 150 instant gold applied via the GameScene callback.
     const instantGold = offer.id === 'windfall' ? 150 : 0;
 
-    // Signal GameScene so it can apply instant effects and show the next-wave button.
+    // Stop this scene BEFORE emitting — the emit handler may synchronously
+    // re-launch BetweenWaveScene for the next queued wave, and a subsequent
+    // scene.stop() would kill that new instance.
+    const rerollsUsed = this._rerollsUsed;
     const gameScene = this.scene.get('GameScene');
+    this.scene.stop();
+
     gameScene?.events.emit('between-wave-offer-picked', {
       offerId:      offer.id,
       instantGold,
-      rerollsUsed:  this._rerollsUsed,
+      rerollsUsed,
     });
-
-    this.scene.stop();
   }
 
 }

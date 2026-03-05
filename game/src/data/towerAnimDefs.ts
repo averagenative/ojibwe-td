@@ -326,8 +326,8 @@ export function tierIntensity(tier: number): number {
  *   Tier 5   → 1.16 (+16%)
  */
 export function tierSizeScale(tier: number): number {
-  if (tier >= 5) return 1.16;
-  if (tier >= 3) return 1.08;
+  if (tier >= 5) return 1.06;
+  if (tier >= 3) return 1.03;
   return 1.00;
 }
 

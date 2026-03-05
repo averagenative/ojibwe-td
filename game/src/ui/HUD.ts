@@ -323,15 +323,21 @@ export class HUD extends Phaser.GameObjects.Container {
       .setDepth(CONFIRM_DEPTH)
       .setInteractive();
 
-    const dialogBg = this.scene.add.rectangle(cx, cy, 280, 140, PAL.bgPanel)
+    const dialogBg = this.scene.add.rectangle(cx, cy, 280, 160, PAL.bgPanel)
       .setStrokeStyle(2, PAL.borderGiveUp)
       .setDepth(CONFIRM_DEPTH + 1);
 
-    const title = this.scene.add.text(cx, cy - 36, 'Give up this run?', {
+    const title = this.scene.add.text(cx, cy - 42, 'Give up this run?', {
       fontSize:   '16px',
       color:      PAL.textNeutral,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
+    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 2);
+
+    const subtitle = this.scene.add.text(cx, cy - 22, 'You will forfeit all crystal rewards.', {
+      fontSize:   '11px',
+      color:      PAL.danger,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 2);
 
     const confirmBtnH = _IS_MOBILE ? 44 : 36;
@@ -364,6 +370,7 @@ export class HUD extends Phaser.GameObjects.Container {
       overlay.destroy();
       dialogBg.destroy();
       title.destroy();
+      subtitle.destroy();
       yesBg.destroy();
       yesLabel.destroy();
       noBg.destroy();
@@ -400,7 +407,7 @@ export class HUD extends Phaser.GameObjects.Container {
       .setDepth(DEPTH + 2)
       .setVisible(false);
 
-    this.rushWaveLabel = this.scene.add.text(cx, btnY, `RUSH +${rushGold}⬡ ▶`, {
+    this.rushWaveLabel = this.scene.add.text(cx, btnY, `RUSH +${rushGold}G ▶`, {
       fontSize:   '13px',
       color:      PAL.gold,
       fontFamily: PAL.fontBody,
