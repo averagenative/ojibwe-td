@@ -2775,3 +2775,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **False positive** — Health check reported `_getAscGoldMult()` missing from wave-bonus, boss-killed, interest, and jackpot handlers. All five gold sources (kill, wave-bonus, boss-killed, interest, jackpot) already apply `_getAscGoldMult()` correctly. The health check used stale line numbers. Existing structural tests in `ascensionSystem.test.ts` (lines 453-486) verify this wiring.
 - **`commanderClanRealignment.test.ts` cleanup** — Replaced `as any` casts with proper `CommanderRunState` types via `defaultCommanderRunState()` factory. No behavioural change.
+
+### HEALTH-82edfc89 Review Findings (applyStatsToTower gear+meta wipe)
+
+- **Duplicate gear/meta application code** — `tryPlaceTower` and `_placeRestoredTower` both contain identical blocks for `resolveGearBonuses` → `applyGearToStats` → `_applyTowerMetaBonuses` → `setTowerBonuses`. Consider extracting a shared `_applyAndStoreBonuses(tower, towerKey)` helper to reduce duplication.
+- **Gear condition guard asymmetry** — The gear-application `if` check (6 boolean conditions) is duplicated verbatim in both placement paths but `setTowerBonuses` always stores the full `gearBonuses` regardless of the check. This means an all-zero GearBonuses is stored and re-applied every upgrade (no-op but unnecessary work). A minor cleanup: store conditionally or simplify the guard.

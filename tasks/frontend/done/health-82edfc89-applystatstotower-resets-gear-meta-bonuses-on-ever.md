@@ -1,7 +1,7 @@
 ---
 id: HEALTH-82edfc89
 title: "applyStatsToTower resets gear+meta bonuses on every upgrade purchase"
-status: pending
+status: done
 category: health
 severity: high
 source: health-check
