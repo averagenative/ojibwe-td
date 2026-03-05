@@ -1,7 +1,7 @@
 ---
 id: HEALTH-4c493575
 title: "_placeRestoredTower applies gear+meta bonuses then immediately wipes them with buyUpgrade loop"
-status: pending
+status: in-progress
 category: health
 severity: high
 source: health-check

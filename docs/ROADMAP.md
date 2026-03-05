@@ -2761,3 +2761,12 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 - **No `stageId` field on VignetteDef (repeated)** — The 3 new winter vignettes (waves 3, 7, 13) fire for all biboon-aki stages. When stage count per region grows, a per-stage `stageId` filter on `VignetteDef` would prevent narrative repetition. Same issue noted in TASK-168.
 - **Winter birchLeafColor now fixed** — TASK-168 noted `birchLeafColor` was still green for winter; this task updated it to `0xd0d8e0` (snow-white grey). Resolved.
 - **`drawBareTree` removed** — Winter trees are now snow-capped conifers rather than bare branches. The old bare-tree aesthetic is gone entirely; if a "late autumn / early spring" transitional palette is ever needed, the function would need to be reimplemented.
+
+### HEALTH-4c493575 Review Findings (Restored Tower Bonus Ordering)
+
+- **Root cause: `UpgradeManager.applyStatsToTower()` recomputes from scratch** — Every `buyUpgrade()` call resets `upgStats` from `defaultUpgradeStats + upgrade deltas`, erasing any externally-applied bonuses (gear, meta). The current fix orders gear+meta application after the upgrade loop, but any future caller that applies bonuses then upgrades will hit the same bug. A more robust fix would be to make `applyStatsToTower()` layer-aware (base → upgrades → gear → meta) so ordering doesn't matter. Low priority since the current fix is correct and tested.
+
+### HEALTH-35b0b43c Review Findings (Ascension Gold Multiplier Wiring)
+
+- **Tax Collector escape refund not subject to ascension gold penalty** — `getEscapeRefund()` gold (GameScene.ts:711) is added without `_getAscGoldMult()`. Arguably a refund for lost creeps is not "income" and should not be penalised, but if the intent is a blanket gold-rate reduction at Ascension 10, this source should also be multiplied. Low priority — the refund is small (50% of one creep's value) and the distinction is defensible.
+- **Rush bonus gold not subject to ascension gold penalty** — `RUSH_GOLD_AMOUNT` (GameScene.ts:2251) is added flat without `_getAscGoldMult()`. Similar reasoning: rush bonus is a player-initiated reward, not passive income. Worth a design decision if the penalty should be universal.

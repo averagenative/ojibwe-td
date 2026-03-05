@@ -1,7 +1,7 @@
 ---
 id: HEALTH-35b0b43c
 title: "ascGoldMult variable declared inline but never extracted for reuse across all gold handlers"
-status: pending
+status: done
 category: health
 severity: medium
 source: health-check
