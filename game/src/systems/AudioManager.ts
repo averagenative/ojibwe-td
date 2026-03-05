@@ -487,6 +487,9 @@ export class AudioManager {
   /** Victory — ~3-second ascending fanfare sting. */
   playVictory(): void {
     if (this._playBufferSfx('sfx-victory')) return;
+    // Skip procedural fanfare when a generated victory music track exists —
+    // GameOverScene will start 'music-victory' moments later.
+    if (this._buffers.has('music-victory')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
 
@@ -521,6 +524,7 @@ export class AudioManager {
   /** Game over — descending minor line. */
   playGameOver(): void {
     if (this._playBufferSfx('sfx-game-over')) return;
+    if (this._buffers.has('music-gameover')) return;
     const { ctx, sfxGain } = this;
     if (!ctx || !sfxGain) return;
 

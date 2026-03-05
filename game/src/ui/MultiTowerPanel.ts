@@ -297,22 +297,24 @@ export class MultiTowerPanel {
       col.headerText.setText(`PATH ${pathId}: ${pathName.toUpperCase()}`);
       col.descText.setText(pathDesc);
 
+      // If ANY tower has this path locked, treat the entire column as locked.
+      // This prevents batch-upgrading a path on lower-tier towers that conflicts
+      // with the player's chosen upgrade strategy on higher-tier towers.
+      const anyLocked = towers.some(t => mgr.getState(t)?.locked.has(pathId));
+
       // Compute eligible towers and total cost
       const eligibleCosts: number[] = [];
       let   allMaxed = true;
-      let   allLocked = true;
 
-      for (const tower of towers) {
-        const cost = mgr.getUpgradeCost(tower, pathId);
-        if (cost > 0) {
-          eligibleCosts.push(cost);
-          allMaxed  = false;
-          allLocked = false;
-        } else {
-          const state = mgr.getState(tower);
-          if (state) {
-            if (state.tiers[pathId] < 5) allMaxed = false;   // locked (not maxed)
-            if (!state.locked.has(pathId)) allLocked = false; // not locked (maxed or eligible)
+      if (!anyLocked) {
+        for (const tower of towers) {
+          const cost = mgr.getUpgradeCost(tower, pathId);
+          if (cost > 0) {
+            eligibleCosts.push(cost);
+            allMaxed = false;
+          } else {
+            const state = mgr.getState(tower);
+            if (state && state.tiers[pathId] < 5) allMaxed = false;
           }
         }
       }
@@ -321,13 +323,13 @@ export class MultiTowerPanel {
       const eligibleCount  = eligibleCosts.length;
       const canAffordBatch = totalCost > 0 && gold >= eligibleCosts[0]; // afford at least 1
 
-      if (eligibleCount === 0) {
+      if (anyLocked || eligibleCount === 0) {
         // Nothing purchasable
-        const label = allMaxed ? 'MAX TIER' : allLocked ? 'LOCKED' : 'UNAVAILABLE';
+        const label = anyLocked ? 'LOCKED' : allMaxed ? 'MAX TIER' : 'UNAVAILABLE';
         col.tierText.setText('');
         col.costText.setText('');
         col.buyBg.setFillStyle(PAL.bgPanelDark).setStrokeStyle(1, PAL.borderInactive);
-        col.buyLabel.setText(label).setColor(PAL.textDim);
+        col.buyLabel.setText(label).setColor(anyLocked ? PAL.danger : PAL.textDim);
         col.buyBg.removeInteractive();
       } else {
         // Compute "next tier" label
