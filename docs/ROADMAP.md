@@ -2770,3 +2770,8 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **Tax Collector escape refund not subject to ascension gold penalty** — `getEscapeRefund()` gold (GameScene.ts:711) is added without `_getAscGoldMult()`. Arguably a refund for lost creeps is not "income" and should not be penalised, but if the intent is a blanket gold-rate reduction at Ascension 10, this source should also be multiplied. Low priority — the refund is small (50% of one creep's value) and the distinction is defensible.
 - **Rush bonus gold not subject to ascension gold penalty** — `RUSH_GOLD_AMOUNT` (GameScene.ts:2251) is added flat without `_getAscGoldMult()`. Similar reasoning: rush bonus is a player-initiated reward, not passive income. Worth a design decision if the penalty should be universal.
+
+### HEALTH-a18906d8 Review Findings (Ascension Gold Income Penalty — False Positive)
+
+- **False positive** — Health check reported `_getAscGoldMult()` missing from wave-bonus, boss-killed, interest, and jackpot handlers. All five gold sources (kill, wave-bonus, boss-killed, interest, jackpot) already apply `_getAscGoldMult()` correctly. The health check used stale line numbers. Existing structural tests in `ascensionSystem.test.ts` (lines 453-486) verify this wiring.
+- **`commanderClanRealignment.test.ts` cleanup** — Replaced `as any` casts with proper `CommanderRunState` types via `defaultCommanderRunState()` factory. No behavioural change.

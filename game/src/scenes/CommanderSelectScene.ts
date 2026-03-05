@@ -13,6 +13,7 @@ import { getCommanderUnlockNode } from '../meta/unlockDefs';
 import { MobileManager } from '../systems/MobileManager';
 import { getStageDef, getRegionDef, SEASON_PALETTE } from '../data/stageDefs';
 import { getCommanderIntroCutsceneId, getCutsceneDef } from '../data/cutsceneDefs';
+import { PAL } from '../ui/palette';
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -151,15 +152,15 @@ export class CommanderSelectScene extends Phaser.Scene {
     // Title
     this.add.text(cx, 36, 'CHOOSE YOUR COMMANDER', {
       fontSize: this._fs(24),
-      color: '#00ff44',
-      fontFamily: 'monospace',
+      color: PAL.textPrimary,
+      fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BASE);
 
     this.add.text(cx, this._isMobile ? 68 : 64, 'Select a commander to accompany your run', {
       fontSize: this._fs(13),
-      color: '#556655',
-      fontFamily: 'monospace',
+      color: PAL.textMuted,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BASE);
 
     // Commander cards — centred row
@@ -177,25 +178,25 @@ export class CommanderSelectScene extends Phaser.Scene {
     const btnW  = this._isMobile ? 280 : 260;
     const btnH  = this._isMobile ? 56  : 52;
     const btnY  = height - (this._isMobile ? 64 : 60);
-    this.confirmBtn = this.add.rectangle(cx, btnY, btnW, btnH, 0x005500)
-      .setStrokeStyle(2, 0x00ff44)
+    this.confirmBtn = this.add.rectangle(cx, btnY, btnW, btnH, PAL.bgStartBtn)
+      .setStrokeStyle(2, PAL.borderActive)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_BASE + 10);
 
     this.confirmLabel = this.add.text(cx, btnY, 'BEGIN RUN', {
       fontSize: this._fs(20),
-      color: '#00ff44',
-      fontFamily: 'monospace',
+      color: PAL.accentGreen,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 11);
 
     this.confirmBtn.on('pointerover', () => {
-      this.confirmBtn.setFillStyle(0x007700);
+      this.confirmBtn.setFillStyle(PAL.bgStartBtnHover);
       this.confirmLabel.setColor('#ffffff');
     });
     this.confirmBtn.on('pointerout', () => {
-      this.confirmBtn.setFillStyle(0x005500);
-      this.confirmLabel.setColor('#00ff44');
+      this.confirmBtn.setFillStyle(PAL.bgStartBtn);
+      this.confirmLabel.setColor(PAL.accentGreen);
     });
     this.confirmBtn.on('pointerup', () => {
       const gameData = {
@@ -226,19 +227,19 @@ export class CommanderSelectScene extends Phaser.Scene {
     // Back button — minimum 44px height for mobile tap target
     const backW = this._isMobile ? 130 : 120;
     const backH = this._isMobile ? 44  : 42;
-    const backBg = this.add.rectangle(80, btnY, backW, backH, 0x222222)
-      .setStrokeStyle(1, 0x444444)
+    const backBg = this.add.rectangle(80, btnY, backW, backH, PAL.bgPanel)
+      .setStrokeStyle(1, PAL.borderInactive)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_BASE + 10);
 
     const backLabel = this.add.text(80, btnY, 'BACK', {
       fontSize: this._fs(16),
-      color: '#888888',
-      fontFamily: 'monospace',
+      color: PAL.textDim,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 11);
 
-    backBg.on('pointerover', () => backLabel.setColor('#cccccc'));
-    backBg.on('pointerout', () => backLabel.setColor('#888888'));
+    backBg.on('pointerover', () => backLabel.setColor(PAL.textPrimary));
+    backBg.on('pointerout', () => backLabel.setColor(PAL.textDim));
     backBg.on('pointerup', () => this._go('MainMenuScene'));
 
     // Ascension picker is hidden pending a design pass (TASK-137).
@@ -278,8 +279,8 @@ export class CommanderSelectScene extends Phaser.Scene {
     const roleColor = ROLE_COLORS[def.role] ?? 0xaaaaaa;
 
     // Card background
-    const bg = this.add.rectangle(bx, by, CARD_W, CARD_H, 0x111111)
-      .setStrokeStyle(2, 0x333333)
+    const bg = this.add.rectangle(bx, by, CARD_W, CARD_H, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderInactive)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_BASE);
 
@@ -289,23 +290,23 @@ export class CommanderSelectScene extends Phaser.Scene {
     this.add.text(bx, by - CARD_H / 2 + 16, def.role.toUpperCase(), {
       fontSize: this._fs(11),
       color: '#' + roleColor.toString(16).padStart(6, '0'),
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
     // Name
     this.add.text(bx, by - CARD_H / 2 + 40, def.name, {
       fontSize: this._fs(16),
-      color: isLocked ? '#555555' : '#ffffff',
-      fontFamily: 'monospace',
+      color: isLocked ? PAL.textLocked : '#ffffff',
+      fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
     // Clan + Totem
     this.add.text(bx, by - CARD_H / 2 + 60, `${def.clan} · ${def.totem}`, {
       fontSize: this._fs(11),
-      color: '#666666',
-      fontFamily: 'monospace',
+      color: PAL.textDim,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
     // ── Portrait ─────────────────────────────────────────────────────────────
@@ -358,16 +359,16 @@ export class CommanderSelectScene extends Phaser.Scene {
         // Locked overlay text when no portrait is available.
         this.add.text(bx, by + 10, '???', {
           fontSize: this._fs(28),
-          color: '#333333',
-          fontFamily: 'monospace',
+          color: PAL.textLockedDim,
+          fontFamily: PAL.fontBody,
           fontStyle: 'bold',
         }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
       }
 
       this.add.text(bx, by + 50, 'Unlock in\nMeta Tree', {
         fontSize: this._fs(11),
-        color: '#444444',
-        fontFamily: 'monospace',
+        color: PAL.textLocked,
+        fontFamily: PAL.fontBody,
         align: 'center',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
 
@@ -376,38 +377,38 @@ export class CommanderSelectScene extends Phaser.Scene {
         : 'Coming soon';
       this.add.text(bx, by + CARD_H / 2 - 16, costLabel, {
         fontSize: this._fs(11),
-        color: '#557799',
-        fontFamily: 'monospace',
+        color: PAL.accentBlue,
+        fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
     } else {
       // Aura name (below portrait) with English translation
       this.add.text(bx, by + 46, def.aura.name, {
         fontSize: this._fs(11),
-        color: '#88cc88',
-        fontFamily: 'monospace',
+        color: PAL.textSecondary,
+        fontFamily: PAL.fontBody,
         fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
       this.add.text(bx, by + 58, `"${def.aura.nameEnglish}"`, {
         fontSize: this._fs(11),
-        color: '#7a9a70',
-        fontFamily: 'monospace',
+        color: PAL.textMuted,
+        fontFamily: PAL.fontBody,
         fontStyle: 'italic',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
       // Ability name with English translation
       this.add.text(bx, by + CARD_H / 2 - 34, def.ability.name, {
         fontSize: this._fs(11),
-        color: '#aaaacc',
-        fontFamily: 'monospace',
+        color: PAL.textAbility,
+        fontFamily: PAL.fontBody,
         wordWrap: { width: CARD_W - 16 },
         align: 'center',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
       this.add.text(bx, by + CARD_H / 2 - 22, `"${def.ability.nameEnglish}"`, {
         fontSize: this._fs(11),
-        color: '#7a9a70',
-        fontFamily: 'monospace',
+        color: PAL.textMuted,
+        fontFamily: PAL.fontBody,
         fontStyle: 'italic',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
@@ -415,8 +416,8 @@ export class CommanderSelectScene extends Phaser.Scene {
       const detailsHint = this._isMobile ? 'tap for details' : 'click for details';
       this.add.text(bx, by + CARD_H / 2 - 12, detailsHint, {
         fontSize: this._fs(11),
-        color: '#334433',
-        fontFamily: 'monospace',
+        color: PAL.textFaint,
+        fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
     }
 
@@ -442,8 +443,8 @@ export class CommanderSelectScene extends Phaser.Scene {
   private highlightCard(selectedId: string): void {
     for (const [id, bg] of this.cardBgs) {
       const isSelected = id === selectedId;
-      bg.setStrokeStyle(2, isSelected ? 0x00ff44 : 0x333333);
-      bg.setFillStyle(isSelected ? 0x1a2a1a : 0x111111);
+      bg.setStrokeStyle(2, isSelected ? PAL.borderActive : PAL.borderInactive);
+      bg.setFillStyle(isSelected ? PAL.bgPanelHover : PAL.bgPanel);
     }
 
     // Selection feedback animations on portraits
@@ -509,8 +510,8 @@ export class CommanderSelectScene extends Phaser.Scene {
     this.sheetContainer.add(overlay);
 
     // Sheet background
-    const sheet = this.add.rectangle(cx, cy, SHEET_W, SHEET_H, 0x0d1520)
-      .setStrokeStyle(2, 0x00ff44, 0.6);
+    const sheet = this.add.rectangle(cx, cy, SHEET_W, SHEET_H, PAL.bgCard)
+      .setStrokeStyle(2, PAL.borderActive, 0.6);
     this.sheetContainer.add(sheet);
 
     let yOff = cy - SHEET_H / 2 + 24;
@@ -523,7 +524,7 @@ export class CommanderSelectScene extends Phaser.Scene {
     const nameText = this.add.text(leftX, yOff, `${def.name}  —  ${def.role}`, {
       fontSize: this._fs(20),
       color: '#ffffff',
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(nameText);
@@ -534,7 +535,7 @@ export class CommanderSelectScene extends Phaser.Scene {
     const clanText = this.add.text(leftX, yOff, `${def.clan} · Totem: ${def.totem}`, {
       fontSize: this._fs(12),
       color: roleHex,
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(clanText);
 
@@ -543,8 +544,8 @@ export class CommanderSelectScene extends Phaser.Scene {
     // Lore
     const loreText = this.add.text(leftX, yOff, def.lore, {
       fontSize: this._fs(12),
-      color: '#aabbcc',
-      fontFamily: 'monospace',
+      color: PAL.textCardDesc,
+      fontFamily: PAL.fontBody,
       wordWrap: { width: contentW },
       lineSpacing: 4,
     }).setDepth(SHEET_DEPTH + 1);
@@ -554,7 +555,7 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     // Separator
     const sepGfx = this.add.graphics().setDepth(SHEET_DEPTH + 1);
-    sepGfx.lineStyle(1, 0x334433, 0.5);
+    sepGfx.lineStyle(1, PAL.borderPanel, 0.5);
     sepGfx.beginPath();
     sepGfx.moveTo(leftX, yOff);
     sepGfx.lineTo(cx + SHEET_W / 2 - 24, yOff);
@@ -565,8 +566,8 @@ export class CommanderSelectScene extends Phaser.Scene {
     // Aura
     const auraTitle = this.add.text(leftX, yOff, `AURA — ${def.aura.name}`, {
       fontSize: this._fs(13),
-      color: '#88cc88',
-      fontFamily: 'monospace',
+      color: PAL.textSecondary,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(auraTitle);
@@ -574,8 +575,8 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     const auraEnglish = this.add.text(leftX, yOff, `"${def.aura.nameEnglish}"`, {
       fontSize: this._fs(11),
-      color: '#7a9a70',
-      fontFamily: 'monospace',
+      color: PAL.textMuted,
+      fontFamily: PAL.fontBody,
       fontStyle: 'italic',
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(auraEnglish);
@@ -583,8 +584,8 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     const auraDesc = this.add.text(leftX, yOff, def.aura.description, {
       fontSize: this._fs(12),
-      color: '#cccccc',
-      fontFamily: 'monospace',
+      color: PAL.textCardDesc,
+      fontFamily: PAL.fontBody,
       wordWrap: { width: contentW },
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(auraDesc);
@@ -593,8 +594,8 @@ export class CommanderSelectScene extends Phaser.Scene {
     // Ability
     const abilTitle = this.add.text(leftX, yOff, `ABILITY — ${def.ability.name}`, {
       fontSize: this._fs(13),
-      color: '#aaaaff',
-      fontFamily: 'monospace',
+      color: PAL.textAbility,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(abilTitle);
@@ -602,8 +603,8 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     const abilEnglish = this.add.text(leftX, yOff, `"${def.ability.nameEnglish}"`, {
       fontSize: this._fs(11),
-      color: '#7a9a70',
-      fontFamily: 'monospace',
+      color: PAL.textMuted,
+      fontFamily: PAL.fontBody,
       fontStyle: 'italic',
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(abilEnglish);
@@ -611,8 +612,8 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     const abilDesc = this.add.text(leftX, yOff, def.ability.description, {
       fontSize: this._fs(12),
-      color: '#cccccc',
-      fontFamily: 'monospace',
+      color: PAL.textCardDesc,
+      fontFamily: PAL.fontBody,
       wordWrap: { width: contentW },
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(abilDesc);
@@ -620,28 +621,28 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     const abilCooldown = this.add.text(leftX, yOff, 'Cooldown: once per run', {
       fontSize: this._fs(11),
-      color: '#666688',
-      fontFamily: 'monospace',
+      color: PAL.textDim,
+      fontFamily: PAL.fontBody,
     }).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(abilCooldown);
 
     // Close button — 44px minimum height on mobile
     const closeH = this._isMobile ? 44 : 36;
-    const closeBg = this.add.rectangle(cx, cy + SHEET_H / 2 - 30, 140, closeH, 0x333333)
-      .setStrokeStyle(1, 0x00ff44)
+    const closeBg = this.add.rectangle(cx, cy + SHEET_H / 2 - 30, 140, closeH, PAL.bgPanel)
+      .setStrokeStyle(1, PAL.borderActive)
       .setInteractive({ useHandCursor: true })
       .setDepth(SHEET_DEPTH + 2);
     const closeLabel = this.add.text(cx, cy + SHEET_H / 2 - 30, 'CLOSE', {
       fontSize: this._fs(14),
-      color: '#00ff44',
-      fontFamily: 'monospace',
+      color: PAL.accentGreen,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
 
     this.sheetContainer.add([closeBg, closeLabel]);
 
-    closeBg.on('pointerover', () => closeBg.setFillStyle(0x444444));
-    closeBg.on('pointerout', () => closeBg.setFillStyle(0x333333));
+    closeBg.on('pointerover', () => closeBg.setFillStyle(PAL.bgPanelHover));
+    closeBg.on('pointerout', () => closeBg.setFillStyle(PAL.bgPanel));
     closeBg.on('pointerup', () => this.closeCharacterSheet());
 
     // Also close on overlay click
@@ -667,16 +668,16 @@ export class CommanderSelectScene extends Phaser.Scene {
     // Popup background
     const popupW = 400;
     const popupH = 130;
-    const popup = this.add.rectangle(cx, cy, popupW, popupH, 0x0d1520)
-      .setStrokeStyle(2, 0x0088cc);
+    const popup = this.add.rectangle(cx, cy, popupW, popupH, PAL.bgCard)
+      .setStrokeStyle(2, PAL.accentBlueN);
     this.sheetContainer.add(popup);
 
     // Message text
     const msg = this.add.text(cx, cy - 24,
       `Unlock in the Upgrades menu for ${cost} crystals`, {
         fontSize: this._fs(14),
-        color: '#88ccff',
-        fontFamily: 'monospace',
+        color: PAL.accentBlue,
+        fontFamily: PAL.fontBody,
         wordWrap: { width: popupW - 40 },
         align: 'center',
       }).setOrigin(0.5).setDepth(SHEET_DEPTH + 1);
@@ -684,38 +685,38 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     // "GO TO UPGRADES" confirm button — 44px minimum height on mobile
     const popupBtnH = this._isMobile ? 44 : 36;
-    const confirmBg = this.add.rectangle(cx - 80, cy + 30, 180, popupBtnH, 0x003355)
-      .setStrokeStyle(1, 0x0088cc)
+    const confirmBg = this.add.rectangle(cx - 80, cy + 30, 180, popupBtnH, PAL.bgMetaBtn)
+      .setStrokeStyle(1, PAL.borderMeta)
       .setInteractive({ useHandCursor: true })
       .setDepth(SHEET_DEPTH + 2);
     const confirmLabel = this.add.text(cx - 80, cy + 30, 'GO TO UPGRADES', {
       fontSize: this._fs(13),
-      color: '#88ccff',
-      fontFamily: 'monospace',
+      color: PAL.accentBlue,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
     this.sheetContainer.add([confirmBg, confirmLabel]);
 
-    confirmBg.on('pointerover', () => confirmBg.setFillStyle(0x004466));
-    confirmBg.on('pointerout', () => confirmBg.setFillStyle(0x003355));
+    confirmBg.on('pointerover', () => confirmBg.setFillStyle(PAL.bgPanelHover));
+    confirmBg.on('pointerout', () => confirmBg.setFillStyle(PAL.bgMetaBtn));
     confirmBg.on('pointerup', () => {
       this._go('MetaMenuScene');
     });
 
     // Cancel button
-    const cancelBg = this.add.rectangle(cx + 90, cy + 30, 110, popupBtnH, 0x222222)
-      .setStrokeStyle(1, 0x444444)
+    const cancelBg = this.add.rectangle(cx + 90, cy + 30, 110, popupBtnH, PAL.bgPanel)
+      .setStrokeStyle(1, PAL.borderInactive)
       .setInteractive({ useHandCursor: true })
       .setDepth(SHEET_DEPTH + 2);
     const cancelLabel = this.add.text(cx + 90, cy + 30, 'CANCEL', {
       fontSize: this._fs(13),
-      color: '#888888',
-      fontFamily: 'monospace',
+      color: PAL.textDim,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
     this.sheetContainer.add([cancelBg, cancelLabel]);
 
-    cancelBg.on('pointerover', () => cancelLabel.setColor('#cccccc'));
-    cancelBg.on('pointerout', () => cancelLabel.setColor('#888888'));
+    cancelBg.on('pointerover', () => cancelLabel.setColor(PAL.textPrimary));
+    cancelBg.on('pointerout', () => cancelLabel.setColor(PAL.textDim));
     cancelBg.on('pointerup', () => this.closeCharacterSheet());
 
     // Close on overlay click
@@ -737,28 +738,28 @@ export class CommanderSelectScene extends Phaser.Scene {
 
     const popupW = 300;
     const popupH = 100;
-    const popup = this.add.rectangle(cx, cy, popupW, popupH, 0x0d1520)
-      .setStrokeStyle(2, 0x444444);
+    const popup = this.add.rectangle(cx, cy, popupW, popupH, PAL.bgCard)
+      .setStrokeStyle(2, PAL.borderInactive);
     this.sheetContainer.add(popup);
 
     const msg = this.add.text(cx, cy - 12, 'Coming soon', {
       fontSize: this._fs(16),
-      color: '#888888',
-      fontFamily: 'monospace',
+      color: PAL.textMuted,
+      fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(SHEET_DEPTH + 1);
     this.sheetContainer.add(msg);
 
     // Dismiss button — 44px minimum height on mobile
     const dismissH = this._isMobile ? 44 : 30;
-    const dismissBg = this.add.rectangle(cx, cy + 28, 100, dismissH, 0x222222)
-      .setStrokeStyle(1, 0x444444)
+    const dismissBg = this.add.rectangle(cx, cy + 28, 100, dismissH, PAL.bgPanel)
+      .setStrokeStyle(1, PAL.borderInactive)
       .setInteractive({ useHandCursor: true })
       .setDepth(SHEET_DEPTH + 2);
     const dismissLabel = this.add.text(cx, cy + 28, 'OK', {
       fontSize: this._fs(13),
-      color: '#888888',
-      fontFamily: 'monospace',
+      color: PAL.textDim,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(SHEET_DEPTH + 3);
     this.sheetContainer.add([dismissBg, dismissLabel]);
 
