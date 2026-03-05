@@ -1879,12 +1879,28 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Select all placed towers whose type key matches the given key.
-   * If only one tower of that type exists, falls back to single selection.
+   * Select all placed towers whose type key matches the given key AND share
+   * the same upgrade-path commitment as the currently selected tower.
+   *
+   * "Same commitment" = identical set of locked paths.  E.g. towers that went
+   * deep on path A (locking C) are grouped separately from those that went
+   * deep on path C (locking A) or uncommitted towers (nothing locked).
+   *
+   * If only one tower matches, falls back to single selection.
    */
   private _selectAllOfType(typeKey: string): void {
-    const matching = this.towers.filter(t => t.def.key === typeKey);
-    if (matching.length === 0) return;
+    const allOfType = this.towers.filter(t => t.def.key === typeKey);
+    if (allOfType.length === 0) return;
+
+    // Determine the upgrade commitment of the "anchor" tower (the one the
+    // player had selected when they hit Select All).
+    const anchor = this.selectedTower
+      ?? this._selectedTowers[0]
+      ?? allOfType[0];
+    const anchorLocked = this._lockKey(anchor);
+
+    // Filter to towers with the same locked-path set.
+    const matching = allOfType.filter(t => this._lockKey(t) === anchorLocked);
 
     // Clear existing selection.
     this.deselectTower();
@@ -1899,6 +1915,13 @@ export class GameScene extends Phaser.Scene {
     for (const t of this._selectedTowers) t.setMultiSelected(true);
     this.selectedTower = null;
     this._multiTowerPanel.show(this._selectedTowers);
+  }
+
+  /** Stable string key representing which paths a tower has locked. */
+  private _lockKey(tower: Tower): string {
+    const state = this.upgradeManager.getState(tower);
+    if (!state || state.locked.size === 0) return '';
+    return [...state.locked].sort().join(',');
   }
 
   /**
