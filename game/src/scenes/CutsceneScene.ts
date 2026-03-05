@@ -352,8 +352,8 @@ export class CutsceneScene extends Phaser.Scene {
       width / 2, panelY + panelH - 16,
       hintText,
       {
-        fontSize:   this._fs(10),
-        color:      PAL.textDim,
+        fontSize:   this._fs(12),
+        color:      PAL.textMuted,
         fontFamily: PAL.fontBody,
       },
     ).setOrigin(0.5, 1).setDepth(DEPTH + 6);

@@ -357,11 +357,10 @@ export class MainMenuScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(DEPTH_BG + 5);
 
-      // Scale to fit left gutter — taller than before since it's not
-      // competing with the vertical header flow.
+      // Scale to fit — larger on mobile for better visibility.
       const aspect   = logoImg.width / logoImg.height;
-      const maxH     = this._isMobile ? 100 : 180;
-      const maxW     = this._isMobile ? 90  : 200;
+      const maxH     = this._isMobile ? 160 : 180;
+      const maxW     = this._isMobile ? 150 : 200;
       const finalH   = Math.min(maxH, maxW / aspect);
       const finalW   = finalH * aspect;
       logoImg.setDisplaySize(finalW, finalH);
@@ -807,53 +806,53 @@ export class MainMenuScene extends Phaser.Scene {
   private createButtons(cx: number, height: number): void {
     const { width } = this.scale;
     const stageBottom = this.stageRowY + this._stageH / 2 + 36;
-    const btnW = this._isMobile ? 280 : 240;
-    const btnH = this._isMobile ? 60  : 48;
 
-    // ── Quick Play button sizing ────────────────────────────────────────────
-    // IMPORTANT: Quick Play is deliberately positioned on the RIGHT side of
-    // the screen, separate from the main button stack. Keep it isolated so
-    // the centre column stays clean and uncluttered.
-    const quickBtnSize = this._isMobile ? 140 : 120;  // large square button (2.5x original)
-    const bottomDropGap = this._isMobile ? 16 : 20;  // vertical gap: START bottom → bottom row top
+    const hasResume = !!this._autoSave && this._autoSave.currentWave > 0;
 
-    // ── Resume Game button (only shown when a save exists) ──────────────────
-    const hasResume   = !!this._autoSave && this._autoSave.currentWave > 0;
-    const resumeBtnH  = this._isMobile ? 52 : 44;  // meets 44 px touch target
-    const resumeGap   = 10;
-
-    // Calculate vertical positions — when a resume button is present the
-    // two-button block is positioned together so neither overlaps stage cards.
-    // maxStartY is tightened to leave room for quick play + bottom rows.
-    let startY: number;
-    let resumeY = 0;
-
-    if (hasResume) {
-      const blockTopGap = this._isMobile ? 20 : 28; // gap from stageBottom to top of first button
-      const blockTopY   = stageBottom + blockTopGap;
-      resumeY = blockTopY + resumeBtnH / 2;
-      startY  = resumeY + resumeBtnH / 2 + resumeGap + btnH / 2;
-      // Cap to ensure bottom rows still fit (no QUICK PLAY in center stack).
-      const maxStartY = height - (this._isMobile ? 180 : 160);
-      if (startY > maxStartY) {
-        startY  = maxStartY;
-        resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2;
-      }
+    if (this._isMobile) {
+      this._buildMobileButtons(cx, width, height, stageBottom, hasResume);
     } else {
-      // Cap: bottom rows must fit below startY.
-      startY = Math.min(stageBottom + 44, height - (this._isMobile ? 180 : 160));
+      this._buildDesktopButtons(cx, width, height, stageBottom, hasResume);
     }
+  }
 
-    // Build logo in left panel, aligned with BOTTOM button row so it never
-    // overlaps stage card extras (e.g. endless toggle).
-    const bottomBtnH_ = this._isMobile ? 48 : 38;
-    const sideAnchorY = startY + btnH / 2 + bottomDropGap + bottomBtnH_ / 2;
-    this._buildLogoTitle(sideAnchorY);
+  /**
+   * Mobile layout:
+   *   Logo (thunderbird) — enlarged, centered above buttons
+   *   RESUME GAME (if applicable)
+   *   START GAME  |  ⚡ QUICK PLAY   (side by side, equal size)
+   *   UPGRADES | CHALLENGES | CODEX | ACHIEVEMENTS  (single bottom row)
+   */
+  private _buildMobileButtons(
+    cx: number, width: number, height: number, stageBottom: number, hasResume: boolean,
+  ): void {
+    const btnH    = 56;
+    const halfW   = 220;  // each side-by-side button
+    const gap     = 14;
+    const resumeH = 52;
 
+    // Bottom row sizing (4 buttons)
+    const navBtnW = Math.min(130, (width - 80) / 4);
+    const navBtnH = 44;
+    const navY    = height - 28 - navBtnH / 2;
+
+    // START + QUICK PLAY row sits above bottom nav
+    const startRowY = navY - navBtnH / 2 - 16 - btnH / 2;
+
+    // Resume button above the start row (if applicable)
+    const resumeY = hasResume ? startRowY - btnH / 2 - 10 - resumeH / 2 : 0;
+
+    // Logo sits between stage cards and buttons
+    const logoAnchorY = hasResume
+      ? resumeY - resumeH / 2 - 10
+      : startRowY - btnH / 2 - 10;
+    this._buildLogoTitle(Math.max(stageBottom + 60, logoAnchorY));
+
+    // ── RESUME GAME ────────────────────────────────────────────────────────
     if (hasResume && this._autoSave) {
       const save = this._autoSave;
-      const resumeW = this._isMobile ? 280 : 240;
-      const resumeP = makePanel(this, cx, resumeY, resumeW, resumeBtnH, DEPTH_BUTTONS);
+      const resumeW = halfW * 2 + gap;
+      const resumeP = makePanel(this, cx, resumeY, resumeW, resumeH, DEPTH_BUTTONS);
       fillPanel(resumeP, R, 0x0a2a10, PAL.borderActive, 2);
 
       this.add.text(cx, resumeY - 8, 'RESUME GAME', {
@@ -867,14 +866,144 @@ export class MainMenuScene extends Phaser.Scene {
       resumeP.zone.on('pointerover', () => fillPanel(resumeP, R, 0x143a18, PAL.borderActive, 2));
       resumeP.zone.on('pointerout',  () => fillPanel(resumeP, R, 0x0a2a10, PAL.borderActive, 2));
       resumeP.zone.on('pointerdown', () => fillPanel(resumeP, R, 0x061a0a, PAL.borderActive, 2));
-      resumeP.zone.on(TAP_EVENT,   () => {
+      resumeP.zone.on(TAP_EVENT, () => {
         this._go('GameScene', {
-          stageId:     save.stageId,
-          commanderId: save.commanderId,
-          mapId:       save.mapId,
-          isChallenge: save.isChallenge ?? false,
-          challengeId: save.challengeId,
-          autoResume:  true,
+          stageId: save.stageId, commanderId: save.commanderId, mapId: save.mapId,
+          isChallenge: save.isChallenge ?? false, challengeId: save.challengeId, autoResume: true,
+        });
+      });
+    }
+
+    // ── START GAME (left) ─────────────────────────────────────────────────
+    const startX = cx - halfW / 2 - gap / 2;
+    const startP = makePanel(this, startX, startRowY, halfW, btnH, DEPTH_BUTTONS);
+    fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
+    const startLabel = this.add.text(startX, startRowY, hasResume ? 'NEW RUN' : 'START GAME', {
+      fontSize: this._fs(18), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+    startP.zone.on('pointerover', () => { fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2); startLabel.setColor('#ffffff'); });
+    startP.zone.on('pointerout',  () => { fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2); startLabel.setColor(PAL.accentGreen); });
+    startP.zone.on('pointerdown', () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
+    startP.zone.on(TAP_EVENT, () => {
+      if (hasResume) {
+        this._showOverwriteConfirm(() => this._go('CommanderSelectScene', { stageId: this.selectedStageId }));
+      } else {
+        this._go('CommanderSelectScene', { stageId: this.selectedStageId });
+      }
+    });
+
+    // ── QUICK PLAY (right) ────────────────────────────────────────────────
+    const quickX = cx + halfW / 2 + gap / 2;
+    const quickP = makePanel(this, quickX, startRowY, halfW, btnH, DEPTH_BUTTONS);
+    fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
+    const quickLabel = this.add.text(quickX, startRowY, '⚡ QUICK PLAY', {
+      fontSize: this._fs(16), color: '#d4a840', fontFamily: PAL.fontBody, fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+    quickP.zone.on('pointerover', () => { fillPanel(quickP, R, 0x2a1c00, PAL.goldN, 2); quickLabel.setColor('#f0c060'); });
+    quickP.zone.on('pointerout',  () => { fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2); quickLabel.setColor('#d4a840'); });
+    quickP.zone.on('pointerdown', () => fillPanel(quickP, R, 0x0f0900, PAL.goldN, 2));
+    quickP.zone.on(TAP_EVENT, () => {
+      const sel = pickQuickPlay(SaveManager.getInstance());
+      if (hasResume) {
+        this._showOverwriteConfirm(() => { this._showQuickPlaySplash(sel, () => {
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
+        }); });
+      } else {
+        this._showQuickPlaySplash(sel, () => {
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
+        });
+      }
+    });
+
+    // ── Bottom nav row: UPGRADES | CHALLENGES | CODEX | ACHIEVEMENTS ────
+    const navGap  = 10;
+    const navDefs: Array<{ label: string; color: string; bg: number; border: number; scene: string; data?: object }> = [
+      { label: 'UPGRADES',     color: PAL.accentBlue,    bg: PAL.bgMetaBtn,    border: PAL.borderMeta,    scene: 'MetaMenuScene' },
+      { label: 'CHALLENGES',   color: PAL.accentBlue,    bg: PAL.bgEndlessBtn, border: PAL.borderEndless, scene: 'ChallengeSelectScene' },
+      { label: 'CODEX',        color: PAL.textSecondary,  bg: PAL.bgPanel,      border: PAL.borderCodex,   scene: 'CodexScene', data: { returnTo: 'MainMenuScene' } },
+      { label: 'ACHIEVEMENTS', color: '#55aa55',          bg: 0x001a00,         border: 0x336633,          scene: 'AchievementsScene', data: { returnTo: 'MainMenuScene' } },
+    ];
+    const totalNavW = navDefs.length * navBtnW + (navDefs.length - 1) * navGap;
+    const navStartX = cx - totalNavW / 2 + navBtnW / 2;
+
+    for (let i = 0; i < navDefs.length; i++) {
+      const nd = navDefs[i];
+      const nx = navStartX + i * (navBtnW + navGap);
+      const np = makePanel(this, nx, navY, navBtnW, navBtnH, DEPTH_BUTTONS);
+      fillPanel(np, R, nd.bg, nd.border, 2);
+      const nl = this.add.text(nx, navY, nd.label, {
+        fontSize: this._fs(10), color: nd.color, fontFamily: PAL.fontBody, fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+      np.zone.on('pointerover', () => nl.setColor(PAL.textPrimary));
+      np.zone.on('pointerout',  () => nl.setColor(nd.color));
+      np.zone.on(TAP_EVENT, () => this._go(nd.scene, nd.data));
+
+      // Codex unread badge
+      if (nd.scene === 'CodexScene') {
+        const unread = SaveManager.getInstance().getUnreadCodexCount(ALL_CODEX_ENTRIES);
+        if (unread > 0) {
+          this.add.circle(nx + navBtnW / 2 - 6, navY - navBtnH / 2 + 6, 10, PAL.dangerN).setDepth(DEPTH_BUTTONS + 2);
+          this.add.text(nx + navBtnW / 2 - 6, navY - navBtnH / 2 + 6, `${unread}`, {
+            fontSize: '10px', color: '#ffffff', fontFamily: PAL.fontBody, fontStyle: 'bold',
+          }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
+        }
+      }
+    }
+  }
+
+  /**
+   * Desktop layout: preserves the original vertical stack with logo on left
+   * and Quick Play on right.
+   */
+  private _buildDesktopButtons(
+    cx: number, width: number, height: number, stageBottom: number, hasResume: boolean,
+  ): void {
+    const btnW = 240;
+    const btnH = 48;
+    const quickBtnSize = 120;
+    const bottomDropGap = 20;
+    const resumeBtnH = 44;
+    const resumeGap  = 10;
+
+    let startY: number;
+    let resumeY = 0;
+
+    if (hasResume) {
+      const blockTopY = stageBottom + 28;
+      resumeY = blockTopY + resumeBtnH / 2;
+      startY  = resumeY + resumeBtnH / 2 + resumeGap + btnH / 2;
+      const maxStartY = height - 160;
+      if (startY > maxStartY) { startY = maxStartY; resumeY = startY - btnH / 2 - resumeGap - resumeBtnH / 2; }
+    } else {
+      startY = Math.min(stageBottom + 44, height - 160);
+    }
+
+    const bottomBtnH_ = 38;
+    const sideAnchorY = startY + btnH / 2 + bottomDropGap + bottomBtnH_ / 2;
+    this._buildLogoTitle(sideAnchorY);
+
+    if (hasResume && this._autoSave) {
+      const save = this._autoSave;
+      const resumeP = makePanel(this, cx, resumeY, btnW, resumeBtnH, DEPTH_BUTTONS);
+      fillPanel(resumeP, R, 0x0a2a10, PAL.borderActive, 2);
+
+      this.add.text(cx, resumeY - 8, 'RESUME GAME', {
+        fontSize: this._fs(18), color: '#aee86c', fontFamily: PAL.fontBody, fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+      this.add.text(cx, resumeY + 10, `Wave ${save.currentWave + 1}  ·  ${save.towers.length} towers`, {
+        fontSize: this._fs(10), color: PAL.textMuted, fontFamily: PAL.fontBody,
+      }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+
+      resumeP.zone.on('pointerover', () => fillPanel(resumeP, R, 0x143a18, PAL.borderActive, 2));
+      resumeP.zone.on('pointerout',  () => fillPanel(resumeP, R, 0x0a2a10, PAL.borderActive, 2));
+      resumeP.zone.on('pointerdown', () => fillPanel(resumeP, R, 0x061a0a, PAL.borderActive, 2));
+      resumeP.zone.on(TAP_EVENT, () => {
+        this._go('GameScene', {
+          stageId: save.stageId, commanderId: save.commanderId, mapId: save.mapId,
+          isChallenge: save.isChallenge ?? false, challengeId: save.challengeId, autoResume: true,
         });
       });
     }
@@ -886,18 +1015,18 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(hasResume ? 18 : 22), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    startP.zone.on('pointerover',  () => {
+    startP.zone.on('pointerover', () => {
       fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2);
       startLabel.setColor('#ffffff');
       this.tweens.add({ targets: startLabel, scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
     });
-    startP.zone.on('pointerout',   () => {
+    startP.zone.on('pointerout', () => {
       fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
       startLabel.setColor(PAL.accentGreen);
       this.tweens.add({ targets: startLabel, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
     });
-    startP.zone.on('pointerdown',  () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
-    startP.zone.on(TAP_EVENT,    () => {
+    startP.zone.on('pointerdown', () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
+    startP.zone.on(TAP_EVENT, () => {
       if (hasResume) {
         this._showOverwriteConfirm(() => this._go('CommanderSelectScene', { stageId: this.selectedStageId }));
       } else {
@@ -905,136 +1034,87 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
-    // ── QUICK PLAY — large square button, RIGHT panel, intentionally separate ─
-    // Keep this isolated from the main centre column. It's a secondary feature
-    // button, not part of the primary play flow. Do NOT move it back to centre.
-    // Mirrors the logo/shield on the left — positioned in the right panel area.
-    // Position QUICK PLAY just right of stage card area, aligned with buttons.
-    const quickPlayX = this._isMobile ? width / 2 + 310 : width / 2 + (STAGE_W / 2) + 120;
+    // QUICK PLAY — right panel
+    const quickPlayX = width / 2 + (STAGE_W / 2) + 120;
     const quickPlayY = sideAnchorY;
     const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnSize, quickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
-    // Two-line label: ⚡ icon on top, "QUICK PLAY" below
-    const quickIcon = this.add.text(quickPlayX, quickPlayY - 16, '⚡', {
-      fontSize: this._fs(32),
-    }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+    const quickIcon = this.add.text(quickPlayX, quickPlayY - 16, '⚡', { fontSize: this._fs(32) }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
     const quickLabel = this.add.text(quickPlayX, quickPlayY + 20, 'QUICK\nPLAY', {
-      fontSize: this._fs(this._isMobile ? 16 : 14),
-      color: '#d4a840',
-      fontFamily: PAL.fontBody,
-      fontStyle: 'bold',
-      align: 'center',
+      fontSize: this._fs(14), color: '#d4a840', fontFamily: PAL.fontBody, fontStyle: 'bold', align: 'center',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    quickP.zone.on('pointerover',  () => {
+    quickP.zone.on('pointerover', () => {
       fillPanel(quickP, R, 0x2a1c00, PAL.goldN, 2);
       quickLabel.setColor('#f0c060');
       this.tweens.add({ targets: [quickIcon, quickLabel], scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
     });
-    quickP.zone.on('pointerout',   () => {
+    quickP.zone.on('pointerout', () => {
       fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
       quickLabel.setColor('#d4a840');
       this.tweens.add({ targets: [quickIcon, quickLabel], scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
     });
-    quickP.zone.on('pointerdown',  () => fillPanel(quickP, R, 0x0f0900, PAL.goldN, 2));
-    quickP.zone.on(TAP_EVENT,    () => {
+    quickP.zone.on('pointerdown', () => fillPanel(quickP, R, 0x0f0900, PAL.goldN, 2));
+    quickP.zone.on(TAP_EVENT, () => {
       const sel = pickQuickPlay(SaveManager.getInstance());
       if (hasResume) {
-        this._showOverwriteConfirm(() => {
-          this._showQuickPlaySplash(sel, () => {
-            this._go('GameScene', {
-              commanderId: sel.commanderId,
-              stageId:     sel.stageId,
-              mapId:       sel.mapId,
-            });
-          });
-        });
+        this._showOverwriteConfirm(() => { this._showQuickPlaySplash(sel, () => {
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
+        }); });
       } else {
         this._showQuickPlaySplash(sel, () => {
-          this._go('GameScene', {
-            commanderId: sel.commanderId,
-            stageId:     sel.stageId,
-            mapId:       sel.mapId,
-          });
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
         });
       }
     });
 
     // Bottom row: UPGRADES | CHALLENGES | CODEX
-    const bottomBtnW = this._isMobile ? 120 : 100;
-    const bottomBtnH = this._isMobile ? 48  : 38;
-    // Directly below START GAME (no QUICK PLAY in between now)
+    const bottomBtnW = 100;
+    const bottomBtnH = 38;
     const bottomBtnY = startY + btnH / 2 + bottomDropGap + bottomBtnH / 2;
-    const bottomGap  = 16;  // horizontal gap between button edges (≥12px requirement)
+    const bottomGap  = 16;
 
-    // UPGRADES
     const metaX = cx - bottomBtnW - bottomGap;
     const metaP = makePanel(this, metaX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(metaP, R, PAL.bgMetaBtn, PAL.borderMeta, 2);
     const metaLabel = this.add.text(metaX, bottomBtnY, 'UPGRADES', {
       fontSize: this._fs(15), color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+    metaP.zone.on('pointerover', () => metaLabel.setColor(PAL.accentBlueLight));
+    metaP.zone.on('pointerout',  () => metaLabel.setColor(PAL.accentBlue));
+    metaP.zone.on(TAP_EVENT, () => this._go('MetaMenuScene'));
 
-    metaP.zone.on('pointerover', () => {
-      metaLabel.setColor(PAL.accentBlueLight);
-      this.tweens.add({ targets: metaLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
-    });
-    metaP.zone.on('pointerout',  () => {
-      metaLabel.setColor(PAL.accentBlue);
-      this.tweens.add({ targets: metaLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
-    });
-    metaP.zone.on(TAP_EVENT,   () => this._go('MetaMenuScene'));
-
-    // CHALLENGES
     const chalX = cx;
     const chalP = makePanel(this, chalX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(chalP, R, PAL.bgEndlessBtn, PAL.borderEndless, 2);
     const chalLabel = this.add.text(chalX, bottomBtnY, 'CHALLENGES', {
       fontSize: this._fs(11), color: PAL.accentBlue, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+    chalP.zone.on('pointerover', () => chalLabel.setColor(PAL.accentBlueLight));
+    chalP.zone.on('pointerout',  () => chalLabel.setColor(PAL.accentBlue));
+    chalP.zone.on(TAP_EVENT, () => this._go('ChallengeSelectScene'));
 
-    chalP.zone.on('pointerover', () => {
-      chalLabel.setColor(PAL.accentBlueLight);
-      this.tweens.add({ targets: chalLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
-    });
-    chalP.zone.on('pointerout',  () => {
-      chalLabel.setColor(PAL.accentBlue);
-      this.tweens.add({ targets: chalLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
-    });
-    chalP.zone.on(TAP_EVENT,   () => this._go('ChallengeSelectScene'));
-
-    // CODEX
     const codexX = cx + bottomBtnW + bottomGap;
     const codexP = makePanel(this, codexX, bottomBtnY, bottomBtnW, bottomBtnH, DEPTH_BUTTONS);
     fillPanel(codexP, R, PAL.bgPanel, PAL.borderCodex, 2);
     const codexLabel = this.add.text(codexX, bottomBtnY, 'CODEX', {
       fontSize: this._fs(15), color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+    codexP.zone.on('pointerover', () => codexLabel.setColor(PAL.textPrimary));
+    codexP.zone.on('pointerout',  () => codexLabel.setColor(PAL.textSecondary));
+    codexP.zone.on(TAP_EVENT, () => this._go('CodexScene', { returnTo: 'MainMenuScene' }));
 
-    codexP.zone.on('pointerover', () => {
-      codexLabel.setColor(PAL.textPrimary);
-      this.tweens.add({ targets: codexLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
-    });
-    codexP.zone.on('pointerout',  () => {
-      codexLabel.setColor(PAL.textSecondary);
-      this.tweens.add({ targets: codexLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
-    });
-    codexP.zone.on(TAP_EVENT,   () => this._go('CodexScene', { returnTo: 'MainMenuScene' }));
-
-    // Notification badge — shows count of unlocked-but-unread codex entries
     const save = SaveManager.getInstance();
     const unreadCount = save.getUnreadCodexCount(ALL_CODEX_ENTRIES);
     if (unreadCount > 0) {
-      const badgeX = codexX + bottomBtnW / 2 - 6;
-      const badgeY = bottomBtnY - bottomBtnH / 2 + 6;
-      this.add.circle(badgeX, badgeY, 10, PAL.dangerN).setDepth(DEPTH_BUTTONS + 2);
-      this.add.text(badgeX, badgeY, `${unreadCount}`, {
+      this.add.circle(codexX + bottomBtnW / 2 - 6, bottomBtnY - bottomBtnH / 2 + 6, 10, PAL.dangerN).setDepth(DEPTH_BUTTONS + 2);
+      this.add.text(codexX + bottomBtnW / 2 - 6, bottomBtnY - bottomBtnH / 2 + 6, `${unreadCount}`, {
         fontSize: '10px', color: '#ffffff', fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 3);
     }
 
-    // ACHIEVEMENTS — third row, centered (16px gap below bottom row)
-    const achBtnW = this._isMobile ? 140 : 120;
+    // ACHIEVEMENTS — below bottom row
+    const achBtnW = 120;
     const achBtnH = bottomBtnH;
     const achBtnY = bottomBtnY + bottomBtnH / 2 + 16 + achBtnH / 2;
     const achP = makePanel(this, cx, achBtnY, achBtnW, achBtnH, DEPTH_BUTTONS);
@@ -1042,18 +1122,9 @@ export class MainMenuScene extends Phaser.Scene {
     const achLabel = this.add.text(cx, achBtnY, '🏆 ACHIEVEMENTS', {
       fontSize: this._fs(10), color: '#55aa55', fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
-
-    achP.zone.on('pointerover', () => {
-      achLabel.setColor('#00ff44');
-      achP.gfx.setAlpha(1.2);
-      this.tweens.add({ targets: achLabel, scaleX: 1.05, scaleY: 1.05, duration: 80, ease: 'Back.easeOut' });
-    });
-    achP.zone.on('pointerout',  () => {
-      achLabel.setColor('#55aa55');
-      achP.gfx.setAlpha(1);
-      this.tweens.add({ targets: achLabel, scaleX: 1.0, scaleY: 1.0, duration: 80, ease: 'Sine.easeOut' });
-    });
-    achP.zone.on(TAP_EVENT,   () => this._go('AchievementsScene', { returnTo: 'MainMenuScene' }));
+    achP.zone.on('pointerover', () => achLabel.setColor('#00ff44'));
+    achP.zone.on('pointerout',  () => achLabel.setColor('#55aa55'));
+    achP.zone.on(TAP_EVENT, () => this._go('AchievementsScene', { returnTo: 'MainMenuScene' }));
   }
 
   // ── Overwrite confirmation dialog ──────────────────────────────────────────
@@ -1211,7 +1282,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private createFooter(cx: number, height: number): void {
-    this.add.text(cx, height - 14, 'v0.1.0 · Inspired by Green TD', {
+    this.add.text(cx, height - 14, 'v0.1.4 · Inspired by Green TD', {
       fontSize: this._fs(11), color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BG + 1);
   }

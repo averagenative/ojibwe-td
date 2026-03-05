@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { AudioManager } from '../systems/AudioManager';
+import { MobileManager } from '../systems/MobileManager';
 import { PAL } from '../ui/palette';
-import { TAP_EVENT } from '../systems/MobileManager';
+
 
 // SFX audio keys — loaded only when the mp3 files actually exist.
 // AudioManager falls back to procedural synthesis for any unregistered key,
@@ -110,69 +111,92 @@ export class BootScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const cx = width / 2;
     const cy = height / 2;
+    const mob = MobileManager.getInstance().isMobile();
 
     // Full-screen dark background
     this.add.rectangle(cx, cy, width, height, PAL.bgDark);
 
-    // Logo — upper-center, scaled to fit nicely (logo is 661x467)
-    const logoScale = 0.45;
-    const logoY = cy - 80;
+    // Logo — upper-center, scaled to fill more of the screen on mobile
+    const logoScale = mob ? 0.75 : 0.45;
+    const logoY = mob ? cy - 100 : cy - 80;
     if (this.textures.exists('logo')) {
       this.add.image(cx, logoY, 'logo').setScale(logoScale);
     }
 
     // Title text below logo
-    this.add.text(cx, logoY + 115, 'Ojibwe TD', {
-      fontSize: '32px',
+    const titleOffset = mob ? 160 : 115;
+    this.add.text(cx, logoY + titleOffset, 'Ojibwe TD', {
+      fontSize: mob ? '52px' : '32px',
       color: PAL.textPrimary,
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     // Subtitle below title
-    this.add.text(cx, logoY + 145, 'A Tower Defense Game', {
-      fontSize: '14px',
+    const subOffset = mob ? 200 : 145;
+    this.add.text(cx, logoY + subOffset, 'A Tower Defense Game', {
+      fontSize: mob ? '22px' : '14px',
       color: PAL.textDim,
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
-    // PLAY button — below the subtitle
-    const btnW = 180;
-    const btnH = 50;
-    const btnY = logoY + 200;
+    // PLAY button — below the subtitle, rounded on mobile
+    const btnW = mob ? 260 : 180;
+    const btnH = mob ? 72 : 50;
+    const btnY = mob ? logoY + 270 : logoY + 200;
+    const btnR = mob ? 16 : 0;
 
-    const btnBg = this.add.rectangle(cx, btnY, btnW, btnH, PAL.bgStartBtn)
-      .setStrokeStyle(2, PAL.borderActive)
+    // Use Graphics for rounded rect on mobile, plain rect on desktop
+    const btnGfx = this.add.graphics().setDepth(0);
+    const drawBtn = (fill: number) => {
+      btnGfx.clear();
+      btnGfx.fillStyle(fill, 1);
+      if (btnR > 0) {
+        btnGfx.fillRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, btnR);
+        btnGfx.lineStyle(2, PAL.borderActive, 1);
+        btnGfx.strokeRoundedRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH, btnR);
+      } else {
+        btnGfx.fillRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH);
+        btnGfx.lineStyle(2, PAL.borderActive, 1);
+        btnGfx.strokeRect(cx - btnW / 2, btnY - btnH / 2, btnW, btnH);
+      }
+    };
+    drawBtn(PAL.bgStartBtn);
+
+    // Invisible hit zone over the button graphics
+    const btnBg = this.add.zone(cx, btnY, btnW, btnH)
       .setInteractive({ useHandCursor: true });
 
     const btnText = this.add.text(cx, btnY, 'PLAY', {
-      fontSize: '26px',
+      fontSize: mob ? '38px' : '26px',
       color: PAL.textPrimary,
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     btnBg.on('pointerover', () => {
-      btnBg.setFillStyle(PAL.bgStartBtnHover);
+      drawBtn(PAL.bgStartBtnHover);
       btnText.setColor(PAL.accentGreen);
     });
     btnBg.on('pointerout', () => {
-      btnBg.setFillStyle(PAL.bgStartBtn);
+      drawBtn(PAL.bgStartBtn);
       btnText.setColor(PAL.textPrimary);
     });
     btnBg.on('pointerdown', () => {
-      btnBg.setFillStyle(PAL.bgStartBtnPress);
+      drawBtn(PAL.bgStartBtnPress);
     });
 
-    // Click → enable audio, enter main menu
-    btnBg.on(TAP_EVENT, () => {
+    // Click → enable audio, enter main menu.
+    // Uses 'pointerup' even on mobile: iOS WKWebView requires a completed
+    // tap gesture (not just pointerdown) to unlock the WebAudio context.
+    btnBg.on('pointerup', () => {
       AudioManager.getInstance().startMusicTrack('music-menu');
       this.scene.start('MainMenuScene');
     });
 
-    // Gentle pulse on the button
+    // Gentle pulse on the button text (zone can't tween scale easily)
     this.tweens.add({
-      targets: btnBg,
+      targets: btnText,
       scaleX: 1.04,
       scaleY: 1.04,
       duration: 900,

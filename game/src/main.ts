@@ -23,10 +23,26 @@ MobileManager.getInstance();
 // inside Capacitor.  No-ops gracefully in a browser.
 initCapacitorNative();
 
+// Use higher canvas resolution on retina displays for crisp text rendering.
+// Capped at 2× to balance sharpness vs GPU load on mobile.
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+// On mobile, widen the game to match the device's screen aspect ratio so the
+// canvas fills the entire display with no black bars. On desktop keep 16:9.
+const BASE_H = 720;
+let GAME_W = 1280;
+if (MobileManager.getInstance().isMobile()) {
+  // Use max/min so the AR is correct even if the phone reports portrait dims.
+  const landscapeW = Math.max(window.innerWidth, window.innerHeight);
+  const landscapeH = Math.min(window.innerWidth, window.innerHeight);
+  const screenAR = landscapeW / Math.max(landscapeH, 1);
+  GAME_W = Math.max(1280, Math.round(BASE_H * screenAR));
+}
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 1280,
-  height: 720,
+  width: GAME_W,
+  height: BASE_H,
   backgroundColor: '#0d1208',
   parent: 'game-container',
   scene: [
@@ -47,6 +63,7 @@ const config: Phaser.Types.Core.GameConfig = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    zoom: DPR,
   },
   // Explicit FPS target — prefer requestAnimationFrame over setTimeout.
   // forceSetTimeOut: false is already the Phaser default; stated explicitly

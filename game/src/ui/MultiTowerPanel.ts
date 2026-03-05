@@ -3,6 +3,9 @@ import type { Tower } from '../entities/towers/Tower';
 import type { UpgradeManager } from '../systems/UpgradeManager';
 import { TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
+import { PANEL_HEIGHT as PANEL_HEIGHT_TOWER } from './TowerPanel';
+import { UPGRADE_PANEL_HEIGHT } from './UpgradePanel';
+import { BEHAVIOR_PANEL_HEIGHT } from './BehaviorPanel';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -10,15 +13,13 @@ import { PAL } from './palette';
 // This keeps the bottomLimit calculation in GameScene unchanged: when
 // multiTowerPanel.isOpen(), the same UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT
 // offset applies.
-export const MULTI_TOWER_PANEL_HEIGHT = 176 + 64; // 240px total
-
-const PANEL_HEIGHT_TOWER = 72; // must match TowerPanel.PANEL_HEIGHT
+export const MULTI_TOWER_PANEL_HEIGHT = UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT;
 const DEPTH = 112;             // above UpgradePanel (110), below BehaviorPanel (115)
 
 const HEADER_H   = 40;
 const COLS_TOP_OFFSET = HEADER_H;
-const COLS_H     = 156; // 240 - 40 (header) - 44 (select-all row)
 const SELECT_ALL_H = 44;
+const COLS_H     = MULTI_TOWER_PANEL_HEIGHT - HEADER_H - SELECT_ALL_H;
 
 // ── MultiColumnUI ─────────────────────────────────────────────────────────────
 

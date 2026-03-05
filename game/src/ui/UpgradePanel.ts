@@ -2,19 +2,22 @@ import Phaser from 'phaser';
 import type { Tower } from '../entities/towers/Tower';
 import type { UpgradeManager } from '../systems/UpgradeManager';
 import { calculateSellRefund } from '../systems/EconomyManager';
-import { TAP_EVENT } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT, mfs } from '../systems/MobileManager';
+import { PANEL_HEIGHT as PANEL_HEIGHT_TOWER } from './TowerPanel';
+import { SAFE_INSET } from './HUD';
 import { PAL } from './palette';
 import { buildStatsLine } from './statsLine';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-export const UPGRADE_PANEL_HEIGHT = 176;  // 160 base + 16 for per-column description row
-const PANEL_HEIGHT_TOWER = 72;  // must match TowerPanel.PANEL_HEIGHT
+const _IS_MOBILE = MobileManager.getInstance().isMobile();
 
-const HEADER_H      = 22;   // outer panel header height (tower name / sell / respec)
-const COL_DESC_ROW_H = 16;  // per-column description row below path name
-const TIER_H        = 18;
-const BUY_BTN_H     = 28;
+export const UPGRADE_PANEL_HEIGHT = _IS_MOBILE ? 210 : 176;
+
+const HEADER_H      = _IS_MOBILE ? 28 : 22;
+const COL_DESC_ROW_H = _IS_MOBILE ? 18 : 16;
+const TIER_H        = _IS_MOBILE ? 22 : 18;
+const BUY_BTN_H     = _IS_MOBILE ? 34 : 28;
 const DEPTH         = 110;  // above TowerPanel (100)
 
 // ── Internal structures ───────────────────────────────────────────────────────
@@ -106,20 +109,20 @@ export class UpgradePanel {
     // ── Header row ─────────────────────────────────────────────────────────
     const headerCY = py + HEADER_H / 2;
 
-    this.nameTxt = scene.add.text(16, headerCY, '', {
-      fontSize: '14px', color: PAL.textPrimary, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    this.nameTxt = scene.add.text(16 + SAFE_INSET, headerCY, '', {
+      fontSize: mfs(14), color: PAL.textPrimary, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(this.nameTxt);
 
     // Current tower stats — shown centered in the header, updates on each refresh
     this.statsTxt = scene.add.text(width / 2, headerCY, '', {
-      fontSize: '11px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
+      fontSize: mfs(11), color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(this.statsTxt);
 
     // Sell button (gold text, prominent)
     const sellW  = 120;
-    const sellX  = width - 12 - sellW / 2;
+    const sellX  = width - 12 - SAFE_INSET - sellW / 2;
 
     this.sellBg = scene.add.rectangle(sellX, headerCY, sellW, HEADER_H - 4, 0x3a2a00)
       .setStrokeStyle(2, 0xdaa520)
@@ -128,7 +131,7 @@ export class UpgradePanel {
     this.allObjects.push(this.sellBg);
 
     this.sellLabel = scene.add.text(sellX, headerCY, 'SELL', {
-      fontSize: '12px', color: PAL.gold, fontFamily: PAL.fontBody, fontStyle: 'bold',
+      fontSize: mfs(12), color: PAL.gold, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this.sellLabel);
 
@@ -149,7 +152,7 @@ export class UpgradePanel {
     this.allObjects.push(this.respecBg);
 
     this.respecLabel = scene.add.text(respecX, headerCY, 'RESPEC', {
-      fontSize: '11px', color: PAL.danger, fontFamily: PAL.fontBody,
+      fontSize: mfs(11), color: PAL.danger, fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this.respecLabel);
 
@@ -168,7 +171,7 @@ export class UpgradePanel {
     this.allObjects.push(this._selectAllBg);
 
     this._selectAllLabel = scene.add.text(selectAllX, headerCY, 'SELECT ALL TYPE', {
-      fontSize: '10px', color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
+      fontSize: mfs(10), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this._selectAllLabel);
 
@@ -195,13 +198,13 @@ export class UpgradePanel {
 
       // Path header — shifted up slightly to make room for the description row below
       const headerText = scene.add.text(colCx, colsTop + 8, '', {
-        fontSize: '11px', color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
+        fontSize: mfs(11), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
       this.allObjects.push(headerText);
 
       // Path description — one-line summary shown below the path name
       const descText = scene.add.text(colCx, colsTop + 20, '', {
-        fontSize: '9px', color: PAL.textDim, fontFamily: PAL.fontBody,
+        fontSize: mfs(9), color: PAL.textDim, fontFamily: PAL.fontBody,
         wordWrap: { width: colW - 8 },
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
       this.allObjects.push(descText);
@@ -219,12 +222,12 @@ export class UpgradePanel {
         this.allObjects.push(pip);
 
         const nameText = scene.add.text(colX + 28, rowY, '', {
-          fontSize: '11px', color: PAL.textDim, fontFamily: PAL.fontBody,
+          fontSize: mfs(11), color: PAL.textDim, fontFamily: PAL.fontBody,
         }).setOrigin(0, 0.5).setDepth(DEPTH + 2);
         this.allObjects.push(nameText);
 
         const costText = scene.add.text(colX + colW - 8, rowY, '', {
-          fontSize: '10px', color: PAL.gold, fontFamily: PAL.fontBody,
+          fontSize: mfs(10), color: PAL.gold, fontFamily: PAL.fontBody,
         }).setOrigin(1, 0.5).setDepth(DEPTH + 2);
         this.allObjects.push(costText);
 
@@ -244,7 +247,7 @@ export class UpgradePanel {
       this.allObjects.push(buyBg);
 
       const buyLabel = scene.add.text(colCx, buyY, 'BUY', {
-        fontSize: '11px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
+        fontSize: mfs(11), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
       this.allObjects.push(buyLabel);
 
@@ -261,7 +264,7 @@ export class UpgradePanel {
       this.allObjects.push(lockOverlay);
 
       const lockLabel = scene.add.text(colCx, colsTop + colsH / 2, 'LOCKED', {
-        fontSize: '18px', color: PAL.danger, fontFamily: PAL.fontBody, fontStyle: 'bold',
+        fontSize: mfs(18), color: PAL.danger, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 4);
       this.allObjects.push(lockLabel);
 
@@ -384,9 +387,9 @@ export class UpgradePanel {
         col.buyBg.setFillStyle(PAL.bgPanelDark).setStrokeStyle(1, PAL.borderInactive);
         col.buyLabel.setText('MAX TIER').setColor(PAL.textSecondary);
       } else {
-        const bgColor = canAfford ? PAL.bgStartBtnPress : PAL.bgUpgradeBuy;
-        const stroke  = canAfford ? PAL.borderActive    : PAL.borderInactive;
-        const color   = canAfford ? PAL.accentGreen     : PAL.textDim;
+        const bgColor = canAfford ? PAL.bgStartBtnPress : PAL.bgPanelDark;
+        const stroke  = canAfford ? PAL.borderActive    : PAL.borderNeutral;
+        const color   = canAfford ? PAL.accentGreen     : PAL.textInactive;
         col.buyBg.setFillStyle(bgColor).setStrokeStyle(1, stroke);
         col.buyLabel.setText(`BUY  ${nextCost}g`).setColor(color);
       }

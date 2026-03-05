@@ -87,3 +87,12 @@ export class MobileManager {
 
 /** Shorthand: the Phaser pointer event name for button taps. */
 export const TAP_EVENT = MobileManager.getInstance().tapEvent();
+
+/**
+ * Font size string, scaled 1.7× on mobile for touch-screen readability.
+ * Usage: `fontSize: mfs(11)` → '11px' on desktop, '19px' on mobile.
+ */
+export function mfs(basePx: number): string {
+  const m = MobileManager.getInstance().isMobile();
+  return `${m ? Math.round(basePx * 1.7) : basePx}px`;
+}

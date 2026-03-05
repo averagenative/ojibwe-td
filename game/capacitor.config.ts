@@ -17,7 +17,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     preferredContentMode: 'mobile',
-    contentInset: 'always',
+    contentInset: 'never',
     allowsLinkPreview: false,
     scrollEnabled: false,
   },

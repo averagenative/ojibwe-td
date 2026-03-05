@@ -114,9 +114,8 @@ describe('PAL typography', () => {
     expect(PAL.fontTitle).toContain('serif');
   });
 
-  it('fontBody includes a web-safe serif', () => {
-    expect(PAL.fontBody).toContain('Georgia');
-    expect(PAL.fontBody).toContain('serif');
+  it('fontBody includes a web-safe font stack', () => {
+    expect(PAL.fontBody).toContain('sans-serif');
   });
 
   it('fontFamily values do not include "monospace"', () => {

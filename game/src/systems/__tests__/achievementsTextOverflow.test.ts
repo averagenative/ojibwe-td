@@ -38,13 +38,13 @@ describe('TASK-113: MainMenuScene button label overflow prevention', () => {
   });
 
   it('ACHIEVEMENTS button width is at least 120px (desktop)', () => {
-    // achBtnW = this._isMobile ? 140 : 120
-    expect(mainMenuSrc).toMatch(/achBtnW\s*=\s*this\._isMobile\s*\?\s*140\s*:\s*120/);
+    // Desktop layout: achBtnW = 120
+    expect(mainMenuSrc).toMatch(/achBtnW\s*=\s*120/);
   });
 
   it('CHALLENGES button width is at least 100px (desktop)', () => {
-    // bottomBtnW = this._isMobile ? 120 : 100
-    expect(mainMenuSrc).toMatch(/bottomBtnW\s*=\s*this\._isMobile\s*\?\s*120\s*:\s*100/);
+    // Desktop layout: bottomBtnW = 100
+    expect(mainMenuSrc).toMatch(/bottomBtnW\s*=\s*100/);
   });
 
   it('_fs() scales by 1.35x on mobile', () => {

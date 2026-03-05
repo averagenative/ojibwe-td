@@ -1,14 +1,14 @@
 import Phaser from 'phaser';
 import type { TowerDef } from '../entities/towers/Tower';
-import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT, mfs } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { formatDmgLine, clampTooltipX } from './tooltipFormat';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
 
-export const PANEL_HEIGHT = _IS_MOBILE ? 88 : 72;
-const BTN_SIZE            = _IS_MOBILE ? 64 : 52;
-const BTN_PADDING         = 10;
+export const PANEL_HEIGHT = _IS_MOBILE ? 110 : 72;
+const BTN_SIZE            = _IS_MOBILE ? 84 : 52;
+const BTN_PADDING         = _IS_MOBILE ? 8 : 10;
 const DEPTH               = 100;
 
 /**
@@ -136,8 +136,10 @@ export class TowerPanel {
     }).setDepth(TOOLTIP_DEPTH + 1).setVisible(false);
 
     // ── Tower buttons ──────────────────────────────────────────────────────────
+    // Left-side padding on mobile to clear the iPhone safe area / notch inset
+    const LEFT_INSET = _IS_MOBILE ? 24 : 0;
     defs.forEach((def, i) => {
-      const bx = BTN_PADDING + BTN_SIZE / 2 + i * (BTN_SIZE + BTN_PADDING);
+      const bx = LEFT_INSET + BTN_PADDING + BTN_SIZE / 2 + i * (BTN_SIZE + BTN_PADDING);
       const by = panelY;
 
       const btn = scene.add.rectangle(bx, by, BTN_SIZE, BTN_SIZE, PAL.bgCard)
@@ -147,33 +149,37 @@ export class TowerPanel {
 
       const iconKey = `icon-${def.key}`;
       if (scene.textures.exists(iconKey)) {
-        const iconSize = _IS_MOBILE ? 34 : 26;
-        scene.add.image(bx, by - (_IS_MOBILE ? 14 : 10), iconKey)
+        const iconSize = _IS_MOBILE ? 38 : 26;
+        scene.add.image(bx, by - (_IS_MOBILE ? 18 : 10), iconKey)
           .setDisplaySize(iconSize, iconSize)
           .setDepth(DEPTH + 2);
       }
 
-      scene.add.text(bx, by + (_IS_MOBILE ? 18 : 14), `${def.cost}g`, {
-        fontSize: _IS_MOBILE ? '13px' : '11px', color: PAL.gold, fontFamily: PAL.fontBody,
+      scene.add.text(bx, by + (_IS_MOBILE ? 16 : 14), `${def.cost}g`, {
+        fontSize: mfs(11), color: PAL.gold, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
 
-      scene.add.text(bx, by + (_IS_MOBILE ? 32 : 26), def.name.toUpperCase(), {
-        fontSize: _IS_MOBILE ? '11px' : '9px', color: PAL.textDesc, fontFamily: PAL.fontBody,
+      const nameLabel = scene.add.text(bx, by + (_IS_MOBILE ? 32 : 26), def.name.toUpperCase(), {
+        fontSize: mfs(8), color: PAL.textDesc, fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
+      // Clamp tower name width to button bounds
+      if (nameLabel.width > BTN_SIZE - 4) {
+        nameLabel.setScale((BTN_SIZE - 4) / nameLabel.width);
+      }
 
-      // Domain symbol — bottom-left corner of button.
+      // Domain symbol — upper-left corner of button.
       // ▼ ground / ▲ air / ⇅ both. Shape cue: readable without colour.
       scene.add.text(
         bx - BTN_SIZE / 2 + 2,
-        by + BTN_SIZE / 2 - 2,
+        by - BTN_SIZE / 2 + 2,
         domainSymbol(def.targetDomain),
         {
-          fontSize: _IS_MOBILE ? '10px' : '9px',
+          fontSize: mfs(9),
           color:    domainColor(def.targetDomain),
           fontFamily: PAL.fontBody,
           fontStyle: 'bold',
         },
-      ).setOrigin(0, 1).setDepth(DEPTH + 3);
+      ).setOrigin(0, 0).setDepth(DEPTH + 3);
 
       // Keyboard shortcut hint — desktop only (top-right corner of button)
       if (!_IS_MOBILE && i < 6) {

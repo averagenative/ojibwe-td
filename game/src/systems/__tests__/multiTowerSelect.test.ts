@@ -258,8 +258,8 @@ describe('MultiTowerPanel — structure', () => {
     expect(multiPanelSrc).toContain('export const MULTI_TOWER_PANEL_HEIGHT');
   });
 
-  it('MULTI_TOWER_PANEL_HEIGHT equals 240 (176 upgrade + 64 behavior)', () => {
-    expect(multiPanelSrc).toContain('176 + 64');
+  it('MULTI_TOWER_PANEL_HEIGHT derived from UPGRADE + BEHAVIOR heights', () => {
+    expect(multiPanelSrc).toContain('UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT');
   });
 
   it('exposes isOpen() method', () => {

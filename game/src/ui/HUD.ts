@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT, mfs } from '../systems/MobileManager';
 import { PAL } from './palette';
 import { PANEL_HEIGHT as TOWER_PANEL_H } from './TowerPanel';
 import { CommanderPortrait } from './CommanderPortrait';
@@ -7,8 +7,10 @@ import type { AbilityDef, CommanderDef, CommanderRunState } from '../data/comman
 import type { OfferDef } from '../data/offerDefs';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
-const HUD_HEIGHT = _IS_MOBILE ? 64 : 48;
+const HUD_HEIGHT = _IS_MOBILE ? 72 : 48;
 const PADDING    = 16;
+/** Extra left/right inset on mobile to clear iPhone speaker/Dynamic Island cutout */
+export const SAFE_INSET = _IS_MOBILE ? 44 : 0;
 const DEPTH      = 100;
 
 /**
@@ -17,7 +19,7 @@ const DEPTH      = 100;
  * Import this in GameScene instead of hard-coding 48.
  */
 export function getHudHeight(): number {
-  return MobileManager.getInstance().isMobile() ? 64 : 48;
+  return MobileManager.getInstance().isMobile() ? 72 : 48;
 }
 
 type SpeedCallback = (multiplier: number) => void;
@@ -60,22 +62,22 @@ export class HUD extends Phaser.GameObjects.Container {
     );
     bg.setStrokeStyle(1, PAL.borderInactive);
 
-    this.livesText = scene.add.text(PADDING, HUD_HEIGHT / 2, `♥  ${lives}`, {
-      fontSize: '20px',
+    this.livesText = scene.add.text(PADDING + SAFE_INSET, HUD_HEIGHT / 2, `♥  ${lives}`, {
+      fontSize: mfs(20),
       color: PAL.danger,
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
 
     this.goldText = scene.add.text(width / 2, HUD_HEIGHT / 2, `⬡  ${gold}`, {
-      fontSize: '20px',
+      fontSize: mfs(20),
       color: PAL.gold,
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
 
-    this.waveText = scene.add.text(width - PADDING, HUD_HEIGHT / 2, 'Wave 0 / 20', {
-      fontSize: '18px',
+    this.waveText = scene.add.text(width - PADDING - SAFE_INSET, HUD_HEIGHT / 2, 'Wave 0 / 20', {
+      fontSize: mfs(18),
       color: PAL.textNeutral,
       fontFamily: PAL.fontBody,
     }).setOrigin(1, 0.5).setDepth(DEPTH + 1);
@@ -128,7 +130,7 @@ export class HUD extends Phaser.GameObjects.Container {
     const btnW   = _IS_MOBILE ? 48 : 38;
     const btnH   = _IS_MOBILE ? 44 : 30;
     const gap    = 4;
-    const startX = _IS_MOBILE ? 135 : 155; // left edge of first button
+    const startX = _IS_MOBILE ? 135 + SAFE_INSET : 155; // left edge of first button
     const cy     = HUD_HEIGHT / 2;
 
     const defs: Array<{ mult: number; label: string; hint: string }> = [
@@ -151,7 +153,7 @@ export class HUD extends Phaser.GameObjects.Container {
         .setDepth(DEPTH + 2);
 
       const btnLabel = this.scene.add.text(cx, cy, label, {
-        fontSize: '14px',
+        fontSize: _IS_MOBILE ? '20px' : '14px',
         color: textColor,
         fontFamily: PAL.fontBody,
         fontStyle: 'bold',
@@ -214,7 +216,7 @@ export class HUD extends Phaser.GameObjects.Container {
   createNextWaveButton(onClick: () => void): void {
     const { width } = this.scene.scale;
     const btnW = 220;
-    const btnX = width - PADDING - btnW / 2;
+    const btnX = width - PADDING - SAFE_INSET - btnW / 2;
     const btnY = HUD_HEIGHT / 2;
 
     this.nextWaveBg = this.scene.add.rectangle(btnX, btnY, btnW, _IS_MOBILE ? 44 : 36, PAL.bgNextWave)
@@ -287,7 +289,7 @@ export class HUD extends Phaser.GameObjects.Container {
     const { width, height } = this.scene.scale;
     const btnW  = _IS_MOBILE ? 110 : 100;
     const btnH  = _IS_MOBILE ? 44  : 30;
-    const btnX  = width  - PADDING - btnW / 2;
+    const btnX  = width  - PADDING - SAFE_INSET - btnW / 2;
     const btnY  = height - TOWER_PANEL_H - PADDING - btnH / 2;
 
     const bg = this.scene.add.rectangle(btnX, btnY, btnW, btnH, PAL.bgGiveUp)
@@ -296,7 +298,7 @@ export class HUD extends Phaser.GameObjects.Container {
       .setDepth(DEPTH + 2);
 
     const label = this.scene.add.text(btnX, btnY, 'GIVE UP', {
-      fontSize:   '13px',
+      fontSize:   _IS_MOBILE ? '18px' : '13px',
       color:      PAL.danger,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
@@ -464,8 +466,8 @@ export class HUD extends Phaser.GameObjects.Container {
     commanderState: CommanderRunState,
     onActivateAbility: () => void,
   ): void {
-    const portraitSize = _IS_MOBILE ? 56 : 48;
-    const px = PADDING + portraitSize / 2 + 3; // 3px inset from left edge
+    const portraitSize = _IS_MOBILE ? 64 : 48;
+    const px = PADDING + SAFE_INSET + portraitSize / 2 + 3; // inset from left edge + safe area
     const py = HUD_HEIGHT + portraitSize / 2 + 6; // just below the HUD strip
 
     this.commanderPortrait = new CommanderPortrait({
@@ -494,8 +496,8 @@ export class HUD extends Phaser.GameObjects.Container {
    */
   createAbilityButton(ability: AbilityDef, onActivate: () => void): void {
     const cy = HUD_HEIGHT / 2;
-    const btnX = this.scene.scale.width / 2 - 140;
-    const btnW = 120;
+    const btnX = this.scene.scale.width / 2 - (_IS_MOBILE ? 160 : 140);
+    const btnW = _IS_MOBILE ? 130 : 120;
     this._abilityDef = ability;
 
     this.abilityBtnBg = this.scene.add.rectangle(btnX, cy, btnW, 30, PAL.bgAbilityBtn)
@@ -504,7 +506,7 @@ export class HUD extends Phaser.GameObjects.Container {
       .setDepth(DEPTH + 2);
 
     this.abilityBtnLabel = this.scene.add.text(btnX, cy, ability.name, {
-      fontSize: '10px',
+      fontSize: _IS_MOBILE ? '14px' : '10px',
       color: PAL.textAbility,
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
@@ -631,11 +633,11 @@ export class HUD extends Phaser.GameObjects.Container {
    * (true = muted) so the button icon can update.
    */
   createMuteButton(initialMuted: boolean, onToggle: () => boolean): void {
-    // On mobile: wider speed buttons end ~287 (3×48 + 2×4 + start 135) → mute at ~317.
+    // On mobile: wider speed buttons end ~287+SAFE_INSET → mute at ~317+SAFE_INSET.
     // On desktop: speed buttons end ~277 (3×38 + 2×4 + start 155) → mute at 305.
     const btnW = _IS_MOBILE ? 44 : 36;
     const btnH = _IS_MOBILE ? 44 : 30;
-    const cx   = _IS_MOBILE ? 317 : 305;
+    const cx   = _IS_MOBILE ? 317 + SAFE_INSET : 305;
     const cy   = HUD_HEIGHT / 2;
 
     this.muteBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, PAL.bgSpeedBtn)
@@ -644,7 +646,7 @@ export class HUD extends Phaser.GameObjects.Container {
       .setDepth(DEPTH + 2);
 
     this.muteBtnLabel = this.scene.add.text(cx, cy, initialMuted ? '🔇' : '🔊', {
-      fontSize:   '14px',
+      fontSize:   _IS_MOBILE ? '20px' : '14px',
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
 
@@ -674,9 +676,9 @@ export class HUD extends Phaser.GameObjects.Container {
   createAudioSettingsButton(onOpen: () => void): void {
     const btnW = _IS_MOBILE ? 44 : 36;
     const btnH = _IS_MOBILE ? 44 : 30;
-    // Mute btn cx:  mobile=317, desktop=305.  Place gear immediately to the right.
+    // Mute btn cx:  mobile=317+SAFE, desktop=305.  Place gear immediately to the right.
     // Left edge = muteCx + muteWidth/2 + gap
-    const cx   = _IS_MOBILE ? 317 + 22 + 4 : 305 + 18 + 4;
+    const cx   = _IS_MOBILE ? 317 + SAFE_INSET + 22 + 4 : 305 + 18 + 4;
     const cy   = HUD_HEIGHT / 2;
 
     const bg = this.scene.add.rectangle(cx + btnW / 2, cy, btnW, btnH, PAL.bgSpeedBtn)
@@ -685,7 +687,7 @@ export class HUD extends Phaser.GameObjects.Container {
       .setDepth(DEPTH + 2);
 
     this.scene.add.text(cx + btnW / 2, cy, '⚙', {
-      fontSize:   '16px',
+      fontSize:   _IS_MOBILE ? '22px' : '16px',
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
 
@@ -735,8 +737,8 @@ export class HUD extends Phaser.GameObjects.Container {
   createAscensionBadge(ascensionLevel: number): void {
     const { width } = this.scene.scale;
     const cy = HUD_HEIGHT / 2;
-    // Position to the left of the wave text (wave text is right-aligned near width-PADDING).
-    const bx = width - PADDING - 110;
+    // Position to the left of the wave text (wave text is right-aligned near width-PADDING-SAFE_INSET).
+    const bx = width - PADDING - SAFE_INSET - 110;
 
     const bg = this.scene.add.rectangle(bx, cy, 36, 22, 0x331111)
       .setStrokeStyle(1, 0xff4444)
@@ -808,8 +810,8 @@ export class HUD extends Phaser.GameObjects.Container {
   createOffersButton(getActiveOffers: () => OfferDef[]): void {
     const btnW = _IS_MOBILE ? 84 : 76;
     const btnH = _IS_MOBILE ? 44 : 30;
-    // Centred between gold counter (x~640) and the rush-wave button (x=870 left edge).
-    const cx   = _IS_MOBILE ? 760 : 775;
+    // Position to the right of gold counter — offset further right on mobile to avoid overlap.
+    const cx   = _IS_MOBILE ? 840 : 775;
     const cy   = HUD_HEIGHT / 2;
 
     this._offersBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, 0x0e1e0e)

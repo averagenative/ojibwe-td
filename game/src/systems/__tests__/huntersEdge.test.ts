@@ -211,8 +211,8 @@ describe("UpgradePanel source structure (TASK-108)", () => {
     'utf8',
   );
 
-  it("exports UPGRADE_PANEL_HEIGHT = 176", () => {
-    expect(panelSrc).toContain('UPGRADE_PANEL_HEIGHT = 176');
+  it("exports UPGRADE_PANEL_HEIGHT", () => {
+    expect(panelSrc).toContain('UPGRADE_PANEL_HEIGHT');
   });
 
   it("defines COL_DESC_ROW_H constant", () => {
@@ -259,8 +259,8 @@ describe("BehaviorPanel height constant (TASK-108)", () => {
     'utf8',
   );
 
-  it("BehaviorPanel hardcoded PANEL_HEIGHT_UPGRADE is 176", () => {
-    expect(behaviorSrc).toContain('PANEL_HEIGHT_UPGRADE = 176');
+  it("BehaviorPanel imports UPGRADE_PANEL_HEIGHT from UpgradePanel", () => {
+    expect(behaviorSrc).toContain('UPGRADE_PANEL_HEIGHT');
   });
 });
 

@@ -112,7 +112,7 @@ export const PAL = {
 
   // ── Typography ──────────────────────────────────────────────────────────────
   fontTitle:  'Cinzel, Georgia, serif',   // display headers (OJIBWE TD, VICTORY)
-  fontBody:   'Georgia, serif',            // all other UI text
+  fontBody:   '-apple-system, "Helvetica Neue", Arial, sans-serif',  // legible on mobile
 } as const;
 
 /** Map a commander role string (case-insensitive) to its PAL.cmd* border colour. */

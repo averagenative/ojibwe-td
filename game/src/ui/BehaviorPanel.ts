@@ -5,19 +5,21 @@ import {
   ALL_PRIORITIES,
   PRIORITY_LABEL,
 } from '../data/targeting';
-import { TAP_EVENT } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT, mfs } from '../systems/MobileManager';
+import { PAL } from './palette';
+import { PANEL_HEIGHT as PANEL_HEIGHT_TOWER } from './TowerPanel';
+import { UPGRADE_PANEL_HEIGHT } from './UpgradePanel';
+import { SAFE_INSET } from './HUD';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-export const BEHAVIOR_PANEL_HEIGHT = 64;
+const _IS_MOBILE = MobileManager.getInstance().isMobile();
 
-// Match the sibling panels (must stay in sync).
-const PANEL_HEIGHT_TOWER   = 72;   // TowerPanel.PANEL_HEIGHT
-const PANEL_HEIGHT_UPGRADE = 176;  // UpgradePanel.UPGRADE_PANEL_HEIGHT
+export const BEHAVIOR_PANEL_HEIGHT = _IS_MOBILE ? 80 : 64;
 
-const ROW_H = 22;  // height of each button row
-const ROW1_OFFSET = 14;
-const ROW2_OFFSET = 42;
+const ROW_H = _IS_MOBILE ? 30 : 22;
+const ROW1_OFFSET = _IS_MOBILE ? 16 : 14;
+const ROW2_OFFSET = _IS_MOBILE ? 50 : 42;
 const DEPTH = 115;  // above UpgradePanel (110)
 
 // ── Toggle label definitions ──────────────────────────────────────────────────
@@ -68,7 +70,7 @@ export class BehaviorPanel {
 
   constructor(scene: Phaser.Scene) {
     const { width, height } = scene.scale;
-    const panelTop = height - PANEL_HEIGHT_TOWER - PANEL_HEIGHT_UPGRADE - BEHAVIOR_PANEL_HEIGHT;
+    const panelTop = height - PANEL_HEIGHT_TOWER - UPGRADE_PANEL_HEIGHT - BEHAVIOR_PANEL_HEIGHT;
     const panelCy  = panelTop + BEHAVIOR_PANEL_HEIGHT / 2;
 
     // ── Background ─────────────────────────────────────────────────────────
@@ -84,19 +86,19 @@ export class BehaviorPanel {
     const labelW = 72; // width reserved for the row label on the left
 
     // ── Row 1: targeting priority ─────────────────────────────────────────
-    const row1Lbl = scene.add.text(8, row1Y, 'TARGET:', {
-      fontSize: '10px', color: '#778877', fontFamily: 'monospace',
+    const row1Lbl = scene.add.text(8 + SAFE_INSET, row1Y, 'TARGET:', {
+      fontSize: mfs(12), color: '#99bb99', fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(row1Lbl);
     this.row1Objects.push(row1Lbl);
 
-    const btnAreaW = width - labelW - 8;
+    const btnAreaW = width - labelW - 8 - SAFE_INSET;
     const gap      = 4;
     const btnW     = Math.floor((btnAreaW - gap * (ALL_PRIORITIES.length - 1)) / ALL_PRIORITIES.length);
 
     for (let i = 0; i < ALL_PRIORITIES.length; i++) {
       const priority = ALL_PRIORITIES[i];
-      const bx = labelW + 8 + i * (btnW + gap) + btnW / 2;
+      const bx = labelW + 8 + SAFE_INSET + i * (btnW + gap) + btnW / 2;
 
       const btnBg = scene.add.rectangle(bx, row1Y, btnW, ROW_H, 0x001100)
         .setStrokeStyle(1, 0x224422)
@@ -106,7 +108,7 @@ export class BehaviorPanel {
       this.row1Objects.push(btnBg);
 
       const btnTxt = scene.add.text(bx, row1Y, PRIORITY_LABEL[priority], {
-        fontSize: '10px', color: '#446644', fontFamily: 'monospace',
+        fontSize: mfs(12), color: '#669966', fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
       this.allObjects.push(btnTxt);
       this.row1Objects.push(btnTxt);
@@ -124,14 +126,14 @@ export class BehaviorPanel {
     }
 
     // ── Row 2: tower-type behavioral toggle ──────────────────────────────
-    const row2Lbl = scene.add.text(8, row2Y, 'TOGGLE:', {
-      fontSize: '10px', color: '#778877', fontFamily: 'monospace',
+    const row2Lbl = scene.add.text(8 + SAFE_INSET, row2Y, 'TOGGLE:', {
+      fontSize: mfs(12), color: '#99bb99', fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(row2Lbl);
     this.row2Objects.push(row2Lbl);
 
     const toggleW = Math.floor(width * 0.45);
-    const toggleX = labelW + 8 + toggleW / 2;
+    const toggleX = labelW + 8 + SAFE_INSET + toggleW / 2;
 
     this.toggleBg = scene.add.rectangle(toggleX, row2Y, toggleW, ROW_H, 0x001111)
       .setStrokeStyle(1, 0x224444)
@@ -141,7 +143,7 @@ export class BehaviorPanel {
     this.row2Objects.push(this.toggleBg);
 
     this.toggleTxt = scene.add.text(toggleX, row2Y, '', {
-      fontSize: '10px', color: '#44cccc', fontFamily: 'monospace',
+      fontSize: mfs(12), color: '#44cccc', fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this.toggleTxt);
     this.row2Objects.push(this.toggleTxt);
@@ -152,7 +154,7 @@ export class BehaviorPanel {
 
     // ── Passive label (Aura) ─────────────────────────────────────────────
     this.passiveLbl = scene.add.text(width / 2, panelCy, 'Passive — no targeting', {
-      fontSize: '12px', color: '#886644', fontFamily: 'monospace', fontStyle: 'italic',
+      fontSize: mfs(12), color: '#886644', fontFamily: PAL.fontBody, fontStyle: 'italic',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this.passiveLbl);
 
@@ -202,8 +204,8 @@ export class BehaviorPanel {
     for (const btn of this.priorityBtns) {
       const active = btn.priority === tower.priority;
       btn.bg.setFillStyle(active ? 0x004400 : 0x001100);
-      btn.bg.setStrokeStyle(1, active ? 0x44cc44 : 0x224422);
-      btn.label.setColor(active ? '#88ff88' : '#446644');
+      btn.bg.setStrokeStyle(1, active ? 0x44cc44 : 0x336633);
+      btn.label.setColor(active ? '#88ff88' : '#669966');
     }
 
     // ── Toggle button ───────────────────────────────────────────────────

@@ -207,6 +207,9 @@ export class GameScene extends Phaser.Scene {
   private decoGfx: Phaser.GameObjects.Graphics | null = null;
   private decoVisible = true;
 
+  // ── HUD focus state (mobile: tap map to dim UI, tap UI to restore) ─────
+  private _hudDimmed = false;
+
   // ── performance systems ───────────────────────────────────────────────────
   /**
    * Spatial hash grid rebuilt every frame before tower steps.
@@ -1228,6 +1231,19 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // ── HUD focus dimming ─────────────────────────────────────────────────────
+
+  /**
+   * Toggle HUD/panel opacity so the map becomes the visual focus.
+   * On mobile, tapping the map area dims the UI; tapping any UI restores it.
+   */
+  private _setHudDimmed(dim: boolean): void {
+    if (this._hudDimmed === dim) return;
+    this._hudDimmed = dim;
+    const alpha = dim ? 0.3 : 1.0;
+    this.hud.setAlpha(alpha);
+  }
+
   /**
    * Called automatically by Phaser when the scene is stopped or restarted.
    * Removes all scene-event listeners to prevent duplicate handlers accumulating
@@ -1477,6 +1493,11 @@ export class GameScene extends Phaser.Scene {
     if (shiftHeld) {
       // Shift+click on empty ground: do nothing (don't deselect).
       return;
+    }
+
+    // Mobile: toggle HUD dim when tapping the map area (not on a tower).
+    if (isMobile) {
+      this._setHudDimmed(!this._hudDimmed);
     }
 
     // Start region-select tracking.  Deselect happens in onPointerUp if no drag.
@@ -1824,6 +1845,8 @@ export class GameScene extends Phaser.Scene {
   private selectTower(tower: Tower): void {
     if (this.placementDef) return;
     AudioManager.getInstance().playUiClick();
+    // Restore HUD opacity when interacting with tower UI.
+    this._setHudDimmed(false);
     // Clear all existing selection (single and multi).
     for (const t of this._selectedTowers) t.setMultiSelected(false);
     this._selectedTowers = [];

@@ -44,19 +44,20 @@ body.mobile #game-header {
   display: none;
 }
 
-/* Respect device notch / home indicator safe areas */
+/* In Capacitor (native app), let the game canvas fill the entire screen.
+   Safe areas are handled by Phaser's internal layout (HUD margins etc.).
+   In browser, safe-area padding is still applied via the game-container. */
 body.mobile {
-  padding:
-    env(safe-area-inset-top, 0px)
-    env(safe-area-inset-right, 0px)
-    env(safe-area-inset-bottom, 0px)
-    env(safe-area-inset-left, 0px);
+  padding: 0;
 }
 
 /* Use dvh (dynamic viewport height) so iOS Safari toolbar doesn't clip */
 body.mobile #game-container {
   height: 100dvh;
   width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ── Portrait orientation prompt ─────────────────────────────────────────── */

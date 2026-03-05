@@ -5,8 +5,8 @@ import type { CommanderDef, CommanderRunState } from '../data/commanderDefs';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
 
-/** Portrait size — 48px desktop, 56px mobile for larger touch target. */
-const SIZE = _IS_MOBILE ? 56 : 48;
+/** Portrait size — 48px desktop, 64px mobile for larger touch target. */
+const SIZE = _IS_MOBILE ? 64 : 48;
 const HALF = SIZE / 2;
 const BORDER_WIDTH = 3;
 const DEPTH = 105; // above HUD bg (100) and HUD text (101–104)
@@ -228,7 +228,7 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
         continue;
       }
       const t = this.scene.add.text(pad, curY, line.text, {
-        fontSize: line.bold ? '12px' : '11px',
+        fontSize: line.bold ? (_IS_MOBILE ? '16px' : '12px') : (_IS_MOBILE ? '14px' : '11px'),
         color: line.color,
         fontFamily: PAL.fontBody,
         fontStyle: line.bold ? 'bold' : (line.italic ? 'italic' : 'normal'),
