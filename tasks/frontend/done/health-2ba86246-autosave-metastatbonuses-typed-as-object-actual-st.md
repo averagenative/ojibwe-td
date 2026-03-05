@@ -1,7 +1,7 @@
 ---
 id: HEALTH-2ba86246
 title: "AutoSave.metaStatBonuses typed as object — actual structure is Record<string, Record<string, number>>"
-status: in-progress
+status: done
 category: health
 severity: low
 source: health-check
