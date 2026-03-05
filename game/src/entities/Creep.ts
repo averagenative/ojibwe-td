@@ -1096,9 +1096,11 @@ export class Creep extends Phaser.GameObjects.Container {
       }
       case 'boss-waabooz':
       case 'boss-waabooz-mini': {
-        // White stripe pattern drawn over the deep-red body.
-        this._detailGfx = new Phaser.GameObjects.Graphics(this.scene);
-        // Deferred to updateDirectionalVisual().
+        // White stripe pattern drawn over the deep-red body rectangle.
+        // Skip when using a sprite image — stripes bleed over transparent regions.
+        if (!useSprite) {
+          this._detailGfx = new Phaser.GameObjects.Graphics(this.scene);
+        }
         break;
       }
       default:

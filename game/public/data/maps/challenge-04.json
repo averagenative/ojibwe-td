@@ -45,5 +45,5 @@
     { "col": 10, "row": 9  }
   ],
   "startingLives": 25,
-  "startingGold": 350
+  "startingGold": 200
 }
