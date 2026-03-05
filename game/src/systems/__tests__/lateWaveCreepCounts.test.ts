@@ -64,65 +64,65 @@ describe('AC2: Wave 10+ counts are increased relative to wave 9', () => {
     expect(WAVE_CREEP_COUNTS[9]).toBeGreaterThanOrEqual(Math.ceil(wave9Count * 1.2));
   });
 
-  it('wave 10 count equals 22', () => {
-    expect(WAVE_CREEP_COUNTS[9]).toBe(22);
+  it('wave 10 count equals 24', () => {
+    expect(WAVE_CREEP_COUNTS[9]).toBe(24);
   });
 
-  it('wave 11 count equals 24', () => {
-    expect(WAVE_CREEP_COUNTS[10]).toBe(24);
+  it('wave 11 count equals 26', () => {
+    expect(WAVE_CREEP_COUNTS[10]).toBe(26);
   });
 
-  it('wave 12 count equals 26', () => {
-    expect(WAVE_CREEP_COUNTS[11]).toBe(26);
+  it('wave 12 count equals 28', () => {
+    expect(WAVE_CREEP_COUNTS[11]).toBe(28);
   });
 
-  it('wave 13 count equals 28', () => {
-    expect(WAVE_CREEP_COUNTS[12]).toBe(28);
+  it('wave 13 count equals 32', () => {
+    expect(WAVE_CREEP_COUNTS[12]).toBe(32);
   });
 
-  it('wave 14 count equals 30', () => {
-    expect(WAVE_CREEP_COUNTS[13]).toBe(30);
+  it('wave 14 count equals 34', () => {
+    expect(WAVE_CREEP_COUNTS[13]).toBe(34);
   });
 });
 
 describe('AC2: Escalation at wave 15 — counts jump again', () => {
-  it('wave 15 count (32) is greater than wave 14 count (30)', () => {
+  it('wave 15 count (36) is greater than wave 14 count (34)', () => {
     expect(WAVE_CREEP_COUNTS[14]).toBeGreaterThan(WAVE_CREEP_COUNTS[13]);
   });
 
-  it('wave 15 count equals 32', () => {
-    expect(WAVE_CREEP_COUNTS[14]).toBe(32);
+  it('wave 15 count equals 36', () => {
+    expect(WAVE_CREEP_COUNTS[14]).toBe(36);
   });
 
-  it('wave 16 count equals 36', () => {
-    expect(WAVE_CREEP_COUNTS[15]).toBe(36);
+  it('wave 16 count equals 40', () => {
+    expect(WAVE_CREEP_COUNTS[15]).toBe(40);
   });
 
-  it('wave 17 count equals 40', () => {
-    expect(WAVE_CREEP_COUNTS[16]).toBe(40);
+  it('wave 17 count equals 44', () => {
+    expect(WAVE_CREEP_COUNTS[16]).toBe(44);
   });
 
-  it('wave 18 count equals 44', () => {
-    expect(WAVE_CREEP_COUNTS[17]).toBe(44);
+  it('wave 18 count equals 48', () => {
+    expect(WAVE_CREEP_COUNTS[17]).toBe(48);
   });
 
-  it('wave 19 count equals 48', () => {
-    expect(WAVE_CREEP_COUNTS[18]).toBe(48);
+  it('wave 19 count equals 52', () => {
+    expect(WAVE_CREEP_COUNTS[18]).toBe(52);
   });
 });
 
 describe('AC2: Final escalation at wave 20', () => {
-  it('wave 20 count (50) is the maximum', () => {
+  it('wave 20 count (56) is the maximum', () => {
     const max = Math.max(...WAVE_CREEP_COUNTS);
     expect(WAVE_CREEP_COUNTS[19]).toBe(max);
   });
 
-  it('wave 20 count equals 50', () => {
-    expect(WAVE_CREEP_COUNTS[19]).toBe(50);
+  it('wave 20 count equals 56', () => {
+    expect(WAVE_CREEP_COUNTS[19]).toBe(56);
   });
 
   it('wave 20 count is more than 60% higher than wave 9 count', () => {
-    // wave 9 = 18, wave 20 = 50 → +177%
+    // wave 9 = 20, wave 20 = 56 → +180%
     expect(WAVE_CREEP_COUNTS[19]).toBeGreaterThan(WAVE_CREEP_COUNTS[8] * 1.6);
   });
 });
@@ -168,7 +168,7 @@ describe('AC3: Count growth creates pressure for tower coverage (not just upgrad
 // ── AC4: Early waves (1–9) are unchanged — don't dilute the baseline ──────────
 
 describe('AC4: Early wave counts (waves 1–9) are unchanged', () => {
-  const EARLY_WAVE_COUNTS = [8, 10, 12, 12, 14, 14, 16, 16, 18];
+  const EARLY_WAVE_COUNTS = [8, 10, 12, 14, 14, 16, 18, 18, 20];
 
   it.each(EARLY_WAVE_COUNTS.map((count, i) => ({ wave: i + 1, count })))(
     'wave $wave count is $count (unchanged baseline)',
@@ -177,10 +177,10 @@ describe('AC4: Early wave counts (waves 1–9) are unchanged', () => {
     },
   );
 
-  it('waves 1–9 span is still 8–18 (early game unchanged)', () => {
+  it('waves 1–9 span is still 8–20 (early game baseline)', () => {
     const earlySlice = WAVE_CREEP_COUNTS.slice(0, 9);
     expect(Math.min(...earlySlice)).toBe(8);
-    expect(Math.max(...earlySlice)).toBe(18);
+    expect(Math.max(...earlySlice)).toBe(20);
   });
 });
 
@@ -208,7 +208,7 @@ describe('AC5: Gold income allows purchasing enough towers on late waves', () =>
   });
 
   it('kill-gold contribution grows with count (more creeps = more rewards)', () => {
-    // At wave 10: 22 creeps; at wave 20: 50 creeps.
+    // At wave 10: 24 creeps; at wave 20: 56 creeps.
     // Kill gold should increase proportionally.
     const killGold10 = Math.floor(WAVE_CREEP_COUNTS[9]  * AVG_CREEP_KILL_REWARD);
     const killGold20 = Math.floor(WAVE_CREEP_COUNTS[19] * AVG_CREEP_KILL_REWARD);

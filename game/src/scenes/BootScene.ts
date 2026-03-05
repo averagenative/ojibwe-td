@@ -230,6 +230,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('elder-nokomis-teaching',  'assets/portraits/elder-nokomis-teaching.png');
     this.load.image('elder-ogichidaa',         'assets/portraits/elder-ogichidaa.png');
     this.load.image('elder-ogichidaa-fierce',  'assets/portraits/elder-ogichidaa-fierce.png');
+    this.load.image('scout',                   'assets/portraits/scout.png');
 
     // Ground creep sprites (48x48)
     this.load.image('creep-normal',  'assets/sprites/creep-normal.png');

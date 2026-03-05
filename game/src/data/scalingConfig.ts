@@ -15,7 +15,7 @@ export interface WaveScalingConfig {
 
   /**
    * Approximate geometric HP growth factor per wave.
-   * Derived from: wave-20 hpMult (5.75) = factor^19 → factor ≈ 1.096.
+   * Derived from: wave-20 hpMult (7.50) = factor^19 → factor ≈ 1.112.
    * The authoritative per-wave values are in WAVE_HP_MULTS.
    */
   creepHpGrowthPerWave: number;
@@ -43,7 +43,7 @@ export interface WaveScalingConfig {
 
 export const WAVE_SCALING: WaveScalingConfig = {
   creepHpBase:             80,     // grunt base HP
-  creepHpGrowthPerWave:    1.096,  // ≈ 5.75^(1/19)
+  creepHpGrowthPerWave:    1.112,  // ≈ 7.50^(1/19)
   creepSpeedGrowthPerWave: 1.028,  // ≈ 1.70^(1/19)
   bossHpMultiplier:        8,      // boss = 8× standard wave HP
   bossWaves:               [5, 10, 15, 20],
@@ -64,10 +64,10 @@ export const WAVE_SCALING: WaveScalingConfig = {
  * Index 0 = wave 1, index 19 = wave 20.
  */
 export const WAVE_HP_MULTS: readonly number[] = [
-  1.00, 1.10, 1.20, 1.30, 1.40,
-  1.55, 1.70, 1.85, 2.00, 2.20,
-  2.40, 2.65, 2.90, 3.20, 3.50,
-  3.85, 4.25, 4.70, 5.20, 5.75,
+  1.00, 1.12, 1.25, 1.38, 1.50,
+  1.70, 1.90, 2.15, 2.45, 2.80,
+  3.15, 3.55, 4.00, 4.50, 5.05,
+  5.65, 6.10, 6.60, 7.10, 7.50,
 ];
 
 /**
@@ -131,13 +131,13 @@ export const SAVANNAH_PATH_LENGTH_PX = 1640;
  */
 export const WAVE_CREEP_COUNTS: readonly number[] = [
   //  w1   w2   w3   w4   w5
-       8,  10,  12,  12,  14,
+       8,  10,  12,  14,  14,
   //  w6   w7   w8   w9  w10
-      14,  16,  16,  18,  22,
+      16,  18,  18,  20,  24,
   // w11  w12  w13  w14  w15
-      24,  26,  28,  30,  32,
+      26,  28,  32,  34,  36,
   // w16  w17  w18  w19  w20
-      36,  40,  44,  48,  50,
+      40,  44,  48,  52,  56,
 ];
 
 // ── Balance validation bands ──────────────────────────────────────────────────
@@ -155,8 +155,8 @@ export const WAVE_CREEP_COUNTS: readonly number[] = [
  */
 export const ROCK_HURLER_KILL_POTENTIAL_BANDS: Readonly<Record<number, readonly [number, number]>> = {
   1:  [7,   16],
-  5:  [4.5, 11],
-  10: [2.5,  6.5],
-  15: [1.3,  3.5],
-  20: [0.6,  2.0],
+  5:  [4.0, 10],
+  10: [2.0,  5.5],
+  15: [0.9,  2.5],
+  20: [0.4,  1.5],
 };

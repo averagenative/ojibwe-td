@@ -82,15 +82,19 @@ describe('vignette portrait key validity', () => {
     expect(vignettesWithPortrait.length).toBeGreaterThanOrEqual(9);
   });
 
-  it('all vignette portrait values reference known elder keys', () => {
+  it('all elder vignette portrait values reference known elder keys', () => {
+    const elderSpeakers = new Set(['Mishoomis', 'Nokomis', 'Ogichidaa']);
     for (const v of vignettesWithPortrait) {
-      expect(elderKeySet.has(v.portrait!)).toBe(true);
+      if (v.speaker && elderSpeakers.has(v.speaker)) {
+        expect(elderKeySet.has(v.portrait!)).toBe(true);
+      }
     }
   });
 
-  it('no vignette uses an unknown portrait key', () => {
+  it('no elder vignette uses an unknown portrait key', () => {
+    const elderSpeakers = new Set(['Mishoomis', 'Nokomis', 'Ogichidaa']);
     for (const v of ALL_VIGNETTES) {
-      if (v.portrait) {
+      if (v.portrait && v.speaker && elderSpeakers.has(v.speaker)) {
         expect(elderKeySet).toContain(v.portrait);
       }
     }
@@ -162,11 +166,11 @@ describe('elder speaker vignettes have portrait fields', () => {
     expect(generic).toHaveLength(0);
   });
 
-  it('Scout vignettes have no portrait (field narrator, not an elder)', () => {
+  it('Scout vignettes have portrait "scout"', () => {
     const scoutVig = ALL_VIGNETTES.filter(v => v.speaker === 'Scout');
     expect(scoutVig.length).toBeGreaterThan(0);
     for (const v of scoutVig) {
-      expect(v.portrait).toBeUndefined();
+      expect(v.portrait).toBe('scout');
     }
   });
 

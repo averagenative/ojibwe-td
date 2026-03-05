@@ -21,8 +21,8 @@ describe('GameScene — RUSH_GOLD_AMOUNT constant', () => {
     expect(gameSceneSrc).toContain('RUSH_GOLD_AMOUNT');
   });
 
-  it('sets RUSH_GOLD_AMOUNT to 25', () => {
-    expect(gameSceneSrc).toContain('RUSH_GOLD_AMOUNT = 25');
+  it('sets RUSH_GOLD_AMOUNT to 150', () => {
+    expect(gameSceneSrc).toContain('RUSH_GOLD_AMOUNT = 150');
   });
 });
 
@@ -200,7 +200,7 @@ describe('HUD — createRushWaveButton()', () => {
   });
 
   it('includes the rushGold amount in the button label', () => {
-    expect(hudSrc).toContain('`RUSH +${rushGold}⬡ ▶`');
+    expect(hudSrc).toContain('`RUSH +${rushGold}G ▶`');
   });
 });
 

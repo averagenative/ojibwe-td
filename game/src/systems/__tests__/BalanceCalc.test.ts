@@ -41,16 +41,16 @@ describe('creepEffectiveHP', () => {
     expect(creepEffectiveHP(1, 'grunt')).toBe(80);
   });
 
-  it('returns scaled grunt HP at wave 10 (mult = 2.20)', () => {
-    expect(creepEffectiveHP(10, 'grunt')).toBe(Math.round(80 * 2.20));
+  it('returns scaled grunt HP at wave 10 (mult = 2.80)', () => {
+    expect(creepEffectiveHP(10, 'grunt')).toBe(Math.round(80 * 2.80));
   });
 
-  it('returns scaled grunt HP at wave 20 (mult = 5.75)', () => {
-    expect(creepEffectiveHP(20, 'grunt')).toBe(Math.round(80 * 5.75));
+  it('returns scaled grunt HP at wave 20 (mult = 7.50)', () => {
+    expect(creepEffectiveHP(20, 'grunt')).toBe(Math.round(80 * 7.50));
   });
 
-  it('applies the correct multiplier for brute at wave 5 (mult = 1.40)', () => {
-    expect(creepEffectiveHP(5, 'brute')).toBe(Math.round(220 * 1.40));
+  it('applies the correct multiplier for brute at wave 5 (mult = 1.50)', () => {
+    expect(creepEffectiveHP(5, 'brute')).toBe(Math.round(220 * 1.50));
   });
 
   it('falls back to 80 (grunt base) for unknown creep type', () => {
@@ -120,7 +120,7 @@ describe('Balance: Wave 1 Rock Hurler kills grunt before path midpoint', () => {
 // ── Balance criterion: Wave-10 Rock Hurler does not one-shot grunt ────────────
 
 describe('Balance: Wave 10 un-upgraded Rock Hurler does not one-shot grunt', () => {
-  it('base damage (55) < wave-10 grunt HP (176)', () => {
+  it('base damage (55) < wave-10 grunt HP (224)', () => {
     expect(ROCK_HURLER_DEF.damage).toBeLessThan(creepEffectiveHP(10, 'grunt'));
   });
 });
@@ -352,7 +352,7 @@ describe('Balance: Wave HP scaling is smooth (no sudden spikes)', () => {
   });
 
   it('wave 20 hpMult matches scalingConfig', () => {
-    expect(WAVE_HP_MULTS[19]).toBe(5.75);
+    expect(WAVE_HP_MULTS[19]).toBe(7.50);
   });
 });
 
@@ -361,17 +361,17 @@ describe('Balance: Wave HP scaling is smooth (no sudden spikes)', () => {
 describe('Balance: Endless mode scaling — fully upgraded board is viable to wave 30', () => {
   it('wave 30 HP is < 3× wave 20 HP (fully upgraded towers still viable)', () => {
     // Endless formula: hpMult = wave20.hpMult × (1 + 0.12 × (n - 20))
-    const wave20Mult = WAVE_HP_MULTS[19]; // 5.75
-    const wave30Mult = wave20Mult * (1 + 0.12 * 10); // 5.75 × 2.2 = 12.65
+    const wave20Mult = WAVE_HP_MULTS[19]; // 7.50
+    const wave30Mult = wave20Mult * (1 + 0.12 * 10); // 7.50 × 2.2 = 16.50
     // A fully upgraded Rock Hurler does 135 DPS (t5), vs base 27.5 = ~4.9× multiplier.
     // The HP only tripled from wave 20 → 30, so a full board of t5 towers is still strong.
     expect(wave30Mult).toBeLessThan(wave20Mult * 3);
   });
 
-  it('wave 40 HP is under 20× base (exceptional play target)', () => {
+  it('wave 40 HP is under 26× base (exceptional play target)', () => {
     const wave20Mult = WAVE_HP_MULTS[19];
-    const wave40Mult = wave20Mult * (1 + 0.12 * 20); // 5.75 × 3.4 = 19.55
-    expect(wave40Mult).toBeLessThan(20 * WAVE_HP_MULTS[0]);
+    const wave40Mult = wave20Mult * (1 + 0.12 * 20); // 7.50 × 3.4 = 25.50
+    expect(wave40Mult).toBeLessThan(26 * WAVE_HP_MULTS[0]);
   });
 });
 

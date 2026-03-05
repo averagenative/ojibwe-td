@@ -126,7 +126,7 @@ const ACT1_VIGNETTES: VignetteDef[] = [
 //
 // The disturbance spreads. Boss Waabooz (Hare) is revealed as a displaced
 // spirit, not malicious. 4 vignettes.
-// Speaker: Scout (no elder portrait — field narrator).
+// Speaker: Scout — field narrator for Act 2 (Mashkiig Marsh).
 
 const ACT2_VIGNETTES: VignetteDef[] = [
   {
@@ -135,6 +135,7 @@ const ACT2_VIGNETTES: VignetteDef[] = [
     triggerValue: 1,
     regionId:     'mashkiig',
     speaker:      'Scout',
+    portrait:     'scout',
     lines: [
       'The marsh path twists and doubles back.',
       'Animals flee in every direction — even the herons have gone silent.',
@@ -164,6 +165,7 @@ const ACT2_VIGNETTES: VignetteDef[] = [
     triggerValue: 8,
     regionId:     'mashkiig',
     speaker:      'Scout',
+    portrait:     'scout',
     lines: [
       'The swarm thins, but I saw something larger in the reeds.',
       'A pale shape — fast, darting between the cattails.',
@@ -177,6 +179,7 @@ const ACT2_VIGNETTES: VignetteDef[] = [
     triggerValue: 'waabooz',
     regionId:     'mashkiig',
     speaker:      'Scout',
+    portrait:     'scout',
     lines: [
       'Waabooz — the hare spirit — split apart when cornered.',
       'Not in anger, but in fear.',
@@ -191,6 +194,7 @@ const ACT2_VIGNETTES: VignetteDef[] = [
     trigger:      TriggerType.STAGE_COMPLETE,
     regionId:     'mashkiig',
     speaker:      'Scout',
+    portrait:     'scout',
     lines: [
       'The marsh grows quiet again — but it feels wrong, not peaceful.',
       'The trail leads west, toward the open savanna.',
