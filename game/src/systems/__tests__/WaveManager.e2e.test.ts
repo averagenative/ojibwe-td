@@ -605,6 +605,22 @@ describe('concurrent waves (rush wave stacking)', () => {
     expect(completeCount).toBe(0);
   });
 
+  it('cleanup() removes all EventEmitter listeners via removeAllListeners()', () => {
+    let completeCount = 0;
+    let bonusCount = 0;
+    waveManager.on('wave-complete', () => { completeCount++; });
+    waveManager.on('wave-bonus', () => { bonusCount++; });
+
+    waveManager.startWave(1);
+    waveManager.cleanup();
+
+    // Listeners must be gone — manually emitting should not trigger them
+    waveManager.emit('wave-complete', 1);
+    waveManager.emit('wave-bonus', 0, 1);
+    expect(completeCount).toBe(0);
+    expect(bonusCount).toBe(0);
+  });
+
   it('partial settlement: wave fires complete only once all its own creeps settle', () => {
     let completeCount = 0;
     waveManager.on('wave-complete', () => { completeCount++; });
