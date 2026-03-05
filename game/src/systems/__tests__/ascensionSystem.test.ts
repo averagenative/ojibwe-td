@@ -445,8 +445,44 @@ describe('GameScene — ascension integration', () => {
     expect(gameSceneSrc).toContain('this._ascensionSystem?.onCreepDiedPoisoned(');
   });
 
-  it('applies gold income penalty to kill rewards', () => {
+  it('has _getAscGoldMult helper that reads getGoldIncomeMultiplier', () => {
+    expect(gameSceneSrc).toContain('private _getAscGoldMult()');
     expect(gameSceneSrc).toContain('this._ascensionSystem?.getGoldIncomeMultiplier()');
+  });
+
+  it('applies ascension gold penalty to creep kill rewards', () => {
+    expect(gameSceneSrc).toContain('this._getAscGoldMult()');
+  });
+
+  it('applies ascension gold penalty to wave-bonus handler', () => {
+    expect(gameSceneSrc).toContain("events.on('wave-bonus'");
+    // The wave-bonus adjustedBonus must include _getAscGoldMult
+    const waveBonusBlock = gameSceneSrc.slice(
+      gameSceneSrc.indexOf("events.on('wave-bonus'"),
+      gameSceneSrc.indexOf("events.on('wave-bonus'") + 500,
+    );
+    expect(waveBonusBlock).toContain('_getAscGoldMult()');
+  });
+
+  it('applies ascension gold penalty to boss-killed handler', () => {
+    expect(gameSceneSrc).toContain("events.on('boss-killed'");
+    const bossBlock = gameSceneSrc.slice(
+      gameSceneSrc.indexOf("events.on('boss-killed'"),
+      gameSceneSrc.indexOf("events.on('boss-killed'") + 400,
+    );
+    expect(bossBlock).toContain('_getAscGoldMult()');
+  });
+
+  it('applies ascension gold penalty to interest bonus', () => {
+    const interestIdx = gameSceneSrc.indexOf('getInterestBonus(this.gold)');
+    const line = gameSceneSrc.slice(interestIdx, interestIdx + 80);
+    expect(line).toContain('_getAscGoldMult()');
+  });
+
+  it('applies ascension gold penalty to jackpot bonus', () => {
+    const jackpotIdx = gameSceneSrc.indexOf('getJackpotBonus()');
+    const line = gameSceneSrc.slice(jackpotIdx, jackpotIdx + 80);
+    expect(line).toContain('_getAscGoldMult()');
   });
 
   it('applies crystal reward scaling on victory', () => {
