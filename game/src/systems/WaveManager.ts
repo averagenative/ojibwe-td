@@ -524,6 +524,9 @@ export class WaveManager extends Phaser.Events.EventEmitter {
       wave.escortDelayTimer?.destroy();
     }
     this._activeWaves = [];
+    // Defensive guard: remove all EventEmitter listeners so stale references
+    // held across scene restarts cannot fire on the next wave cycle.
+    this.removeAllListeners();
   }
 
   // ── private ───────────────────────────────────────────────────────────────
