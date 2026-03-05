@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_COMMANDERS, getCommanderDef } from '../../data/commanderDefs';
+import { ALL_COMMANDERS, getCommanderDef, defaultCommanderRunState } from '../../data/commanderDefs';
+import type { CommanderRunState } from '../../data/commanderDefs';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -169,10 +170,9 @@ describe('Codex entries match new clans', () => {
 describe('Mechanical effects unchanged after realignment', () => {
   it('Bizhiw aura still sets rock-hurler/frost speed +20%, projectile +25%', () => {
     const def = getCommanderDef('bizhiw')!;
-    const state = {
-      attackSpeedMultByKey: {} as Record<string, number>,
-      projectileSpeedMult: 1.0,
-    } as any;
+    const state: CommanderRunState = defaultCommanderRunState('bizhiw');
+    state.attackSpeedMultByKey = {} as Record<string, number>;
+    state.projectileSpeedMult = 1.0;
     def.aura.apply(state);
     expect(state.attackSpeedMultByKey['rock-hurler']).toBe(0.80);
     expect(state.attackSpeedMultByKey['frost']).toBe(0.80);
@@ -181,7 +181,7 @@ describe('Mechanical effects unchanged after realignment', () => {
 
   it('Oshkaabewis aura still sets +1 kill gold and 4 offer cards', () => {
     const def = getCommanderDef('oshkaabewis')!;
-    const state = { killGoldBonus: 0, offerCardCount: 3 } as any;
+    const state: CommanderRunState = defaultCommanderRunState('oshkaabewis');
     def.aura.apply(state);
     expect(state.killGoldBonus).toBe(1);
     expect(state.offerCardCount).toBe(4);
