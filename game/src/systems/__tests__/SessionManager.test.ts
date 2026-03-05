@@ -293,6 +293,30 @@ describe('SessionManager', () => {
     expect(() => mgr.clear()).not.toThrow();
   });
 
+  // ── metaStatBonuses round-trip ──────────────────────────────────────────────
+
+  it('preserves nested metaStatBonuses through save/load cycle', () => {
+    const mgr = SessionManager.getInstance();
+    const bonuses: Record<string, Record<string, number>> = {
+      'arrow':       { damage: 10, attackSpeed: 5 },
+      'rock-hurler': { range: 15 },
+    };
+    mgr.save(makeSave({ metaStatBonuses: bonuses }));
+
+    const loaded = mgr.load()!;
+    expect(loaded.metaStatBonuses).toEqual(bonuses);
+    expect(loaded.metaStatBonuses['arrow']['damage']).toBe(10);
+    expect(loaded.metaStatBonuses['rock-hurler']['range']).toBe(15);
+  });
+
+  it('handles empty metaStatBonuses', () => {
+    const mgr = SessionManager.getInstance();
+    mgr.save(makeSave({ metaStatBonuses: {} }));
+
+    const loaded = mgr.load()!;
+    expect(loaded.metaStatBonuses).toEqual({});
+  });
+
   // ── TASK-098 migration: cannon/mortar → rock-hurler ───────────────────────
 
   it('migrates legacy cannon tower key to rock-hurler on load', () => {
