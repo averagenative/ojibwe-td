@@ -1908,8 +1908,16 @@ export class GameScene extends Phaser.Scene {
   private _batchBuyUpgrade(path: 'A' | 'B' | 'C'): void {
     if (this._selectedTowers.length < 2) return;
 
+    // Sort by tier ascending so lowest-level towers upgrade first,
+    // bringing them up to match higher-level ones before advancing further.
+    const sorted = [...this._selectedTowers].sort((a, b) => {
+      const ta = this.upgradeManager.getState(a)?.tiers[path] ?? 0;
+      const tb = this.upgradeManager.getState(b)?.tiers[path] ?? 0;
+      return ta - tb;
+    });
+
     let paid = false;
-    for (const tower of this._selectedTowers) {
+    for (const tower of sorted) {
       const cost = this.upgradeManager.getUpgradeCost(tower, path);
       if (cost > 0 && this.gold >= cost) {
         const spent = this.upgradeManager.buyUpgrade(tower, path);
