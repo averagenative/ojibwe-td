@@ -866,6 +866,22 @@ export function renderTerrain(
 
       // ── Explicit environment tiles ──
       // These render deterministically based on tile position seed.
+      if (tileType === TILE.SCENERY) {
+        if (scene.textures.exists('tile-scenery')) {
+          const sx = col * ts + ts / 2;
+          const sy = row * ts + ts / 2;
+          scene.add.image(sx, sy, 'tile-scenery')
+            .setDisplaySize(ts, ts)
+            .setDepth(TERRAIN_DECO_DEPTH);
+        } else {
+          const tileSeed = tilePosSeed(col, row);
+          const cx = col * ts + ts / 2;
+          const cy = row * ts + ts / 2;
+          drawRockPolygonTile(decoGfx, cx, cy, ts, tileSeed);
+        }
+        continue;
+      }
+
       if (tileType === TILE.TREE) {
         if (scene.textures.exists('tile-tree')) {
           const tx = col * ts + ts / 2;

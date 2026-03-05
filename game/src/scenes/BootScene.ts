@@ -255,7 +255,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('tile-tree',  'assets/tiles/tile-tree.png');
     this.load.image('tile-brush', 'assets/tiles/tile-brush.png');
     this.load.image('tile-rock',  'assets/tiles/tile-rock.png');
-    this.load.image('tile-water', 'assets/tiles/tile-water.png');
+    this.load.image('tile-water',   'assets/tiles/tile-water.png');
+    this.load.image('tile-scenery', 'assets/tiles/tile-scenery.png');
 
     // Teaching codex icons (32x32)
     this.load.image('teaching-balance',   'assets/icons/teaching-balance.png');
