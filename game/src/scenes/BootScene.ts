@@ -268,6 +268,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('teaching-grief',     'assets/icons/teaching-grief.png');
     this.load.image('teaching-controlled-burns', 'assets/icons/teaching-controlled-burns.png');
     this.load.image('teaching-oak-resilience',   'assets/icons/teaching-oak-resilience.png');
+    this.load.image('teaching-ice-fishing',      'assets/icons/teaching-ice-fishing.png');
+    this.load.image('teaching-winter-rest',      'assets/icons/teaching-winter-rest.png');
+    this.load.image('teaching-earth-wound',      'assets/icons/teaching-earth-wound.png');
 
     // Projectile sprites (32x32) — replace procedural Graphics during flight
     this.load.image('proj-arrow',  'assets/projectiles/proj-arrow.png');

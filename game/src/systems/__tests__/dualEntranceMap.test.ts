@@ -334,12 +334,12 @@ describe('backward compatibility with existing single-path maps', () => {
 // ── Cross-referencing integrity ─────────────────────────────────────────
 
 describe('overall data integrity after dual-entrance addition', () => {
-  it('UNLOCK_NODES has 10 total nodes (1 map + 4 commanders + 5 stages)', () => {
-    expect(UNLOCK_NODES).toHaveLength(10);
+  it('UNLOCK_NODES has 12 total nodes (1 map + 4 commanders + 7 stages)', () => {
+    expect(UNLOCK_NODES).toHaveLength(12);
   });
 
-  it('ALL_STAGES has 7 stages', () => {
-    expect(ALL_STAGES).toHaveLength(7);
+  it('ALL_STAGES has 9 stages', () => {
+    expect(ALL_STAGES).toHaveLength(9);
   });
 
   it('ALL_REGIONS still has 4 regions', () => {
@@ -372,6 +372,6 @@ describe('overall data integrity after dual-entrance addition', () => {
   it('stage unlock costs form ascending progression', () => {
     const stageNodes = UNLOCK_NODES.filter(n => n.effect.type === 'stage');
     const costs = stageNodes.map(n => n.cost).sort((a, b) => a - b);
-    expect(costs).toEqual([250, 500, 600, 700, 750]);
+    expect(costs).toEqual([250, 500, 600, 700, 750, 850, 1000]);
   });
 });

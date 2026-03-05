@@ -22,8 +22,8 @@ import { ALL_STAGES } from '../../data/stageDefs';
 describe('stage unlock nodes', () => {
   const stageNodes = UNLOCK_NODES.filter(n => n.effect.type === 'stage');
 
-  it('contains exactly 5 stage unlock nodes', () => {
-    expect(stageNodes).toHaveLength(5);
+  it('contains exactly 7 stage unlock nodes', () => {
+    expect(stageNodes).toHaveLength(7);
   });
 
   it('all stage node IDs follow the unlock-stage-{id} convention', () => {
@@ -81,9 +81,9 @@ describe('stage unlock nodes', () => {
     expect(node!.effect).toEqual({ type: 'stage', stageId: 'biboon-aki-01' });
   });
 
-  it('stage costs form ascending progression: 250, 500, 600, 700, 750', () => {
+  it('stage costs form ascending progression: 250, 500, 600, 700, 750, 850, 1000', () => {
     const costs = stageNodes.map(n => n.cost).sort((a, b) => a - b);
-    expect(costs).toEqual([250, 500, 600, 700, 750]);
+    expect(costs).toEqual([250, 500, 600, 700, 750, 850, 1000]);
   });
 });
 
@@ -187,8 +187,8 @@ describe('getStageUnlockNode', () => {
 // ── LOCKED_STAGE_IDS ──────────────────────────────────────────────────────────
 
 describe('LOCKED_STAGE_IDS', () => {
-  it('contains exactly 5 stage IDs', () => {
-    expect(LOCKED_STAGE_IDS).toHaveLength(5);
+  it('contains exactly 7 stage IDs', () => {
+    expect(LOCKED_STAGE_IDS).toHaveLength(7);
   });
 
   it('contains all expected stage IDs', () => {
@@ -197,6 +197,8 @@ describe('LOCKED_STAGE_IDS', () => {
     expect(LOCKED_STAGE_IDS).toContain('mitigomizh-02');
     expect(LOCKED_STAGE_IDS).toContain('mitigomizh-03');
     expect(LOCKED_STAGE_IDS).toContain('biboon-aki-01');
+    expect(LOCKED_STAGE_IDS).toContain('biboon-aki-02');
+    expect(LOCKED_STAGE_IDS).toContain('biboon-aki-03');
   });
 
   it('does not include zaagaiganing-01 (always accessible)', () => {
@@ -304,8 +306,8 @@ describe('MetaMenuScene structural checks', () => {
 // ── UNLOCK_NODES overall integrity (extended) ─────────────────────────────────
 
 describe('UNLOCK_NODES overall integrity with stage nodes', () => {
-  it('total node count is 10 (1 map + 5 stages + 4 commanders)', () => {
-    expect(UNLOCK_NODES).toHaveLength(10);
+  it('total node count is 12 (1 map + 7 stages + 4 commanders)', () => {
+    expect(UNLOCK_NODES).toHaveLength(12);
   });
 
   it('all node IDs are globally unique', () => {
@@ -322,12 +324,12 @@ describe('UNLOCK_NODES overall integrity with stage nodes', () => {
     }
   });
 
-  it('map, stage, and commander node counts are 1, 5, 4', () => {
+  it('map, stage, and commander node counts are 1, 7, 4', () => {
     const maps = UNLOCK_NODES.filter(n => n.effect.type === 'map');
     const stages = UNLOCK_NODES.filter(n => n.effect.type === 'stage');
     const commanders = UNLOCK_NODES.filter(n => n.effect.type === 'commander');
     expect(maps).toHaveLength(1);
-    expect(stages).toHaveLength(5);
+    expect(stages).toHaveLength(7);
     expect(commanders).toHaveLength(4);
   });
 });

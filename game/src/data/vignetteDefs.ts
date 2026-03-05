@@ -391,6 +391,62 @@ const ACT4_VIGNETTES: VignetteDef[] = [
   },
 ];
 
+// ── Act 4b — Deeper into Biboon-aki (new winter stages) ─────────────────────
+//
+// Additional vignettes for biboon-aki-02 and biboon-aki-03.
+// Speaker: Mishoomis (Grandfather) — continuing the winter journey.
+
+const ACT4B_VIGNETTES: VignetteDef[] = [
+  {
+    id:           'act4-frozen-lake',
+    trigger:      TriggerType.WAVE_COMPLETE,
+    triggerValue: 3,
+    regionId:     'biboon-aki',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
+    lines: [
+      'The lake has frozen solid — even the fish sleep beneath the ice.',
+      'In the old days, we cut holes and waited with patience.',
+      'The ice teaches stillness. Learn it now,',
+      'before the storm ahead demands everything.',
+    ],
+    codexUnlock:  'codex-teaching-ice-fishing',
+    reviewed:     false,
+  },
+  {
+    id:           'act4-winter-rest',
+    trigger:      TriggerType.WAVE_COMPLETE,
+    triggerValue: 7,
+    regionId:     'biboon-aki',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
+    lines: [
+      'Winter is not punishment — it is rest.',
+      'The bear sleeps. The trees pull their life inward.',
+      'Even the land must close its eyes.',
+      'But something here refuses to sleep.',
+    ],
+    codexUnlock:  'codex-teaching-winter-rest',
+    reviewed:     false,
+  },
+  {
+    id:           'act4-heart-approach',
+    trigger:      TriggerType.WAVE_COMPLETE,
+    triggerValue: 13,
+    regionId:     'biboon-aki',
+    speaker:      'Mishoomis',
+    portrait:     'elder-mishoomis',
+    lines: [
+      'We are close now. I can feel the wound in the earth.',
+      'The imbalance has a heartbeat — cold and fast.',
+      'Do not fight with anger. Fight with purpose.',
+      'The land remembers how it was. Help it remember.',
+    ],
+    codexUnlock:  'codex-teaching-earth-wound',
+    reviewed:     false,
+  },
+];
+
 // ── All vignettes ────────────────────────────────────────────────────────────
 
 export const ALL_VIGNETTES: readonly VignetteDef[] = [
@@ -398,6 +454,7 @@ export const ALL_VIGNETTES: readonly VignetteDef[] = [
   ...ACT2_VIGNETTES,
   ...ACT3_VIGNETTES,
   ...ACT4_VIGNETTES,
+  ...ACT4B_VIGNETTES,
 ];
 
 /**
