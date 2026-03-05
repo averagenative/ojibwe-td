@@ -582,83 +582,54 @@ export class Projectile extends Phaser.GameObjects.Arc {
     }
   }
 
-  /** Frost impact: snowflake burst with 6 radiating crystal arms. */
+  /** Frost impact: compact * shape on the creep, fades quickly. */
   private impactFrostBurst(cx: number, cy: number): void {
-    // 6-armed snowflake crystal
-    const flake = this.scene.add.graphics({ x: cx, y: cy });
-    flake.setDepth(25);
-    const armLen = 8;
-    const branchLen = 3;
+    const g = this.scene.add.graphics({ x: cx, y: cy });
+    g.setDepth(25);
+    const arm = 5; // short arms — stays tight to creep
+    // 6 arms (* shape)
     for (let i = 0; i < 6; i++) {
       const angle = (i * Math.PI) / 3;
-      const ax = Math.cos(angle) * armLen;
-      const ay = Math.sin(angle) * armLen;
-      // Main arm
-      flake.lineStyle(1.5, 0xcceeff, 0.9);
-      flake.beginPath();
-      flake.moveTo(0, 0);
-      flake.lineTo(ax, ay);
-      flake.strokePath();
-      // Branch near tip (at 60% of arm)
-      const bx = Math.cos(angle) * armLen * 0.6;
-      const by = Math.sin(angle) * armLen * 0.6;
-      const perpA = angle + Math.PI / 3;
-      const perpB = angle - Math.PI / 3;
-      flake.lineStyle(1, 0x88ccff, 0.7);
-      flake.beginPath();
-      flake.moveTo(bx + Math.cos(perpA) * branchLen, by + Math.sin(perpA) * branchLen);
-      flake.lineTo(bx, by);
-      flake.lineTo(bx + Math.cos(perpB) * branchLen, by + Math.sin(perpB) * branchLen);
-      flake.strokePath();
+      g.lineStyle(1.5, 0xcceeff, 0.9);
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(Math.cos(angle) * arm, Math.sin(angle) * arm);
+      g.strokePath();
     }
-    // Centre dot
-    flake.fillStyle(0xffffff, 0.8);
-    flake.fillCircle(0, 0, 1.5);
+    g.fillStyle(0xffffff, 0.8);
+    g.fillCircle(0, 0, 1);
 
     this.scene.tweens.add({
-      targets:    flake,
-      scaleX:     1.8,
-      scaleY:     1.8,
+      targets:    g,
       alpha:      0,
-      angle:      30,
-      duration:   250,
+      angle:      15,
+      duration:   180,
       ease:       'Sine.easeOut',
-      onComplete: () => flake.destroy(),
+      onComplete: () => g.destroy(),
     });
-
-    // Scatter a few tiny ice sparkles
-    for (let i = 0; i < 4; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const dist = 4 + Math.random() * 8;
-      const dot  = this.scene.add.circle(cx, cy, 1, 0xddeeff, 0.8);
-      dot.setDepth(24);
-      this.scene.tweens.add({
-        targets:    dot,
-        x:          cx + Math.cos(a) * dist,
-        y:          cy + Math.sin(a) * dist,
-        alpha:      0,
-        duration:   200,
-        ease:       'Power1',
-        onComplete: () => dot.destroy(),
-      });
-    }
   }
 
-  /** Poison impact: 4 lingering splatter blobs around impact point. */
+  /** Poison impact: compact + shape on the creep, fades quickly. */
   private impactPoisonSplatter(cx: number, cy: number): void {
-    for (let i = 0; i < 4; i++) {
-      const bx   = cx + (Math.random() - 0.5) * 14;
-      const by   = cy + (Math.random() - 0.5) * 14;
-      const blob = this.scene.add.circle(bx, by, 2.5 + Math.random() * 2, 0x55ff99, 0.7);
-      blob.setDepth(22);
-      this.scene.tweens.add({
-        targets:    blob,
-        alpha:      0,
-        duration:   130,
-        delay:      100,    // linger briefly before fading — DoT visual cue
-        onComplete: () => blob.destroy(),
-      });
-    }
+    const g = this.scene.add.graphics({ x: cx, y: cy });
+    g.setDepth(22);
+    const arm = 5; // short arms — stays tight to creep
+    // 4 arms (+ shape)
+    g.lineStyle(1.5, 0x55ff99, 0.85);
+    g.beginPath();
+    g.moveTo(-arm, 0); g.lineTo(arm, 0);
+    g.moveTo(0, -arm); g.lineTo(0, arm);
+    g.strokePath();
+    g.fillStyle(0x88ffbb, 0.7);
+    g.fillCircle(0, 0, 1);
+
+    this.scene.tweens.add({
+      targets:    g,
+      alpha:      0,
+      duration:   180,
+      ease:       'Sine.easeOut',
+      onComplete: () => g.destroy(),
+    });
   }
 
   /** Arrow impact: a brief stuck-arrow line that fades out quickly. */
