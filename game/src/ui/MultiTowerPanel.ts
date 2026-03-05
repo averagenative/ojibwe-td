@@ -297,17 +297,18 @@ export class MultiTowerPanel {
       col.headerText.setText(`PATH ${pathId}: ${pathName.toUpperCase()}`);
       col.descText.setText(pathDesc);
 
-      // If ANY tower has this path locked, treat the entire column as locked.
-      // This prevents batch-upgrading a path on lower-tier towers that conflicts
-      // with the player's chosen upgrade strategy on higher-tier towers.
-      const anyLocked = towers.some(t => mgr.getState(t)?.locked.has(pathId));
+      // Filter to towers that don't have this path locked — towers on
+      // different upgrade paths are simply excluded from the batch, not blocked.
+      const unlocked    = towers.filter(t => !mgr.getState(t)?.locked.has(pathId));
+      const lockedCount = towers.length - unlocked.length;
+      const allLocked   = unlocked.length === 0;
 
-      // Compute eligible towers and total cost
+      // Compute eligible towers and total cost (only from unlocked towers)
       const eligibleCosts: number[] = [];
       let   allMaxed = true;
 
-      if (!anyLocked) {
-        for (const tower of towers) {
+      if (!allLocked) {
+        for (const tower of unlocked) {
           const cost = mgr.getUpgradeCost(tower, pathId);
           if (cost > 0) {
             eligibleCosts.push(cost);
@@ -323,28 +324,30 @@ export class MultiTowerPanel {
       const eligibleCount  = eligibleCosts.length;
       const canAffordBatch = totalCost > 0 && gold >= eligibleCosts[0]; // afford at least 1
 
-      if (anyLocked || eligibleCount === 0) {
+      if (allLocked || eligibleCount === 0) {
         // Nothing purchasable
-        const label = anyLocked ? 'LOCKED' : allMaxed ? 'MAX TIER' : 'UNAVAILABLE';
+        const label = allLocked ? 'LOCKED' : allMaxed ? 'MAX TIER' : 'UNAVAILABLE';
         col.tierText.setText('');
-        col.costText.setText('');
+        col.costText.setText(allLocked ? '' : lockedCount > 0 ? `${lockedCount} on other path` : '');
         col.buyBg.setFillStyle(PAL.bgPanelDark).setStrokeStyle(1, PAL.borderInactive);
-        col.buyLabel.setText(label).setColor(anyLocked ? PAL.danger : PAL.textDim);
+        col.buyLabel.setText(label).setColor(allLocked ? PAL.danger : PAL.textDim);
         col.buyBg.removeInteractive();
       } else {
-        // Compute "next tier" label
-        const tiers = towers
+        // Compute "next tier" label (from unlocked towers only)
+        const tiers = unlocked
           .map(t => mgr.getState(t)?.tiers[pathId] ?? 0)
-          .filter((_, i) => mgr.getUpgradeCost(towers[i], pathId) > 0);
+          .filter((_, i) => mgr.getUpgradeCost(unlocked[i], pathId) > 0);
         const minTier  = Math.min(...tiers);
         const maxTier  = Math.max(...tiers);
         const tierLabel = minTier === maxTier
           ? `Tier ${minTier} → ${minTier + 1}`
           : `Tiers ${minTier}–${maxTier} → +1`;
 
-        const perLabel = eligibleCount < towers.length
-          ? `${eligibleCount}/${towers.length} towers`
-          : `${eligibleCount} towers`;
+        const perLabel = eligibleCount < unlocked.length
+          ? `${eligibleCount}/${unlocked.length} towers`
+          : lockedCount > 0
+            ? `${eligibleCount}/${towers.length} towers`
+            : `${eligibleCount} towers`;
 
         col.tierText.setText(tierLabel);
         col.costText.setText(`${perLabel}  ·  ${totalCost}g total`);
