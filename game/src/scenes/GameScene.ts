@@ -3278,19 +3278,12 @@ export class GameScene extends Phaser.Scene {
 
     this.upgradeManager.registerTower(tower);
 
-    // Apply gear bonuses (same as tryPlaceTower).
-    const gearBonuses = resolveGearBonuses(def.key);
-    if (gearBonuses.damagePct || gearBonuses.rangePct || gearBonuses.attackSpeedPct ||
-        gearBonuses.chainCountBonus || gearBonuses.slowPctBonus || gearBonuses.auraStrengthPct ||
-        gearBonuses.specialEffects.length > 0) {
-      applyGearToStats(tower.upgStats, gearBonuses);
-    }
-
-    // Apply permanent meta-upgrade bonuses (after gear bonuses).
-    this._applyTowerMetaBonuses(tower);
-
     // Re-apply upgrades tier by tier — paths in order A, B, C.
     // buyUpgrade returns the cost; we discard it (no gold deduction).
+    // IMPORTANT: gear and meta bonuses must be applied AFTER this loop.
+    // Each buyUpgrade() call invokes applyStatsToTower() which recomputes
+    // upgStats from defaultUpgradeStats + upgrade deltas, erasing any
+    // bonuses applied beforehand.
     const tiers = saved.upgrades;
     for (const path of ['A', 'B', 'C'] as const) {
       const targetTier = tiers[path] ?? 0;
@@ -3298,6 +3291,17 @@ export class GameScene extends Phaser.Scene {
         this.upgradeManager.buyUpgrade(tower, path);
       }
     }
+
+    // Apply gear bonuses (same as tryPlaceTower) — must come after buyUpgrade loop.
+    const gearBonuses = resolveGearBonuses(def.key);
+    if (gearBonuses.damagePct || gearBonuses.rangePct || gearBonuses.attackSpeedPct ||
+        gearBonuses.chainCountBonus || gearBonuses.slowPctBonus || gearBonuses.auraStrengthPct ||
+        gearBonuses.specialEffects.length > 0) {
+      applyGearToStats(tower.upgStats, gearBonuses);
+    }
+
+    // Apply permanent meta-upgrade bonuses (after gear bonuses, after buyUpgrade loop).
+    this._applyTowerMetaBonuses(tower);
 
     tower.on('pointerup', (ptr: Phaser.Input.Pointer) => {
       const shiftHeld = !MobileManager.getInstance().isMobile() &&
