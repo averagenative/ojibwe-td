@@ -350,7 +350,8 @@ export class MultiTowerPanel {
             : `${eligibleCount} towers`;
 
         col.tierText.setText(tierLabel);
-        col.costText.setText(`${perLabel}  ·  ${totalCost}g total`);
+        const lockNote = lockedCount > 0 ? `  (${lockedCount} locked)` : '';
+        col.costText.setText(`${perLabel}  ·  ${totalCost}g total${lockNote}`);
 
         // BUY button state
         if (canAffordBatch) {
