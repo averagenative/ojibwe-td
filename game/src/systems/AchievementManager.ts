@@ -287,6 +287,8 @@ export class AchievementManager {
       'mashkiig-01':      'clear-mashkiig',
       'niizh-miikana-01': 'clear-niizh-miikana',
       'mitigomizh-01':    'clear-mitigomizh',
+      'mitigomizh-02':    'clear-mitigomizh',
+      'mitigomizh-03':    'clear-mitigomizh',
       'biboon-aki-01':    'clear-biboon-aki',
     };
     const clearId = stageClears[data.stageId];
