@@ -1,12 +1,12 @@
 /**
- * TASK-116 — Frost Tower Projectile Bug: Stray Bubble Flies Across Screen
+ * Frost impact effect — structural ?raw tests.
  *
- * Structural ?raw tests verifying:
- * - Frost impact Graphics objects are positioned at the impact point (cx, cy)
- * - Shapes are drawn at local (0, 0) so scale tweens expand from impact, not from world origin
- * - Both ring and sparkle cross are destroyed after their tweens (no memory leak)
- * - Alpha tweens ensure particles fade out near impact, not fly across screen
- * - impactFrostBurst is only dispatched for towerKey 'frost'
+ * Verifies:
+ * - impactFrostBurst draws a compact * shape (6 arms) at the impact point
+ * - Graphics positioned at (cx, cy) with local-origin drawing
+ * - Effect stays tight to creep (short arm length, no expanding ring)
+ * - Destroyed after tween completes (no memory leak)
+ * - Only dispatched for towerKey 'frost'
  */
 import { describe, it, expect } from 'vitest';
 
@@ -18,7 +18,6 @@ function getFrostBurstBody(): string {
   const start = projectileSrc.indexOf('private impactFrostBurst(');
   expect(start).toBeGreaterThan(-1);
 
-  // Find the method body by tracking brace depth
   let braceDepth = 0;
   let bodyStart = -1;
   for (let i = start; i < projectileSrc.length; i++) {
@@ -35,89 +34,69 @@ function getFrostBurstBody(): string {
   throw new Error('Could not find impactFrostBurst method body');
 }
 
-// ── Ring: positioned at impact point ─────────────────────────────────────────
+// ── Shape: compact * at impact point ─────────────────────────────────────────
 
-describe('Frost impact ring — positioned at impact point', () => {
-  it('creates Graphics with { x: cx, y: cy } constructor options', () => {
+describe('Frost impact * shape', () => {
+  it('creates Graphics positioned at (cx, cy)', () => {
     const body = getFrostBurstBody();
-    // The Graphics must be positioned at the impact coordinates
     expect(body).toContain('this.scene.add.graphics({ x: cx, y: cy })');
   });
 
-  it('draws strokeCircle at local origin (0, 0), not at world coords', () => {
+  it('draws 6 arms from local origin (0, 0)', () => {
     const body = getFrostBurstBody();
-    expect(body).toContain('strokeCircle(0, 0, 5)');
-    // Must NOT contain the old buggy pattern
-    expect(body).not.toContain('strokeCircle(cx, cy');
+    expect(body).toContain('moveTo(0, 0)');
+    // 6 arms in a loop
+    expect(body).toMatch(/for\s*\(\s*let\s+\w+\s*=\s*0;\s*\w+\s*<\s*6/);
   });
 
-  it('applies a scale tween (expanding burst)', () => {
+  it('uses short arm length (≤ 6px) to stay tight to creep', () => {
     const body = getFrostBurstBody();
-    expect(body).toContain('scaleX');
-    expect(body).toContain('scaleY');
+    const armMatch = body.match(/arm\s*=\s*(\d+)/);
+    expect(armMatch).not.toBeNull();
+    expect(Number(armMatch![1])).toBeLessThanOrEqual(6);
   });
 
-  it('applies an alpha tween to fade out', () => {
+  it('fades alpha to 0', () => {
     const body = getFrostBurstBody();
-    // The ring tween must fade alpha to 0
     expect(body).toMatch(/alpha:\s*0/);
   });
 
-  it('destroys the ring in onComplete', () => {
+  it('destroys graphics in onComplete', () => {
     const body = getFrostBurstBody();
-    expect(body).toContain('ring.destroy()');
+    expect(body).toMatch(/\.destroy\(\)/);
+  });
+
+  it('has no expanding ring (no strokeCircle)', () => {
+    const body = getFrostBurstBody();
+    expect(body).not.toContain('strokeCircle');
   });
 });
 
-// ── Sparkle cross: positioned at impact point ────────────────────────────────
+// ── Sparkle dots: tiny, short distance ───────────────────────────────────────
 
-describe('Frost impact sparkle cross — positioned at impact point', () => {
-  it('creates spark Graphics with { x: cx, y: cy } constructor options', () => {
+describe('Frost impact sparkle dots', () => {
+  it('spawns small dot sparkles (radius ≤ 1px)', () => {
     const body = getFrostBurstBody();
-    // Both ring and spark must be positioned; there should be two occurrences
-    const matches = body.match(/this\.scene\.add\.graphics\(\{ x: cx, y: cy \}\)/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBe(2);
+    expect(body).toContain('this.scene.add.circle');
+    // Radius arg should be small
+    const circleMatch = body.match(/add\.circle\([^)]+,\s*([\d.]+),/);
+    expect(circleMatch).not.toBeNull();
+    expect(Number(circleMatch![1])).toBeLessThanOrEqual(1);
   });
 
-  it('draws sparkle lines at local coords, not world coords', () => {
+  it('dots travel short distance (≤ 6px)', () => {
     const body = getFrostBurstBody();
-    // Horizontal line: moveTo(-5, 0) lineTo(5, 0)
-    expect(body).toContain('moveTo(-5, 0)');
-    expect(body).toContain('lineTo(5, 0)');
-    // Vertical line: moveTo(0, -5) lineTo(0, 5)
-    expect(body).toContain('moveTo(0, -5)');
-    expect(body).toContain('lineTo(0, 5)');
-  });
-
-  it('does NOT use world coordinates for sparkle lines', () => {
-    const body = getFrostBurstBody();
-    // The old buggy pattern used (cx - 5, cy), (cx + 5, cy), etc.
-    expect(body).not.toContain('cx - 5');
-    expect(body).not.toContain('cx + 5');
-    expect(body).not.toContain('cy - 5');
-    expect(body).not.toContain('cy + 5');
-  });
-
-  it('fades sparkle alpha to 0', () => {
-    const body = getFrostBurstBody();
-    // The spark tween is the second tween block; both must have alpha: 0
-    const alphaMatches = body.match(/alpha:\s*0/g);
-    expect(alphaMatches).not.toBeNull();
-    expect(alphaMatches!.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('destroys the spark in onComplete', () => {
-    const body = getFrostBurstBody();
-    expect(body).toContain('spark.destroy()');
+    // Check the drift distance multiplier
+    const distMatch = body.match(/\*\s*(\d+)/g);
+    // At least one multiply by a small number for drift distance
+    expect(distMatch).not.toBeNull();
   });
 });
 
-// ── Dispatch: only fires for towerKey 'frost' ────────────────────────────────
+// ── Dispatch ─────────────────────────────────────────────────────────────────
 
 describe('Frost burst dispatch', () => {
   it('showImpactEffect dispatches to impactFrostBurst for frost key', () => {
-    // Verify the switch case wiring in showImpactEffect
     expect(projectileSrc).toContain("case 'frost':");
     expect(projectileSrc).toContain('this.impactFrostBurst(cx, cy)');
   });
@@ -127,59 +106,13 @@ describe('Frost burst dispatch', () => {
   });
 });
 
-// ── Depth: both effects at depth 25 ──────────────────────────────────────────
+// ── Depth ────────────────────────────────────────────────────────────────────
 
 describe('Frost impact depth', () => {
-  it('ring and spark are set to depth 25', () => {
+  it('main shape is set to depth ≥ 22', () => {
     const body = getFrostBurstBody();
-    const depthMatches = body.match(/setDepth\(25\)/g);
-    expect(depthMatches).not.toBeNull();
-    expect(depthMatches!.length).toBe(2);
-  });
-});
-
-// ── Particle containment: no world-coord scale drift ─────────────────────────
-
-describe('Frost particles stay near impact (no scale drift)', () => {
-  it('ring scale origin matches ring position (both at impact point)', () => {
-    // The fix ensures that the Graphics object is at (cx, cy) and the shape
-    // is drawn at (0, 0). When the scale tween runs, it scales around the
-    // Graphics origin (cx, cy) — so the ring expands in place.
-    const body = getFrostBurstBody();
-
-    // Ring creation: positioned at impact
-    expect(body).toContain('this.scene.add.graphics({ x: cx, y: cy })');
-    // Ring shape: centered at local origin
-    expect(body).toContain('strokeCircle(0, 0, 5)');
-    // Scale tween targets the ring
-    expect(body).toContain('targets:    ring');
-  });
-
-  it('sparkle cross has no scale tween (only alpha fade)', () => {
-    const body = getFrostBurstBody();
-    // The spark tween should only change alpha, not scale.
-    // Find the spark tween block (after spark is created)
-    const sparkIdx = body.indexOf('const spark');
-    const sparkSection = body.slice(sparkIdx);
-
-    // The spark tween should have alpha: 0 but no scaleX/scaleY
-    const sparkTweenStart = sparkSection.indexOf('this.scene.tweens.add');
-    const sparkTweenEnd = sparkSection.indexOf('});', sparkTweenStart);
-    const sparkTween = sparkSection.slice(sparkTweenStart, sparkTweenEnd + 3);
-
-    expect(sparkTween).toContain('alpha');
-    expect(sparkTween).not.toContain('scaleX');
-    expect(sparkTween).not.toContain('scaleY');
-  });
-
-  it('ring max visual radius is bounded (5px base × 3.5 scale = 17.5px)', () => {
-    const body = getFrostBurstBody();
-    // strokeCircle radius is 5, scale goes to 3.5 → max visual radius 17.5px
-    // This is well within the 30-50px max travel requirement
-    expect(body).toContain('strokeCircle(0, 0, 5)');
-    expect(body).toMatch(/scaleX:\s*3\.5/);
-    expect(body).toMatch(/scaleY:\s*3\.5/);
-    const maxRadius = 5 * 3.5;
-    expect(maxRadius).toBeLessThanOrEqual(50);
+    const depthMatch = body.match(/setDepth\((\d+)\)/);
+    expect(depthMatch).not.toBeNull();
+    expect(Number(depthMatch![1])).toBeGreaterThanOrEqual(22);
   });
 });

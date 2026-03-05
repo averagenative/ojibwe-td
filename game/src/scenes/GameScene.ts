@@ -507,8 +507,11 @@ export class GameScene extends Phaser.Scene {
     // Unlock the selected commander's codex entry.
     SaveManager.getInstance().unlockCodexEntry(`codex-commander-${this.selectedCommanderId}`);
 
-    // FIRST_PLAY vignette — check and queue for display after HUD is built.
+    // Pre-game vignettes — check and queue for display after HUD is built.
+    // FIRST_PLAY fires only on the very first session; WAVE_START(1) fires
+    // on every stage's first wave (e.g. act2-arrival in mashkiig).
     const firstPlayResult = this.vignetteManager.check(TriggerType.FIRST_PLAY);
+    const wave1StartResult = this.vignetteManager.check(TriggerType.WAVE_START, 1);
 
     // HUD (top strip)
     this.hud = new HUD(this, this.lives, this.gold);
@@ -1131,12 +1134,23 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // 3. Fallback: FIRST_PLAY vignette (existing system).
+      // 3. FIRST_PLAY vignette (first ever session).
       if (firstPlayResult && !this._seenDialogIds.has(firstPlayResult.vignette.id)) {
         this._seenDialogIds.add(firstPlayResult.vignette.id);
         this.vignetteOverlay.show(firstPlayResult.vignette, firstPlayResult.seenBefore, () => {
-          // Vignette dismissed — no further action needed.
+          // After FIRST_PLAY dismisses, show wave-1 start vignette if any.
+          if (wave1StartResult && !this._seenDialogIds.has(wave1StartResult.vignette.id)) {
+            this._seenDialogIds.add(wave1StartResult.vignette.id);
+            this.vignetteOverlay.show(wave1StartResult.vignette, wave1StartResult.seenBefore, () => {});
+          }
         });
+        return;
+      }
+
+      // 4. Wave-1 start vignette (e.g. act2-arrival, act3-arrival).
+      if (wave1StartResult && !this._seenDialogIds.has(wave1StartResult.vignette.id)) {
+        this._seenDialogIds.add(wave1StartResult.vignette.id);
+        this.vignetteOverlay.show(wave1StartResult.vignette, wave1StartResult.seenBefore, () => {});
       }
     });
   }
