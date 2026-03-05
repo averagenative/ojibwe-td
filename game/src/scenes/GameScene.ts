@@ -1899,8 +1899,12 @@ export class GameScene extends Phaser.Scene {
       ?? allOfType[0];
     const anchorLocked = this._lockKey(anchor);
 
-    // Filter to towers with the same locked-path set.
-    const matching = allOfType.filter(t => this._lockKey(t) === anchorLocked);
+    // Filter to towers with the same locked-path set, plus uncommitted
+    // towers (nothing locked yet) which are compatible with any group.
+    const matching = allOfType.filter(t => {
+      const key = this._lockKey(t);
+      return key === anchorLocked || key === '';
+    });
 
     // Clear existing selection.
     this.deselectTower();
