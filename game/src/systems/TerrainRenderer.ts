@@ -674,6 +674,7 @@ export function renderTerrain(
   scene: Phaser.Scene,
   mapData: MapData,
   season: SeasonalTheme,
+  offsetX = 0,
 ): { decoGfx: Phaser.GameObjects.Graphics } {
   const { tileSize: ts, cols, rows, tiles } = mapData;
   const seed = mapIdToSeed(mapData.id);
@@ -691,7 +692,7 @@ export function renderTerrain(
       const tileType = tiles[row][col];
       if (tileType === TILE.PATH) continue;
 
-      const x = col * ts;
+      const x = col * ts + offsetX;
       const y = row * ts;
 
       // ── WATER tiles: use ground color as base (sprite overlays the pond shape) ──
@@ -758,7 +759,7 @@ export function renderTerrain(
     for (let col = 0; col < cols; col++) {
       if (tiles[row][col] !== TILE.PATH) continue;
 
-      const x = col * ts;
+      const x = col * ts + offsetX;
       const y = row * ts;
       const tileCx = x + ts / 2;
       const tileCy = y + ts / 2;
@@ -895,14 +896,14 @@ export function renderTerrain(
       // These render deterministically based on tile position seed.
       if (tileType === TILE.SCENERY) {
         if (scene.textures.exists('tile-scenery')) {
-          const sx = col * ts + ts / 2;
+          const sx = col * ts + ts / 2 + offsetX;
           const sy = row * ts + ts / 2;
           scene.add.image(sx, sy, 'tile-scenery')
             .setDisplaySize(ts, ts)
             .setDepth(TERRAIN_DECO_DEPTH);
         } else {
           const tileSeed = tilePosSeed(col, row);
-          const cx = col * ts + ts / 2;
+          const cx = col * ts + ts / 2 + offsetX;
           const cy = row * ts + ts / 2;
           drawRockPolygonTile(decoGfx, cx, cy, ts, tileSeed);
         }
@@ -913,18 +914,18 @@ export function renderTerrain(
         if (season === 'winter') {
           // Winter: always use procedural snow-capped conifers
           const tileSeed = tilePosSeed(col, row);
-          const cx = col * ts + ts / 2;
+          const cx = col * ts + ts / 2 + offsetX;
           const cy = row * ts + ts / 2;
           drawTreeClusterTile(decoGfx, cx, cy, ts, pal, tileSeed, true);
         } else if (scene.textures.exists('tile-tree')) {
-          const tx = col * ts + ts / 2;
+          const tx = col * ts + ts / 2 + offsetX;
           const ty = row * ts + ts / 2;
           scene.add.image(tx, ty, 'tile-tree')
             .setDisplaySize(ts, ts)
             .setDepth(TERRAIN_DECO_DEPTH);
         } else {
           const tileSeed = tilePosSeed(col, row);
-          const cx = col * ts + ts / 2;
+          const cx = col * ts + ts / 2 + offsetX;
           const cy = row * ts + ts / 2;
           drawTreeClusterTile(decoGfx, cx, cy, ts, pal, tileSeed);
         }
@@ -933,7 +934,7 @@ export function renderTerrain(
 
       if (tileType === TILE.BIRCH) {
         const tileSeed = tilePosSeed(col, row);
-        const cx = col * ts + ts / 2;
+        const cx = col * ts + ts / 2 + offsetX;
         const cy = row * ts + ts / 2;
         drawBirchTile(decoGfx, cx, cy, ts, tileSeed, pal);
         // Snow accumulation on birch in winter
@@ -951,14 +952,14 @@ export function renderTerrain(
 
       if (tileType === TILE.BRUSH) {
         if (scene.textures.exists('tile-brush')) {
-          const bx = col * ts + ts / 2;
+          const bx = col * ts + ts / 2 + offsetX;
           const by = row * ts + ts / 2;
           scene.add.image(bx, by, 'tile-brush')
             .setDisplaySize(ts, ts)
             .setDepth(TERRAIN_DECO_DEPTH);
         } else {
           const tileSeed = tilePosSeed(col, row);
-          const cx = col * ts + ts / 2;
+          const cx = col * ts + ts / 2 + offsetX;
           const cy = row * ts + ts / 2;
           drawBrushTile(decoGfx, cx, cy, ts, tileSeed, pal);
         }
@@ -967,14 +968,14 @@ export function renderTerrain(
 
       if (tileType === TILE.ROCK) {
         if (season !== 'winter' && scene.textures.exists('tile-rock')) {
-          const rx = col * ts + ts / 2;
+          const rx = col * ts + ts / 2 + offsetX;
           const ry = row * ts + ts / 2;
           scene.add.image(rx, ry, 'tile-rock')
             .setDisplaySize(ts, ts)
             .setDepth(TERRAIN_DECO_DEPTH);
         } else {
           const tileSeed = tilePosSeed(col, row);
-          const cx = col * ts + ts / 2;
+          const cx = col * ts + ts / 2 + offsetX;
           const cy = row * ts + ts / 2;
           drawRockPolygonTile(decoGfx, cx, cy, ts, tileSeed);
           // Frosted ice highlights on rocks in winter
@@ -992,7 +993,7 @@ export function renderTerrain(
       if (tileType === TILE.WATER) {
         if (season === 'winter') {
           // Frozen/icy water: light blue-white surface with crack lines
-          const wx = col * ts;
+          const wx = col * ts + offsetX;
           const wy = row * ts;
           decoGfx.fillStyle(0xa8c8e0, 0.85);
           decoGfx.fillRect(wx + 1, wy + 1, ts - 2, ts - 2);
@@ -1008,20 +1009,20 @@ export function renderTerrain(
             wx + ts * 0.8, wy + ts * (0.4 + ch * 0.2),
           );
         } else if (scene.textures.exists('tile-water')) {
-          const wx = col * ts + ts / 2;
+          const wx = col * ts + ts / 2 + offsetX;
           const wy = row * ts + ts / 2;
           scene.add.image(wx, wy, 'tile-water')
             .setDisplaySize(ts, ts)
             .setDepth(TERRAIN_DECO_DEPTH);
         } else {
-          drawWaterTile(decoGfx, col * ts, row * ts, ts);
+          drawWaterTile(decoGfx, col * ts + offsetX, row * ts, ts);
         }
         continue;
       }
 
       if (tileType === TILE.CATTAIL) {
         const tileSeed = tilePosSeed(col, row);
-        const cx = col * ts + ts / 2;
+        const cx = col * ts + ts / 2 + offsetX;
         const cy = row * ts + ts / 2;
         drawCattailTile(decoGfx, cx, cy, ts, tileSeed);
         // Frost coating on cattails in winter
@@ -1041,7 +1042,7 @@ export function renderTerrain(
       const nearPath = hasAdjacentPath(row, col, tiles, rows, cols);
 
       // Tile center with random offset for organic feel
-      const baseCx = col * ts + ts / 2;
+      const baseCx = col * ts + ts / 2 + offsetX;
       const baseCy = row * ts + ts / 2;
 
       // ── Trees ──

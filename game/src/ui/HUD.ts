@@ -11,6 +11,8 @@ const HUD_HEIGHT = _IS_MOBILE ? 72 : 48;
 const PADDING    = 16;
 /** Extra left/right inset on mobile to clear iPhone speaker/Dynamic Island cutout */
 export const SAFE_INSET = _IS_MOBILE ? 44 : 0;
+/** Horizontal pixel offset applied to the game world (terrain, towers, creeps) on mobile to clear the speaker cutout. */
+export const MAP_OFFSET_X = SAFE_INSET;
 const DEPTH      = 100;
 
 /**
@@ -38,6 +40,14 @@ export class HUD extends Phaser.GameObjects.Container {
   private speedBtns: Array<{ bg: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }> = [];
   private activeSpeed = 1;
 
+  /**
+   * Flow-layout cursors.  Elements in the left group advance _leftCursorX
+   * rightward as they are created; elements in the right group advance
+   * _rightCursorX leftward.  This replaces all hardcoded pixel positions.
+   */
+  private _leftCursorX  = PADDING + SAFE_INSET;
+  private _rightCursorX: number; // set in constructor to width - PADDING - SAFE_INSET
+
   // Next-wave button (right side of HUD strip)
   private nextWaveBg?:    Phaser.GameObjects.Rectangle;
   private nextWaveLabel?: Phaser.GameObjects.Text;
@@ -56,18 +66,25 @@ export class HUD extends Phaser.GameObjects.Container {
     super(scene, 0, 0);
 
     const { width } = scene.scale;
+    const GAP = _IS_MOBILE ? 8 : 6; // standard inter-element gap
+
+    // Initialise flow cursors
+    this._leftCursorX  = PADDING + SAFE_INSET;
+    this._rightCursorX = width - PADDING - SAFE_INSET;
 
     const bg = new Phaser.GameObjects.Rectangle(
       scene, width / 2, HUD_HEIGHT / 2, width, HUD_HEIGHT, 0x000000, 0.8,
     );
     bg.setStrokeStyle(1, PAL.borderInactive);
 
-    this.livesText = scene.add.text(PADDING + SAFE_INSET, HUD_HEIGHT / 2, `♥  ${lives}`, {
+    // Lives text — left-aligned, advances left cursor
+    this.livesText = scene.add.text(this._leftCursorX, HUD_HEIGHT / 2, `♥  ${lives}`, {
       fontSize: mfs(20),
       color: PAL.danger,
       fontFamily: PAL.fontBody,
       fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
+    this._leftCursorX += this.livesText.width + GAP;
 
     this.goldText = scene.add.text(width / 2, HUD_HEIGHT / 2, `⬡  ${gold}`, {
       fontSize: mfs(20),
@@ -76,11 +93,13 @@ export class HUD extends Phaser.GameObjects.Container {
       fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
 
-    this.waveText = scene.add.text(width - PADDING - SAFE_INSET, HUD_HEIGHT / 2, 'Wave 0 / 20', {
+    // Wave text — right-aligned, advances right cursor leftward
+    this.waveText = scene.add.text(this._rightCursorX, HUD_HEIGHT / 2, 'Wave 0 / 20', {
       fontSize: mfs(18),
       color: PAL.textNeutral,
       fontFamily: PAL.fontBody,
     }).setOrigin(1, 0.5).setDepth(DEPTH + 1);
+    this._rightCursorX -= this.waveText.width + GAP;
 
     this.add([bg, this.livesText, this.goldText, this.waveText]);
     this.setDepth(DEPTH);
@@ -130,7 +149,7 @@ export class HUD extends Phaser.GameObjects.Container {
     const btnW   = _IS_MOBILE ? 48 : 38;
     const btnH   = _IS_MOBILE ? 44 : 30;
     const gap    = 4;
-    const startX = _IS_MOBILE ? 135 + SAFE_INSET : 155; // left edge of first button
+    const startX = this._leftCursorX; // flows from left cursor (after lives text)
     const cy     = HUD_HEIGHT / 2;
 
     const defs: Array<{ mult: number; label: string; hint: string }> = [
@@ -181,6 +200,9 @@ export class HUD extends Phaser.GameObjects.Container {
 
       this.speedBtns.push({ bg: btnBg, label: btnLabel });
     }
+
+    // Advance the left cursor past all speed buttons
+    this._leftCursorX = startX + defs.length * (btnW + gap);
   }
 
   /**
@@ -216,7 +238,8 @@ export class HUD extends Phaser.GameObjects.Container {
   createNextWaveButton(onClick: () => void): void {
     const { width } = this.scene.scale;
     const btnW = 220;
-    const btnX = width - PADDING - SAFE_INSET - btnW / 2;
+    const rightEdge = width - PADDING - SAFE_INSET;
+    const btnX = rightEdge - btnW / 2;
     const btnY = HUD_HEIGHT / 2;
 
     this.nextWaveBg = this.scene.add.rectangle(btnX, btnY, btnW, _IS_MOBILE ? 44 : 36, PAL.bgNextWave)
@@ -399,7 +422,8 @@ export class HUD extends Phaser.GameObjects.Container {
    */
   createRushWaveButton(onClick: () => void, rushGold: number): void {
     const btnW = 180;
-    const cx   = 960;
+    // Position to the left of the wave text / next-wave area
+    const cx   = this._rightCursorX - btnW / 2;
     const btnY = HUD_HEIGHT / 2;
     const btnH = _IS_MOBILE ? 44 : 36;
 
@@ -496,8 +520,8 @@ export class HUD extends Phaser.GameObjects.Container {
    */
   createAbilityButton(ability: AbilityDef, onActivate: () => void): void {
     const cy = HUD_HEIGHT / 2;
-    const btnX = this.scene.scale.width / 2 - (_IS_MOBILE ? 160 : 140);
     const btnW = _IS_MOBILE ? 130 : 120;
+    const btnX = this._leftCursorX + btnW / 2; // flows from left cursor (after gear)
     this._abilityDef = ability;
 
     this.abilityBtnBg = this.scene.add.rectangle(btnX, cy, btnW, 30, PAL.bgAbilityBtn)
@@ -633,11 +657,9 @@ export class HUD extends Phaser.GameObjects.Container {
    * (true = muted) so the button icon can update.
    */
   createMuteButton(initialMuted: boolean, onToggle: () => boolean): void {
-    // On mobile: wider speed buttons end ~287+SAFE_INSET → mute at ~317+SAFE_INSET.
-    // On desktop: speed buttons end ~277 (3×38 + 2×4 + start 155) → mute at 305.
     const btnW = _IS_MOBILE ? 44 : 36;
     const btnH = _IS_MOBILE ? 44 : 30;
-    const cx   = _IS_MOBILE ? 317 + SAFE_INSET : 305;
+    const cx   = this._leftCursorX + btnW / 2; // flows from left cursor
     const cy   = HUD_HEIGHT / 2;
 
     this.muteBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, PAL.bgSpeedBtn)
@@ -656,6 +678,9 @@ export class HUD extends Phaser.GameObjects.Container {
       const muted = onToggle();
       this.muteBtnLabel?.setText(muted ? '🔇' : '🔊');
     });
+
+    // Advance left cursor past this button
+    this._leftCursorX = cx + btnW / 2 + (_IS_MOBILE ? 4 : 4);
   }
 
   /**
@@ -676,17 +701,15 @@ export class HUD extends Phaser.GameObjects.Container {
   createAudioSettingsButton(onOpen: () => void): void {
     const btnW = _IS_MOBILE ? 44 : 36;
     const btnH = _IS_MOBILE ? 44 : 30;
-    // Mute btn cx:  mobile=317+SAFE, desktop=305.  Place gear immediately to the right.
-    // Left edge = muteCx + muteWidth/2 + gap
-    const cx   = _IS_MOBILE ? 317 + SAFE_INSET + 22 + 4 : 305 + 18 + 4;
+    const cx   = this._leftCursorX + btnW / 2; // flows from left cursor (after mute)
     const cy   = HUD_HEIGHT / 2;
 
-    const bg = this.scene.add.rectangle(cx + btnW / 2, cy, btnW, btnH, PAL.bgSpeedBtn)
+    const bg = this.scene.add.rectangle(cx, cy, btnW, btnH, PAL.bgSpeedBtn)
       .setStrokeStyle(1, PAL.borderNeutral)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 2);
 
-    this.scene.add.text(cx + btnW / 2, cy, '⚙', {
+    this.scene.add.text(cx, cy, '⚙', {
       fontSize:   _IS_MOBILE ? '22px' : '16px',
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3);
@@ -694,6 +717,9 @@ export class HUD extends Phaser.GameObjects.Container {
     bg.on('pointerover', () => bg.setFillStyle(PAL.bgBtnHover));
     bg.on('pointerout',  () => bg.setFillStyle(PAL.bgSpeedBtn));
     bg.on(TAP_EVENT,   onOpen);
+
+    // Advance left cursor past gear button
+    this._leftCursorX = cx + btnW / 2 + (_IS_MOBILE ? 8 : 6);
   }
 
   // ── boss warning ──────────────────────────────────────────────────────────
@@ -735,10 +761,10 @@ export class HUD extends Phaser.GameObjects.Container {
    * Only call when ascensionLevel > 0.
    */
   createAscensionBadge(ascensionLevel: number): void {
-    const { width } = this.scene.scale;
     const cy = HUD_HEIGHT / 2;
-    // Position to the left of the wave text (wave text is right-aligned near width-PADDING-SAFE_INSET).
-    const bx = width - PADDING - SAFE_INSET - 110;
+    // Position to the left of the wave text, using the right cursor
+    const badgeW = 36;
+    const bx = this._rightCursorX - badgeW / 2;
 
     const bg = this.scene.add.rectangle(bx, cy, 36, 22, 0x331111)
       .setStrokeStyle(1, 0xff4444)
@@ -752,6 +778,9 @@ export class HUD extends Phaser.GameObjects.Container {
       fontStyle:  'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.add(this._ascensionBadge);
+
+    // Advance right cursor leftward past the badge
+    this._rightCursorX = bx - badgeW / 2 - (_IS_MOBILE ? 8 : 6);
   }
 
   /**
@@ -810,9 +839,11 @@ export class HUD extends Phaser.GameObjects.Container {
   createOffersButton(getActiveOffers: () => OfferDef[]): void {
     const btnW = _IS_MOBILE ? 84 : 76;
     const btnH = _IS_MOBILE ? 44 : 30;
-    // Position to the right of gold counter — offset further right on mobile to avoid overlap.
-    const cx   = _IS_MOBILE ? 840 : 775;
-    const cy   = HUD_HEIGHT / 2;
+    // Position relative to the gold counter — always to its right with a gap.
+    const goldRight = this.goldText.x + this.goldText.width / 2;
+    const gap = _IS_MOBILE ? 20 : 12;
+    const cx  = goldRight + gap + btnW / 2;
+    const cy  = HUD_HEIGHT / 2;
 
     this._offersBtnBg = this.scene.add.rectangle(cx, cy, btnW, btnH, 0x0e1e0e)
       .setStrokeStyle(1, PAL.accentGreenN)
@@ -820,7 +851,7 @@ export class HUD extends Phaser.GameObjects.Container {
       .setDepth(DEPTH + 2);
 
     this.scene.add.text(cx, cy, '★ BUFFS', {
-      fontSize:   '11px',
+      fontSize:   _IS_MOBILE ? '14px' : '11px',
       color:      PAL.accentGreen,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',

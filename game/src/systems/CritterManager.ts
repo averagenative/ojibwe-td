@@ -99,6 +99,7 @@ export class CritterManager {
   private readonly _scene:    Phaser.Scene;
   private readonly _seed:     number;
   private readonly _tileSize: number;
+  private readonly _offsetX:  number;
 
   /** Pre-computed list of buildable tile centres (world coords). */
   private readonly _buildableTiles: Array<{ x: number; y: number; col: number; row: number }> = [];
@@ -114,10 +115,12 @@ export class CritterManager {
     mapData:  MapData,
     regionId: string,
     isMobile: boolean,
+    offsetX = 0,
   ) {
     this._scene    = scene;
     this._seed     = mapIdToSeed(mapData.id);
     this._tileSize = mapData.tileSize;
+    this._offsetX  = offsetX;
 
     this._buildTileLists(mapData);
 
@@ -146,7 +149,7 @@ export class CritterManager {
 
   /** Notify critters that a tower was placed at (col, row). Nearby critters flee. */
   notifyTowerPlaced(col: number, row: number): void {
-    const tx = col * this._tileSize + this._tileSize / 2;
+    const tx = col * this._tileSize + this._tileSize / 2 + this._offsetX;
     const ty = row * this._tileSize + this._tileSize / 2;
     this._triggerFleeNear(tx, ty);
   }
@@ -172,7 +175,7 @@ export class CritterManager {
     const { tiles, rows, cols, tileSize: ts } = mapData;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        const cx = c * ts + ts / 2;
+        const cx = c * ts + ts / 2 + this._offsetX;
         const cy = r * ts + ts / 2;
         if (tiles[r][c] === TILE.BUILDABLE) {
           this._buildableTiles.push({ x: cx, y: cy, col: c, row: r });

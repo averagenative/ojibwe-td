@@ -10,7 +10,7 @@ import { UpgradeManager } from '../systems/UpgradeManager';
 import { OfferManager } from '../systems/OfferManager';
 import { calculateRunCurrency, calculateSellRefund } from '../systems/EconomyManager';
 import { towerEffectiveDPS } from '../systems/BalanceCalc';
-import { HUD, getHudHeight } from '../ui/HUD';
+import { HUD, getHudHeight, MAP_OFFSET_X } from '../ui/HUD';
 import { TowerPanel, PANEL_HEIGHT } from '../ui/TowerPanel';
 import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
@@ -209,6 +209,11 @@ export class GameScene extends Phaser.Scene {
 
   // ── HUD focus state (mobile: tap map to dim UI, tap UI to restore) ─────
   private _hudDimmed = false;
+  private _bottomDimOverlay!: Phaser.GameObjects.Rectangle;
+
+  // ── map centering ──────────────────────────────────────────────────────
+  /** Computed horizontal offset to centre the map, at least MAP_OFFSET_X. */
+  private _mapOffsetX = 0;
 
   // ── performance systems ───────────────────────────────────────────────────
   /**
@@ -471,6 +476,10 @@ export class GameScene extends Phaser.Scene {
     // (Creep reads ignoreArmorAndImmunity; Tower reads tileSize for AoE radius).
     this.data.set('commanderState', this.commanderState);
     this.data.set('tileSize', this.mapData.tileSize);
+    // Centre the map horizontally, ensuring at least SAFE_INSET padding on left
+    const mapPixelW = this.mapData.cols * this.mapData.tileSize;
+    this._mapOffsetX = Math.max(MAP_OFFSET_X, Math.floor((this.scale.width - mapPixelW) / 2));
+    this.data.set('mapOffsetX', this._mapOffsetX);
 
     this.renderMap();
 
@@ -491,12 +500,13 @@ export class GameScene extends Phaser.Scene {
         this.mapData,
         regionId,
         mobile,
+        this._mapOffsetX,
       );
     }
 
     // ── Performance systems ───────────────────────────────────────────────
     // Spatial grid: cell size 80px over the full map canvas.
-    const mapW = this.mapData.cols * this.mapData.tileSize;
+    const mapW = this.mapData.cols * this.mapData.tileSize + this._mapOffsetX;
     const mapH = this.mapData.rows * this.mapData.tileSize;
     this.spatialGrid = new SpatialGrid<Creep>(80, mapW, mapH);
 
@@ -845,6 +855,12 @@ export class GameScene extends Phaser.Scene {
       ? ALL_TOWER_DEFS.filter(d => !(this.challengeModifier!.bannedTowers ?? []).includes(d.key))
       : ALL_TOWER_DEFS;
     new TowerPanel(this, panelDefs, (def, isDrag) => this.enterPlacementMode(def, isDrag), () => this.gold);
+
+    // Dim overlay for bottom panel — hidden by default, shown when HUD is dimmed
+    this._bottomDimOverlay = this.add.rectangle(
+      this.scale.width / 2, this.scale.height - PANEL_HEIGHT / 2,
+      this.scale.width, PANEL_HEIGHT, 0x000000, 0.65,
+    ).setDepth(95).setVisible(false);
 
     // Upgrade panel (above tower panel — shown when a tower is selected)
     this.upgradePanel = new UpgradePanel(
@@ -1242,6 +1258,7 @@ export class GameScene extends Phaser.Scene {
     this._hudDimmed = dim;
     const alpha = dim ? 0.3 : 1.0;
     this.hud.setAlpha(alpha);
+    this._bottomDimOverlay.setVisible(dim);
   }
 
   /**
@@ -1352,7 +1369,7 @@ export class GameScene extends Phaser.Scene {
     const ts    = this.mapData.tileSize;
     const paths = getWaypointPaths(this.mapData);
     return paths.map(path => path.map(wp => ({
-      x: wp.col * ts + ts / 2,
+      x: wp.col * ts + ts / 2 + this._mapOffsetX,
       y: wp.row * ts + ts / 2,
     })));
   }
@@ -1376,7 +1393,7 @@ export class GameScene extends Phaser.Scene {
       mapPaths.push(...getAirWaypointPaths(this.mapData, groundPath));
     }
     return mapPaths.map(path =>
-      path.map(wp => ({ x: wp.col * ts + ts / 2, y: wp.row * ts + ts / 2 }))
+      path.map(wp => ({ x: wp.col * ts + ts / 2 + this._mapOffsetX, y: wp.row * ts + ts / 2 }))
     );
   }
 
@@ -1387,7 +1404,7 @@ export class GameScene extends Phaser.Scene {
 
     // Procedural terrain — base layer (depth 0) + decorative scatter (depth 1).
     // Store decoGfx so the dev debug toggle (D key) can hide decorations.
-    const terrainResult = renderTerrain(this, this.mapData, season);
+    const terrainResult = renderTerrain(this, this.mapData, season, this._mapOffsetX);
     this.decoGfx = terrainResult.decoGfx;
 
     // On mobile, hide terrain decorations by default to reduce rendering overhead.
@@ -1405,7 +1422,7 @@ export class GameScene extends Phaser.Scene {
     for (const path of this.waypointPaths) {
       if (path.length > 0) {
         const spawnY = path[0].y;
-        markerGfx.fillTriangle(0, spawnY - 8, 0, spawnY + 8, 12, spawnY);
+        markerGfx.fillTriangle(this._mapOffsetX, spawnY - 8, this._mapOffsetX, spawnY + 8, this._mapOffsetX + 12, spawnY);
       }
     }
 
@@ -1413,9 +1430,9 @@ export class GameScene extends Phaser.Scene {
     const exitWp = this.waypoints[this.waypoints.length - 1];
     markerGfx.fillStyle(PAL.dangerN, 0.6);
     markerGfx.fillTriangle(
-      this.scale.width - 12, exitWp.y - 8,
-      this.scale.width - 12, exitWp.y + 8,
-      this.scale.width, exitWp.y,
+      this.scale.width - 12 - this._mapOffsetX, exitWp.y - 8,
+      this.scale.width - 12 - this._mapOffsetX, exitWp.y + 8,
+      this.scale.width - this._mapOffsetX, exitWp.y,
     );
   }
 
@@ -1453,6 +1470,13 @@ export class GameScene extends Phaser.Scene {
     const bottomLimit = this.scale.height
       - PANEL_HEIGHT
       - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
+
+    // Restore HUD opacity when tapping UI areas (HUD strip or bottom panel)
+    if (MobileManager.getInstance().isMobile() && this._hudDimmed) {
+      if (ptr.y < hudHeight || ptr.y > this.scale.height - PANEL_HEIGHT) {
+        this._setHudDimmed(false);
+      }
+    }
 
     if (ptr.y < hudHeight || ptr.y > bottomLimit) return;
 
@@ -1495,9 +1519,10 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Mobile: toggle HUD dim when tapping the map area (not on a tower).
+    // Mobile: dim HUD when tapping the map area (not on a tower).
+    // Tapping UI areas restores opacity (handled above in onPointerDown).
     if (isMobile) {
-      this._setHudDimmed(!this._hudDimmed);
+      this._setHudDimmed(true);
     }
 
     // Start region-select tracking.  Deselect happens in onPointerUp if no drag.
@@ -1621,7 +1646,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.placementDef) return;
     const { col, row } = this.worldToTile(ptr.x, ptr.y);
     const ts = this.mapData.tileSize;
-    const cx = col * ts + ts / 2;
+    const cx = col * ts + ts / 2 + this._mapOffsetX;
     const cy = row * ts + ts / 2;
     const valid = this.isBuildable(col, row) && !this.isTileOccupied(col, row);
 
@@ -2126,7 +2151,7 @@ export class GameScene extends Phaser.Scene {
     this._removeRubble(col, row);
 
     const ts      = this.mapData.tileSize;
-    const cx      = col * ts + ts / 2;
+    const cx      = col * ts + ts / 2 + this._mapOffsetX;
     const cy      = row * ts + ts / 2;
     const variant = Math.floor(Math.random() * 3) + 1;  // 1, 2, or 3
     const sprite  = this.add
@@ -2160,7 +2185,7 @@ export class GameScene extends Phaser.Scene {
 
   private worldToTile(worldX: number, worldY: number): { col: number; row: number } {
     const ts = this.mapData.tileSize;
-    return { col: Math.floor(worldX / ts), row: Math.floor(worldY / ts) };
+    return { col: Math.floor((worldX - this._mapOffsetX) / ts), row: Math.floor(worldY / ts) };
   }
 
   private isBuildable(col: number, row: number): boolean {

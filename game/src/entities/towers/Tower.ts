@@ -145,7 +145,8 @@ export class Tower extends Phaser.GameObjects.Container {
     commanderState?: CommanderRunState,
     queryCreepsInRadius?: (x: number, y: number, radius: number) => readonly Creep[],
   ) {
-    const px = tileCol * tileSize + tileSize / 2;
+    const mapOffsetX = (scene.data?.get('mapOffsetX') as number) ?? 0;
+    const px = tileCol * tileSize + tileSize / 2 + mapOffsetX;
     const py = tileRow * tileSize + tileSize / 2;
     super(scene, px, py);
 

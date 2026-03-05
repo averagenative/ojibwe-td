@@ -145,7 +145,7 @@ export class MetaMenuScene extends Phaser.Scene {
     }
 
     // Navigation buttons — use _navigateTo() so the ambiance fades out smoothly
-    const btnY = height - (this._isMobile ? 54 : 50);
+    const btnY = height - (this._isMobile ? 64 : 60);
     this.makeButton(cx - 220, btnY, 'BACK', () => {
       this._navigateTo('MainMenuScene');
     });
@@ -155,6 +155,23 @@ export class MetaMenuScene extends Phaser.Scene {
     this.makeButton(cx + 220, btnY, 'CHALLENGES', () => {
       this._navigateTo('ChallengeSelectScene');
     });
+
+    // Swipe-right to go back (mobile only)
+    if (this._isMobile) {
+      let swipeStartX = 0;
+      let swipeStartY = 0;
+      this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+        swipeStartX = ptr.x;
+        swipeStartY = ptr.y;
+      });
+      this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+        const dx = ptr.x - swipeStartX;
+        const dy = ptr.y - swipeStartY;
+        if (dx > 100 && Math.abs(dy) < 50) {
+          this._navigateTo('MainMenuScene');
+        }
+      });
+    }
   }
 
   /**

@@ -80,8 +80,8 @@ describe('region text font sizes', () => {
     expect(mainMenuSrc).toContain('fontSize: this._fs(10), color: PAL.textMuted');
   });
 
-  it('SELECT REGION label uses _fs(12) (bumped from 11)', () => {
-    expect(mainMenuSrc).toContain("fontSize: this._fs(12), color: PAL.textMuted, fontFamily: PAL.fontBody,\n    }).setOrigin(0.5).setDepth(DEPTH_REGION)");
+  it('SELECT REGION label uses _fs(16) on mobile, _fs(12) on desktop', () => {
+    expect(mainMenuSrc).toContain("fontSize: this._fs(this._isMobile ? 16 : 12), color: PAL.textMuted, fontFamily: PAL.fontBody,\n    }).setOrigin(0.5).setDepth(DEPTH_REGION)");
   });
 
   it('SELECT STAGE label uses _fs(12) (bumped from 11)', () => {

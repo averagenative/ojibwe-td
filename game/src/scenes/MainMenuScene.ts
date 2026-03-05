@@ -345,7 +345,7 @@ export class MainMenuScene extends Phaser.Scene {
     // when multiple stages are visible.
     const { width } = this.scale;
     const cx = width / 2;
-    const logoX = this._isMobile ? cx - 310 : cx - (STAGE_W / 2) - 120;
+    const logoX = this._isMobile ? cx - 340 : cx - (STAGE_W / 2) - 120;
     const logoY = anchorY;
 
     const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
@@ -359,8 +359,8 @@ export class MainMenuScene extends Phaser.Scene {
 
       // Scale to fit — larger on mobile for better visibility.
       const aspect   = logoImg.width / logoImg.height;
-      const maxH     = this._isMobile ? 160 : 180;
-      const maxW     = this._isMobile ? 150 : 200;
+      const maxH     = this._isMobile ? 200 : 180;
+      const maxW     = this._isMobile ? 190 : 200;
       const finalH   = Math.min(maxH, maxW / aspect);
       const finalW   = finalH * aspect;
       logoImg.setDisplaySize(finalW, finalH);
@@ -432,7 +432,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   private createHeader(cx: number, labelY: number): void {
     this.add.text(cx, labelY, 'SELECT REGION', {
-      fontSize: this._fs(12), color: PAL.textMuted, fontFamily: PAL.fontBody,
+      fontSize: this._fs(this._isMobile ? 16 : 12), color: PAL.textMuted, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_REGION);
   }
 
@@ -623,7 +623,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     const nameColor = isLocked ? PAL.textLocked : '#ffffff';
     const nameText = this.add.text(bx, by - sh / 2 + 18, stage.name, {
-      fontSize: this._fs(16), color: nameColor, fontFamily: PAL.fontBody, fontStyle: 'bold',
+      fontSize: this._fs(18), color: nameColor, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_STAGE + 1);
     created.push(nameText);
 
@@ -649,32 +649,27 @@ export class MainMenuScene extends Phaser.Scene {
     // This prevents it from growing down into the affinity-dot row.
     const descY = by - sh / 2 + 72;
     const desc = this.add.text(bx, descY, stage.description, {
-      fontSize: this._fs(10), color: descColor, fontFamily: PAL.fontBody,
+      fontSize: this._fs(12), color: descColor, fontFamily: PAL.fontBody,
       wordWrap: { width: STAGE_W - 24 }, align: 'center',
     }).setOrigin(0.5, 0).setDepth(DEPTH_STAGE + 1);
     created.push(desc);
 
-    // ── Map thumbnail preview ──────────────────────────────────────────────
+    // ── Map preview as transparent card background ────────────────────────
     const mapData = this.cache.json.has(stage.pathFile)
       ? (this.cache.json.get(stage.pathFile) as MapData)
       : null;
     if (mapData) {
-      const tileScale = this._isMobile ? 2 : 1;
+      // Scale the map to fill the card width; center vertically.
+      const tileScale = (STAGE_W - 8) / mapData.cols;
       const thumbW    = mapData.cols * tileScale;
       const thumbH    = mapData.rows * tileScale;
-      const thumbTop  = by - sh / 2 + 100;
       const thumbLeft = bx - thumbW / 2;
-      const thumbGfx  = this.add.graphics().setDepth(DEPTH_STAGE + 1);
-
-      // Subtle dark backdrop for contrast
-      thumbGfx.fillStyle(0x000000, 0.3);
-      thumbGfx.fillRect(thumbLeft - 1, thumbTop - 1, thumbW + 2, thumbH + 2);
+      const thumbTop  = by - Math.min(thumbH, sh) / 2;
+      const thumbGfx  = this.add.graphics().setDepth(DEPTH_STAGE + 0.5);
 
       this._drawMapThumbnail(thumbGfx, thumbLeft, thumbTop, mapData, tileScale);
-
-      // Thin border
-      thumbGfx.lineStyle(1, 0x445544, 0.6);
-      thumbGfx.strokeRect(thumbLeft - 1, thumbTop - 1, thumbW + 2, thumbH + 2);
+      // Low alpha so text remains legible over the map
+      thumbGfx.setAlpha(0.25);
 
       created.push(thumbGfx);
     }
@@ -826,7 +821,7 @@ export class MainMenuScene extends Phaser.Scene {
   private _buildMobileButtons(
     cx: number, width: number, height: number, stageBottom: number, hasResume: boolean,
   ): void {
-    const btnH    = 56;
+    const btnH    = 90;
     const halfW   = 220;  // each side-by-side button
     const gap     = 14;
     const resumeH = 52;
@@ -834,7 +829,7 @@ export class MainMenuScene extends Phaser.Scene {
     // Bottom row sizing (4 buttons)
     const navBtnW = Math.min(130, (width - 80) / 4);
     const navBtnH = 44;
-    const navY    = height - 28 - navBtnH / 2;
+    const navY    = height - 54 - navBtnH / 2;
 
     // START + QUICK PLAY row sits above bottom nav
     const startRowY = navY - navBtnH / 2 - 16 - btnH / 2;
@@ -1252,8 +1247,8 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private createAudioButton(width: number, height: number): void {
-    const btnSize = this._isMobile ? 48 : 40;
-    const pad     = 12;
+    const btnSize = this._isMobile ? 56 : 40;
+    const pad     = this._isMobile ? 44 : 12;
     const bx      = width  - pad - btnSize / 2;
     const by      = height - pad - btnSize / 2;
 
@@ -1263,7 +1258,7 @@ export class MainMenuScene extends Phaser.Scene {
       .setDepth(DEPTH_BUTTONS);
 
     this.add.text(bx, by, '⚙', {
-      fontSize:   this._isMobile ? '20px' : '16px',
+      fontSize:   this._isMobile ? '24px' : '16px',
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH_BUTTONS + 1);
 
@@ -1282,7 +1277,8 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private createFooter(cx: number, height: number): void {
-    this.add.text(cx, height - 14, 'v0.1.4 · Inspired by Green TD', {
+    const footerY = this._isMobile ? height - 40 : height - 14;
+    this.add.text(cx, footerY, 'v0.1.4 · Inspired by Green TD', {
       fontSize: this._fs(11), color: PAL.textFaint, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BG + 1);
   }

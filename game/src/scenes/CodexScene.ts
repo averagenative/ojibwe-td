@@ -149,6 +149,23 @@ export class CodexScene extends Phaser.Scene {
 
     // Back button
     this.createBackButton(cx, height);
+
+    // Swipe-right to go back (mobile only)
+    if (this._isMobile) {
+      let swipeStartX = 0;
+      let swipeStartY = 0;
+      this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+        swipeStartX = ptr.x;
+        swipeStartY = ptr.y;
+      });
+      this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+        const dx = ptr.x - swipeStartX;
+        const dy = ptr.y - swipeStartY;
+        if (dx > 100 && Math.abs(dy) < 50) {
+          this._go(this.returnTo, this.returnData);
+        }
+      });
+    }
   }
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -626,7 +643,7 @@ export class CodexScene extends Phaser.Scene {
   private createBackButton(cx: number, height: number): void {
     // Ensure 44px minimum tap target on mobile.
     const btnH = this._isMobile ? 44 : 40;
-    const btnY = height - (this._isMobile ? btnH / 2 + 8 : 36);
+    const btnY = height - (this._isMobile ? btnH / 2 + 20 : 46);
 
     // MARK ALL READ button (left of center)
     const markBg = this.add.rectangle(cx - 120, btnY, 190, btnH, 0x0a1a0a)

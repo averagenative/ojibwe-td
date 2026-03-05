@@ -15,9 +15,11 @@ import { ALL_CHALLENGES, getFeaturedChallengeId, getUnlockedChallenges } from '.
 import type { ChallengeDef } from '../data/challengeDefs';
 import { SaveManager } from '../meta/SaveManager';
 import { PAL } from '../ui/palette';
-import { TAP_EVENT } from '../systems/MobileManager';
+import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
+
+const _IS_MOBILE = MobileManager.getInstance().isMobile();
 
 const CARD_W      = 560;
 const CARD_H      = 130;
@@ -26,7 +28,7 @@ const CARD_PAD_X  = 20;
 const CARD_TOP    = 110;
 
 /** Height reserved at the bottom of the screen for the BACK button strip. */
-const BACK_AREA_H = 64;
+const BACK_AREA_H = 90;
 
 // ── Scroll constants ──────────────────────────────────────────────────────────
 
@@ -101,14 +103,14 @@ export class ChallengeSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.add.text(cx, 70, `Crystals: ${save.getCurrency()}`, {
-      fontSize:   '16px',
+      fontSize:   _IS_MOBILE ? '22px' : '16px',
       color:      PAL.gold,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
     this.add.text(cx, 92, 'Complete challenges for guaranteed gear drops', {
-      fontSize:   '12px',
+      fontSize:   _IS_MOBILE ? '16px' : '12px',
       color:      PAL.textDim,
       fontFamily: PAL.fontBody,
       fontStyle:  'italic',
@@ -192,11 +194,13 @@ export class ChallengeSelectScene extends Phaser.Scene {
     );
 
     // Begin drag — record anchor point
+    let swipeStartX = 0;
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
       this._isDragging       = true;
       this._dragStartY       = ptr.y;
       this._dragStartScrollY = this.cameras.main.scrollY;
       this._scrollVelocity   = 0;
+      swipeStartX            = ptr.x;
     });
 
     // Drag move — update scroll and capture per-frame delta for momentum
@@ -219,8 +223,14 @@ export class ChallengeSelectScene extends Phaser.Scene {
     });
 
     // Release — keep momentum; update() applies it frame-by-frame
-    this.input.on('pointerup', () => {
+    this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
       this._isDragging = false;
+      // Swipe-right to go back
+      const dx = ptr.x - swipeStartX;
+      const dy = ptr.y - this._dragStartY;
+      if (dx > 100 && Math.abs(dy) < 50) {
+        this.scene.start('MainMenuScene');
+      }
     });
   }
 
@@ -323,7 +333,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
     // Name
     const nameColor = isUnlocked ? PAL.textPrimary : PAL.textLocked;
     this.add.text(leftX, y + 12, challenge.name, {
-      fontSize:   '18px',
+      fontSize:   _IS_MOBILE ? '24px' : '18px',
       color:      nameColor,
       fontFamily: PAL.fontTitle,
       fontStyle:  'bold',
@@ -332,7 +342,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
     // Description
     const descColor = isUnlocked ? PAL.textDesc : PAL.textLockedDim;
     this.add.text(leftX, y + 36, challenge.description, {
-      fontSize:  '12px',
+      fontSize:  _IS_MOBILE ? '16px' : '12px',
       color:     descColor,
       fontFamily: PAL.fontBody,
       wordWrap:  { width: CARD_W - CARD_PAD_X * 2 - 140 },
@@ -340,7 +350,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
 
     // Modifier text — starts at y+70 to clear a potential 2-line description
     this.add.text(leftX, y + 70, challenge.modifier.description, {
-      fontSize:   '10px',
+      fontSize:   _IS_MOBILE ? '14px' : '10px',
       color:      isUnlocked ? PAL.textDim : PAL.textLockedDim,
       fontFamily: PAL.fontBody,
       fontStyle:  'italic',
@@ -349,7 +359,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
 
     // Wave count
     this.add.text(leftX, y + CARD_H - 26, `${challenge.modifier.waveCount} waves`, {
-      fontSize:   '10px',
+      fontSize:   _IS_MOBILE ? '14px' : '10px',
       color:      isUnlocked ? PAL.textMuted : PAL.textLockedDim,
       fontFamily: PAL.fontBody,
     });
@@ -366,7 +376,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
         .setStrokeStyle(1, rarityBadge.num)
         .setAlpha(0.8);
       this.add.text(rightX - 50, y + 18, `${badgeLabel}+`, {
-        fontSize:   '11px',
+        fontSize:   _IS_MOBILE ? '15px' : '11px',
         color:      rarityBadge.hex,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -393,7 +403,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
       this.add.rectangle(cx, y + CARD_H / 2, CARD_W, CARD_H, 0x000000)
         .setAlpha(0.4);
       this.add.text(rightX - 50, y + CARD_H - 30, `Requires ${challenge.unlockThreshold} crystals`, {
-        fontSize:   '11px',
+        fontSize:   _IS_MOBILE ? '15px' : '11px',
         color:      PAL.textLocked,
         fontFamily: PAL.fontBody,
       }).setOrigin(0.5);
@@ -414,7 +424,7 @@ export class ChallengeSelectScene extends Phaser.Scene {
     // Gold multiplier
     if (challenge.modifier.goldMult !== 1.0) {
       this.add.text(leftX + 80, y + CARD_H - 26, `Gold x${challenge.modifier.goldMult}`, {
-        fontSize:   '10px',
+        fontSize:   _IS_MOBILE ? '14px' : '10px',
         color:      isUnlocked ? PAL.gold : PAL.textLockedDim,
         fontFamily: PAL.fontBody,
       });

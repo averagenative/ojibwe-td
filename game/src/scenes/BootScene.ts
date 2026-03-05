@@ -117,34 +117,34 @@ export class BootScene extends Phaser.Scene {
     this.add.rectangle(cx, cy, width, height, PAL.bgDark);
 
     // Logo — upper-center, scaled to fill more of the screen on mobile
-    const logoScale = mob ? 0.75 : 0.45;
-    const logoY = mob ? cy - 100 : cy - 80;
+    const logoScale = mob ? 0.95 : 0.45;
+    const logoY = mob ? cy - 130 : cy - 80;
     if (this.textures.exists('logo')) {
       this.add.image(cx, logoY, 'logo').setScale(logoScale);
     }
 
     // Title text below logo
-    const titleOffset = mob ? 160 : 115;
+    const titleOffset = mob ? 180 : 115;
     this.add.text(cx, logoY + titleOffset, 'Ojibwe TD', {
-      fontSize: mob ? '52px' : '32px',
+      fontSize: mob ? '58px' : '32px',
       color: PAL.textPrimary,
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     // Subtitle below title
-    const subOffset = mob ? 200 : 145;
+    const subOffset = mob ? 220 : 145;
     this.add.text(cx, logoY + subOffset, 'A Tower Defense Game', {
-      fontSize: mob ? '22px' : '14px',
+      fontSize: mob ? '28px' : '14px',
       color: PAL.textDim,
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
     // PLAY button — below the subtitle, rounded on mobile
-    const btnW = mob ? 260 : 180;
-    const btnH = mob ? 72 : 50;
-    const btnY = mob ? logoY + 270 : logoY + 200;
-    const btnR = mob ? 16 : 0;
+    const btnW = mob ? 320 : 180;
+    const btnH = mob ? 80 : 50;
+    const btnY = mob ? logoY + 290 : logoY + 200;
+    const btnR = mob ? 20 : 0;
 
     // Use Graphics for rounded rect on mobile, plain rect on desktop
     const btnGfx = this.add.graphics().setDepth(0);
@@ -168,7 +168,7 @@ export class BootScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     const btnText = this.add.text(cx, btnY, 'PLAY', {
-      fontSize: mob ? '38px' : '26px',
+      fontSize: mob ? '40px' : '26px',
       color: PAL.textPrimary,
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
@@ -194,11 +194,10 @@ export class BootScene extends Phaser.Scene {
       this.scene.start('MainMenuScene');
     });
 
-    // Gentle pulse on the button text (zone can't tween scale easily)
+    // Gentle alpha pulse on the button text (avoids sub-pixel rendering artifacts)
     this.tweens.add({
       targets: btnText,
-      scaleX: 1.04,
-      scaleY: 1.04,
+      alpha: { from: 1.0, to: 0.6 },
       duration: 900,
       yoyo: true,
       repeat: -1,

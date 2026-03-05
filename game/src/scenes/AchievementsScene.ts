@@ -93,9 +93,26 @@ export class AchievementsScene extends Phaser.Scene {
     this._renderCategory(cx, contentY, this._activeCategory, height);
 
     // Back button
-    this._makeButton(cx, height - (this._isMobile ? 40 : 34), 'BACK', () => {
+    this._makeButton(cx, height - (this._isMobile ? 54 : 48), 'BACK', () => {
       this.scene.start(this._returnTo);
     });
+
+    // Swipe-right to go back (mobile only)
+    if (this._isMobile) {
+      let swipeStartX = 0;
+      let swipeStartY = 0;
+      this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+        swipeStartX = ptr.x;
+        swipeStartY = ptr.y;
+      });
+      this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+        const dx = ptr.x - swipeStartX;
+        const dy = ptr.y - swipeStartY;
+        if (dx > 100 && Math.abs(dy) < 50) {
+          this.scene.start(this._returnTo);
+        }
+      });
+    }
   }
 
   // ── Background ─────────────────────────────────────────────────────────────

@@ -20,7 +20,8 @@ import { PAL } from './palette';
 import { SaveManager } from '../meta/SaveManager';
 
 const DEPTH      = 200;
-const PANEL_W    = 360;
+const _IS_MOBILE = MobileManager.getInstance().isMobile();
+const PANEL_W    = _IS_MOBILE ? 500 : 360;
 const VOL_STEP   = 10; // % per +/− press
 
 // ── Colours reused across the panel ─────────────────────────────────────────
@@ -122,7 +123,7 @@ export class AudioSettingsPanel {
     let y = cy - panelH / 2 + padV + titleH / 2;
     this._reg(
       this.scene.add.text(cx, y, '⚙  AUDIO SETTINGS', {
-        fontSize:   m ? '16px' : '14px',
+        fontSize:   m ? '22px' : '14px',
         color:      PAL.textPrimary,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -171,7 +172,7 @@ export class AudioSettingsPanel {
     );
     const masterLabel = this._reg(
       this.scene.add.text(cx, y + btnH / 2, this._masterText(am.isMuted()), {
-        fontSize:   m ? '13px' : '12px',
+        fontSize:   m ? '18px' : '12px',
         color:      am.isMuted() ? PAL.danger : PAL.accentGreen,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -206,7 +207,7 @@ export class AudioSettingsPanel {
 
     const cbLabel = this._reg(
       this.scene.add.text(cx, y + btnH / 2, this._cbText(cbInitial), {
-        fontSize:   m ? '13px' : '12px',
+        fontSize:   m ? '18px' : '12px',
         color:      cbInitial ? PAL.accentGreen : PAL.textNeutral,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -237,7 +238,7 @@ export class AudioSettingsPanel {
     );
     this._reg(
       this.scene.add.text(cx, y + btnH / 2, 'CLOSE', {
-        fontSize:   m ? '14px' : '12px',
+        fontSize:   m ? '20px' : '12px',
         color:      PAL.textNeutral,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -283,7 +284,7 @@ export class AudioSettingsPanel {
     // ── Channel label ────────────────────────────────────────────────────
     this._reg(
       this.scene.add.text(col + labelW / 2, cy, label, {
-        fontSize:   m ? '12px' : '11px',
+        fontSize:   m ? '17px' : '11px',
         color:      PAL.textNeutral,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -302,7 +303,7 @@ export class AudioSettingsPanel {
 
     const toggleLabel = this._reg(
       this.scene.add.text(col + toggleW / 2, cy, initialMuted ? 'OFF' : 'ON', {
-        fontSize:   m ? '12px' : '11px',
+        fontSize:   m ? '17px' : '11px',
         color:      initialMuted ? PAL.danger : PAL.accentGreen,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -332,7 +333,7 @@ export class AudioSettingsPanel {
     ) as Phaser.GameObjects.Rectangle;
     this._reg(
       this.scene.add.text(col + adjBtnW / 2, cy, '−', {
-        fontSize:   m ? '18px' : '16px',
+        fontSize:   m ? '25px' : '16px',
         color:      PAL.textNeutral,
         fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3),
@@ -350,7 +351,7 @@ export class AudioSettingsPanel {
     // ── Volume display ──────────────────────────────────────────────────────
     const volText = this._reg(
       this.scene.add.text(col + volW / 2, cy, `${Math.round(initialVol * 100)}%`, {
-        fontSize:   m ? '12px' : '11px',
+        fontSize:   m ? '17px' : '11px',
         color:      PAL.textNeutral,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
@@ -368,7 +369,7 @@ export class AudioSettingsPanel {
     ) as Phaser.GameObjects.Rectangle;
     this._reg(
       this.scene.add.text(col + adjBtnW / 2, cy, '+', {
-        fontSize:   m ? '18px' : '16px',
+        fontSize:   m ? '25px' : '16px',
         color:      PAL.textNeutral,
         fontFamily: PAL.fontBody,
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3),

@@ -183,8 +183,8 @@ describe('HUD — createRushWaveButton()', () => {
     expect(hudSrc).toContain('createRushWaveButton(onClick: () => void, rushGold: number)');
   });
 
-  it('positions the button at cx=960', () => {
-    expect(hudSrc).toContain('const cx   = 960;');
+  it('positions the button relative to the right cursor', () => {
+    expect(hudSrc).toContain('const cx   = this._rightCursorX - btnW / 2;');
   });
 
   it('uses width=180 for the button', () => {
