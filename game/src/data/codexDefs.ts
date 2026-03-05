@@ -437,6 +437,51 @@ const TEACHINGS: CodexEntryDef[] = [
     ],
     reviewed: false,
   },
+  {
+    id:        'codex-teaching-ice-fishing',
+    section:   CodexSection.TEACHINGS,
+    title:     'On Ice Fishing',
+    tileColor: 0x88bbdd,
+    iconKey:   'teaching-ice-fishing',
+    lines: [
+      'When the lakes freeze, the Anishinaabe do not despair.',
+      'They cut holes in the ice and wait with patience.',
+      'The fish are still there — beneath the surface,',
+      'moving slowly in the cold dark water.',
+      'Patience feeds the people when urgency cannot.',
+    ],
+    reviewed: false,
+  },
+  {
+    id:        'codex-teaching-winter-rest',
+    section:   CodexSection.TEACHINGS,
+    title:     'On Winter Rest',
+    tileColor: 0x99aacc,
+    iconKey:   'teaching-winter-rest',
+    lines: [
+      'Biboon — winter — is the season of rest.',
+      'The bear sleeps in its den. The trees pull inward.',
+      'Even the rivers slow beneath their ice.',
+      'Rest is not idleness. It is preparation.',
+      'Without winter, spring has nothing to awaken.',
+    ],
+    reviewed: false,
+  },
+  {
+    id:        'codex-teaching-earth-wound',
+    section:   CodexSection.TEACHINGS,
+    title:     'On the Wounded Earth',
+    tileColor: 0x667799,
+    iconKey:   'teaching-earth-wound',
+    lines: [
+      'The earth carries wounds just as people do.',
+      'When the land is cut, when the balance is broken,',
+      'the sickness spreads outward like ripples on water.',
+      'To heal the wound, you must go to the source.',
+      'The land does not ask for vengeance. It asks for care.',
+    ],
+    reviewed: false,
+  },
 ];
 
 // ── All entries ──────────────────────────────────────────────────────────────

@@ -104,6 +104,22 @@ export const UNLOCK_NODES: UnlockNode[] = [
     prereqs:     ['unlock-stage-mitigomizh-01'],
     effect:      { type: 'stage', stageId: 'biboon-aki-01' },
   },
+  {
+    id:          'unlock-stage-biboon-aki-02',
+    label:       'Biboon-aki \u2014 Frozen Lake Pass',
+    description: 'Unlock the Frozen Lake Pass stage: a winding trail around a frozen lake with icy chokepoints.',
+    cost:        850,
+    prereqs:     ['unlock-stage-biboon-aki-01'],
+    effect:      { type: 'stage', stageId: 'biboon-aki-02' },
+  },
+  {
+    id:          'unlock-stage-biboon-aki-03',
+    label:       'Biboon-aki \u2014 Heart of the Storm',
+    description: 'Unlock the Heart of the Storm stage: the final approach to the source of the disturbance.',
+    cost:        1000,
+    prereqs:     ['unlock-stage-biboon-aki-02'],
+    effect:      { type: 'stage', stageId: 'biboon-aki-03' },
+  },
 ];
 
 /** Map IDs that require a meta-unlock to play. */

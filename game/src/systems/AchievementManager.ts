@@ -290,6 +290,8 @@ export class AchievementManager {
       'mitigomizh-02':    'clear-mitigomizh',
       'mitigomizh-03':    'clear-mitigomizh',
       'biboon-aki-01':    'clear-biboon-aki',
+      'biboon-aki-02':    'clear-biboon-aki',
+      'biboon-aki-03':    'clear-biboon-aki',
     };
     const clearId = stageClears[data.stageId];
     if (clearId) this._unlock(clearId);

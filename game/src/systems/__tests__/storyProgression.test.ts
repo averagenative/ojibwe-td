@@ -169,9 +169,9 @@ describe('vignetteDefs', () => {
     expect(act3).toHaveLength(6);
   });
 
-  it('Act 4 has 5 vignettes with regionId biboon-aki (two ending variants)', () => {
+  it('Act 4 has 8 vignettes with regionId biboon-aki (two ending variants)', () => {
     const act4 = ALL_VIGNETTES.filter(v => v.regionId === 'biboon-aki');
-    expect(act4).toHaveLength(5);
+    expect(act4).toHaveLength(8);
   });
 
   it('has exactly two STAGE_COMPLETE endings for biboon-aki', () => {

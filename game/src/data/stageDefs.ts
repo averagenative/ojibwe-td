@@ -156,6 +156,32 @@ export const ALL_STAGES: StageDef[] = [
     unlockCost:      700,
     creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
   },
+  {
+    id:              'biboon-aki-02',
+    regionId:        'biboon-aki',
+    name:            'Frozen Lake Pass',
+    description:     'A winding trail around a frozen lake. Ice and stone funnel creeps through narrow passages between snowdrifts.',
+    waveCount:       20,
+    pathFile:        'map-08',
+    difficulty:      5,
+    towerAffinities: ['frost', 'rock-hurler', 'aura'],
+    unlockId:        'unlock-stage-biboon-aki-02',
+    unlockCost:      850,
+    creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
+  },
+  {
+    id:              'biboon-aki-03',
+    regionId:        'biboon-aki',
+    name:            'Heart of the Storm',
+    description:     'The final approach to the source of the disturbance. Creeps weave through frozen ridges in a brutal gauntlet.',
+    waveCount:       20,
+    pathFile:        'map-09',
+    difficulty:      5,
+    towerAffinities: ['tesla', 'frost', 'poison'],
+    unlockId:        'unlock-stage-biboon-aki-03',
+    unlockCost:      1000,
+    creepRoster:     ['grunt', 'runner', 'brute', 'swarm', 'scout', 'flier'],
+  },
 ];
 
 // ── Region definitions ────────────────────────────────────────────────────────
@@ -190,7 +216,7 @@ export const ALL_REGIONS: RegionDef[] = [
     name:          'Biboon-aki',
     displayName:   'Biboon-aki (Winter Lands)',
     seasonalTheme: 'winter',
-    stages:        ['biboon-aki-01'],
+    stages:        ['biboon-aki-01', 'biboon-aki-02', 'biboon-aki-03'],
     lore:          'In Biboon-aki the world grows still and cold grants frost towers unnatural power — yet the same cold drives the enemy to advance with desperate urgency.',
   },
 ];

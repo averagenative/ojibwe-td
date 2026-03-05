@@ -141,25 +141,25 @@ export const PALETTES: Record<SeasonalTheme, SeasonPalette> = {
     birchLeafColor:   0xCC8820,  // orange-yellow autumn foliage
   },
   winter: {
-    groundBase:    0xb0bcc8,   // pale blue-grey snow
-    pathBase:      0x887060,   // frozen bare earth
-    pathEdge:      0x706050,
-    pathCenter:    0x998878,
-    gridLine:      0x98a4b0,
-    gridAlpha:     0.2,
-    treeColors:    [0x506060, 0x5a6868, 0x485858],  // bare grey branches
+    groundBase:    0xc8d4e0,   // white/light blue snow ground
+    pathBase:      0xa8b8c8,   // packed snow path (lighter, icy)
+    pathEdge:      0x90a0b0,   // white-edged path border
+    pathCenter:    0xd0dae4,   // lighter worn snow center
+    gridLine:      0xb0bcc8,
+    gridAlpha:     0.15,
+    treeColors:    [0x2a5a3a, 0x305a40, 0x284a38],  // dark green conifers (snow on top)
     trunkColor:    0x505050,
-    rockColor:     0x7888a0,   // cold grey stone
+    rockColor:     0x8898b0,   // light blue-grey frosted stone
     grassColor:    0x80a890,   // muted green-grey
-    accentOverlay: 0xe0e8f0,   // bright snow patches
-    accentAlpha:   0.25,
-    accentChance:  0.20,
-    pathStoneColor:   0x7888a0,  // cold grey stones
-    pathAccentColor:  0xd0dde8,  // frost / ice patches
-    pathAccentAlpha:  0.20,
-    pathAccentChance: 0.16,
-    brushColor:       0x6B8F3E,  // cattail marsh green
-    birchLeafColor:   0x7CA850,  // green canopy (dormant in winter but still rendered)
+    accentOverlay: 0xe8f0f8,   // bright snow patches
+    accentAlpha:   0.30,
+    accentChance:  0.25,
+    pathStoneColor:   0x8898b0,  // cold blue-grey stones
+    pathAccentColor:  0xd8e4f0,  // frost / ice patches
+    pathAccentAlpha:  0.25,
+    pathAccentChance: 0.20,
+    brushColor:       0x8a9070,  // frosted dormant cattail (grey-green)
+    birchLeafColor:   0xd0d8e0,  // snow-covered birch (white-grey)
   },
 };
 
@@ -200,6 +200,7 @@ function drawConifer(
   gfx: Phaser.GameObjects.Graphics,
   cx: number, cy: number,
   color: number, trunkColor: number, sizeHash: number,
+  winterSnow = false,
 ): void {
   const h = 10 + sizeHash * 4;
   const w = 5 + sizeHash * 3;
@@ -209,6 +210,15 @@ function drawConifer(
   // Slightly darker inner triangle for depth
   gfx.fillStyle(shiftBrightness(color, 0.8), 0.4);
   gfx.fillTriangle(cx, cy - h / 2 + 3, cx - w + 2, cy + h / 2 - 1, cx + w - 2, cy + h / 2 - 1);
+  // Snow caps on branches in winter
+  if (winterSnow) {
+    gfx.fillStyle(0xf0f4f8, 0.75);
+    gfx.fillTriangle(cx, cy - h / 2, cx - w * 0.6, cy - h / 2 + h * 0.3, cx + w * 0.6, cy - h / 2 + h * 0.3);
+    // Snow patches on lower branches
+    gfx.fillStyle(0xe8eef4, 0.5);
+    gfx.fillCircle(cx - w * 0.4, cy + h * 0.1, 2.5);
+    gfx.fillCircle(cx + w * 0.3, cy + h * 0.05, 2);
+  }
   // Trunk
   gfx.fillStyle(trunkColor, 0.8);
   gfx.fillRect(cx - 1, cy + h / 2 - 2, 2, 4);
@@ -228,24 +238,6 @@ function drawDeciduousTree(
   // Trunk
   gfx.fillStyle(trunkColor, 0.8);
   gfx.fillRect(cx - 1, cy + r - 5, 2, 5);
-}
-
-function drawBareTree(
-  gfx: Phaser.GameObjects.Graphics,
-  cx: number, cy: number,
-  color: number, sizeHash: number,
-): void {
-  const trunkH = 8 + sizeHash * 4;
-  // Trunk
-  gfx.lineStyle(2, color, 0.7);
-  gfx.lineBetween(cx, cy + trunkH / 2, cx, cy - trunkH / 2);
-  // Upper branches
-  gfx.lineStyle(1, color, 0.5);
-  gfx.lineBetween(cx, cy - 2, cx - 4 - sizeHash * 2, cy - 5 - sizeHash * 2);
-  gfx.lineBetween(cx, cy - 2, cx + 4 + sizeHash * 2, cy - 5 - sizeHash * 2);
-  // Lower branches
-  gfx.lineBetween(cx, cy + 1, cx - 3, cy - 2);
-  gfx.lineBetween(cx, cy + 1, cx + 3, cy - 2);
 }
 
 function drawRockCluster(
@@ -302,6 +294,7 @@ function drawTreeClusterTile(
   cx: number, cy: number,
   tileSize: number, pal: SeasonPalette,
   seed: number,
+  winterSnow = false,
 ): void {
   const h0 = posHash(seed, 0, 0, 0);
   const h1 = posHash(seed, 0, 0, 1);
@@ -317,16 +310,16 @@ function drawTreeClusterTile(
 
   // Main canopy circle
   gfx.fillStyle(baseColor, 0.88);
-  gfx.fillCircle(cx + (h0 - 0.5) * tileSize * 0.2, cy + (h1 - 0.5) * tileSize * 0.15, r1);
+  const c1x = cx + (h0 - 0.5) * tileSize * 0.2;
+  const c1y = cy + (h1 - 0.5) * tileSize * 0.15;
+  gfx.fillCircle(c1x, c1y, r1);
 
   // Second circle (overlapping)
   const darker = shiftBrightness(baseColor, 0.75);
   gfx.fillStyle(darker, 0.80);
-  gfx.fillCircle(
-    cx + (h2 - 0.5) * tileSize * 0.35,
-    cy + (h3 - 0.5) * tileSize * 0.25,
-    r2,
-  );
+  const c2x = cx + (h2 - 0.5) * tileSize * 0.35;
+  const c2y = cy + (h3 - 0.5) * tileSize * 0.25;
+  gfx.fillCircle(c2x, c2y, r2);
 
   // Optional third circle
   if (h4 > 0.35) {
@@ -337,6 +330,14 @@ function drawTreeClusterTile(
       cy + (h4 - 0.5) * tileSize * 0.3,
       r3,
     );
+  }
+
+  // Snow caps on tree tops in winter
+  if (winterSnow) {
+    gfx.fillStyle(0xf0f4f8, 0.70);
+    gfx.fillCircle(c1x, c1y - r1 * 0.3, r1 * 0.55);
+    gfx.fillStyle(0xe8eef4, 0.55);
+    gfx.fillCircle(c2x, c2y - r2 * 0.3, r2 * 0.5);
   }
 
   // Trunk hint
@@ -909,7 +910,13 @@ export function renderTerrain(
       }
 
       if (tileType === TILE.TREE) {
-        if (scene.textures.exists('tile-tree')) {
+        if (season === 'winter') {
+          // Winter: always use procedural snow-capped conifers
+          const tileSeed = tilePosSeed(col, row);
+          const cx = col * ts + ts / 2;
+          const cy = row * ts + ts / 2;
+          drawTreeClusterTile(decoGfx, cx, cy, ts, pal, tileSeed, true);
+        } else if (scene.textures.exists('tile-tree')) {
           const tx = col * ts + ts / 2;
           const ty = row * ts + ts / 2;
           scene.add.image(tx, ty, 'tile-tree')
@@ -929,6 +936,16 @@ export function renderTerrain(
         const cx = col * ts + ts / 2;
         const cy = row * ts + ts / 2;
         drawBirchTile(decoGfx, cx, cy, ts, tileSeed, pal);
+        // Snow accumulation on birch in winter
+        if (season === 'winter') {
+          const h0 = posHash(tileSeed, 0, 0, 0);
+          const h1 = posHash(tileSeed, 0, 0, 1);
+          const r1 = ts * (0.20 + h0 * 0.10);
+          const bx = cx + (h0 - 0.5) * ts * 0.2;
+          const by = cy + (h1 - 0.5) * ts * 0.15;
+          decoGfx.fillStyle(0xf0f4f8, 0.60);
+          decoGfx.fillCircle(bx, by - r1 * 0.2, r1 * 0.6);
+        }
         continue;
       }
 
@@ -949,7 +966,7 @@ export function renderTerrain(
       }
 
       if (tileType === TILE.ROCK) {
-        if (scene.textures.exists('tile-rock')) {
+        if (season !== 'winter' && scene.textures.exists('tile-rock')) {
           const rx = col * ts + ts / 2;
           const ry = row * ts + ts / 2;
           scene.add.image(rx, ry, 'tile-rock')
@@ -960,12 +977,37 @@ export function renderTerrain(
           const cx = col * ts + ts / 2;
           const cy = row * ts + ts / 2;
           drawRockPolygonTile(decoGfx, cx, cy, ts, tileSeed);
+          // Frosted ice highlights on rocks in winter
+          if (season === 'winter') {
+            const fh = posHash(tileSeed, 0, 0, 27);
+            decoGfx.fillStyle(0xc8dae8, 0.35);
+            decoGfx.fillCircle(cx + (fh - 0.5) * ts * 0.2, cy - ts * 0.08, ts * 0.14);
+            decoGfx.fillStyle(0xe0eaf4, 0.25);
+            decoGfx.fillCircle(cx - ts * 0.1, cy - ts * 0.12, ts * 0.08);
+          }
         }
         continue;
       }
 
       if (tileType === TILE.WATER) {
-        if (scene.textures.exists('tile-water')) {
+        if (season === 'winter') {
+          // Frozen/icy water: light blue-white surface with crack lines
+          const wx = col * ts;
+          const wy = row * ts;
+          decoGfx.fillStyle(0xa8c8e0, 0.85);
+          decoGfx.fillRect(wx + 1, wy + 1, ts - 2, ts - 2);
+          // Ice surface highlight
+          decoGfx.fillStyle(0xd0e0f0, 0.40);
+          decoGfx.fillRect(wx + ts * 0.15, wy + ts * 0.15, ts * 0.5, ts * 0.3);
+          // Subtle crack lines
+          const tileSeed = tilePosSeed(col, row);
+          const ch = posHash(tileSeed, 0, 0, 50);
+          decoGfx.lineStyle(1, 0x90a8c0, 0.30);
+          decoGfx.lineBetween(
+            wx + ts * 0.2, wy + ts * (0.3 + ch * 0.3),
+            wx + ts * 0.8, wy + ts * (0.4 + ch * 0.2),
+          );
+        } else if (scene.textures.exists('tile-water')) {
           const wx = col * ts + ts / 2;
           const wy = row * ts + ts / 2;
           scene.add.image(wx, wy, 'tile-water')
@@ -982,6 +1024,11 @@ export function renderTerrain(
         const cx = col * ts + ts / 2;
         const cy = row * ts + ts / 2;
         drawCattailTile(decoGfx, cx, cy, ts, tileSeed);
+        // Frost coating on cattails in winter
+        if (season === 'winter') {
+          decoGfx.fillStyle(0xd8e4f0, 0.30);
+          decoGfx.fillEllipse(cx, cy, ts * 0.5, ts * 0.35);
+        }
         continue;
       }
 
@@ -1014,7 +1061,7 @@ export function renderTerrain(
         const sizeHash = posHash(seed, row, col, 104);
 
         if (season === 'winter') {
-          drawBareTree(decoGfx, tcx, tcy, treeColor, sizeHash);
+          drawConifer(decoGfx, tcx, tcy, treeColor, pal.trunkColor, sizeHash, true);
         } else if (season === 'autumn') {
           drawDeciduousTree(decoGfx, tcx, tcy, treeColor, pal.trunkColor, sizeHash);
         } else {
@@ -1048,6 +1095,31 @@ export function renderTerrain(
             decoGfx, baseCx + ox, baseCy + oy, pal.grassColor,
             posHash(seed, row, col, 303),
           );
+        }
+      }
+
+      // ── Winter snowdrifts and frost sparkles on buildable tiles ──
+      if (season === 'winter') {
+        const driftHash = posHash(seed, row, col, 400);
+        if (driftHash < 0.12) {
+          // Small white snowdrift mound
+          const dx = baseCx + (posHash(seed, row, col, 401) - 0.5) * (ts * 0.4);
+          const dy = baseCy + (posHash(seed, row, col, 402) - 0.5) * (ts * 0.3);
+          const dw = 6 + posHash(seed, row, col, 403) * 6;
+          const dh = 2 + posHash(seed, row, col, 404) * 2;
+          decoGfx.fillStyle(0xe8f0f8, 0.55);
+          decoGfx.fillEllipse(dx, dy, dw, dh);
+        }
+        // Frost sparkle accents — tiny white dots
+        const sparkleHash = posHash(seed, row, col, 410);
+        if (sparkleHash < 0.15) {
+          const count = 2 + Math.floor(posHash(seed, row, col, 411) * 3);
+          for (let si = 0; si < count; si++) {
+            const sx = baseCx + (posHash(seed, row, col, 412 + si * 2) - 0.5) * ts * 0.8;
+            const sy = baseCy + (posHash(seed, row, col, 413 + si * 2) - 0.5) * ts * 0.8;
+            decoGfx.fillStyle(0xf8fcff, 0.40 + posHash(seed, row + si, col, 414) * 0.3);
+            decoGfx.fillCircle(sx, sy, 0.5 + posHash(seed, row, col + si, 415) * 0.5);
+          }
         }
       }
     }
