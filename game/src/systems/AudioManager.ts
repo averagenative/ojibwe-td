@@ -22,6 +22,27 @@
 import type Phaser from 'phaser';
 import { SaveManager } from '../meta/SaveManager';
 
+// ── SFX concurrency limits ────────────────────────────────────────────────────
+// Max simultaneous instances per SFX key. Tower fire/hit SFX are capped to
+// prevent audio cacophony when many towers of the same type fire at once.
+const SFX_MAX_CONCURRENT: Readonly<Record<string, number>> = {
+  'sfx-arrow-fire':       3,
+  'sfx-arrow-hit':        3,
+  'sfx-rock-hurler-fire': 3,
+  'sfx-rock-hurler-hit':  3,
+  'sfx-frost-fire':       2,
+  'sfx-frost-hit':        2,
+  'sfx-tesla-fire':       2,
+  'sfx-tesla-hit':        2,
+  'sfx-poison-fire':      2,
+  'sfx-poison-hit':       2,
+  'sfx-aura':             1,
+  'sfx-creep-death-01':   3,
+  'sfx-creep-death-02':   3,
+  'sfx-creep-death-03':   3,
+};
+const SFX_DEFAULT_MAX = 4;
+
 // ── Music scheduler constants ─────────────────────────────────────────────────
 const LOOK_AHEAD_S    = 0.2;  // schedule this far ahead (seconds)
 const SCHEDULE_MS     = 100;  // scheduler interval (ms)
@@ -76,6 +97,9 @@ export class AudioManager {
 
   /** Pre-decoded AudioBuffers keyed by 'sfx-*' / 'music-*'. */
   private _buffers: Map<string, AudioBuffer> = new Map();
+
+  /** Number of currently playing instances per SFX key. */
+  private _activeSfxCount: Map<string, number> = new Map();
 
   /** Currently playing file-based music source (null if using procedural). */
   private _fileMusicSource: AudioBufferSourceNode | null = null;
@@ -603,6 +627,13 @@ export class AudioManager {
     const buf = this._buffers.get(key);
     if (!buf || !this.ctx || !this.sfxGain) return false;
 
+    // ── Concurrency cap — drop the sound if too many instances are already playing
+    const maxConcurrent = SFX_MAX_CONCURRENT[key] ?? SFX_DEFAULT_MAX;
+    const active = this._activeSfxCount.get(key) ?? 0;
+    if (active >= maxConcurrent) return true; // swallow silently
+
+    this._activeSfxCount.set(key, active + 1);
+
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     // Attenuate file-based SFX to match procedural SFX levels (~0.2–0.4).
@@ -612,7 +643,12 @@ export class AudioManager {
     src.connect(g);
     g.connect(this.sfxGain);
     src.start();
-    src.onended = () => { src.disconnect(); g.disconnect(); };
+    src.onended = () => {
+      src.disconnect(); g.disconnect();
+      const cur = this._activeSfxCount.get(key) ?? 1;
+      if (cur <= 1) this._activeSfxCount.delete(key);
+      else this._activeSfxCount.set(key, cur - 1);
+    };
     return true;
   }
 
