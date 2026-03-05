@@ -345,7 +345,7 @@ export class MainMenuScene extends Phaser.Scene {
     // when multiple stages are visible.
     const { width } = this.scale;
     const cx = width / 2;
-    const logoX = this._isMobile ? cx - 180 : cx - (STAGE_W / 2) - 120;
+    const logoX = this._isMobile ? cx - 310 : cx - (STAGE_W / 2) - 120;
     const logoY = anchorY;
 
     const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
@@ -899,7 +899,7 @@ export class MainMenuScene extends Phaser.Scene {
     // button, not part of the primary play flow. Do NOT move it back to centre.
     // Mirrors the logo/shield on the left — positioned in the right panel area.
     // Position QUICK PLAY just right of stage card area, aligned with buttons.
-    const quickPlayX = this._isMobile ? width / 2 + 180 : width / 2 + (STAGE_W / 2) + 120;
+    const quickPlayX = this._isMobile ? width / 2 + 310 : width / 2 + (STAGE_W / 2) + 120;
     const quickPlayY = sideAnchorY;
     const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnSize, quickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);

@@ -2751,3 +2751,13 @@ Tower costs (Arrow 75, Rock Hurler 150, Frost 125, Poison 125, Tesla 200, Aura 1
 
 - **No `stageId` field on VignetteDef** — The two new mitigomizh vignettes (wave 5 and 15) fire for all 3 mitigomizh stages since `VignetteDef` only supports `regionId` gating, not per-stage. Adding an optional `stageId` filter would allow stage-specific narrative for regions with multiple stages.
 - **Winter palette birchLeafColor still green** — `PALETTES.winter.birchLeafColor` is `0x7CA850` (green). Dormant winter birches could use a grey/bare brown tone for seasonal realism. Non-blocking since birch rendering still works correctly.
+
+### HEALTH-2ba86246 Review Findings (AutoSave metaStatBonuses type)
+
+- **No runtime validation of metaStatBonuses shape on load** — `SessionManager.load()` trusts that the stored JSON matches `Record<string, Record<string, number>>`. If a user has a corrupted/hand-edited save with a different shape (e.g. string values or flat structure), it would pass through without sanitisation. Low risk since this field is informational-only and not consumed on restore.
+
+### TASK-169 Review Findings (Winter Maps — Snow Terrain)
+
+- **No `stageId` field on VignetteDef (repeated)** — The 3 new winter vignettes (waves 3, 7, 13) fire for all biboon-aki stages. When stage count per region grows, a per-stage `stageId` filter on `VignetteDef` would prevent narrative repetition. Same issue noted in TASK-168.
+- **Winter birchLeafColor now fixed** — TASK-168 noted `birchLeafColor` was still green for winter; this task updated it to `0xd0d8e0` (snow-white grey). Resolved.
+- **`drawBareTree` removed** — Winter trees are now snow-capped conifers rather than bare branches. The old bare-tree aesthetic is gone entirely; if a "late autumn / early spring" transitional palette is ever needed, the function would need to be reimplemented.

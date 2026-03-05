@@ -1,7 +1,7 @@
 ---
 id: TASK-169
 title: Add 2 New Winter (Biboon-aki) Maps with Snow Terrain Visuals
-status: pending
+status: done
 priority: medium
 category: frontend
 phase: content
