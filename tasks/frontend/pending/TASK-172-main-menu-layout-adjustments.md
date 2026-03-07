@@ -4,6 +4,7 @@ title: "Main Menu: move Quick Play, center Start Game"
 status: pending
 category: frontend
 phase: release
+priority: high
 depends_on: []
 created: 2025-03-07
 ---

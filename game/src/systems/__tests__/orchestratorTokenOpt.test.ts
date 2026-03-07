@@ -105,7 +105,7 @@ describe('parallel-orchestrator.sh — pre_validate gates', () => {
   it('runs npm run test as Gate 2', () => {
     expect(parallelSrc).toContain('npm run test');
     expect(parallelSrc).toContain(
-      '# Gate 2: Existing test suite',
+      '# Gate 2: Test suite',
     );
   });
 
@@ -120,15 +120,14 @@ describe('parallel-orchestrator.sh — pre_validate gates', () => {
     expect(gate1Block).toContain('return 1');
   });
 
-  it('returns 1 on test failure', () => {
+  it('returns 1 on test failure above baseline', () => {
     const fnBody = parallelSrc.slice(
       parallelSrc.indexOf('pre_validate()'),
     );
-    const gate2Block = fnBody.slice(
-      fnBody.indexOf('Gate 2'),
-      fnBody.indexOf('return 0'),
-    );
-    expect(gate2Block).toContain('return 1');
+    // Gate 2 block should reject failures above baseline
+    const gate2Start = fnBody.indexOf('Gate 2');
+    const gate2Block = fnBody.slice(gate2Start);
+    expect(gate2Block).toMatch(/NEW above baseline|return 1/);
   });
 
   it('includes slug in log messages for parallel identification', () => {

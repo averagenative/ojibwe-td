@@ -4,6 +4,7 @@ title: "Achievements: palette update + touch scrolling"
 status: pending
 category: frontend
 phase: release
+priority: medium
 depends_on: []
 created: 2025-03-07
 ---

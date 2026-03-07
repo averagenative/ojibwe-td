@@ -4,6 +4,7 @@ title: "Gameplay: pinch-to-zoom on maps"
 status: pending
 category: frontend
 phase: release
+priority: high
 depends_on: []
 created: 2025-03-07
 ---

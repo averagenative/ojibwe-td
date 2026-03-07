@@ -4,6 +4,7 @@ title: "Splash screen: title/crest overlap + relative scaling"
 status: pending
 category: frontend
 phase: release
+priority: high
 depends_on: []
 created: 2025-03-07
 ---
@@ -30,5 +31,6 @@ On the first splash/title screen:
 
 ## Notes
 
-- The splash is likely in `MainMenuScene.ts` or a separate TitleScene.
+- The splash screen is in `BootScene.ts` (not MainMenuScene).
+- Logo was replaced with a new 1024x1024 square icon — scale was adjusted to `mob ? 0.35 : 0.22` but Y offsets are still hardcoded.
 - Use Phaser's scale manager dimensions rather than hardcoded pixel positions.

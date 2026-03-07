@@ -23,9 +23,18 @@
 
 set -euo pipefail
 
+# ── Platform detection ────────────────────────────────────────────────────────
+
+IS_MACOS=false
+[[ "$(uname)" == "Darwin" ]] && IS_MACOS=true
+
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-REPO_DIR="/home/dmichael/projects/greentd"
+if $IS_MACOS; then
+  REPO_DIR="/Users/dmichael/projects/ojibwe-td"
+else
+  REPO_DIR="/home/dmichael/projects/greentd"
+fi
 GAME_DIR="$REPO_DIR/game"
 TASKS_DIR="$REPO_DIR/tasks"
 WORKTREES_DIR="$REPO_DIR/.worktrees"
@@ -39,6 +48,7 @@ QUOTA_MAX_WAIT=48       # max quota-wait cycles before giving up (~24 h)
 PARALLEL_LIMIT=2         # max simultaneous implement+review workers
 API_COOLDOWN=300           # seconds to wait when API appears down (5 min)
 MAX_CONSECUTIVE_FAILS=3    # all-fail batches before entering cooldown
+BASELINE_TEST_FAILURES=0   # known pre-existing test failures (update when fixing old tests)
 
 PARALLEL_STATE_FILE="$REPO_DIR/.orch_parallel_state"
 PAUSE_FILE="$REPO_DIR/.orch_pause"
@@ -53,7 +63,11 @@ _cleanup_on_exit() {
   # Reset in-progress tasks to pending
   local count=0
   while IFS= read -r f; do
-    sed -i 's/^status: in-progress$/status: pending/' "$f"
+    if $IS_MACOS; then
+      sed -i '' 's/^status: in-progress$/status: pending/' "$f"
+    else
+      sed -i 's/^status: in-progress$/status: pending/' "$f"
+    fi
     count=$((count + 1))
   done < <(find "$REPO_DIR/tasks" -name "*.md" -not -path "*/done/*" -not -path "*/health/*" \
     -exec grep -l "^status: in-progress$" {} \; 2>/dev/null)
@@ -130,28 +144,37 @@ find_pending_tasks() {
   local count=0
   local dirs=("$TASKS_DIR/backend/pending" "$TASKS_DIR/frontend/pending")
   # Sort by priority: critical(0) > high(1) > medium(2) > low(3) > unset(4)
+  local tmp_ranked
+  tmp_ranked=$(mktemp)
+  for dir in "${dirs[@]}"; do
+    [ -d "$dir" ] || continue
+    while IFS= read -r -d '' f; do
+      if grep -q "^status: pending$" "$f" 2>/dev/null; then
+        pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}') || pri=""
+        local rank=4
+        if   [ "$pri" = "critical" ]; then rank=0
+        elif [ "$pri" = "high" ];     then rank=1
+        elif [ "$pri" = "medium" ];   then rank=2
+        elif [ "$pri" = "low" ];      then rank=3
+        fi
+        echo "${rank}|${f}" >> "$tmp_ranked"
+      fi
+    done < <(find "$dir" -maxdepth 1 -name "*.md" -print0)
+  done
   while IFS='|' read -r _rank f; do
     echo "$f"
     count=$(( count + 1 ))
     [ "$count" -ge "$limit" ] && break
-  done < <(
-    for dir in "${dirs[@]}"; do
-      [ -d "$dir" ] || continue
-      while IFS= read -r -d '' f; do
-        if grep -q "^status: pending$" "$f" 2>/dev/null; then
-          pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}') || pri=""
-          case "$pri" in
-            critical) rank=0 ;; high) rank=1 ;; medium) rank=2 ;; low) rank=3 ;; *) rank=4 ;;
-          esac
-          echo "${rank}|${f}"
-        fi
-      done < <(find "$dir" -maxdepth 1 -name "*.md" -print0)
-    done | sort
-  )
+  done < <(sort "$tmp_ranked")
+  rm -f "$tmp_ranked"
 }
 
 claim_task() {
-  sed -i 's/^status: pending$/status: in-progress/' "$1"
+  if $IS_MACOS; then
+    sed -i '' 's/^status: pending$/status: in-progress/' "$1"
+  else
+    sed -i 's/^status: pending$/status: in-progress/' "$1"
+  fi
 }
 
 get_title() {
@@ -278,16 +301,29 @@ pre_validate() {
   }
   log "[$slug] Pre-validate: typecheck passed ✓"
 
-  # Gate 2: Existing test suite — catch regressions before paying Opus
+  # Gate 2: Test suite — compare against baseline failure count (not zero)
   log "[$slug] Pre-validate: running test suite (bash gate — no LLM)…"
-  out=$(cd "$wt_game" && npm run test 2>&1) || {
+  out=$(cd "$wt_game" && npm run test 2>&1)
+  local test_exit=$?
+
+  local fail_count
+  fail_count=$(echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -oE '[0-9]+ failed' | head -1 | awk '{print $1}')
+  fail_count=${fail_count:-0}
+
+  local baseline_failures=${BASELINE_TEST_FAILURES:-0}
+
+  if [ "$test_exit" -eq 0 ]; then
+    log "[$slug] Pre-validate: tests passed ✓  (Opus review will proceed)"
+    return 0
+  elif [ "$fail_count" -le "$baseline_failures" ]; then
+    log "[$slug] Pre-validate: $fail_count failure(s) ≤ baseline ($baseline_failures) — PASS ✓"
+    return 0
+  else
+    local new_failures=$((fail_count - baseline_failures))
     echo "$out" | sed "s/^/[$slug] [test] /"
-    log "[$slug] Pre-validate: tests FAILED — skipping Opus review to save tokens"
-    log "[$slug]   Fix test failures in the implement agent before re-running."
+    log "[$slug] Pre-validate: $fail_count failure(s), $new_failures NEW above baseline ($baseline_failures)"
     return 1
-  }
-  log "[$slug] Pre-validate: tests passed ✓  (Opus review will proceed)"
-  return 0
+  fi
 }
 
 # ── Worker: implement + review in an isolated worktree ────────────────────────
@@ -365,13 +401,63 @@ Steps
   state_write "$task_file" "implement_done" "$wt_path" "$branch"
   show_worker_status
 
-  # ── Bash gate: typecheck before invoking Opus ───────────────────────────────
-  pre_validate "$wt_game" "$slug" || {
-    state_write "$task_file" "failed" "$wt_path" "$branch"
-    echo "FAIL" > "$status_file"
-    cleanup_worker "$wt_path" "$branch"
-    return 1
-  }
+  # ── Bash gate: typecheck + tests before invoking Opus ────────────────────────
+  # If pre-validate fails, run a fix-up agent to repair, then re-check.
+  # Up to 3 fix-up attempts before giving up.
+  local fix_attempts=0
+  local max_fix=3
+  while ! pre_validate "$wt_game" "$slug"; do
+    fix_attempts=$(( fix_attempts + 1 ))
+    if [ "$fix_attempts" -gt "$max_fix" ]; then
+      log "[$slug] Pre-validate still failing after $max_fix fix-up attempts — giving up."
+      state_write "$task_file" "failed" "$wt_path" "$branch"
+      echo "FAIL" > "$status_file"
+      cleanup_worker "$wt_path" "$branch"
+      return 1
+    fi
+
+    log "[$slug] === FIX-UP AGENT (attempt $fix_attempts/$max_fix) ==="
+
+    local fix_errors
+    fix_errors=$(cd "$wt_game" && npm run typecheck 2>&1 | sed 's/\x1b\[[0-9;]*m//g' || true)
+    local test_errors
+    test_errors=$(cd "$wt_game" && npm run test 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tail -60 || true)
+
+    local current_fails
+    current_fails=$(echo "$test_errors" | grep -oE '[0-9]+ failed' | head -1 | awk '{print $1}')
+    current_fails=${current_fails:-0}
+    local new_above=$((current_fails - BASELINE_TEST_FAILURES))
+    [ "$new_above" -lt 0 ] && new_above=0
+
+    run_agent "fix-up" \
+"You are fixing broken tests/types in Ojibwe TD after a feature implementation.
+
+REPO ROOT : $wt_path
+GAME SRC  : $wt_game/src
+TASK FILE : $task_file
+
+The implementation is done, but typecheck or tests are failing.
+IMPORTANT: There are $BASELINE_TEST_FAILURES known pre-existing test failures.
+You need to fix the $new_above NEW failure(s) introduced by this implementation.
+
+TypeScript errors (if any):
+$fix_errors
+
+Test failures (last 60 lines):
+$test_errors
+
+Steps
+─────
+1. Read the task file to understand what was implemented.
+2. Examine the current git diff: git -C $wt_path diff
+3. Fix typecheck errors and NEW test regressions.
+   - Do NOT delete or skip existing tests — fix them.
+   - Pre-existing failures (≤$BASELINE_TEST_FAILURES) are acceptable.
+4. Run: cd $wt_game && npm run typecheck   — must exit 0
+5. Run: cd $wt_game && npm run test        — aim for ≤$BASELINE_TEST_FAILURES failures
+6. Do NOT commit anything." \
+      "$wt_game" "$mdl" "$slug" || true
+  done
 
   state_write "$task_file" "reviewing" "$wt_path" "$branch"
 
@@ -465,7 +551,11 @@ EOF
 
   # 3. Mark task done and move file (only after successful merge)
   log "[$slug] Moving task to done…"
-  sed -i 's/^status: in-progress$/status: done/' "$task_file"
+  if $IS_MACOS; then
+    sed -i '' 's/^status: in-progress$/status: done/' "$task_file"
+  else
+    sed -i 's/^status: in-progress$/status: done/' "$task_file"
+  fi
   mkdir -p "$(dirname "$done_path")"
   mv "$task_file" "$done_path"
   log "[$slug] Task marked done ✓"
@@ -505,52 +595,54 @@ EOF
 
 STATE_LOCKFILE="${PARALLEL_STATE_FILE}.lock"
 
-state_write() {
+_state_write_inner() {
   local task_file="$1" stage="$2" wt="${3:-}" branch="${4:-}"
-  local attempt max_attempts=10 delay=0.2
-
-  for (( attempt=1; attempt<=max_attempts; attempt++ )); do
-    # Try to acquire lock (fd 9). flock -n fails immediately if held.
-    if ( flock -n 9 || exit 1
-      local now
-      now=$(date +%s)
-
-      # Preserve task_start from existing entry, or use now if new
-      local task_start="$now"
-      if [ -f "$PARALLEL_STATE_FILE" ]; then
-        local existing_start
-        existing_start=$(grep "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null | head -1 | cut -d'|' -f5)
-        [ -n "$existing_start" ] && task_start="$existing_start"
-      fi
-
-      local tmp
-      tmp=$(mktemp)
-      grep -v "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null > "$tmp" || true
-      echo "${task_file}|${stage}|${wt}|${branch}|${task_start}|${now}" >> "$tmp"
-      mv "$tmp" "$PARALLEL_STATE_FILE"
-    ) 9>"$STATE_LOCKFILE"; then
-      return 0
-    fi
-
-    # Lock held by another worker — wait and retry
-    sleep "$delay"
-  done
-
-  # All retries exhausted — force-write as last resort
-  log "WARNING: state_write lock contention after $max_attempts attempts, forcing write"
   local now
   now=$(date +%s)
+
+  # Preserve task_start from existing entry, or use now if new
   local task_start="$now"
   if [ -f "$PARALLEL_STATE_FILE" ]; then
     local existing_start
     existing_start=$(grep "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null | head -1 | cut -d'|' -f5)
     [ -n "$existing_start" ] && task_start="$existing_start"
   fi
+
   local tmp
   tmp=$(mktemp)
   grep -v "^${task_file}|" "$PARALLEL_STATE_FILE" 2>/dev/null > "$tmp" || true
   echo "${task_file}|${stage}|${wt}|${branch}|${task_start}|${now}" >> "$tmp"
   mv "$tmp" "$PARALLEL_STATE_FILE"
+}
+
+state_write() {
+  local attempt max_attempts=10 delay=0.2
+
+  if $IS_MACOS; then
+    # macOS lacks flock — use mkdir as an atomic lock
+    for (( attempt=1; attempt<=max_attempts; attempt++ )); do
+      if mkdir "$STATE_LOCKFILE" 2>/dev/null; then
+        _state_write_inner "$@"
+        rmdir "$STATE_LOCKFILE" 2>/dev/null
+        return 0
+      fi
+      sleep "$delay"
+    done
+  else
+    for (( attempt=1; attempt<=max_attempts; attempt++ )); do
+      if ( flock -n 9 || exit 1
+        _state_write_inner "$@"
+      ) 9>"$STATE_LOCKFILE"; then
+        return 0
+      fi
+      sleep "$delay"
+    done
+  fi
+
+  # All retries exhausted — force-write as last resort
+  log "WARNING: state_write lock contention after $max_attempts attempts, forcing write"
+  _state_write_inner "$@"
+  $IS_MACOS && rmdir "$STATE_LOCKFILE" 2>/dev/null || true
 }
 
 state_clear() {
@@ -670,7 +762,11 @@ do_resume() {
   log "Found ${#stuck[@]} stuck task(s) — resetting to pending and cleaning worktrees:"
   for t in "${stuck[@]}"; do
     log "  • $t"
-    sed -i 's/^status: in-progress$/status: pending/' "$t"
+    if $IS_MACOS; then
+      sed -i '' 's/^status: in-progress$/status: pending/' "$t"
+    else
+      sed -i 's/^status: in-progress$/status: pending/' "$t"
+    fi
   done
 
   # Clean up any orphaned worktrees
@@ -809,7 +905,11 @@ main() {
         # Reset the task back to pending so it can be retried
         local failed_task="${tasks[$i]}"
         if [ -f "$failed_task" ]; then
-          sed -i 's/^status: in-progress$/status: pending/' "$failed_task"
+          if $IS_MACOS; then
+            sed -i '' 's/^status: in-progress$/status: pending/' "$failed_task"
+          else
+            sed -i 's/^status: in-progress$/status: pending/' "$failed_task"
+          fi
           log "Reset $failed_task to pending for retry."
         fi
         continue
@@ -823,7 +923,11 @@ main() {
 
       ship_task "$wt_path" "$branch" "$task_file" || {
         log "Ship failed for $task_file — resetting to pending."
-        sed -i 's/^status: in-progress$/status: pending/' "$task_file" 2>/dev/null
+        if $IS_MACOS; then
+          sed -i '' 's/^status: in-progress$/status: pending/' "$task_file" 2>/dev/null
+        else
+          sed -i 's/^status: in-progress$/status: pending/' "$task_file" 2>/dev/null
+        fi
         all_ok=false
       }
     done
