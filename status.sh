@@ -73,16 +73,51 @@ _L "$(sep_l)"
 IN_PROGRESS=$(find "$TASKS" -name "*.md" -not -path "*/done/*" -not -path "*/health/*" \
   -exec grep -l "^status: in-progress$" {} \; 2>/dev/null | sort) || true
 
+# Read checkpoint for stage info
+CKPT_FILE="$REPO/.orch_checkpoint"
+CKPT_TASK="" CKPT_STAGE=""
+if [ -f "$CKPT_FILE" ]; then
+  CKPT_STAGE=$(grep "^CKPT_STAGE=" "$CKPT_FILE" 2>/dev/null | head -1 | cut -d= -f2-)
+  CKPT_TASK=$(grep "^CKPT_TASK=" "$CKPT_FILE" 2>/dev/null | head -1 | cut -d= -f2-)
+fi
+
 if [ -n "$IN_PROGRESS" ]; then
   while IFS= read -r f; do
     id=$(grep "^id:" "$f" 2>/dev/null | head -1 | awk '{print $2}' || echo "?")
     title=$(grep "^title:" "$f" 2>/dev/null | head -1 | sed 's/^title: //' || echo "?")
     pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}' || echo "")
+
+    # Show pipeline stage from checkpoint if this is the active task
+    stage_label=""
+    if [ -n "$CKPT_TASK" ] && echo "$f" | grep -q "$(basename "$CKPT_TASK" .md)"; then
+      case "$CKPT_STAGE" in
+        none)       stage_label="${YELLOW}implementing${RESET}" ;;
+        implement)  stage_label="${CYAN}reviewing${RESET}" ;;
+        review)     stage_label="${GREEN}shipping${RESET}" ;;
+        *)          stage_label="${DIM}${CKPT_STAGE}${RESET}" ;;
+      esac
+      # Elapsed time from checkpoint file mtime
+      if $IS_MACOS; then
+        ckpt_mtime=$(stat -f %m "$CKPT_FILE" 2>/dev/null || echo "")
+      else
+        ckpt_mtime=$(stat -c %Y "$CKPT_FILE" 2>/dev/null || echo "")
+      fi
+      elapsed=""
+      if [ -n "$ckpt_mtime" ]; then
+        now=$(date +%s)
+        diff_s=$((now - ckpt_mtime))
+        diff_m=$((diff_s / 60))
+        diff_s_rem=$((diff_s % 60))
+        elapsed=" ${DIM}(${diff_m}m${diff_s_rem}s in stage)${RESET}"
+      fi
+      stage_label=" → ${stage_label}${elapsed}"
+    fi
+
     # Truncate title to fit column
     max_title=$((COL_W - 22))
     short_title="$title"
     [ ${#short_title} -gt "$max_title" ] && short_title="${short_title:0:$((max_title-1))}…"
-    _L "$(printf "  ${YELLOW}◉${RESET} ${BOLD}%-9s${RESET} ${CYAN}%-6s${RESET} %s" "$id" "$pri" "$short_title")"
+    _L "$(printf "  ${YELLOW}◉${RESET} ${BOLD}%-9s${RESET} %s%b" "$id" "$short_title" "$stage_label")"
   done <<< "$IN_PROGRESS"
 else
   _L "$(printf "  ${DIM}none${RESET}")"
@@ -138,10 +173,10 @@ if [ -f "$STATE_FILE" ]; then
   _L ""
 fi
 
-# ── Active agent output (orchestrator logs only) ─────────────────────────
-# Pick the most recent non-empty porch log
+# ── Active agent output (orchestrator logs) ──────────────────────────────
+# Pick the most recent non-empty orchestrator log (porch_* or orch-*)
 PORCH_LOGS=""
-for _plog in $(ls -t /tmp/porch_*.log 2>/dev/null); do
+for _plog in $(ls -t /tmp/porch_*.log /tmp/orch-*.log 2>/dev/null); do
   [ -s "$_plog" ] && { PORCH_LOGS="$_plog"; break; }
 done
 
