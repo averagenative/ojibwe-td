@@ -1,7 +1,7 @@
 ---
 id: TASK-174
 title: "Achievements: palette update + touch scrolling"
-status: pending
+status: done
 category: frontend
 phase: release
 priority: medium
@@ -22,7 +22,7 @@ The Achievements screen (`AchievementsScene.ts`) has the same issues as other me
 
 ## Acceptance Criteria
 
-- [ ] Color palette updated to match MainMenuScene
-- [ ] Achievement list scrollable via finger drag on mobile
-- [ ] All achievement entries reachable by scrolling in each category
-- [ ] Category tab buttons remain accessible (not scrolled away)
+- [x] Color palette updated to match MainMenuScene
+- [x] Achievement list scrollable via finger drag on mobile
+- [x] All achievement entries reachable by scrolling in each category
+- [x] Category tab buttons remain accessible (not scrolled away)

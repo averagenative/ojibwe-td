@@ -60,8 +60,8 @@ export class AchievementsScene extends Phaser.Scene {
     // Title
     this.add.text(cx, 30, 'ACHIEVEMENTS', {
       fontSize:   this._fs(28),
-      color:      '#00ff44',
-      fontFamily: 'monospace',
+      color:      PAL.accentGreen,
+      fontFamily: PAL.fontTitle,
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
@@ -71,8 +71,8 @@ export class AchievementsScene extends Phaser.Scene {
     const done = all.filter(s => s.unlocked).length;
     this.add.text(cx, 62, `${done} / ${all.length} unlocked`, {
       fontSize:   this._fs(14),
-      color:      '#557755',
-      fontFamily: 'monospace',
+      color:      PAL.textDim,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
     // Category tabs
@@ -121,7 +121,7 @@ export class AchievementsScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.add.rectangle(width / 2, height / 2, width, height, PAL.bgDark);
     const gfx = this.add.graphics();
-    gfx.lineStyle(1, 0x1a2a1a, 0.25);
+    gfx.lineStyle(1, PAL.bgPanelHover, 0.25);
     const ts = 40;
     for (let x = 0; x < width; x += ts) { gfx.moveTo(x, 0); gfx.lineTo(x, height); }
     for (let y = 0; y < height; y += ts) { gfx.moveTo(0, y); gfx.lineTo(width, y); }
@@ -138,9 +138,9 @@ export class AchievementsScene extends Phaser.Scene {
     active: boolean,
   ): void {
     const tabH        = this._isMobile ? 40 : 28;
-    const fillColor   = active ? 0x003322 : 0x111111;
-    const borderColor = active ? 0x00aa44 : 0x335533;
-    const textColor   = active ? '#00ff44' : '#44aa44';
+    const fillColor   = active ? PAL.bgPanel : PAL.bgDark;
+    const borderColor = active ? PAL.borderActive : PAL.borderInactive;
+    const textColor   = active ? PAL.accentGreen : PAL.textSecondary;
 
     const shortLabels: Record<AchievementCategory, string> = {
       'map-clear':     'Maps',
@@ -159,12 +159,12 @@ export class AchievementsScene extends Phaser.Scene {
     const label = this.add.text(x, y, shortLabels[category], {
       fontSize:   this._fs(11),
       color:      textColor,
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
       fontStyle:  active ? 'bold' : 'normal',
     }).setOrigin(0.5);
 
     if (!active) {
-      bg.on('pointerover', () => { bg.setFillStyle(0x223322); label.setColor('#00ff44'); });
+      bg.on('pointerover', () => { bg.setFillStyle(PAL.bgPanelHover); label.setColor(PAL.accentGreen); });
       bg.on('pointerout',  () => { bg.setFillStyle(fillColor); label.setColor(textColor); });
       bg.on(TAP_EVENT,   () => {
         this.scene.restart({
@@ -188,8 +188,8 @@ export class AchievementsScene extends Phaser.Scene {
 
     const catLabel = this.add.text(cx, startY + 2, CATEGORY_LABELS[category], {
       fontSize:   this._fs(13),
-      color:      '#557755',
-      fontFamily: 'monospace',
+      color:      PAL.textDim,
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
@@ -201,8 +201,8 @@ export class AchievementsScene extends Phaser.Scene {
       const { def, unlocked, current } = state;
       const isHidden = def.hidden && !unlocked;
 
-      const bgColor     = unlocked ? 0x004400 : 0x111111;
-      const borderColor = unlocked ? 0x00aa44 : 0x333333;
+      const bgColor     = unlocked ? PAL.bgPanel : PAL.bgDark;
+      const borderColor = unlocked ? PAL.borderActive : PAL.borderLocked;
 
       const row = this.add.rectangle(cx, y + ROW_H / 2, PANEL_W, ROW_H, bgColor)
         .setStrokeStyle(2, borderColor);
@@ -211,17 +211,17 @@ export class AchievementsScene extends Phaser.Scene {
       // Icon (left side)
       const iconText = isHidden ? '🔒' : def.icon;
       const icon = this.add.text(cx - PANEL_W / 2 + ROW_PAD_X + 12, y + ROW_H / 2, iconText, {
-        fontSize: '20px', fontFamily: 'monospace',
+        fontSize: '20px', fontFamily: PAL.fontBody,
       }).setOrigin(0.5);
       container.add(icon);
 
       // Title
       const titleStr = isHidden ? '???' : def.title;
-      const titleColor = unlocked ? '#00ff44' : (isHidden ? '#444444' : '#aaaaaa');
+      const titleColor = unlocked ? PAL.accentGreen : (isHidden ? PAL.textLocked : PAL.textNeutral);
       const titleTxt = this.add.text(cx - PANEL_W / 2 + ROW_PAD_X + 28, y + ROW_H / 2 - 16, titleStr, {
         fontSize:   this._fs(13),
         color:      titleColor,
-        fontFamily: 'monospace',
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }).setOrigin(0, 0.5);
       container.add(titleTxt);
@@ -230,8 +230,8 @@ export class AchievementsScene extends Phaser.Scene {
       const descStr = isHidden ? '???' : def.description;
       const desc = this.add.text(cx - PANEL_W / 2 + ROW_PAD_X + 28, y + ROW_H / 2 + 16, descStr, {
         fontSize:   this._fs(10),
-        color:      '#666666',
-        fontFamily: 'monospace',
+        color:      PAL.textDesc,
+        fontFamily: PAL.fontBody,
         wordWrap:   { width: PANEL_W - ROW_PAD_X * 2 - 80 },
         maxLines:   2,
       }).setOrigin(0, 0.5);
@@ -244,8 +244,8 @@ export class AchievementsScene extends Phaser.Scene {
       if (unlocked) {
         const done = this.add.text(badgeX, badgeY, '✓', {
           fontSize:   this._fs(20),
-          color:      '#00ff44',
-          fontFamily: 'monospace',
+          color:      PAL.accentGreen,
+          fontFamily: PAL.fontBody,
           fontStyle:  'bold',
         }).setOrigin(0.5);
         container.add(done);
@@ -254,13 +254,13 @@ export class AchievementsScene extends Phaser.Scene {
         const barW   = 56;
         const barH   = 6;
         const pct    = Math.min(1, current / def.target);
-        const barBg  = this.add.rectangle(badgeX, badgeY - 8, barW, barH, 0x222222);
-        const barFg  = this.add.rectangle(badgeX - barW / 2 + (barW * pct) / 2, badgeY - 8, barW * pct, barH, 0x00aa44);
+        const barBg  = this.add.rectangle(badgeX, badgeY - 8, barW, barH, PAL.bgPanelLocked);
+        const barFg  = this.add.rectangle(badgeX - barW / 2 + (barW * pct) / 2, badgeY - 8, barW * pct, barH, PAL.accentGreenN);
         const barTxt = this.add.text(badgeX, badgeY + 4,
           `${current.toLocaleString()} / ${def.target.toLocaleString()}`, {
             fontSize:   this._fs(9),
-            color:      '#557755',
-            fontFamily: 'monospace',
+            color:      PAL.textDim,
+            fontFamily: PAL.fontBody,
           }).setOrigin(0.5, 0);
         container.add([barBg, barFg, barTxt]);
       }
@@ -296,14 +296,36 @@ export class AchievementsScene extends Phaser.Scene {
 
       // Scroll arrows
       const arrowX = cx + PANEL_W / 2 + 22;
-      const upA  = this.add.text(arrowX, startY + 10, '▲', { fontSize: this._fs(18), color: '#335533', fontFamily: 'monospace' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const downA = this.add.text(arrowX, startY + visibleH - 10, '▼', { fontSize: this._fs(18), color: '#335533', fontFamily: 'monospace' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const upA  = this.add.text(arrowX, startY + 10, '▲', { fontSize: this._fs(18), color: PAL.textDim, fontFamily: PAL.fontBody }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const downA = this.add.text(arrowX, startY + visibleH - 10, '▼', { fontSize: this._fs(18), color: PAL.textDim, fontFamily: PAL.fontBody }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       upA.on(TAP_EVENT,  () => applyScroll(-(ROW_H + ROW_GAP)));
       downA.on(TAP_EVENT, () => applyScroll(ROW_H + ROW_GAP));
-      upA.on('pointerover',   () => upA.setColor('#55aa55'));
-      upA.on('pointerout',    () => upA.setColor('#335533'));
-      downA.on('pointerover', () => downA.setColor('#55aa55'));
-      downA.on('pointerout',  () => downA.setColor('#335533'));
+      upA.on('pointerover',   () => upA.setColor(PAL.textSecondary));
+      upA.on('pointerout',    () => upA.setColor(PAL.textDim));
+      downA.on('pointerover', () => downA.setColor(PAL.textSecondary));
+      downA.on('pointerout',  () => downA.setColor(PAL.textDim));
+
+      // Touch-drag scrolling
+      if (this._isMobile) {
+        let dragStartY = 0;
+        let dragScrollStart = 0;
+        let dragging = false;
+        this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+          if (ptr.y >= startY && ptr.y <= startY + visibleH) {
+            dragStartY = ptr.y;
+            dragScrollStart = scrollOffset;
+            dragging = true;
+          }
+        });
+        this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
+          if (!dragging || !ptr.isDown) return;
+          const dy = dragStartY - ptr.y;
+          scrollOffset = Phaser.Math.Clamp(dragScrollStart + dy, 0, maxScroll);
+          container.y = -scrollOffset;
+          catLabel.y  = startY + 2 - scrollOffset;
+        });
+        this.input.on('pointerup', () => { dragging = false; });
+      }
     }
   }
 
@@ -311,16 +333,16 @@ export class AchievementsScene extends Phaser.Scene {
 
   private _makeButton(x: number, y: number, label: string, onClick: () => void): void {
     const btnH = this._isMobile ? 44 : 36;
-    const bg   = this.add.rectangle(x, y, 160, btnH, 0x111111)
-      .setStrokeStyle(2, 0x335533)
+    const bg   = this.add.rectangle(x, y, 160, btnH, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderInactive)
       .setInteractive({ useHandCursor: true });
     const txt  = this.add.text(x, y, label, {
       fontSize:   this._fs(16),
-      color:      '#44aa44',
-      fontFamily: 'monospace',
+      color:      PAL.textSecondary,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
-    bg.on('pointerover',  () => { bg.setFillStyle(0x223322); txt.setColor('#00ff44'); });
-    bg.on('pointerout',   () => { bg.setFillStyle(0x111111); txt.setColor('#44aa44'); });
+    bg.on('pointerover',  () => { bg.setFillStyle(PAL.bgPanelHover); txt.setColor(PAL.accentGreen); });
+    bg.on('pointerout',   () => { bg.setFillStyle(PAL.bgPanel); txt.setColor(PAL.textSecondary); });
     bg.on(TAP_EVENT,    onClick);
   }
 }
