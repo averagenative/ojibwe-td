@@ -1,7 +1,7 @@
 ---
 id: TASK-171
 title: "Gear Inventory: unify style with Meta Upgrades"
-status: pending
+status: done
 category: frontend
 phase: release
 depends_on: [170]

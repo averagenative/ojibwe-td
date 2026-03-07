@@ -73,8 +73,14 @@ export class InventoryScene extends Phaser.Scene {
     // Mark all items seen
     this.inv.markAllSeen();
 
-    // Background
+    // Background + grid overlay (matches MetaMenuScene)
     this.add.rectangle(cx, height / 2, width, height, PAL.bgDark);
+    const gridGfx = this.add.graphics();
+    gridGfx.lineStyle(1, PAL.bgPanel, 0.3);
+    const ts = 40;
+    for (let gx = 0; gx < width; gx += ts) { gridGfx.moveTo(gx, 0); gridGfx.lineTo(gx, height); }
+    for (let gy = 0; gy < height; gy += ts) { gridGfx.moveTo(0, gy); gridGfx.lineTo(width, gy); }
+    gridGfx.strokePath();
 
     // Title
     this.add.text(cx, 30, 'GEAR INVENTORY', {
@@ -120,6 +126,34 @@ export class InventoryScene extends Phaser.Scene {
       }
     });
 
+    // Touch scroll — drag up/down in the grid area to scroll rows
+    const gridBottom = GRID_TOP + GRID_ROWS_VIS * (CELL_SIZE + CELL_GAP);
+    let touchStartY = 0;
+    let touchInGrid = false;
+
+    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      if (ptr.y >= GRID_TOP && ptr.y <= gridBottom) {
+        touchStartY = ptr.y;
+        touchInGrid = true;
+      }
+    });
+
+    this.input.on('pointerup', (ptr: Phaser.Input.Pointer) => {
+      if (!touchInGrid) return;
+      touchInGrid = false;
+      const dy = touchStartY - ptr.y;   // positive = swipe up = scroll down
+      if (Math.abs(dy) < 30) return;
+      const maxRows = Math.ceil(this._getFilteredItems().length / GRID_COLS);
+      const maxOffset = Math.max(0, maxRows - GRID_ROWS_VIS);
+      if (dy > 0 && this.scrollOffset < maxOffset) {
+        this.scrollOffset++;
+        this._buildGrid();
+      } else if (dy < 0 && this.scrollOffset > 0) {
+        this.scrollOffset--;
+        this._buildGrid();
+      }
+    });
+
     // BACK button
     this._makeButton(cx, height - 40, 'BACK', () => {
       this.scene.start('MetaMenuScene');
@@ -142,12 +176,12 @@ export class InventoryScene extends Phaser.Scene {
 
       const bg = this.add.rectangle(x, y, FILTER_BTN_W, FILTER_BTN_H,
         isActive ? PAL.bgCard : PAL.bgPanel,
-      ).setStrokeStyle(1, isActive ? PAL.accentGreenN : PAL.borderInactive)
+      ).setStrokeStyle(1, isActive ? PAL.borderActive : PAL.borderInactive)
        .setInteractive({ useHandCursor: true });
 
       const label = this.add.text(x, y, opt.label, {
         fontSize:   '12px',
-        color:      isActive ? PAL.accentGreen : PAL.textMuted,
+        color:      isActive ? PAL.textPrimary : PAL.textMuted,
         fontFamily: PAL.fontBody,
         fontStyle:  isActive ? 'bold' : 'normal',
       }).setOrigin(0.5);
@@ -652,17 +686,15 @@ export class InventoryScene extends Phaser.Scene {
 
   private _makeButton(
     x: number, y: number, label: string, onClick: () => void,
-    bgColor: number = PAL.bgPanel, textColor: number = PAL.accentGreenN,
   ): void {
-    const textColorStr = '#' + textColor.toString(16).padStart(6, '0');
-    const bg = this.add.rectangle(x, y, 180, 44, bgColor)
-      .setStrokeStyle(2, textColor)
+    const bg = this.add.rectangle(x, y, 200, 48, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderInactive)
       .setInteractive({ useHandCursor: true });
-    this.add.text(x, y, label, {
-      fontSize: '15px', color: textColorStr, fontFamily: PAL.fontBody, fontStyle: 'bold',
+    const txt = this.add.text(x, y, label, {
+      fontSize: '18px', color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
-    bg.on('pointerover', () => bg.setFillStyle(bgColor + 0x111111));
-    bg.on('pointerout',  () => bg.setFillStyle(bgColor));
+    bg.on('pointerover', () => { bg.setFillStyle(PAL.bgPanelHover); txt.setColor(PAL.textPrimary); });
+    bg.on('pointerout',  () => { bg.setFillStyle(PAL.bgPanel); txt.setColor(PAL.textSecondary); });
     bg.on(TAP_EVENT, onClick);
   }
 
