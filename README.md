@@ -2,7 +2,8 @@
 
 > A mobile-first tower defense game inspired by Green TD (Warcraft 3) — built with love, rooted in Anishinaabe heritage.
 
-![Screenshot](docs/screenshot.png)
+<!-- TODO: add screenshot after mobile UI polish is complete -->
+<!-- ![Screenshot](docs/screenshot.png) -->
 
 [![Phaser 3](https://img.shields.io/badge/Phaser-3.90-blue?logo=phaser)](https://phaser.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org/)
