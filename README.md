@@ -1,5 +1,11 @@
 # Ojibwe TD
 
+[![Phaser 3](https://img.shields.io/badge/Phaser-3.90-blue?logo=phaser)](https://phaser.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7-purple?logo=vite)](https://vite.dev/)
+[![Capacitor](https://img.shields.io/badge/Capacitor-8-blue?logo=capacitor)](https://capacitorjs.com/)
+[![iOS](https://img.shields.io/badge/iOS-Ready-black?logo=apple)](https://developer.apple.com/)
+
 > A mobile-first tower defense game inspired by Green TD (Warcraft 3) — built with love, rooted in Anishinaabe heritage.
 
 <p align="center">
@@ -7,12 +13,6 @@
 </p>
 
 <!-- TODO: add gameplay screenshot after mobile UI polish is complete -->
-
-[![Phaser 3](https://img.shields.io/badge/Phaser-3.90-blue?logo=phaser)](https://phaser.io/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-7-purple?logo=vite)](https://vite.dev/)
-[![Capacitor](https://img.shields.io/badge/Capacitor-8-blue?logo=capacitor)](https://capacitorjs.com/)
-[![iOS](https://img.shields.io/badge/iOS-Ready-black?logo=apple)](https://developer.apple.com/)
 
 ---
 
