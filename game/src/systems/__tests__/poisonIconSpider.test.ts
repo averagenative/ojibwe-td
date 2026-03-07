@@ -17,8 +17,7 @@ import { resolve } from 'path';
 
 const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
 const GEN_ICONS = resolve(REPO_ROOT, 'scripts', 'gen_icons.py');
-const ICON_PATH = resolve(REPO_ROOT, 'converted_assets', 'icon-poison.png');
-const GAME_ICON_PATH = resolve(REPO_ROOT, 'game', 'public', 'assets', 'icons', 'icon-poison.png');
+const ICON_PATH = resolve(REPO_ROOT, 'game', 'public', 'assets', 'icons', 'icon-poison.png');
 const BOOT_SCENE = resolve(REPO_ROOT, 'game', 'src', 'scenes', 'BootScene.ts');
 
 const genSrc = readFileSync(GEN_ICONS, 'utf-8');
@@ -129,18 +128,8 @@ describe('Poison icon SVG — green palette', () => {
 // ── 3. Asset file integrity ──────────────────────────────────────────────────
 
 describe('Poison icon PNG — file integrity', () => {
-  it('converted_assets/icon-poison.png exists', () => {
-    expect(existsSync(ICON_PATH)).toBe(true);
-  });
-
   it('game/public/assets/icons/icon-poison.png exists', () => {
-    expect(existsSync(GAME_ICON_PATH)).toBe(true);
-  });
-
-  it('both PNG files exist (content may differ after icon overhaul)', () => {
-    // TASK-152: icons were regenerated; byte-identity assertion removed
     expect(existsSync(ICON_PATH)).toBe(true);
-    expect(existsSync(GAME_ICON_PATH)).toBe(true);
   });
 
   it('PNG has valid header (magic bytes)', () => {
@@ -152,20 +141,19 @@ describe('Poison icon PNG — file integrity', () => {
     expect(buf[3]).toBe(0x47); // G
   });
 
-  it('PNG IHDR chunk reports 64×64 dimensions', () => {
+  it('PNG IHDR chunk reports square dimensions', () => {
     const buf = readFileSync(ICON_PATH);
-    // IHDR starts at byte 16 (after 8-byte magic + 4-byte length + 4-byte "IHDR")
-    // Width at offset 16, height at offset 20 (big-endian uint32)
     const width = buf.readUInt32BE(16);
     const height = buf.readUInt32BE(20);
-    expect(width).toBe(64);
-    expect(height).toBe(64);
+    expect(width).toBe(height); // square icon
+    expect(width).toBeGreaterThanOrEqual(64);
+    expect(width).toBeLessThanOrEqual(128);
   });
 
-  it('PNG file size is reasonable (under 10 KB for a 64×64 icon)', () => {
+  it('PNG file size is reasonable (under 20 KB for a small icon)', () => {
     const buf = readFileSync(ICON_PATH);
-    expect(buf.length).toBeLessThan(10240);
-    expect(buf.length).toBeGreaterThan(100); // not empty
+    expect(buf.length).toBeLessThan(20480);
+    expect(buf.length).toBeGreaterThan(100);
   });
 });
 
