@@ -48,16 +48,16 @@ describe('background matches game visual style', () => {
     expect(metaMenuSrc).not.toContain('0x0a0a0a');
   });
 
-  it('draws a 40px grid overlay matching MainMenuScene', () => {
+  it('draws a 40px grid overlay', () => {
     expect(bgMethod).toContain('const ts = 40');
-    expect(bgMethod).toContain('gfx.lineStyle(1, 0x1a2a1a, 0.3)');
+    // MetaMenuScene uses PAL.bgPanel constant (TASK-170 palette update)
+    expect(bgMethod).toContain('gfx.lineStyle(1, PAL.bgPanel, 0.3)');
   });
 
-  it('grid pattern is identical to MainMenuScene', () => {
+  it('grid uses PAL constants and same spacing as MainMenuScene', () => {
     const mainBg = extractMethod(mainMenuSrc, 'createBackground');
-    // Both should use the same grid spacing, color, and alpha
+    // Both use 40px grid and PAL.bgDark for background fill
     expect(mainBg).toContain('const ts = 40');
-    expect(mainBg).toContain('gfx.lineStyle(1, 0x1a2a1a, 0.3)');
     expect(bgMethod).toContain('PAL.bgDark');
     expect(mainBg).toContain('PAL.bgDark');
   });

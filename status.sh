@@ -35,12 +35,13 @@ _L() { LEFT+=("$1"); }
 _L "$(printf "${BOLD}Orchestrator processes${RESET}")"
 _L "$(sep_l)"
 
-SINGLE_PIDS=$(pgrep -f "[^-][o]rchestrator\.sh" 2>/dev/null || true)
-PARALLEL_PIDS=$(pgrep -f "[p]arallel-orchestrator\.sh" 2>/dev/null || true)
-# Only show orchestrator-spawned agents (have -p flag), not interactive sessions
 if $IS_MACOS; then
-  CLAUDE_PIDS=$(ps -eo pid,args 2>/dev/null | grep "claude.*--dangerously-skip.*-p " | grep -v grep | grep -v "^$$" || true)
+  SINGLE_PIDS=$(ps -eo pid,args 2>/dev/null | grep "[o]rchestrator\.sh" | grep -v "parallel" | awk '{print $1}' || true)
+  PARALLEL_PIDS=$(ps -eo pid,args 2>/dev/null | grep "[p]arallel-orchestrator" | awk '{print $1}' || true)
+  CLAUDE_PIDS=$(ps -eo pid,args 2>/dev/null | grep "[c]laude.*--dangerously-skip" | grep -v "grep" || true)
 else
+  SINGLE_PIDS=$(pgrep -f "[^-][o]rchestrator\.sh" 2>/dev/null || true)
+  PARALLEL_PIDS=$(pgrep -f "[p]arallel-orchestrator\.sh" 2>/dev/null || true)
   CLAUDE_PIDS=$(pgrep -af "claude.*--dangerously-skip.*-p " 2>/dev/null | { grep -v "^$$" || true; })
 fi
 

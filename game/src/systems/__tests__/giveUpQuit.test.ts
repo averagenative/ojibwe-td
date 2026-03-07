@@ -87,9 +87,9 @@ describe('_quitToMainMenu — cleanup sequence', () => {
 // ── HUD createGiveUpButton wires confirmation dialog ─────────────────────────
 
 describe('Give-up button — confirmation dialog wiring', () => {
-  it('HUD createGiveUpButton routes pointerup through _showGiveUpConfirm', () => {
+  it('HUD createGiveUpButton routes tap through _showGiveUpConfirm', () => {
     expect(hudSrc).toContain(
-      "bg.on('pointerup',   () => this._showGiveUpConfirm(onClick))",
+      "bg.on(TAP_EVENT,   () => this._showGiveUpConfirm(onClick))",
     );
   });
 
@@ -98,7 +98,7 @@ describe('Give-up button — confirmation dialog wiring', () => {
   });
 
   it('confirmation CANCEL only cleans up (does not invoke callback)', () => {
-    expect(hudSrc).toContain("noBg.on('pointerup',   () => cleanup())");
+    expect(hudSrc).toContain("noBg.on(TAP_EVENT,   () => cleanup())");
   });
 });
 

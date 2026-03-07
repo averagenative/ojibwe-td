@@ -48,7 +48,7 @@ describe('orchestrator.sh — pre_validate gates', () => {
   it('runs npm run test as Gate 2', () => {
     expect(orchestratorSrc).toContain('npm run test');
     expect(orchestratorSrc).toContain(
-      '# Gate 2: Existing test suite',
+      '# Gate 2: Test suite',
     );
   });
 
@@ -69,12 +69,14 @@ describe('orchestrator.sh — pre_validate gates', () => {
     const fnBody = orchestratorSrc.slice(
       orchestratorSrc.indexOf('pre_validate()'),
     );
+    // Gate 2 block: from "Gate 2" to end of pre_validate function (closing brace)
+    const gate2Start = fnBody.indexOf('Gate 2');
     const gate2Block = fnBody.slice(
-      fnBody.indexOf('Gate 2'),
-      fnBody.indexOf('return 0'),
+      gate2Start,
+      fnBody.indexOf('\n}', gate2Start) + 2,
     );
     expect(gate2Block).toContain('return 1');
-    expect(gate2Block).toMatch(/tests FAILED/i);
+    expect(gate2Block).toMatch(/fix test regressions|new above baseline|tests? failed/i);
   });
 
   it('typecheck gate runs before test gate (correct ordering)', () => {

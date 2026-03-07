@@ -100,16 +100,16 @@ export class MetaMenuScene extends Phaser.Scene {
     // Title
     this.add.text(cx, 36, 'META UPGRADES', {
       fontSize:   this._fs(32),
-      color:      '#00ff44',
-      fontFamily: 'monospace',
+      color:      PAL.textPrimary,
+      fontFamily: PAL.fontTitle,
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
     // Crystal balance
     const balanceText = this.add.text(cx, 76, `Crystals: ${save.getCurrency()}`, {
       fontSize:   this._fs(20),
-      color:      '#88ccff',
-      fontFamily: 'monospace',
+      color:      PAL.gold,
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
@@ -127,7 +127,7 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // Separator line below tabs — spans all 3 tab positions
     const sepGfx = this.add.graphics();
-    sepGfx.lineStyle(1, 0x224422, 0.8);
+    sepGfx.lineStyle(1, PAL.borderInactive, 0.8);
     sepGfx.beginPath();
     sepGfx.moveTo(cx - 310, TAB_Y + 22);
     sepGfx.lineTo(cx + 310, TAB_Y + 22);
@@ -210,11 +210,67 @@ export class MetaMenuScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, PAL.bgDark);
 
     const gfx = this.add.graphics();
-    gfx.lineStyle(1, 0x1a2a1a, 0.3);
+    gfx.lineStyle(1, PAL.bgPanel, 0.3);
     const ts = 40;
     for (let x = 0; x < width; x += ts) { gfx.moveTo(x, 0); gfx.lineTo(x, height); }
     for (let y = 0; y < height; y += ts) { gfx.moveTo(0, y); gfx.lineTo(width, y); }
     gfx.strokePath();
+  }
+
+  // ── Scroll helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Attach touch-drag (and mouse-wheel) scroll to a container.
+   * Returns an applyScroll function for use by arrow buttons.
+   */
+  private _attachScrollHandlers(
+    container: Phaser.GameObjects.Container,
+    startY: number,
+    contentH: number,
+    visibleH: number,
+  ): (delta: number) => void {
+    const maxScroll = contentH - visibleH;
+    let scrollOffset = 0;
+
+    const applyScroll = (delta: number): void => {
+      scrollOffset = Phaser.Math.Clamp(scrollOffset + delta, 0, maxScroll);
+      container.y = -scrollOffset;
+    };
+
+    // Mouse wheel
+    this.input.on('wheel', (
+      _pointer: Phaser.Input.Pointer,
+      _over: Phaser.GameObjects.GameObject[],
+      _dx: number,
+      deltaY: number,
+    ) => {
+      applyScroll(deltaY * 0.5);
+    });
+
+    // Touch drag
+    let touchLastY  = 0;
+    let isTouchScrolling = false;
+
+    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      // Only start touch scroll when pointer is inside the scrollable area
+      if (ptr.y >= startY && ptr.y <= startY + visibleH) {
+        touchLastY  = ptr.y;
+        isTouchScrolling = true;
+      }
+    });
+
+    this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
+      if (!isTouchScrolling || !ptr.isDown) return;
+      const dy = touchLastY - ptr.y;
+      touchLastY = ptr.y;
+      applyScroll(dy);
+    });
+
+    this.input.on('pointerup', () => {
+      isTouchScrolling = false;
+    });
+
+    return applyScroll;
   }
 
   // ── Tab renderers ─────────────────────────────────────────────────────────
@@ -241,8 +297,8 @@ export class MetaMenuScene extends Phaser.Scene {
     if (mapNodes.length > 0) {
       container.add(this.add.text(cx - PANEL_W / 2, y, 'Maps', {
         fontSize:   this._fs(14),
-        color:      '#557755',
-        fontFamily: 'monospace',
+        color:      PAL.textSecondary,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }));
       y += 24;
@@ -257,8 +313,8 @@ export class MetaMenuScene extends Phaser.Scene {
       y += 8;
       container.add(this.add.text(cx - PANEL_W / 2, y, 'Stages', {
         fontSize:   this._fs(14),
-        color:      '#557755',
-        fontFamily: 'monospace',
+        color:      PAL.textSecondary,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }));
       y += 24;
@@ -273,8 +329,8 @@ export class MetaMenuScene extends Phaser.Scene {
       y += 8;
       container.add(this.add.text(cx - PANEL_W / 2, y, 'Commanders', {
         fontSize:   this._fs(14),
-        color:      '#557755',
-        fontFamily: 'monospace',
+        color:      PAL.textSecondary,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }));
       y += 24;
@@ -293,40 +349,24 @@ export class MetaMenuScene extends Phaser.Scene {
       maskGfx.fillRect(0, startY, this.scale.width, visibleH);
       container.setMask(maskGfx.createGeometryMask());
 
-      const maxScroll = contentH - visibleH;
-      let scrollOffset = 0;
-
-      const applyScroll = (delta: number): void => {
-        scrollOffset = Phaser.Math.Clamp(scrollOffset + delta, 0, maxScroll);
-        container.y = -scrollOffset;
-      };
-
-      // Mouse wheel
-      this.input.on('wheel', (
-        _pointer: Phaser.Input.Pointer,
-        _over: Phaser.GameObjects.GameObject[],
-        _dx: number,
-        deltaY: number,
-      ) => {
-        applyScroll(deltaY * 0.5);
-      });
+      const applyScroll = this._attachScrollHandlers(container, startY, contentH, visibleH);
 
       // Touch-friendly scroll arrows
       const arrowX = cx + PANEL_W / 2 + 24;
 
       const upArrow = this.add.text(arrowX, startY + 8, '▲', {
-        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
+        fontSize: this._fs(20), color: PAL.textSecondary, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       upArrow.on(TAP_EVENT, () => applyScroll(-(NODE_H_COMPACT + NODE_GAP)));
-      upArrow.on('pointerover', () => upArrow.setColor('#55aa55'));
-      upArrow.on('pointerout',  () => upArrow.setColor('#335533'));
+      upArrow.on('pointerover', () => upArrow.setColor(PAL.textPrimary));
+      upArrow.on('pointerout',  () => upArrow.setColor(PAL.textSecondary));
 
       const downArrow = this.add.text(arrowX, startY + visibleH - 8, '▼', {
-        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
+        fontSize: this._fs(20), color: PAL.textSecondary, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       downArrow.on(TAP_EVENT, () => applyScroll(NODE_H_COMPACT + NODE_GAP));
-      downArrow.on('pointerover', () => downArrow.setColor('#55aa55'));
-      downArrow.on('pointerout',  () => downArrow.setColor('#335533'));
+      downArrow.on('pointerover', () => downArrow.setColor(PAL.textPrimary));
+      downArrow.on('pointerout',  () => downArrow.setColor(PAL.textSecondary));
     }
   }
 
@@ -340,8 +380,8 @@ export class MetaMenuScene extends Phaser.Scene {
 
     this.add.text(cx - PANEL_W / 2, startY, 'Repeatable — spend crystals each run', {
       fontSize:   this._fs(13),
-      color:      '#557799',
-      fontFamily: 'monospace',
+      color:      PAL.accentBlue,
+      fontFamily: PAL.fontBody,
     });
 
     let y = startY + 28;
@@ -351,9 +391,9 @@ export class MetaMenuScene extends Phaser.Scene {
       const count     = pending[item.key];
       const canAfford = save.getCurrency() >= cost;
 
-      const bgColor     = canAfford ? 0x001a33 : 0x1a1a1a;
-      const borderColor = canAfford ? 0x0077bb : 0x444444;
-      const labelColor  = canAfford ? '#88ccff' : '#888888';
+      const bgColor     = canAfford ? PAL.bgCard : PAL.bgPanel;
+      const borderColor = canAfford ? PAL.accentBlueN : PAL.borderInactive;
+      const labelColor  = canAfford ? PAL.accentBlueLight : PAL.textMuted;
 
       const panel = this.add.rectangle(cx, y + NODE_H / 2, PANEL_W, NODE_H, bgColor)
         .setStrokeStyle(2, borderColor);
@@ -362,15 +402,15 @@ export class MetaMenuScene extends Phaser.Scene {
       this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 10, item.label, {
         fontSize:   this._fs(16),
         color:      labelColor,
-        fontFamily: 'monospace',
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       });
 
       // Description — word-wrapped with maxLines to prevent overflow on mobile.
       this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, item.description, {
         fontSize:   this._fs(11),
-        color:      '#888888',
-        fontFamily: 'monospace',
+        color:      PAL.textDesc,
+        fontFamily: PAL.fontBody,
         wordWrap:   { width: PANEL_W - NODE_PAD_X * 2 - 110 },
         maxLines:   3,
       });
@@ -379,32 +419,32 @@ export class MetaMenuScene extends Phaser.Scene {
       const badgeX = cx + PANEL_W / 2 - NODE_PAD_X - 48;
       const badgeY = y + NODE_H / 2;
 
-      // Cost display — minimum 11px
+      // Cost display
       this.add.text(badgeX, badgeY - 20, `${cost}`, {
         fontSize:   this._fs(16),
-        color:      canAfford ? '#88ccff' : '#666666',
-        fontFamily: 'monospace',
+        color:      canAfford ? PAL.accentBlueLight : PAL.textDim,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }).setOrigin(0.5);
       this.add.text(badgeX, badgeY - 4, 'crystals', {
         fontSize:   this._fs(11),
-        color:      '#557799',
-        fontFamily: 'monospace',
+        color:      PAL.accentBlue,
+        fontFamily: PAL.fontBody,
       }).setOrigin(0.5);
 
       // Pending stock count
-      const stockColor = count > 0 ? '#44dd88' : '#555555';
+      const stockColor = count > 0 ? PAL.accentGreen : PAL.textDim;
       this.add.text(badgeX, badgeY + 14, `held: ${count}`, {
         fontSize:   this._fs(11),
         color:      stockColor,
-        fontFamily: 'monospace',
+        fontFamily: PAL.fontBody,
         fontStyle:  count > 0 ? 'bold' : 'normal',
       }).setOrigin(0.5);
 
       // Make clickable
       if (canAfford) {
         panel.setInteractive({ useHandCursor: true });
-        panel.on('pointerover',  () => panel.setFillStyle(0x003355));
+        panel.on('pointerover',  () => panel.setFillStyle(PAL.bgCardHover));
         panel.on('pointerout',   () => panel.setFillStyle(bgColor));
         panel.on(TAP_EVENT, () => {
           const ok = save.purchaseConsumable(item.key);
@@ -424,8 +464,8 @@ export class MetaMenuScene extends Phaser.Scene {
       'Tokens are consumed at the start of your next run.',
       {
         fontSize:   this._fs(12),
-        color:      '#445544',
-        fontFamily: 'monospace',
+        color:      PAL.textFaint,
+        fontFamily: PAL.fontBody,
         align:      'center',
         wordWrap:   { width: PANEL_W },
       },
@@ -444,8 +484,8 @@ export class MetaMenuScene extends Phaser.Scene {
       'Permanent stat boosts — applied to every run.',
       {
         fontSize:   this._fs(12),
-        color:      '#557799',
-        fontFamily: 'monospace',
+        color:      PAL.accentBlue,
+        fontFamily: PAL.fontBody,
       },
     );
 
@@ -453,14 +493,14 @@ export class MetaMenuScene extends Phaser.Scene {
 
     for (const towerDef of TOWER_META_UPGRADE_DEFS) {
       // Tower block header
-      const headerBg = this.add.rectangle(cx, y + 14, PANEL_W, 28, 0x1a2a1a)
-        .setStrokeStyle(1, 0x335533);
+      const headerBg = this.add.rectangle(cx, y + 14, PANEL_W, 28, PAL.bgPanel)
+        .setStrokeStyle(1, PAL.borderInactive);
       container.add(headerBg);
 
       container.add(this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 4, towerDef.towerName, {
         fontSize:   this._fs(14),
-        color:      '#44cc88',
-        fontFamily: 'monospace',
+        color:      PAL.textPrimary,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }));
 
@@ -473,15 +513,15 @@ export class MetaMenuScene extends Phaser.Scene {
         const cost     = isMaxed ? 0 : META_TIER_COSTS[tier];
         const canAfford = !isMaxed && save.getCurrency() >= cost;
 
-        const rowBg = this.add.rectangle(cx, y + 20, PANEL_W, 40, 0x0d1a0d)
-          .setStrokeStyle(1, isMaxed ? 0x006633 : (canAfford ? 0x224422 : 0x1a1a1a));
+        const rowBg = this.add.rectangle(cx, y + 20, PANEL_W, 40, PAL.bgCard)
+          .setStrokeStyle(1, isMaxed ? PAL.borderActive : (canAfford ? PAL.borderInactive : PAL.bgPanel));
         container.add(rowBg);
 
         // Stat label
         container.add(this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 8, track.label, {
           fontSize:   this._fs(12),
-          color:      '#aaccaa',
-          fontFamily: 'monospace',
+          color:      PAL.textMuted,
+          fontFamily: PAL.fontBody,
         }));
 
         // Tier pips (5 small squares)
@@ -489,8 +529,8 @@ export class MetaMenuScene extends Phaser.Scene {
         for (let i = 0; i < MAX_META_TIER; i++) {
           const filled = i < tier;
           const pip = this.add.rectangle(pipStartX + i * 16, y + 20, 12, 12,
-            filled ? 0x00bb55 : 0x223322,
-          ).setStrokeStyle(1, filled ? 0x00ff77 : 0x335533);
+            filled ? PAL.accentGreenN : PAL.bgPanelLocked,
+          ).setStrokeStyle(1, filled ? PAL.borderActive : PAL.borderInactive);
           container.add(pip);
         }
 
@@ -498,8 +538,8 @@ export class MetaMenuScene extends Phaser.Scene {
         const bonusStr = getMetaBonusDisplay(track, tier);
         container.add(this.add.text(cx + 38, y + 20, bonusStr, {
           fontSize:   this._fs(11),
-          color:      isMaxed ? '#ffcc44' : '#88ccaa',
-          fontFamily: 'monospace',
+          color:      isMaxed ? PAL.gold : PAL.textSecondary,
+          fontFamily: PAL.fontBody,
           fontStyle:  isMaxed ? 'bold' : 'normal',
         }).setOrigin(0.5));
 
@@ -507,31 +547,31 @@ export class MetaMenuScene extends Phaser.Scene {
           // MAXED indicator
           container.add(this.add.text(cx + PANEL_W / 2 - NODE_PAD_X - 30, y + 20, 'MAXED', {
             fontSize:   this._fs(11),
-            color:      '#ffcc44',
-            fontFamily: 'monospace',
+            color:      PAL.gold,
+            fontFamily: PAL.fontBody,
             fontStyle:  'bold',
           }).setOrigin(0.5));
         } else {
           // Cost + next-tier bonus
           const nextBonus = getNextTierBonusDisplay(track, tier);
-          const costColor = canAfford ? '#88ccff' : '#666666';
+          const costColor = canAfford ? PAL.accentBlueLight : PAL.textDim;
 
           container.add(this.add.text(cx + PANEL_W / 2 - NODE_PAD_X - 70, y + 12, nextBonus, {
             fontSize:   this._fs(11),
-            color:      canAfford ? '#44dd88' : '#557755',
-            fontFamily: 'monospace',
+            color:      canAfford ? PAL.accentGreen : PAL.textFaint,
+            fontFamily: PAL.fontBody,
           }).setOrigin(0.5));
 
           container.add(this.add.text(cx + PANEL_W / 2 - NODE_PAD_X - 70, y + 26, `${cost}💎`, {
             fontSize:   this._fs(11),
             color:      costColor,
-            fontFamily: 'monospace',
+            fontFamily: PAL.fontBody,
           }).setOrigin(0.5));
 
           if (canAfford) {
             rowBg.setInteractive({ useHandCursor: true });
-            rowBg.on('pointerover',  () => rowBg.setFillStyle(0x1a3322));
-            rowBg.on('pointerout',   () => rowBg.setFillStyle(0x0d1a0d));
+            rowBg.on('pointerover',  () => rowBg.setFillStyle(PAL.bgCardHover));
+            rowBg.on('pointerout',   () => rowBg.setFillStyle(PAL.bgCard));
             rowBg.on(TAP_EVENT, () => {
               const ok = save.purchaseTowerMetaUpgrade(towerDef.towerKey, track.key);
               if (ok) {
@@ -558,38 +598,23 @@ export class MetaMenuScene extends Phaser.Scene {
       maskGfx.fillRect(0, startY, this.scale.width, visibleH);
       container.setMask(maskGfx.createGeometryMask());
 
-      const maxScroll  = contentH - visibleH;
-      let scrollOffset = 0;
-
-      const applyScroll = (delta: number): void => {
-        scrollOffset = Phaser.Math.Clamp(scrollOffset + delta, 0, maxScroll);
-        container.y = -scrollOffset;
-      };
-
-      this.input.on('wheel', (
-        _pointer: Phaser.Input.Pointer,
-        _over: Phaser.GameObjects.GameObject[],
-        _dx: number,
-        deltaY: number,
-      ) => {
-        applyScroll(deltaY * 0.5);
-      });
+      const applyScroll = this._attachScrollHandlers(container, startY, contentH, visibleH);
 
       const arrowX = cx + PANEL_W / 2 + 24;
 
       const upArrow = this.add.text(arrowX, startY + 8, '▲', {
-        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
+        fontSize: this._fs(20), color: PAL.textSecondary, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       upArrow.on(TAP_EVENT,   () => applyScroll(-44));
-      upArrow.on('pointerover', () => upArrow.setColor('#55aa55'));
-      upArrow.on('pointerout',  () => upArrow.setColor('#335533'));
+      upArrow.on('pointerover', () => upArrow.setColor(PAL.textPrimary));
+      upArrow.on('pointerout',  () => upArrow.setColor(PAL.textSecondary));
 
       const downArrow = this.add.text(arrowX, startY + visibleH - 8, '▼', {
-        fontSize: this._fs(20), color: '#335533', fontFamily: 'monospace',
+        fontSize: this._fs(20), color: PAL.textSecondary, fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       downArrow.on(TAP_EVENT,   () => applyScroll(44));
-      downArrow.on('pointerover', () => downArrow.setColor('#55aa55'));
-      downArrow.on('pointerout',  () => downArrow.setColor('#335533'));
+      downArrow.on('pointerover', () => downArrow.setColor(PAL.textPrimary));
+      downArrow.on('pointerout',  () => downArrow.setColor(PAL.textSecondary));
     }
   }
 
@@ -615,28 +640,28 @@ export class MetaMenuScene extends Phaser.Scene {
     let labelColor: string;
 
     if (owned) {
-      bgColor = 0x004400;
-      borderColor = 0x00aa44;
-      labelColor = '#00ff44';
+      bgColor = PAL.bgStartBtn;
+      borderColor = PAL.borderActive;
+      labelColor = PAL.textPrimary;
     } else if (locked) {
-      bgColor = 0x111111;
-      borderColor = 0x333333;
-      labelColor = '#444444';
+      bgColor = PAL.bgPanelLocked;
+      borderColor = PAL.borderLocked;
+      labelColor = PAL.textLocked;
     } else if (affordable) {
-      bgColor = 0x002233;
-      borderColor = 0x0088cc;
-      labelColor = '#88ccff';
+      bgColor = PAL.bgCard;
+      borderColor = PAL.accentBlueN;
+      labelColor = PAL.accentBlueLight;
     } else {
-      bgColor = 0x1a1a1a;
-      borderColor = 0x444444;
-      labelColor = '#888888';
+      bgColor = PAL.bgPanel;
+      borderColor = PAL.borderInactive;
+      labelColor = PAL.textMuted;
     }
 
     // ── Subtle glow layer behind the panel ──────────────────────────────────
     if (owned) {
       // Owned nodes: pulsing green glow
       const ownedGlow = this.add.rectangle(
-        cx, y + nodeHeight / 2, PANEL_W + 6, nodeHeight + 6, 0x00cc44, 0,
+        cx, y + nodeHeight / 2, PANEL_W + 6, nodeHeight + 6, PAL.accentGreenN, 0,
       );
       if (container) container.add(ownedGlow);
       this.tweens.add({
@@ -650,7 +675,7 @@ export class MetaMenuScene extends Phaser.Scene {
     } else if (affordable) {
       // Available-to-purchase nodes: "come hither" shimmer
       const shimmerGlow = this.add.rectangle(
-        cx, y + nodeHeight / 2, PANEL_W + 6, nodeHeight + 6, 0x0088cc, 0,
+        cx, y + nodeHeight / 2, PANEL_W + 6, nodeHeight + 6, PAL.accentBlueN, 0,
       );
       if (container) container.add(shimmerGlow);
       this.tweens.add({
@@ -672,7 +697,7 @@ export class MetaMenuScene extends Phaser.Scene {
     const label = this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 10, node.label, {
       fontSize:   this._fs(16),
       color:      labelColor,
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     });
     if (container) container.add(label);
@@ -680,8 +705,8 @@ export class MetaMenuScene extends Phaser.Scene {
     // Description — word-wrapped to fit within the node box; maxLines guards against overflow.
     const desc = this.add.text(cx - PANEL_W / 2 + NODE_PAD_X, y + 32, node.description, {
       fontSize:    this._fs(11),
-      color:       '#888888',
-      fontFamily:  'monospace',
+      color:       PAL.textDesc,
+      fontFamily:  PAL.fontBody,
       wordWrap:    { width: PANEL_W - NODE_PAD_X * 2 - 100 },
       maxLines:    3,
     });
@@ -694,32 +719,32 @@ export class MetaMenuScene extends Phaser.Scene {
     if (owned) {
       const badge = this.add.text(badgeX, badgeY, 'OWNED', {
         fontSize:   this._fs(14),
-        color:      '#00ff44',
-        fontFamily: 'monospace',
+        color:      PAL.accentGreen,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }).setOrigin(0.5);
       if (container) container.add(badge);
     } else if (locked) {
       const badge = this.add.text(badgeX, badgeY, 'LOCKED', {
         fontSize:   this._fs(13),
-        color:      '#555555',
-        fontFamily: 'monospace',
+        color:      PAL.textLocked,
+        fontFamily: PAL.fontBody,
       }).setOrigin(0.5);
       if (container) container.add(badge);
     } else {
       const costText = this.add.text(badgeX, badgeY, `${node.cost}`, {
         fontSize:   this._fs(18),
-        color:      affordable ? '#88ccff' : '#666666',
-        fontFamily: 'monospace',
+        color:      affordable ? PAL.accentBlueLight : PAL.textDim,
+        fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }).setOrigin(0.5);
       if (container) container.add(costText);
 
-      // "crystals" label — minimum 11px
+      // "crystals" label
       const crystalsLabel = this.add.text(badgeX, badgeY + 16, 'crystals', {
         fontSize:   this._fs(11),
-        color:      '#557799',
-        fontFamily: 'monospace',
+        color:      PAL.accentBlue,
+        fontFamily: PAL.fontBody,
       }).setOrigin(0.5);
       if (container) container.add(crystalsLabel);
     }
@@ -727,7 +752,7 @@ export class MetaMenuScene extends Phaser.Scene {
     // Make clickable when purchasable
     if (canBuy) {
       panel.setInteractive({ useHandCursor: true });
-      panel.on('pointerover',  () => panel.setFillStyle(0x003355));
+      panel.on('pointerover',  () => panel.setFillStyle(PAL.bgCardHover));
       panel.on('pointerout',   () => panel.setFillStyle(bgColor));
       panel.on(TAP_EVENT, () => {
         const purchased = save.purchaseUnlock(node.id, node.cost);
@@ -748,9 +773,9 @@ export class MetaMenuScene extends Phaser.Scene {
     active: boolean,
     onClick: () => void,
   ): void {
-    const fillColor   = active ? 0x003322 : 0x111111;
-    const borderColor = active ? 0x00aa44 : 0x335533;
-    const textColor   = active ? '#00ff44' : '#44aa44';
+    const fillColor   = active ? PAL.bgCard : PAL.bgPanel;
+    const borderColor = active ? PAL.borderActive : PAL.borderInactive;
+    const textColor   = active ? PAL.textPrimary : PAL.textSecondary;
     // Ensure 44px minimum height on mobile for tap target.
     const tabH = this._isMobile ? 44 : 36;
 
@@ -761,12 +786,12 @@ export class MetaMenuScene extends Phaser.Scene {
     const text = this.add.text(x, y, label, {
       fontSize:   this._fs(16),
       color:      textColor,
-      fontFamily: 'monospace',
+      fontFamily: PAL.fontBody,
       fontStyle:  active ? 'bold' : 'normal',
     }).setOrigin(0.5);
 
     if (!active) {
-      bg.on('pointerover',  () => { bg.setFillStyle(0x223322); text.setColor('#00ff44'); });
+      bg.on('pointerover',  () => { bg.setFillStyle(PAL.bgPanelHover); text.setColor(PAL.textPrimary); });
       bg.on('pointerout',   () => { bg.setFillStyle(fillColor); text.setColor(textColor); });
       bg.on(TAP_EVENT,    onClick);
     }
@@ -774,18 +799,18 @@ export class MetaMenuScene extends Phaser.Scene {
 
   private makeButton(x: number, y: number, label: string, onClick: () => void): void {
     const btnH = this._isMobile ? 52 : 48;
-    const bg = this.add.rectangle(x, y, 200, btnH, 0x111111)
-      .setStrokeStyle(2, 0x335533)
+    const bg = this.add.rectangle(x, y, 200, btnH, PAL.bgPanel)
+      .setStrokeStyle(2, PAL.borderInactive)
       .setInteractive({ useHandCursor: true });
 
     const text = this.add.text(x, y, label, {
       fontSize:   this._fs(18),
-      color:      '#44aa44',
-      fontFamily: 'monospace',
+      color:      PAL.textSecondary,
+      fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
-    bg.on('pointerover',  () => { bg.setFillStyle(0x223322); text.setColor('#00ff44'); });
-    bg.on('pointerout',   () => { bg.setFillStyle(0x111111); text.setColor('#44aa44'); });
+    bg.on('pointerover',  () => { bg.setFillStyle(PAL.bgPanelHover); text.setColor(PAL.textPrimary); });
+    bg.on('pointerout',   () => { bg.setFillStyle(PAL.bgPanel); text.setColor(PAL.textSecondary); });
     bg.on(TAP_EVENT,    onClick);
   }
 }

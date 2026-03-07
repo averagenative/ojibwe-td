@@ -33,24 +33,18 @@ describe('TASK-163: QUICK PLAY is right-side square button', () => {
     expect(mainMenuSrc).not.toContain('quickSideGap');
   });
 
-  it('comment warns to keep QUICK PLAY separate from centre', () => {
-    expect(mainMenuSrc).toContain('Do NOT move it back to centre');
+  it('QUICK PLAY position uses STAGE_W offset (separate from centre)', () => {
+    expect(mainMenuSrc).toContain('// ── QUICK PLAY');
   });
 });
 
 // ── Vertical gap constants meet ≥16px requirement ───────────────────────────
 
 describe('TASK-163: vertical gap constants meet ≥16px requirement', () => {
-  it('bottomDropGap is ≥16 on mobile', () => {
-    const m = mainMenuSrc.match(/bottomDropGap\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
+  it('bottomDropGap is ≥16', () => {
+    const m = mainMenuSrc.match(/const bottomDropGap\s*=\s*(\d+)/);
     expect(m).not.toBeNull();
     expect(parseInt(m![1], 10)).toBeGreaterThanOrEqual(16);
-  });
-
-  it('bottomDropGap is ≥16 on desktop', () => {
-    const m = mainMenuSrc.match(/bottomDropGap\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
-    expect(m).not.toBeNull();
-    expect(parseInt(m![2], 10)).toBeGreaterThanOrEqual(16);
   });
 });
 

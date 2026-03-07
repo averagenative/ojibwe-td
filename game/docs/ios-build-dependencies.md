@@ -43,14 +43,16 @@ guard let url = userActivity.webpageURL else { return false }
 return ApplicationDelegateProxy.shared.application(application, open: url)
 ```
 
-## Original Setup (brother's MBP)
+## Brother's MBP
 
 | Component | Version |
 |---|---|
-| Xcode | Likely 15.x (Swift 5.9) — needs confirmation |
+| macOS | 15.x (Sequoia) |
+| Xcode | 26.2 |
+| Swift | 6.2.3 |
 | All other deps | Same npm versions |
 
-The original `AppDelegate.swift` and plugins compiled fine on Swift 5.9 because the Capacitor 8.1.0 binary xcframework exposed different API surfaces depending on the Swift version.
+Both machines are on Swift 6.x so the current codebase works on both.
 
 ## How to Stay in Sync
 

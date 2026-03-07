@@ -94,7 +94,7 @@ describe('_fs() scaling logic', () => {
 describe('structural — MobileManager integration', () => {
   for (const { name, src } of SCENES) {
     it(`${name} imports MobileManager`, () => {
-      expect(src).toContain("import { MobileManager } from '../systems/MobileManager'");
+      expect(src).toContain("import { MobileManager");
     });
 
     it(`${name} sets _isMobile in create()`, () => {
@@ -258,7 +258,7 @@ describe('mobile layout adaptations', () => {
 
   it('CodexScene uses full-screen overlay detail on mobile', () => {
     expect(codexSrc).toContain('// ── Mobile: full-screen overlay');
-    expect(codexSrc).toContain("overlay.on('pointerup', () => this.clearDetail())");
+    expect(codexSrc).toContain("overlay.on(TAP_EVENT, () => this.clearDetail())");
   });
 
   it('CodexScene retains desktop side panel', () => {

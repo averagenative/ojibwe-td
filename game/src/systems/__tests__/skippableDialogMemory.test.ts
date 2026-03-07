@@ -101,7 +101,7 @@ import vignetteOverlaySrc from '../../ui/VignetteOverlay.ts?raw';
 
 describe('VignetteOverlay skip button (structural)', () => {
   it('imports MobileManager', () => {
-    expect(vignetteOverlaySrc).toContain("import { MobileManager }");
+    expect(vignetteOverlaySrc).toContain("import { MobileManager");
   });
 
   it('creates a skip button rectangle with interactive', () => {
@@ -112,8 +112,8 @@ describe('VignetteOverlay skip button (structural)', () => {
     expect(vignetteOverlaySrc).toContain("'Skip \\u25B6'");
   });
 
-  it('skip button calls dismiss() on pointerup', () => {
-    expect(vignetteOverlaySrc).toContain("skipBg.on('pointerup',   () => this.dismiss())");
+  it('skip button calls dismiss() on tap', () => {
+    expect(vignetteOverlaySrc).toContain("skipBg.on(TAP_EVENT,   () => this.dismiss())");
   });
 
   it('skip button has hover effect (pointerover/pointerout)', () => {
@@ -165,8 +165,9 @@ describe('CutsceneScene skip button (structural)', () => {
     expect(cutsceneSceneSrc).toContain("'SKIP'");
   });
 
-  it('skip button calls finish() on pointerup', () => {
-    expect(cutsceneSceneSrc).toMatch(/this\.skipBtn\.on\('pointerup',\s+\(\) => this\.finish\(\)\)/);
+  it('skip button calls finish() on tap', () => {
+    // Uses TAP_EVENT constant (resolves to pointerup/pointerdown based on platform)
+    expect(cutsceneSceneSrc).toMatch(/this\.skipBtn\.on\(TAP_EVENT,\s+\(\) => this\.finish\(\)\)/);
   });
 
   it('skip button is 44px tall on mobile (touch target)', () => {

@@ -303,11 +303,11 @@ describe('MainMenuScene — QUICK PLAY button', () => {
     expect(mainMenuSrc).toContain('PAL.goldN');
   });
 
-  it('has pointerover/pointerout/pointerdown/pointerup handlers', () => {
+  it('has pointerover/pointerout/pointerdown/tap handlers', () => {
     expect(mainMenuSrc).toContain("quickP.zone.on('pointerover'");
     expect(mainMenuSrc).toContain("quickP.zone.on('pointerout'");
     expect(mainMenuSrc).toContain("quickP.zone.on('pointerdown'");
-    expect(mainMenuSrc).toContain("quickP.zone.on('pointerup'");
+    expect(mainMenuSrc).toContain("quickP.zone.on(TAP_EVENT");
   });
 
   it('calls pickQuickPlay(SaveManager.getInstance()) in pointerup', () => {
@@ -316,7 +316,7 @@ describe('MainMenuScene — QUICK PLAY button', () => {
 
   it('navigates to GameScene (not CommanderSelectScene)', () => {
     // Quick play must bypass CommanderSelectScene
-    const quickUpBlock = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on('pointerup'"));
+    const quickUpBlock = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on(TAP_EVENT"));
     const closingBrace = quickUpBlock.indexOf('\n    });') + 1;
     const handler = quickUpBlock.slice(0, closingBrace);
     expect(handler).toContain("_go('GameScene'");
@@ -324,22 +324,22 @@ describe('MainMenuScene — QUICK PLAY button', () => {
   });
 
   it('passes commanderId to GameScene', () => {
-    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on('pointerup'"));
+    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on(TAP_EVENT"));
     expect(block).toContain('commanderId: sel.commanderId');
   });
 
   it('passes stageId to GameScene', () => {
-    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on('pointerup'"));
-    expect(block).toContain('stageId:     sel.stageId');
+    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on(TAP_EVENT"));
+    expect(block).toContain('stageId: sel.stageId');
   });
 
   it('passes mapId to GameScene', () => {
-    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on('pointerup'"));
-    expect(block).toContain('mapId:       sel.mapId');
+    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on(TAP_EVENT"));
+    expect(block).toContain('mapId: sel.mapId');
   });
 
   it('checks hasResume before showing overwrite confirm', () => {
-    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on('pointerup'"));
+    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on(TAP_EVENT"));
     expect(block).toContain('if (hasResume)');
     expect(block).toContain('_showOverwriteConfirm(');
   });
@@ -389,16 +389,16 @@ describe('MainMenuScene — _showQuickPlaySplash', () => {
 // ── Arithmetic tests — button sizing ─────────────────────────────────────────
 
 describe('QUICK PLAY button sizing — right-side square button', () => {
-  it('quickBtnSize meets 44px touch target on mobile', () => {
-    const match = mainMenuSrc.match(/quickBtnSize\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
+  it('quickBtnSize meets 44px touch target', () => {
+    const match = mainMenuSrc.match(/const quickBtnSize\s*=\s*(\d+)/);
     expect(match).not.toBeNull();
     expect(parseInt(match![1], 10)).toBeGreaterThanOrEqual(44);
   });
 
-  it('quickBtnSize is large (≥120 desktop)', () => {
-    const match = mainMenuSrc.match(/quickBtnSize\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
+  it('quickBtnSize is large (≥120)', () => {
+    const match = mainMenuSrc.match(/const quickBtnSize\s*=\s*(\d+)/);
     expect(match).not.toBeNull();
-    expect(parseInt(match![2], 10)).toBeGreaterThanOrEqual(120);
+    expect(parseInt(match![1], 10)).toBeGreaterThanOrEqual(120);
   });
 
   it('quickBtnSize is square (single dimension)', () => {

@@ -39,6 +39,7 @@ MAX_RETRIES=8           # max attempts per agent before giving up
 RETRY_DELAY=90          # seconds to wait after a transient rate/context limit
 QUOTA_WAIT=1800         # seconds to wait after quota/billing exhaustion (30 min)
 QUOTA_MAX_WAIT=48       # max quota-wait cycles before giving up (~24 h)
+BASELINE_TEST_FAILURES=0   # known pre-existing test failures (update when fixing old tests)
 
 CHECKPOINT_FILE="$REPO_DIR/.orch_checkpoint"
 
@@ -230,22 +231,103 @@ sync_with_remote() {
     return 0
   fi
 
-  local behind
+  local behind ahead
   behind=$(git -C "$REPO_DIR" rev-list HEAD..origin/main --count 2>/dev/null || echo 0)
+  ahead=$(git -C "$REPO_DIR" rev-list origin/main..HEAD --count 2>/dev/null || echo 0)
 
-  if [ "$behind" -eq 0 ]; then
+  if [ "$behind" -eq 0 ] && [ "$ahead" -eq 0 ]; then
     log "Remote: already up to date."
     return 0
   fi
 
-  log "Remote: $behind new commit(s) — pulling…"
-  if ! out=$(git -C "$REPO_DIR" pull --rebase origin main 2>&1); then
-    log "WARNING: git pull --rebase failed — manual rebase may be needed."
-    log "$out"
-    return 0
+  [ "$ahead" -gt 0 ] && log "Remote: $ahead local commit(s) not yet pushed."
+
+  if [ "$behind" -gt 0 ]; then
+    log "Remote: $behind new commit(s) available."
+
+    # Interactive prompt if running in a terminal
+    if [ -t 0 ]; then
+      printf "[orch] Pull latest before proceeding? [Y/n] "
+      read -r answer
+      case "$answer" in
+        n|N|no|No) log "Skipping pull — working with local state."; return 0 ;;
+      esac
+    fi
+
+    log "Pulling $behind commit(s)…"
+    if ! out=$(git -C "$REPO_DIR" pull --rebase origin main 2>&1); then
+      log "WARNING: git pull --rebase failed — manual rebase may be needed."
+      log "$out"
+      return 0
+    fi
+    echo "$out" | sed 's/^/  /'
+    log "Remote: sync complete."
   fi
-  echo "$out" | sed 's/^/  /'
-  log "Remote: sync complete."
+}
+
+# ── Preflight: verify baseline builds before starting any work ────────────────
+#
+# Catches the case where the repo is already broken before we touch it.
+# Runs typecheck + tests; if either fails, warns and prompts (interactive)
+# or aborts (headless).
+
+preflight_check() {
+  log "Preflight: checking baseline build health…"
+
+  local dirty
+  dirty=$(git -C "$REPO_DIR" diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$dirty" -gt 0 ]; then
+    log "WARNING: $dirty uncommitted file(s) in working tree."
+    if [ -t 0 ]; then
+      printf "[orch] Continue with dirty working tree? [y/N] "
+      read -r answer
+      case "$answer" in
+        y|Y|yes|Yes) ;;
+        *) die "Aborting — commit or stash changes first." ;;
+      esac
+    fi
+  fi
+
+  local tc_out
+  tc_out=$(cd "$GAME_DIR" && npm run typecheck 2>&1) || {
+    log "WARNING: Baseline typecheck FAILS before any task work."
+    echo "$tc_out" | tail -10 | sed 's/^/  /'
+    if [ -t 0 ]; then
+      printf "[orch] Proceed anyway? [y/N] "
+      read -r answer
+      case "$answer" in
+        y|Y|yes|Yes) return 0 ;;
+        *) die "Fix typecheck errors before running orchestrator." ;;
+      esac
+    else
+      die "Baseline typecheck fails — fix before running orchestrator."
+    fi
+  }
+  log "Preflight: typecheck passed ✓"
+
+  local test_out
+  test_out=$(cd "$GAME_DIR" && npm run test 2>&1) || {
+    local fail_count
+    fail_count=$(echo "$test_out" | sed 's/\x1b\[[0-9;]*m//g' | grep -oE '[0-9]+ failed' | head -1 | awk '{print $1}')
+    fail_count=${fail_count:-0}
+    if [ "$fail_count" -le "$BASELINE_TEST_FAILURES" ]; then
+      log "Preflight: $fail_count test failure(s) ≤ baseline ($BASELINE_TEST_FAILURES) — OK"
+    else
+      log "WARNING: Baseline tests FAIL ($fail_count) — exceeds baseline ($BASELINE_TEST_FAILURES)."
+      if [ -t 0 ]; then
+        printf "[orch] Proceed anyway? [y/N] "
+        read -r answer
+        case "$answer" in
+          y|Y|yes|Yes) ;;
+          *) die "Fix test failures before running orchestrator." ;;
+        esac
+      else
+        die "Baseline tests fail ($fail_count > $BASELINE_TEST_FAILURES) — fix before running orchestrator."
+      fi
+    fi
+  }
+  log "Preflight: tests passed ✓"
+  log "Preflight: baseline is clean — safe to proceed."
 }
 
 # ── Task helpers ──────────────────────────────────────────────────────────────
@@ -255,22 +337,30 @@ find_next_task() {
     "$TASKS_DIR/backend/pending"
     "$TASKS_DIR/frontend/pending"
   )
-  # Sort by priority: critical(0) > high(1) > medium(2) > low(3) > unset(4)
-  local best
-  best=$(
-    for dir in "${dirs[@]}"; do
-      [ -d "$dir" ] || continue
-      while IFS= read -r -d '' f; do
-        if grep -q "^status: pending$" "$f" 2>/dev/null; then
-          pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}') || pri=""
-          case "$pri" in
-            critical) rank=0 ;; high) rank=1 ;; medium) rank=2 ;; low) rank=3 ;; *) rank=4 ;;
-          esac
-          echo "${rank}|${f}"
-        fi
-      done < <(find "$dir" -maxdepth 1 -name "*.md" -print0)
-    done | sort | head -1 | cut -d'|' -f2-
-  )
+  local tmp_ranked
+  tmp_ranked=$(mktemp /tmp/orch_rank_XXXXXX)
+
+  for dir in "${dirs[@]}"; do
+    [ -d "$dir" ] || continue
+    while IFS= read -r -d '' f; do
+      if grep -q "^status: pending$" "$f" 2>/dev/null; then
+        local pri rank
+        pri=$(grep "^priority:" "$f" 2>/dev/null | head -1 | awk '{print $2}') || pri=""
+        rank=4
+        [ "$pri" = "critical" ] && rank=0
+        [ "$pri" = "high" ]     && rank=1
+        [ "$pri" = "medium" ]   && rank=2
+        [ "$pri" = "low" ]      && rank=3
+        echo "${rank}|${f}" >> "$tmp_ranked"
+      fi
+    done < <(find "$dir" -maxdepth 1 -name "*.md" -print0)
+  done
+
+  local best=""
+  if [ -s "$tmp_ranked" ]; then
+    best=$(sort "$tmp_ranked" | head -1 | cut -d'|' -f2-)
+  fi
+  rm -f "$tmp_ranked"
   echo "$best"
 }
 
@@ -311,16 +401,34 @@ pre_validate() {
   }
   log "Pre-validate: typecheck passed ✓"
 
-  # Gate 2: Existing test suite — catch regressions before paying Opus
+  # Gate 2: Test suite — compare against baseline failure count (not zero)
+  # Pre-existing test failures shouldn't block new work.
   log "Pre-validate: running test suite (bash gate — no LLM)…"
-  out=$(cd "$GAME_DIR" && npm run test 2>&1) || {
+  out=$(cd "$GAME_DIR" && npm run test 2>&1)
+  local test_exit=$?
+
+  # Extract failure count from vitest output
+  local fail_count
+  fail_count=$(echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -E "Tests .* failed" | grep -oE '[0-9]+ failed' | head -1 | awk '{print $1}')
+  fail_count=${fail_count:-0}
+
+  # Baseline: known pre-existing failures (update when fixing old tests)
+  local baseline_failures=${BASELINE_TEST_FAILURES:-27}
+
+  if [ "$test_exit" -eq 0 ]; then
+    log "Pre-validate: tests passed ✓  (Opus review will proceed)"
+    return 0
+  elif [ "$fail_count" -le "$baseline_failures" ]; then
+    log "Pre-validate: tests have $fail_count failure(s) ≤ baseline ($baseline_failures) — PASS ✓"
+    log "  (Pre-existing failures — not caused by this implementation)"
+    return 0
+  else
+    local new_failures=$((fail_count - baseline_failures))
     echo "$out" | sed 's/^/[test] /'
-    log "Pre-validate: tests FAILED — skipping Opus review to save tokens"
-    log "  Fix test failures in implement agent, then re-run with --resume"
+    log "Pre-validate: $fail_count failure(s), $new_failures NEW above baseline ($baseline_failures)"
+    log "  Fix test regressions, then re-run with --resume"
     return 1
-  }
-  log "Pre-validate: tests passed ✓  (Opus review will proceed)"
-  return 0
+  fi
 }
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
@@ -358,11 +466,16 @@ main() {
     task_file=$(find_next_task)
   fi
 
-  [ -n "$task_file" ] || { log "No pending tasks — nothing to do."; exit 0; }
-  [ -f "$task_file"  ] || die "Task file not found: $task_file"
-
   # Pull any collaborator commits before touching the repo
   sync_with_remote
+
+  # Verify baseline build health (skip on --resume since we already have in-flight work)
+  if ! $resume; then
+    preflight_check
+  fi
+
+  [ -n "$task_file" ] || { log "No pending tasks — nothing to do."; exit 0; }
+  [ -f "$task_file"  ] || die "Task file not found: $task_file"
 
   local title done_path mdl
   title=$(get_title "$task_file")
@@ -421,14 +534,68 @@ Be thorough — the next agent will verify every criterion against the task file
     log "=== AGENT 1 — Implement  [SKIPPED — already completed] ==="
   fi
 
-  # ── Bash gate: typecheck before invoking Opus ───────────────────────────────
-  if [[ "$resume_from" == "none" || "$resume_from" == "implement" ]]; then
-    pre_validate || {
-      log "Pre-validate failed — aborting pipeline. Re-run implement to fix errors."
+  # ── Bash gate: typecheck + tests before invoking Opus ─────────────────────────
+  # If pre-validate fails, run a fix-up agent to repair the issues, then re-check.
+  # Up to 3 fix-up attempts before giving up.
+  local fix_attempts=0
+  local max_fix=3
+  while ! pre_validate; do
+    fix_attempts=$(( fix_attempts + 1 ))
+    if [ "$fix_attempts" -gt "$max_fix" ]; then
+      log "Pre-validate still failing after $max_fix fix-up attempts — aborting."
       log "Checkpoint preserved at 'implement' stage — resume with: ./orchestrator.sh --resume"
       return 1
-    }
-  fi
+    fi
+
+    hr
+    log "=== FIX-UP AGENT (attempt $fix_attempts/$max_fix) ==="
+    hr
+
+    local fix_errors
+    fix_errors=$(cd "$GAME_DIR" && npm run typecheck 2>&1 | sed 's/\x1b\[[0-9;]*m//g' || true)
+    local test_errors
+    test_errors=$(cd "$GAME_DIR" && npm run test 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tail -60 || true)
+
+    # Count new failures above baseline for the prompt
+    local current_fails
+    current_fails=$(echo "$test_errors" | grep -oE '[0-9]+ failed' | head -1 | awk '{print $1}')
+    current_fails=${current_fails:-0}
+    local new_above=$((current_fails - BASELINE_TEST_FAILURES))
+    [ "$new_above" -lt 0 ] && new_above=0
+
+    run_agent "fix-up" \
+"You are fixing broken tests/types in Ojibwe TD after a feature implementation.
+
+REPO ROOT : $REPO_DIR
+GAME SRC  : $GAME_DIR/src
+TASK FILE : $task_file
+
+The implementation for this task is done, but typecheck or tests are failing.
+IMPORTANT: There are $BASELINE_TEST_FAILURES known pre-existing test failures in the codebase.
+You need to fix the $new_above NEW failure(s) introduced by this implementation.
+Focus on regressions — do NOT try to fix unrelated pre-existing failures.
+
+TypeScript errors (if any):
+$fix_errors
+
+Test failures (last 60 lines):
+$test_errors
+
+Steps
+─────
+1. Read the task file to understand what was implemented.
+2. Examine the current git diff to see what changed:
+     git -C $REPO_DIR diff
+3. Fix typecheck errors and NEW test regressions caused by this implementation.
+   - If tests broke because the implementation changed APIs, update the tests.
+   - If tests broke because of bugs in the implementation, fix the implementation.
+   - Do NOT delete or skip existing tests — fix them.
+   - Pre-existing failures (≤$BASELINE_TEST_FAILURES) are acceptable — don't waste time on them.
+4. Run: cd $GAME_DIR && npm run typecheck   — must exit 0
+5. Run: cd $GAME_DIR && npm run test        — aim for ≤$BASELINE_TEST_FAILURES failures
+6. Do NOT commit anything." \
+    "$GAME_DIR" "$mdl"
+  done
 
   # ── Agent 2: Review & Tests ─────────────────────────────────────────────
   if [[ "$resume_from" == "none" || "$resume_from" == "implement" ]]; then

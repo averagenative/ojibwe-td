@@ -1,7 +1,7 @@
 ---
 id: TASK-167
 title: iOS App — Capacitor Setup & First Xcode Build
-status: blocked
+status: done
 priority: high
 blocked_reason: Requires macOS + Xcode — must be run on a Mac (brother's machine)
 phase: release

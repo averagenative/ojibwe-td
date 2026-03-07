@@ -536,7 +536,7 @@ describe('MetaMenuScene — node glow/shimmer effects', () => {
   it('adds a pulsing glow rectangle behind owned nodes', () => {
     // Owned glow rectangle is created when `owned` is true
     expect(metaMenuSrc).toContain('ownedGlow');
-    expect(metaMenuSrc).toContain('0x00cc44');  // green glow for owned
+    expect(metaMenuSrc).toContain('PAL.accentGreenN');  // green glow for owned (TASK-170 palette)
   });
 
   it('tween pulses owned glow with yoyo/repeat:-1', () => {
@@ -546,7 +546,7 @@ describe('MetaMenuScene — node glow/shimmer effects', () => {
 
   it('adds a shimmer rectangle behind affordable nodes', () => {
     expect(metaMenuSrc).toContain('shimmerGlow');
-    expect(metaMenuSrc).toContain('0x0088cc');  // blue shimmer for available
+    expect(metaMenuSrc).toContain('PAL.accentBlueN');  // blue shimmer for available (TASK-170 palette)
   });
 
   it('shimmer uses Sine.easeInOut easing', () => {

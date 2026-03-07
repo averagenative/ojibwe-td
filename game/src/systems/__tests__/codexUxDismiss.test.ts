@@ -57,9 +57,9 @@ describe('CodexScene — click-away dismiss (TASK-102)', () => {
       expect(desktop).toContain('setDepth(DEPTH_DETAIL - 1)');
     });
 
-    it('registers pointerup to dismiss detail', () => {
+    it('registers tap event to dismiss detail', () => {
       const desktop = desktopBranch();
-      expect(desktop).toMatch(/clickAway\.on\('pointerup',.*clearDetail/);
+      expect(desktop).toMatch(/clickAway\.on\(TAP_EVENT,.*clearDetail/);
     });
 
     it('adds clickAway to detailObjects for cleanup', () => {
@@ -69,9 +69,9 @@ describe('CodexScene — click-away dismiss (TASK-102)', () => {
   });
 
   describe('mobile click-away overlay', () => {
-    it('registers pointerup on the dimming overlay to dismiss', () => {
+    it('registers tap event on the dimming overlay to dismiss', () => {
       const mobile = mobileBranch();
-      expect(mobile).toMatch(/overlay\.on\('pointerup',.*clearDetail/);
+      expect(mobile).toMatch(/overlay\.on\(TAP_EVENT,.*clearDetail/);
     });
   });
 });

@@ -50,13 +50,13 @@ describe('MainMenuScene — Resume Game button', () => {
   });
 
   it('passes autoResume: true when navigating to GameScene', () => {
-    expect(mainMenuSrc).toContain('autoResume:  true');
+    expect(mainMenuSrc).toContain('autoResume: true');
   });
 
   it('passes saved stageId, commanderId, and mapId to GameScene', () => {
-    expect(mainMenuSrc).toContain('stageId:     save.stageId');
+    expect(mainMenuSrc).toContain('stageId: save.stageId');
     expect(mainMenuSrc).toContain('commanderId: save.commanderId');
-    expect(mainMenuSrc).toContain('mapId:       save.mapId');
+    expect(mainMenuSrc).toContain('mapId: save.mapId');
   });
 
   it('uses dark green fill (0x0a2a10) for the resume button', () => {
@@ -67,7 +67,7 @@ describe('MainMenuScene — Resume Game button', () => {
     expect(mainMenuSrc).toContain("resumeP.zone.on('pointerover'");
     expect(mainMenuSrc).toContain("resumeP.zone.on('pointerout'");
     expect(mainMenuSrc).toContain("resumeP.zone.on('pointerdown'");
-    expect(mainMenuSrc).toContain("resumeP.zone.on('pointerup'");
+    expect(mainMenuSrc).toContain("resumeP.zone.on(TAP_EVENT");
   });
 });
 
@@ -103,7 +103,7 @@ describe('MainMenuScene — Start button behaviour', () => {
     // The else branch of the hasResume check calls _go('CommanderSelectScene', ...) directly.
     // Verify both the if and else branches exist in the pointerup handler.
     const pointerUpBlock = mainMenuSrc.slice(
-      mainMenuSrc.indexOf("startP.zone.on('pointerup'"),
+      mainMenuSrc.indexOf("startP.zone.on(TAP_EVENT"),
     );
     expect(pointerUpBlock).toContain('_showOverwriteConfirm');
     expect(pointerUpBlock).toContain("_go('CommanderSelectScene'");
@@ -156,13 +156,13 @@ describe('MainMenuScene — _showOverwriteConfirm dialog', () => {
     expect(mainMenuSrc).toContain("'CANCEL'");
   });
 
-  it('backdrop dismisses on pointerup', () => {
-    expect(mainMenuSrc).toContain("backdrop.on('pointerup'");
+  it('backdrop dismisses on tap', () => {
+    expect(mainMenuSrc).toContain("backdrop.on(TAP_EVENT");
   });
 
   it('CANCEL button dismisses by destroying container', () => {
-    // cancelBg pointerup destroys the container
-    expect(mainMenuSrc).toContain("cancelBg.on('pointerup',   () => container.destroy())");
+    // cancelBg tap destroys the container
+    expect(mainMenuSrc).toContain("cancelBg.on(TAP_EVENT,   () => container.destroy())");
   });
 });
 
@@ -230,25 +230,17 @@ describe('GameScene — autosave guard consistency', () => {
 // ── Arithmetic tests — button sizing ────────────────────────────────────────
 
 describe('Resume button sizing', () => {
-  it('desktop height is exactly 44px (minimum touch target)', () => {
-    // Extracted from: const resumeBtnH = this._isMobile ? 52 : 44;
-    const match = mainMenuSrc.match(/resumeBtnH\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
+  it('height is 44px (minimum touch target)', () => {
+    // Extracted from: const resumeBtnH = 44;
+    const match = mainMenuSrc.match(/const resumeBtnH\s*=\s*(\d+)/);
     expect(match).not.toBeNull();
-    const desktop = parseInt(match![2], 10);
-    expect(desktop).toBe(44);
-    expect(desktop).toBeGreaterThanOrEqual(44); // meets minimum touch target
-  });
-
-  it('mobile height is 52px (exceeds 44px touch target)', () => {
-    const match = mainMenuSrc.match(/resumeBtnH\s*=\s*this\._isMobile\s*\?\s*(\d+)\s*:\s*(\d+)/);
-    expect(match).not.toBeNull();
-    const mobile = parseInt(match![1], 10);
-    expect(mobile).toBe(52);
-    expect(mobile).toBeGreaterThanOrEqual(44);
+    const height = parseInt(match![1], 10);
+    expect(height).toBe(44);
+    expect(height).toBeGreaterThanOrEqual(44); // meets minimum touch target
   });
 
   it('resume gap between buttons is 10px', () => {
-    expect(mainMenuSrc).toContain('resumeGap   = 10');
+    expect(mainMenuSrc).toContain('resumeGap  = 10');
   });
 });
 

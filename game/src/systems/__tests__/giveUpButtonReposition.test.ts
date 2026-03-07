@@ -13,8 +13,8 @@ import towerPanelSrc from '../../ui/TowerPanel.ts?raw';
 // ── Positioning — bottom-right above tower panel ─────────────────────────────
 
 describe('Give-up button — bottom-right positioning', () => {
-  it('computes btnX from scene width, PADDING, and half btnW', () => {
-    expect(hudSrc).toContain('width  - PADDING - btnW / 2');
+  it('computes btnX from scene width, PADDING, SAFE_INSET, and half btnW', () => {
+    expect(hudSrc).toContain('width  - PADDING - SAFE_INSET - btnW / 2');
   });
 
   it('computes btnY from scene height, tower panel height, PADDING, and half btnH', () => {
@@ -33,8 +33,8 @@ describe('Give-up button — bottom-right positioning', () => {
 // ── Confirmation dialog structure ────────────────────────────────────────────
 
 describe('Give-up confirmation dialog', () => {
-  it('pointerup on give-up button opens confirmation instead of immediate callback', () => {
-    expect(hudSrc).toContain("bg.on('pointerup',   () => this._showGiveUpConfirm(onClick))");
+  it('tap on give-up button opens confirmation instead of immediate callback', () => {
+    expect(hudSrc).toContain("bg.on(TAP_EVENT,   () => this._showGiveUpConfirm(onClick))");
   });
 
   it('_showGiveUpConfirm is defined as a private method', () => {
@@ -72,7 +72,7 @@ describe('Give-up confirmation dialog', () => {
   });
 
   it('CANCEL calls cleanup only (no onConfirm)', () => {
-    expect(hudSrc).toContain("noBg.on('pointerup',   () => cleanup())");
+    expect(hudSrc).toContain("noBg.on(TAP_EVENT,   () => cleanup())");
   });
 
   it('cleanup destroys all 7 dialog GameObjects', () => {
@@ -185,6 +185,6 @@ describe('Give-up confirmation — depth ordering', () => {
 
 describe('TowerPanel PANEL_HEIGHT export', () => {
   it('exports PANEL_HEIGHT matching the known mobile/desktop values', () => {
-    expect(towerPanelSrc).toContain('export const PANEL_HEIGHT = _IS_MOBILE ? 88 : 72');
+    expect(towerPanelSrc).toContain('export const PANEL_HEIGHT = _IS_MOBILE ? 110 : 72');
   });
 });

@@ -1,7 +1,7 @@
 ---
 id: TASK-177
 title: "iOS App Icon: use Ojibwe TD crest"
-status: pending
+status: done
 priority: critical
 category: frontend
 phase: release

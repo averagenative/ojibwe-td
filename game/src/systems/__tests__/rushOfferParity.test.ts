@@ -75,7 +75,7 @@ describe('GameScene — onWaveComplete no longer skips offers for rushed waves',
   });
 
   it('final-wave victory block is guarded by !isConcurrent', () => {
-    expect(gameSceneSrc).toContain('!isConcurrent && this.currentWave >= this.totalWaves');
+    expect(gameSceneSrc).toContain('!isConcurrent && (endlessComplete || (this.currentWave >= this.totalWaves');
   });
 });
 

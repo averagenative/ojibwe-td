@@ -1,7 +1,7 @@
 ---
 id: TASK-170
 title: "Meta Upgrades: touch scrolling + palette update"
-status: pending
+status: in-progress
 category: frontend
 phase: release
 depends_on: []

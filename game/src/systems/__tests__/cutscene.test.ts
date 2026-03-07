@@ -269,7 +269,7 @@ describe('CutsceneScene (structural)', () => {
   });
 
   it('skip button calls finish()', () => {
-    expect(cutsceneSceneSrc).toContain("this.skipBtn.on('pointerup'");
+    expect(cutsceneSceneSrc).toContain("this.skipBtn.on(TAP_EVENT");
     expect(cutsceneSceneSrc).toContain('this.finish()');
   });
 
@@ -545,7 +545,7 @@ describe('CutsceneScene cleanup (structural)', () => {
 
   it('overlay is interactive to capture taps', () => {
     expect(cutsceneSceneSrc).toContain('.setInteractive()');
-    expect(cutsceneSceneSrc).toContain("this.overlay.on('pointerup'");
+    expect(cutsceneSceneSrc).toContain("this.overlay.on(TAP_EVENT");
   });
 });
 
