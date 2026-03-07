@@ -14,6 +14,7 @@ import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { getStageDef, getRegionDef, SEASON_PALETTE } from '../data/stageDefs';
 import { getCommanderIntroCutsceneId, getCutsceneDef } from '../data/cutsceneDefs';
 import { PAL } from '../ui/palette';
+import { OjibweTooltip } from '../ui/OjibweTooltip';
 
 // ── Layout constants ────────────────────────────────────────────────────────
 
@@ -295,12 +296,13 @@ export class CommanderSelectScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
 
     // Name
-    this.add.text(bx, by - CARD_H / 2 + 40, def.name, {
+    const nameText = this.add.text(bx, by - CARD_H / 2 + 40, def.name, {
       fontSize: this._fs(16),
       color: isLocked ? PAL.textLocked : '#ffffff',
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+    if (!isLocked) OjibweTooltip.attach(this, nameText, def.name);
 
     // Clan + Totem
     this.add.text(bx, by - CARD_H / 2 + 60, `${def.clan} · ${def.totem}`, {
@@ -521,13 +523,14 @@ export class CommanderSelectScene extends Phaser.Scene {
     // Header: Name + Role
     const roleColor = ROLE_COLORS[def.role] ?? 0xaaaaaa;
     const roleHex = '#' + roleColor.toString(16).padStart(6, '0');
-    const nameText = this.add.text(leftX, yOff, `${def.name}  —  ${def.role}`, {
+    const sheetNameText = this.add.text(leftX, yOff, `${def.name}  —  ${def.role}`, {
       fontSize: this._fs(20),
       color: '#ffffff',
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setDepth(SHEET_DEPTH + 1);
-    this.sheetContainer.add(nameText);
+    this.sheetContainer.add(sheetNameText);
+    OjibweTooltip.attach(this, sheetNameText, def.name);
 
     yOff += 28;
 
@@ -1001,6 +1004,7 @@ export class CommanderSelectScene extends Phaser.Scene {
   // ── Lifecycle cleanup ─────────────────────────────────────────────────────
 
   shutdown(): void {
+    OjibweTooltip.destroyAll(this);
     // Destroy all ambient particle graphics
     for (const state of this._animStates) {
       for (const p of state.particles) {

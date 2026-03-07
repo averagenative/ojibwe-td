@@ -17,6 +17,7 @@ import Phaser from 'phaser';
 import type { VignetteDef } from '../data/vignetteDefs';
 import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { PAL } from './palette';
+import { OjibweTooltip } from './OjibweTooltip';
 
 const DEPTH          = 400;
 const CHAR_DELAY_MS  = 30;
@@ -193,6 +194,9 @@ export class VignetteOverlay {
         },
       ).setOrigin(0, 0.5).setDepth(DEPTH + 2);
       this.objects.push(speakerText);
+
+      // Ojibwe translation tooltip on speaker name
+      OjibweTooltip.attach(this.scene, speakerText, vignette.speaker);
     }
 
     // ── Body text (typewriter animated) ─────────────────────────────────
@@ -254,6 +258,7 @@ export class VignetteOverlay {
       this.typeTimer.destroy();
       this.typeTimer = null;
     }
+    OjibweTooltip.destroyAll(this.scene);
     for (const obj of this.objects) {
       if (obj?.active) obj.destroy();
     }

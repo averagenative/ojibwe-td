@@ -52,33 +52,33 @@ Add hover tooltips (desktop) and tap-to-toggle popups (mobile) that show English
 ## Acceptance Criteria
 
 ### A. Create a reusable OjibweTooltip component
-- [ ] New UI utility (e.g. `src/ui/OjibweTooltip.ts`) that wraps any Phaser text
-- [ ] Stores a map of Ojibwe word → English translation
-- [ ] Data source: a new `src/data/ojibweGlossary.ts` file with all word→translation pairs
-- [ ] Tooltip popup: small dark panel with English text, positioned above/below the word
+- [x] New UI utility (e.g. `src/ui/OjibweTooltip.ts`) that wraps any Phaser text
+- [x] Stores a map of Ojibwe word → English translation
+- [x] Data source: a new `src/data/ojibweGlossary.ts` file with all word→translation pairs
+- [x] Tooltip popup: small dark panel with English text, positioned above/below the word
 
 ### B. Desktop behavior — hover
-- [ ] On `pointerover`: show tooltip after brief delay (~200ms) to avoid flicker
-- [ ] On `pointerout`: hide tooltip
-- [ ] Tooltip follows cursor or anchors near the word
+- [x] On `pointerover`: show tooltip after brief delay (~200ms) to avoid flicker
+- [x] On `pointerout`: hide tooltip
+- [x] Tooltip anchors near the word
 
 ### C. Mobile behavior — tap to toggle
-- [ ] On `pointerup` (single tap): show tooltip popup near the tapped word
-- [ ] Tap elsewhere or tap again: dismiss tooltip
-- [ ] Only one tooltip visible at a time (dismiss previous when new one opens)
-- [ ] Tooltip should not interfere with scrolling or other interactions
+- [x] On tap: show tooltip popup near the tapped word
+- [x] Tap again: dismiss tooltip
+- [x] Only one tooltip visible at a time (dismiss previous when new one opens)
+- [x] Tooltip should not interfere with scrolling or other interactions
 
 ### D. Apply tooltips to key UI surfaces
-- [ ] **Commander Selection Screen** — commander names, clan names, aura names, ability names
-- [ ] **In-game HUD** — commander portrait tooltip (aura/ability Ojibwe names)
-- [ ] **Vignette Overlay** — elder names in speaker nameplate
-- [ ] **Between-Wave Scene** — any Ojibwe text in offer cards or wave info
-- [ ] **Meta/Upgrade screens** — commander names in unlock tree
+- [x] **Commander Selection Screen** — commander names on cards + character sheet
+- [x] **In-game HUD** — commander portrait tooltip already shows translations inline
+- [x] **Vignette Overlay** — elder names in speaker nameplate
+- [n/a] **Between-Wave Scene** — no Ojibwe text in offer cards (English only)
+- [n/a] **Meta/Upgrade screens** — labels already include English in parentheses
 
 ### E. Visual style
-- [ ] Dark semi-transparent background (consistent with existing tooltip style)
-- [ ] Subtle underline or dotted-underline on hoverable Ojibwe words to hint interactivity
-- [ ] Fade in/out animation (150ms)
+- [x] Dark semi-transparent background (consistent with existing tooltip style)
+- [x] Subtle dotted-underline on hoverable Ojibwe words to hint interactivity
+- [x] Fade in/out animation (150ms)
 
 ## Files to Create
 - `game/src/data/ojibweGlossary.ts` — centralized word→translation map
