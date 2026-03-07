@@ -110,40 +110,48 @@ export class BootScene extends Phaser.Scene {
   private _showSplash(): void {
     const { width, height } = this.scale;
     const cx = width / 2;
-    const cy = height / 2;
     const mob = MobileManager.getInstance().isMobile();
 
     // Full-screen dark background
-    this.add.rectangle(cx, cy, width, height, PAL.bgDark);
+    this.add.rectangle(cx, height / 2, width, height, PAL.bgDark);
 
-    // Logo — upper-center, scaled to fill more of the screen on mobile
-    const logoScale = mob ? 0.35 : 0.22;
-    const logoY = mob ? cy - 160 : cy - 100;
+    // Relative layout: all positions derived from screen height.
+    // The vertical stack is: logo → gap → title → gap → subtitle → gap → button.
+    // Logo centre sits at 30% of screen height; everything else flows below.
+    const logoScale = Math.min(mob ? 0.35 : 0.22, height * 0.0004);
+    const logoY = height * 0.30;
+    let logo: Phaser.GameObjects.Image | null = null;
     if (this.textures.exists('logo')) {
-      this.add.image(cx, logoY, 'logo').setScale(logoScale);
+      logo = this.add.image(cx, logoY, 'logo').setScale(logoScale);
     }
 
+    // Compute the bottom edge of the logo to anchor text below it.
+    const logoHalfH = logo ? (logo.height * logoScale) / 2 : 0;
+    const gap = height * 0.025; // 2.5% of screen height between elements
+
     // Title text below logo
-    const titleOffset = mob ? 180 : 115;
-    this.add.text(cx, logoY + titleOffset, 'Ojibwe TD', {
-      fontSize: mob ? '58px' : '32px',
+    const titleY = logoY + logoHalfH + gap;
+    const titleSize = Math.max(18, Math.round(height * (mob ? 0.07 : 0.044)));
+    this.add.text(cx, titleY, 'Ojibwe TD', {
+      fontSize: `${titleSize}px`,
       color: PAL.textPrimary,
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     // Subtitle below title
-    const subOffset = mob ? 220 : 145;
-    this.add.text(cx, logoY + subOffset, 'A Tower Defense Game', {
-      fontSize: mob ? '28px' : '14px',
+    const subSize = Math.max(10, Math.round(titleSize * 0.48));
+    const subtitleY = titleY + titleSize + gap * 0.5;
+    this.add.text(cx, subtitleY, 'A Tower Defense Game', {
+      fontSize: `${subSize}px`,
       color: PAL.textDim,
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5);
 
     // PLAY button — below the subtitle, rounded on mobile
-    const btnW = mob ? 320 : 180;
-    const btnH = mob ? 80 : 50;
-    const btnY = mob ? logoY + 290 : logoY + 200;
+    const btnW = mob ? Math.min(320, width * 0.35) : 180;
+    const btnH = mob ? Math.min(80, height * 0.11) : 50;
+    const btnY = subtitleY + subSize + gap * 1.5;
     const btnR = mob ? 20 : 0;
 
     // Use Graphics for rounded rect on mobile, plain rect on desktop
@@ -167,8 +175,9 @@ export class BootScene extends Phaser.Scene {
     const btnBg = this.add.zone(cx, btnY, btnW, btnH)
       .setInteractive({ useHandCursor: true });
 
+    const btnFontSize = Math.max(16, Math.round(btnH * 0.5));
     const btnText = this.add.text(cx, btnY, 'PLAY', {
-      fontSize: mob ? '40px' : '26px',
+      fontSize: `${btnFontSize}px`,
       color: PAL.textPrimary,
       fontFamily: PAL.fontTitle,
       fontStyle: 'bold',

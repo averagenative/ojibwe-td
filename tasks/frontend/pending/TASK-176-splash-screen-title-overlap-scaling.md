@@ -1,7 +1,7 @@
 ---
 id: TASK-176
 title: "Splash screen: title/crest overlap + relative scaling"
-status: pending
+status: done
 category: frontend
 phase: release
 priority: high
@@ -22,12 +22,12 @@ On the first splash/title screen:
 
 ## Acceptance Criteria
 
-- [ ] "Ojibwe TD" title text has clear spacing below the crest (no overlap)
-- [ ] "A Tower Defense Game" subtitle also properly spaced
-- [ ] PLAY button has clear spacing below subtitle
-- [ ] All elements use relative positioning/scaling based on screen dimensions
-- [ ] Works on small screens (iPhone SE 3rd gen — 667pt width in landscape) through large screens (iPad Pro)
-- [ ] Crest scales down proportionally on smaller viewports
+- [x] "Ojibwe TD" title text has clear spacing below the crest (no overlap)
+- [x] "A Tower Defense Game" subtitle also properly spaced
+- [x] PLAY button has clear spacing below subtitle
+- [x] All elements use relative positioning/scaling based on screen dimensions
+- [x] Works on small screens (iPhone SE 3rd gen — 667pt width in landscape) through large screens (iPad Pro)
+- [x] Crest scales down proportionally on smaller viewports
 
 ## Notes
 
