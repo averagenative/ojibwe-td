@@ -13,9 +13,10 @@
 # if the process is killed (Ctrl-C, terminal close, quota exhaustion, etc.).
 #
 # Usage:
-#   ./orchestrator.sh                      # pick next pending task
+#   ./orchestrator.sh                      # continuous — drain the task queue
+#   ./orchestrator.sh --single             # run one task, then exit
 #   ./orchestrator.sh --task path/to.md    # run a specific task file
-#   ./orchestrator.sh --resume             # resume from last checkpoint
+#   ./orchestrator.sh --resume             # resume from last checkpoint, then continue
 
 set -euo pipefail
 
@@ -433,49 +434,11 @@ pre_validate() {
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
-main() {
-  local task_file=""
-  local resume=false
-  local resume_from="none"   # last completed stage from checkpoint
+run_task() {
+  local task_file="$1"
+  local resume_from="${2:-none}"
 
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --task)   task_file="$2"; shift 2 ;;
-      --resume) resume=true; shift ;;
-      *)        die "Unknown arg: $1" ;;
-    esac
-  done
-
-  hr
-  log "=== Orchestrator starting ==="
-  hr
-
-  # ── 0. Resolve task (from checkpoint, explicit flag, or auto-pick) ───────
-
-  if $resume; then
-    if ! load_checkpoint; then
-      die "No checkpoint found at $CHECKPOINT_FILE — nothing to resume."
-    fi
-    task_file="$CKPT_TASK"
-    resume_from="$CKPT_STAGE"
-    log "Resuming from checkpoint  (last completed stage: $resume_from)"
-    log "Task : $task_file"
-  fi
-
-  if [ -z "$task_file" ]; then
-    task_file=$(find_next_task)
-  fi
-
-  # Pull any collaborator commits before touching the repo
-  sync_with_remote
-
-  # Verify baseline build health (skip on --resume since we already have in-flight work)
-  if ! $resume; then
-    preflight_check
-  fi
-
-  [ -n "$task_file" ] || { log "No pending tasks — nothing to do."; exit 0; }
-  [ -f "$task_file"  ] || die "Task file not found: $task_file"
+  [ -f "$task_file" ] || die "Task file not found: $task_file"
 
   local title done_path mdl
   title=$(get_title "$task_file")
@@ -698,6 +661,87 @@ Steps
   hr
   log "=== Pipeline complete: $title ==="
   hr
+}
+
+main() {
+  local task_file=""
+  local resume=false
+  local single=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --task)   task_file="$2"; shift 2 ;;
+      --resume) resume=true; shift ;;
+      --single) single=true; shift ;;
+      *)        die "Unknown arg: $1" ;;
+    esac
+  done
+
+  hr
+  log "=== Orchestrator starting ==="
+  hr
+
+  # Pull any collaborator commits before touching the repo
+  sync_with_remote
+
+  # ── Resume from checkpoint if requested ──────────────────────────────────
+  if $resume; then
+    if ! load_checkpoint; then
+      die "No checkpoint found at $CHECKPOINT_FILE — nothing to resume."
+    fi
+    task_file="$CKPT_TASK"
+    local resume_from="$CKPT_STAGE"
+    log "Resuming from checkpoint  (last completed stage: $resume_from)"
+    log "Task : $task_file"
+
+    run_task "$task_file" "$resume_from"
+
+    # After resume, if --single, exit; otherwise fall through to the loop
+    if $single; then
+      log "Single mode — exiting after resumed task."
+      exit 0
+    fi
+  fi
+
+  # ── Explicit --task: run just that one task ──────────────────────────────
+  if [ -n "$task_file" ] && ! $resume; then
+    preflight_check
+    run_task "$task_file" "none"
+    if $single; then
+      log "Single mode — exiting."
+      exit 0
+    fi
+  fi
+
+  # ── Continuous loop: pick tasks until queue is empty ─────────────────────
+  if ! $resume && [ -z "$task_file" ]; then
+    preflight_check
+  fi
+
+  local tasks_completed=0
+  while true; do
+    sync_with_remote
+
+    task_file=$(find_next_task)
+    if [ -z "$task_file" ]; then
+      log "No more pending tasks — queue empty."
+      log "Completed $tasks_completed task(s) this session."
+      exit 0
+    fi
+
+    log "Picked next task: $(get_title "$task_file")"
+    run_task "$task_file" "none"
+    tasks_completed=$((tasks_completed + 1))
+
+    if $single; then
+      log "Single mode — exiting after 1 task."
+      log "Completed $tasks_completed task(s) this session."
+      exit 0
+    fi
+
+    log "Cooling down 10s before next task…"
+    sleep 10
+  done
 }
 
 main "$@"

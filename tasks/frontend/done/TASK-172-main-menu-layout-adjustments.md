@@ -1,7 +1,7 @@
 ---
 id: TASK-172
 title: "Main Menu: move Quick Play, center Start Game"
-status: pending
+status: done
 category: frontend
 phase: release
 priority: high
@@ -25,3 +25,4 @@ Two layout fixes on the main menu (`MainMenuScene.ts`):
 - [ ] Quick Play button positioned on the right side, similar distance from edge as the crest is on the left
 - [ ] Start Game button centered below the region/stage select area
 - [ ] Layout works on both desktop and mobile screen sizes
+- [ ] Prefer relative offsets (e.g. `width * 0.85`) over hardcoded pixel values for positioning

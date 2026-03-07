@@ -34,6 +34,10 @@ const STAGE_GAP   = 20;
 const R           = 8;    // corner radius for all panels
 const TOP_PAD     = 30;   // breathing room at top of canvas
 
+// Mobile: distance from centre X to the crest (left) and Quick Play (right).
+// Expressed relative to canvas width so it scales with wider devices.
+const MOBILE_SIDE_OFFSET_RATIO = 340 / 1280;  // ~0.266 — tuned at 1280 base width
+
 // Depth layers
 const DEPTH_BG      = 0;
 const DEPTH_REGION  = 10;
@@ -345,7 +349,8 @@ export class MainMenuScene extends Phaser.Scene {
     // when multiple stages are visible.
     const { width } = this.scale;
     const cx = width / 2;
-    const logoX = this._isMobile ? cx - 340 : cx - (STAGE_W / 2) - 120;
+    const mobileSideOffset = Math.round(width * MOBILE_SIDE_OFFSET_RATIO);
+    const logoX = this._isMobile ? cx - mobileSideOffset : cx - (STAGE_W / 2) - 120;
     const logoY = anchorY;
 
     const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
@@ -815,7 +820,7 @@ export class MainMenuScene extends Phaser.Scene {
    * Mobile layout:
    *   Logo (thunderbird) — enlarged, centered above buttons
    *   RESUME GAME (if applicable)
-   *   START GAME  |  ⚡ QUICK PLAY   (side by side, equal size)
+   *   START GAME  (centered, full width)  ⚡ QUICK PLAY (right, beside crest)
    *   UPGRADES | CHALLENGES | CODEX | ACHIEVEMENTS  (single bottom row)
    */
   private _buildMobileButtons(
@@ -837,11 +842,12 @@ export class MainMenuScene extends Phaser.Scene {
     // Resume button above the start row (if applicable)
     const resumeY = hasResume ? startRowY - btnH / 2 - 10 - resumeH / 2 : 0;
 
-    // Logo sits between stage cards and buttons
+    // Logo sits between stage cards and buttons; Quick Play mirrors it on the right.
     const logoAnchorY = hasResume
       ? resumeY - resumeH / 2 - 10
       : startRowY - btnH / 2 - 10;
-    this._buildLogoTitle(Math.max(stageBottom + 60, logoAnchorY));
+    const actualLogoY = Math.max(stageBottom + 60, logoAnchorY);
+    this._buildLogoTitle(actualLogoY);
 
     // ── RESUME GAME ────────────────────────────────────────────────────────
     if (hasResume && this._autoSave) {
@@ -869,11 +875,11 @@ export class MainMenuScene extends Phaser.Scene {
       });
     }
 
-    // ── START GAME (left) ─────────────────────────────────────────────────
-    const startX = cx - halfW / 2 - gap / 2;
-    const startP = makePanel(this, startX, startRowY, halfW, btnH, DEPTH_BUTTONS);
+    // ── START GAME (centered) ─────────────────────────────────────────────
+    const startBtnW = halfW * 2 + gap;
+    const startP = makePanel(this, cx, startRowY, startBtnW, btnH, DEPTH_BUTTONS);
     fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
-    const startLabel = this.add.text(startX, startRowY, hasResume ? 'NEW RUN' : 'START GAME', {
+    const startLabel = this.add.text(cx, startRowY, hasResume ? 'NEW RUN' : 'START GAME', {
       fontSize: this._fs(18), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
@@ -888,16 +894,28 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
-    // ── QUICK PLAY (right) ────────────────────────────────────────────────
-    const quickX = cx + halfW / 2 + gap / 2;
-    const quickP = makePanel(this, quickX, startRowY, halfW, btnH, DEPTH_BUTTONS);
+    // ── QUICK PLAY (right side, mirrors crest distance from edge) ─────────
+    const mobileSideOffset = Math.round(width * MOBILE_SIDE_OFFSET_RATIO);
+    const mobileQuickBtnSize = Math.round(width * 0.125);  // ~160 on 1280
+    const quickPlayX = cx + mobileSideOffset;
+    const quickP = makePanel(this, quickPlayX, actualLogoY, mobileQuickBtnSize, mobileQuickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
-    const quickLabel = this.add.text(quickX, startRowY, '⚡ QUICK PLAY', {
-      fontSize: this._fs(16), color: '#d4a840', fontFamily: PAL.fontBody, fontStyle: 'bold',
+    const quickIcon = this.add.text(quickPlayX, actualLogoY - 20, '⚡', { fontSize: this._fs(36) })
+      .setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
+    const quickLabel = this.add.text(quickPlayX, actualLogoY + 28, 'QUICK\nPLAY', {
+      fontSize: this._fs(16), color: '#d4a840', fontFamily: PAL.fontBody, fontStyle: 'bold', align: 'center',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
-    quickP.zone.on('pointerover', () => { fillPanel(quickP, R, 0x2a1c00, PAL.goldN, 2); quickLabel.setColor('#f0c060'); });
-    quickP.zone.on('pointerout',  () => { fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2); quickLabel.setColor('#d4a840'); });
+    quickP.zone.on('pointerover', () => {
+      fillPanel(quickP, R, 0x2a1c00, PAL.goldN, 2);
+      quickLabel.setColor('#f0c060');
+      this.tweens.add({ targets: [quickIcon, quickLabel], scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
+    });
+    quickP.zone.on('pointerout', () => {
+      fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
+      quickLabel.setColor('#d4a840');
+      this.tweens.add({ targets: [quickIcon, quickLabel], scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
+    });
     quickP.zone.on('pointerdown', () => fillPanel(quickP, R, 0x0f0900, PAL.goldN, 2));
     quickP.zone.on(TAP_EVENT, () => {
       const sel = pickQuickPlay(SaveManager.getInstance());

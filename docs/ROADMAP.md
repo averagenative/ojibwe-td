@@ -303,6 +303,16 @@ should be addressed during the next relevant phase or in a dedicated polish pass
 - **WaveManager.on('wave-complete') listener**: Registered in `create()` on a per-run
   WaveManager instance. Safe because the old instance is replaced on restart, but an explicit
   `this.waveManager.off('wave-complete', ...)` in `shutdown()` would be more defensive.
+- **InventoryScene scroll logic duplication**: The wheel and touch scroll handlers in
+  `InventoryScene.ts` both compute `maxRows`/`maxOffset` and apply the same
+  increment/decrement logic. Could be extracted into a shared `_scroll(direction)` helper.
+- **_makeDetailButton hover arithmetic**: `bgColor + 0x111111` can theoretically overflow
+  for bright fill colours. Currently safe because all callers pass `PAL.bgPanel` (0x141f0e),
+  but a dedicated hover colour (like `PAL.bgPanelHover`) would be more robust.
+- **Desktop side-panel offset still hardcoded**: `_buildDesktopButtons` positions logo and
+  Quick Play via `(STAGE_W / 2) + 120`. The mobile path now uses `MOBILE_SIDE_OFFSET_RATIO`
+  (relative). Consider unifying both paths behind a single `getSideOffset(width, isMobile)`
+  helper to keep the symmetry guarantee explicit.
 
 ---
 
