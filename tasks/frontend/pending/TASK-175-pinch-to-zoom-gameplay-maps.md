@@ -1,7 +1,7 @@
 ---
 id: TASK-175
 title: "Gameplay: pinch-to-zoom on maps"
-status: pending
+status: done
 category: frontend
 phase: release
 priority: high
@@ -15,12 +15,14 @@ Add pinch-to-zoom support during gameplay so players can zoom in/out on the map.
 
 ## Acceptance Criteria
 
-- [ ] Pinch gesture zooms the game camera in/out
-- [ ] Zoom has reasonable min/max bounds (don't zoom out past map edges, don't zoom in too far)
-- [ ] Zoom is smooth and responsive
-- [ ] HUD elements stay fixed (don't scale with map zoom)
-- [ ] Double-tap to reset zoom to default (optional but nice)
-- [ ] Works alongside existing pan/drag controls without conflict
+- [x] Pinch gesture zooms the game camera in/out
+- [x] Zoom has reasonable min/max bounds (don't zoom out past map edges, don't zoom in too far)
+- [x] Zoom is smooth and responsive
+- [x] HUD elements stay fixed (don't scale with map zoom)
+- [x] Double-tap to reset zoom to default (optional but nice)
+- [x] Single-finger drag pans/scrolls the map when zoomed in
+- [x] Camera pan is bounded — cannot scroll past map edges at any zoom level
+- [x] Works alongside existing controls without conflict
 
 ## Notes
 

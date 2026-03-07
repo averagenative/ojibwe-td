@@ -61,6 +61,10 @@ import {
 import { AscensionSystem } from '../systems/AscensionSystem';
 import { applyTowerMetaToStats } from '../data/towerMetaUpgradeDefs';
 import { Rng } from '../systems/Rng';
+import { CameraController } from '../systems/CameraController';
+
+/** Depth threshold: objects at or above this depth render on the UI camera only. */
+const UI_DEPTH_THRESHOLD = 90;
 
 const DEFAULT_TOTAL_WAVES = 20;
 /** Flat gold bonus awarded when the player rushes the next wave early. */
@@ -299,6 +303,14 @@ export class GameScene extends Phaser.Scene {
   private _critterManager: CritterManager | null = null;
   /** Accumulator for periodic creep-proximity checks (ms). */
   private _critterCreepCheckAcc = 0;
+
+  // ── camera / zoom ─────────────────────────────────────────────────────────
+  /** UI-only camera at zoom 1 — renders HUD, panels, overlays. */
+  private _uiCam!: Phaser.Cameras.Scene2D.Camera;
+  /** Handles pinch-to-zoom, pan, and double-tap-reset on the world camera. */
+  private _cameraController!: CameraController;
+  /** Tracks objects already partitioned between world/UI cameras. */
+  private _camAssigned = new WeakSet<Phaser.GameObjects.GameObject>();
 
   constructor() {
     super({ key: 'GameScene' });
@@ -1182,6 +1194,9 @@ export class GameScene extends Phaser.Scene {
         this.vignetteOverlay.show(wave1StartResult.vignette, wave1StartResult.seenBefore, () => {});
       }
     });
+
+    // ── Camera setup (pinch-to-zoom) ───────────────────────────────────────
+    this._setupCameras();
   }
 
   update(_time: number, delta: number): void {
@@ -1244,6 +1259,50 @@ export class GameScene extends Phaser.Scene {
 
     if (import.meta.env.DEV && this.debugVisible) {
       this.refreshDebugOverlay();
+    }
+
+    // Assign any newly-created objects to the correct camera.
+    this._reconcileCameras();
+  }
+
+  // ── camera helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Create a UI camera and a CameraController for the world camera.
+   * Called once at the end of create() after all game objects exist.
+   */
+  private _setupCameras(): void {
+    const { width, height } = this.scale;
+    const worldCam = this.cameras.main;
+
+    // UI camera: renders UI objects at fixed zoom 1.
+    this._uiCam = this.cameras.add(0, 0, width, height);
+    this._uiCam.setName('ui');
+
+    // Partition all existing objects between the two cameras.
+    this._reconcileCameras();
+
+    // Camera controller handles pinch-to-zoom, pan, double-tap-reset.
+    this._cameraController = new CameraController(this, worldCam);
+  }
+
+  /**
+   * Scan the display list for objects not yet assigned to a camera
+   * and route them: depth < UI_DEPTH_THRESHOLD → world-only,
+   * depth >= UI_DEPTH_THRESHOLD → UI-only.
+   */
+  private _reconcileCameras(): void {
+    if (!this._uiCam) return;
+    const worldCam = this.cameras.main;
+    for (const obj of this.children.list) {
+      if (this._camAssigned.has(obj)) continue;
+      this._camAssigned.add(obj);
+      const depth = 'depth' in obj ? (obj as { depth: number }).depth : 0;
+      if (depth >= UI_DEPTH_THRESHOLD) {
+        worldCam.ignore(obj);
+      } else {
+        this._uiCam.ignore(obj);
+      }
     }
   }
 
@@ -1336,6 +1395,18 @@ export class GameScene extends Phaser.Scene {
 
     // Vignette overlay cleanup.
     this.vignetteOverlay?.cleanup();
+
+    // Camera controller cleanup.
+    this._cameraController?.destroy();
+
+    // Remove the UI camera added in _setupCameras().
+    if (this._uiCam) {
+      this.cameras.remove(this._uiCam);
+    }
+    // Reset world camera to default zoom/scroll for clean restart.
+    this.cameras.main.setZoom(1);
+    this.cameras.main.setScroll(0, 0);
+    this._camAssigned = new WeakSet();
 
     // Ambient VFX cleanup.
     this._ambientVFX?.destroy();
@@ -1439,6 +1510,9 @@ export class GameScene extends Phaser.Scene {
   // ── input ─────────────────────────────────────────────────────────────────
 
   private onPointerMove(ptr: Phaser.Input.Pointer): void {
+    // While the camera controller is handling a pinch or pan, suppress game interactions.
+    if (this._cameraController?.isPinching) return;
+
     // Cancel mobile long-press if the finger moved significantly before the hold fired.
     if (this._mobileHoldTimer && MobileManager.getInstance().isMobile()) {
       const dx = ptr.x - this._mobileHoldStartX;
@@ -1460,11 +1534,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onPointerDown(ptr: Phaser.Input.Pointer): void {
+    // While the camera controller is handling a pinch, suppress game interactions.
+    if (this._cameraController?.isPinching) return;
+
     // While a boss offer panel is open, block all map interactions.
     if (this.bossOfferPanel && !this.bossOfferPanel.isClosed()) return;
 
     // Filter clicks in HUD strip (top) and bottom UI panels.
-    // UpgradePanel, BehaviorPanel, and MultiTowerPanel are mutually exclusive.
+    // These checks use SCREEN coords (ptr.x/y) since the UI is not zoomed.
     const hudHeight  = getHudHeight();
     const panelsOpen = this.upgradePanel.isOpen() || this._multiTowerPanel.isOpen();
     const bottomLimit = this.scale.height
@@ -1485,19 +1562,24 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Convert screen coords to world coords for game-world interactions.
+    const world = this._cameraController
+      ? this._cameraController.screenToWorld(ptr.x, ptr.y)
+      : { x: ptr.x, y: ptr.y };
+
     const isMobile  = MobileManager.getInstance().isMobile();
     const shiftHeld = !isMobile && ((ptr.event as MouseEvent)?.shiftKey ?? false);
 
     if (this.placementDef) {
       // On mobile, placement happens on pointerup (drag-to-place).
       if (!isMobile) {
-        this.tryPlaceTower(ptr.x, ptr.y);
+        this.tryPlaceTower(world.x, world.y);
       }
       return;
     }
 
     // Check whether the click landed on an existing tower.
-    const towerAtPoint = this.findTowerAt(ptr.x, ptr.y);
+    const towerAtPoint = this.findTowerAt(world.x, world.y);
 
     if (towerAtPoint) {
       // Tower click: selection is handled by the tower's 'pointerup' listener.
@@ -1526,6 +1608,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Start region-select tracking.  Deselect happens in onPointerUp if no drag.
+    // Use screen coords for region-select since the rectangle is drawn in screen space.
     this._regionSelectStart = { x: ptr.x, y: ptr.y };
     this._regionDragging    = false;
 
@@ -1552,6 +1635,9 @@ export class GameScene extends Phaser.Scene {
    * false and we skip the handler early).
    */
   private onPointerUp(ptr: Phaser.Input.Pointer): void {
+    // If the camera was panning/pinching, don't fire game interactions on release.
+    if (this._cameraController?.isPinching) return;
+
     const isMobile = MobileManager.getInstance().isMobile();
 
     // Cancel any pending mobile long-press timer.
@@ -1560,10 +1646,16 @@ export class GameScene extends Phaser.Scene {
       this._mobileHoldTimer = null;
     }
 
+    // Convert screen coords to world coords for placement.
+    const world = this._cameraController
+      ? this._cameraController.screenToWorld(ptr.x, ptr.y)
+      : { x: ptr.x, y: ptr.y };
+
     if (this.placementDef) {
       // Desktop click-to-place: handled in onPointerDown; skip here.
       if (!isMobile && !this._isDragPlacing) return;
 
+      // UI bounds checks use screen coords (ptr.y); world coords for tile logic.
       const hudHeight  = getHudHeight();
       const panelsOpen = this.upgradePanel.isOpen() || this._multiTowerPanel.isOpen();
       const bottomLimit = this.scale.height
@@ -1572,15 +1664,15 @@ export class GameScene extends Phaser.Scene {
 
       if (ptr.y >= hudHeight && ptr.y <= bottomLimit) {
         if (this._isDragPlacing) {
-          const { col, row } = this.worldToTile(ptr.x, ptr.y);
+          const { col, row } = this.worldToTile(world.x, world.y);
           if (!this.isBuildable(col, row) || this.isTileOccupied(col, row)) {
             this.exitPlacementMode();
           } else {
-            this.tryPlaceTower(ptr.x, ptr.y);
+            this.tryPlaceTower(world.x, world.y);
           }
         } else {
           // Mobile: existing behaviour
-          this.tryPlaceTower(ptr.x, ptr.y);
+          this.tryPlaceTower(world.x, world.y);
         }
       } else {
         this.exitPlacementMode();
@@ -1606,7 +1698,10 @@ export class GameScene extends Phaser.Scene {
       this.exitPlacementMode();
       return;
     }
-    const tower = this.findTowerAt(ptr.x, ptr.y);
+    const world = this._cameraController
+      ? this._cameraController.screenToWorld(ptr.x, ptr.y)
+      : { x: ptr.x, y: ptr.y };
+    const tower = this.findTowerAt(world.x, world.y);
     if (tower) this.sellTower(tower);
   }
 
@@ -1614,6 +1709,7 @@ export class GameScene extends Phaser.Scene {
 
   private enterPlacementMode(def: TowerDef, isDrag = false): void {
     AudioManager.getInstance().playUiClick();
+    if (this._cameraController) this._cameraController.blocked = true;
     this.placementDef    = def;
     // Only set drag flag for desktop; mobile placement is always treated as
     // drag by the existing mobile pointerup handler (no cancel-on-invalid).
@@ -1634,6 +1730,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private exitPlacementMode(): void {
+    if (this._cameraController) this._cameraController.blocked = false;
     this.placementDef    = null;
     this._isDragPlacing  = false;
     this.rangePreview.setVisible(false);
@@ -1644,7 +1741,10 @@ export class GameScene extends Phaser.Scene {
 
   private updatePlacementPreview(ptr: Phaser.Input.Pointer): void {
     if (!this.placementDef) return;
-    const { col, row } = this.worldToTile(ptr.x, ptr.y);
+    const world = this._cameraController
+      ? this._cameraController.screenToWorld(ptr.x, ptr.y)
+      : { x: ptr.x, y: ptr.y };
+    const { col, row } = this.worldToTile(world.x, world.y);
     const ts = this.mapData.tileSize;
     const cx = col * ts + ts / 2 + this._mapOffsetX;
     const cy = row * ts + ts / 2;
@@ -2064,10 +2164,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this._regionDragging) {
-      const rx = Math.min(this._regionSelectStart.x, x);
-      const ry = Math.min(this._regionSelectStart.y, y);
-      const rw = Math.abs(dx);
-      const rh = Math.abs(dy);
+      // Convert screen coords to world coords for drawing on the world camera.
+      const s = this._cameraController
+        ? this._cameraController.screenToWorld(this._regionSelectStart.x, this._regionSelectStart.y)
+        : { x: this._regionSelectStart.x, y: this._regionSelectStart.y };
+      const e = this._cameraController
+        ? this._cameraController.screenToWorld(x, y)
+        : { x, y };
+      const rx = Math.min(s.x, e.x);
+      const ry = Math.min(s.y, e.y);
+      const rw = Math.abs(e.x - s.x);
+      const rh = Math.abs(e.y - s.y);
       this._regionSelectGfx.clear();
       this._regionSelectGfx.fillStyle(0xc8952a, 0.08);
       this._regionSelectGfx.fillRect(rx, ry, rw, rh);
@@ -2079,11 +2186,17 @@ export class GameScene extends Phaser.Scene {
   private _finalizeRegionSelect(ptr: Phaser.Input.Pointer): void {
     if (!this._regionSelectStart) return;
 
-    const start = this._regionSelectStart;
-    const rx = Math.min(start.x, ptr.x);
-    const ry = Math.min(start.y, ptr.y);
-    const rw = Math.abs(ptr.x - start.x);
-    const rh = Math.abs(ptr.y - start.y);
+    // Convert both corners from screen to world coords for tower hit-testing.
+    const s = this._cameraController
+      ? this._cameraController.screenToWorld(this._regionSelectStart.x, this._regionSelectStart.y)
+      : { x: this._regionSelectStart.x, y: this._regionSelectStart.y };
+    const e = this._cameraController
+      ? this._cameraController.screenToWorld(ptr.x, ptr.y)
+      : { x: ptr.x, y: ptr.y };
+    const rx = Math.min(s.x, e.x);
+    const ry = Math.min(s.y, e.y);
+    const rw = Math.abs(e.x - s.x);
+    const rh = Math.abs(e.y - s.y);
 
     this._cancelRegionSelect();
 
