@@ -23,14 +23,8 @@ Thumbs.db
 # Claude Code local config
 .claude/
 
-# Root-level assets/ only (was for Blizzard IP — now empty)
-/assets/
-
 # Generated health-check logs
 logs/
-
-# External curriculum (not part of this project)
-/docs/agentic_sdlc_curriculum/
 
 # Git worktrees (local only)
 .worktrees/
