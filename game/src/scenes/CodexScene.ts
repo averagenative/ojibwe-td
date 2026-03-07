@@ -20,6 +20,7 @@ import {
 } from '../data/codexDefs';
 import type { CodexEntryDef, CodexSection } from '../data/codexDefs';
 import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
+import { PAL } from '../ui/palette';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
@@ -59,6 +60,11 @@ export class CodexScene extends Phaser.Scene {
   ) => void) | null = null;
   private _detailMaskGfx: Phaser.GameObjects.Graphics | null = null;
 
+  /** Entry list scroll offset (mobile touch-drag). */
+  private _entryScrollY = 0;
+  private _entryScrollMax = 0;
+  private _entryMaskGfx: Phaser.GameObjects.Graphics | null = null;
+
   private returnTo = 'MainMenuScene';
   private returnData: Record<string, unknown> = {};
 
@@ -93,19 +99,19 @@ export class CodexScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const cx = width / 2;
 
-    // Parchment/scroll background — warm dark tone
-    this.add.rectangle(cx, height / 2, width, height, 0x100c05).setDepth(DEPTH_BG);
+    // Background — deep forest
+    this.add.rectangle(cx, height / 2, width, height, PAL.bgDark).setDepth(DEPTH_BG);
 
-    // Warm grid overlay
+    // Grid overlay
     const gfx = this.add.graphics().setDepth(DEPTH_BG);
-    gfx.lineStyle(1, 0x2a2010, 0.18);
+    gfx.lineStyle(1, 0x1c2e12, 0.15);
     for (let x = 0; x < width; x += 40) { gfx.moveTo(x, 0); gfx.lineTo(x, height); }
     for (let y = 0; y < height; y += 40) { gfx.moveTo(0, y); gfx.lineTo(width, y); }
     gfx.strokePath();
 
-    // Grain overlay — sparse random dots for parchment texture
+    // Grain overlay — sparse random dots for texture
     const grainGfx = this.add.graphics().setDepth(DEPTH_BG);
-    grainGfx.fillStyle(0xc8a050, 0.04);
+    grainGfx.fillStyle(0x6B8F3E, 0.03);
     for (let i = 0; i < 180; i++) {
       grainGfx.fillRect(
         Math.random() * width, Math.random() * height,
@@ -115,7 +121,7 @@ export class CodexScene extends Phaser.Scene {
 
     // Title with decorative flourish
     const flourishGfx = this.add.graphics().setDepth(DEPTH_UI);
-    flourishGfx.lineStyle(1, 0x446644, 0.6);
+    flourishGfx.lineStyle(1, PAL.borderActive, 0.6);
     const flourishY = 32;
     const flourishHalfW = 120;
     flourishGfx.beginPath();
@@ -124,12 +130,12 @@ export class CodexScene extends Phaser.Scene {
     flourishGfx.moveTo(cx + 60, flourishY);
     flourishGfx.lineTo(cx + flourishHalfW, flourishY);
     flourishGfx.strokePath();
-    flourishGfx.fillStyle(0x446644, 0.6);
+    flourishGfx.fillStyle(PAL.borderActive, 0.6);
     flourishGfx.fillCircle(cx - flourishHalfW, flourishY, 2);
     flourishGfx.fillCircle(cx + flourishHalfW, flourishY, 2);
 
     this.add.text(cx, 32, 'CODEX', {
-      fontSize: this._fs(32), color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: this._fs(32), color: PAL.accentGreen, fontFamily: PAL.fontTitle, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_UI);
 
     // Unlock counter
@@ -138,7 +144,7 @@ export class CodexScene extends Phaser.Scene {
       e => e.defaultUnlocked || save.isCodexUnlocked(e.id),
     ).length;
     this.add.text(cx, 60, `${unlocked} / ${ALL_CODEX_ENTRIES.length} entries unlocked`, {
-      fontSize: this._fs(12), color: '#446644', fontFamily: 'monospace',
+      fontSize: this._fs(12), color: PAL.textDim, fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_UI);
 
     // Section tabs
@@ -182,14 +188,14 @@ export class CodexScene extends Phaser.Scene {
       const section = CODEX_SECTIONS[i];
       const bx = startX + i * (TAB_W + TAB_GAP);
 
-      const bg = this.add.rectangle(bx, tabY, TAB_W, tabH, 0x111111)
-        .setStrokeStyle(1, 0x335533)
+      const bg = this.add.rectangle(bx, tabY, TAB_W, tabH, PAL.bgPanel)
+        .setStrokeStyle(1, PAL.borderInactive)
         .setInteractive({ useHandCursor: true })
         .setDepth(DEPTH_UI);
       this.tabBgs.set(section, bg);
 
       const label = this.add.text(bx, tabY, CODEX_SECTION_LABELS[section], {
-        fontSize: this._fs(13), color: '#668866', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: this._fs(13), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_UI + 1);
       this.tabLabels.set(section, label);
 
@@ -219,12 +225,12 @@ export class CodexScene extends Phaser.Scene {
       // Badge — minimum 11px
       this.add.text(bx + TAB_W / 2 - 8, tabY - tabH / 2 + 4,
         `${sectionUnlocked}`,
-        { fontSize: this._fs(11), color: '#445544', fontFamily: 'monospace' },
+        { fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody },
       ).setOrigin(1, 0).setDepth(DEPTH_UI + 1);
 
-      bg.on('pointerover', () => bg.setFillStyle(0x1a2a1a));
+      bg.on('pointerover', () => bg.setFillStyle(PAL.bgPanelHover));
       bg.on('pointerout', () => {
-        bg.setFillStyle(this.activeSection === section ? 0x1a2a1a : 0x111111);
+        bg.setFillStyle(this.activeSection === section ? PAL.bgPanelHover : PAL.bgPanel);
       });
       bg.on(TAP_EVENT, () => this.selectSection(section));
     }
@@ -235,11 +241,11 @@ export class CodexScene extends Phaser.Scene {
   private highlightTab(section: CodexSection): void {
     for (const [s, bg] of this.tabBgs) {
       if (s === section) {
-        bg.setFillStyle(0x1a2a1a).setStrokeStyle(2, 0x00ff44);
-        this.tabLabels.get(s)?.setColor('#00ff44');
+        bg.setFillStyle(PAL.bgPanelHover).setStrokeStyle(2, PAL.borderActive);
+        this.tabLabels.get(s)?.setColor(PAL.accentGreen);
       } else {
-        bg.setFillStyle(0x111111).setStrokeStyle(1, 0x335533);
-        this.tabLabels.get(s)?.setColor('#668866');
+        bg.setFillStyle(PAL.bgPanel).setStrokeStyle(1, PAL.borderInactive);
+        this.tabLabels.get(s)?.setColor(PAL.textSecondary);
       }
     }
   }
@@ -262,6 +268,8 @@ export class CodexScene extends Phaser.Scene {
       }
     }
     this.entryObjects = [];
+    this._entryScrollY = 0;
+    if (this._entryMaskGfx) { this._entryMaskGfx.destroy(); this._entryMaskGfx = null; }
 
     const entries = getCodexEntriesBySection(this.activeSection);
     const save = SaveManager.getInstance();
@@ -294,7 +302,7 @@ export class CodexScene extends Phaser.Scene {
 
       const isUnlocked = entry.defaultUnlocked || save.isCodexUnlocked(entry.id);
       const objs = this.buildEntryTile(entry, bx, by, isUnlocked, entryH);
-      // Staggered fade-in for a parchment-scroll reveal feel
+      // Staggered fade-in
       for (const obj of objs) {
         if ('setAlpha' in obj) {
           (obj as unknown as { setAlpha: (v: number) => void }).setAlpha(0);
@@ -309,6 +317,47 @@ export class CodexScene extends Phaser.Scene {
       }
       this.entryObjects.push(...objs);
     }
+
+    // ── Touch-drag scrolling for entry list on mobile ──────────────────────
+    if (this._isMobile && entries.length > maxPerCol) {
+      const totalContentH = entries.length * (entryH + ENTRY_GAP);
+      this._entryScrollMax = Math.max(0, totalContentH - availableH);
+
+      // Mask to clip entries within the available area
+      const maskGfx = this.add.graphics().setVisible(false);
+      maskGfx.fillRect(0, startY, this.scale.width, availableH);
+      const mask = maskGfx.createGeometryMask();
+      for (const obj of this.entryObjects) {
+        if ('setMask' in obj) (obj as Phaser.GameObjects.Components.Mask & Phaser.GameObjects.GameObject).setMask(mask);
+      }
+      this._entryMaskGfx = maskGfx;
+
+      // Touch-drag handler
+      let dragLastY = 0;
+      const dragZone = this.add.zone(160 + ENTRY_W / 2, startY + availableH / 2, ENTRY_W + 40, availableH)
+        .setInteractive()
+        .setDepth(DEPTH_UI - 1);
+      this.entryObjects.push(dragZone);
+
+      dragZone.on('pointerdown', (p: Phaser.Input.Pointer) => { dragLastY = p.y; });
+      dragZone.on('pointermove', (p: Phaser.Input.Pointer) => {
+        if (!p.isDown) return;
+        const delta = dragLastY - p.y;
+        dragLastY = p.y;
+        this._entryScrollY = Phaser.Math.Clamp(this._entryScrollY + delta, 0, this._entryScrollMax);
+        this._applyEntryScroll();
+      });
+    }
+  }
+
+  private _applyEntryScroll(): void {
+    for (const obj of this.entryObjects) {
+      if ('y' in obj && 'getData' in obj) {
+        const go = obj as Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject;
+        if (!go.getData('_origY')) go.setData('_origY', go.y);
+        go.y = (go.getData('_origY') as number) - this._entryScrollY;
+      }
+    }
   }
 
   private buildEntryTile(
@@ -322,9 +371,9 @@ export class CodexScene extends Phaser.Scene {
     const save = SaveManager.getInstance();
     const isRead = save.isCodexRead(entry.id);
 
-    const bgColor = isUnlocked ? 0x111a11 : 0x0d0d0d;
+    const bgColor = isUnlocked ? PAL.bgPanel : PAL.bgPanelLocked;
     const bg = this.add.rectangle(bx + ENTRY_W / 2, by + entryH / 2, ENTRY_W, entryH, bgColor)
-      .setStrokeStyle(1, isUnlocked ? 0x335533 : 0x222222)
+      .setStrokeStyle(1, isUnlocked ? PAL.borderInactive : 0x222222)
       .setInteractive({ useHandCursor: isUnlocked })
       .setDepth(DEPTH_UI);
     created.push(bg);
@@ -348,18 +397,18 @@ export class CodexScene extends Phaser.Scene {
 
     // Title — bold for unread unlocked entries, normal for read entries
     const titleColor = isUnlocked
-      ? (isRead ? '#99aa99' : '#ccddcc')
+      ? (isRead ? PAL.textSecondary : PAL.textPrimary)
       : '#555555';
     const titleStyle = isUnlocked && !isRead ? 'bold' : 'normal';
     const title = this.add.text(bx + 42, by + entryH / 2, entry.title, {
-      fontSize: this._fs(12), color: titleColor, fontFamily: 'monospace',
+      fontSize: this._fs(12), color: titleColor, fontFamily: PAL.fontBody,
       fontStyle: titleStyle,
     }).setOrigin(0, 0.5).setDepth(DEPTH_UI + 1);
     created.push(title);
 
     // Unread dot indicator
     if (isUnlocked && !isRead) {
-      const dot = this.add.circle(bx + ENTRY_W - 14, by + entryH / 2, 4, 0x00ff44)
+      const dot = this.add.circle(bx + ENTRY_W - 14, by + entryH / 2, 4, PAL.accentGreenN)
         .setDepth(DEPTH_UI + 1);
       created.push(dot);
     }
@@ -367,15 +416,15 @@ export class CodexScene extends Phaser.Scene {
     // Lock icon
     if (!isUnlocked) {
       const lockIcon = this.add.text(bx + ENTRY_W - 12, by + entryH / 2, '?', {
-        fontSize: this._fs(14), color: '#333333', fontFamily: 'monospace',
+        fontSize: this._fs(14), color: '#333333', fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_UI + 1);
       created.push(lockIcon);
     }
 
     // Click interaction
     if (isUnlocked) {
-      bg.on('pointerover', () => bg.setFillStyle(0x1a2a1a));
-      bg.on('pointerout', () => bg.setFillStyle(0x111a11));
+      bg.on('pointerover', () => bg.setFillStyle(PAL.bgPanelHover));
+      bg.on('pointerout', () => bg.setFillStyle(PAL.bgPanel));
       bg.on(TAP_EVENT, () => this.showDetail(entry));
     }
 
@@ -414,8 +463,9 @@ export class CodexScene extends Phaser.Scene {
       const cx = width / 2;
       const startY = 40;
 
-      const bg = this.add.rectangle(cx, startY + panelH / 2, panelW, panelH, 0x0d1a0d)
-        .setStrokeStyle(2, 0x335533)
+      const bg = this.add.rectangle(cx, startY + panelH / 2, panelW, panelH, PAL.bgPanelDark)
+        .setStrokeStyle(2, PAL.borderActive)
+        .setInteractive() // block taps from reaching overlay
         .setDepth(DEPTH_DETAIL + 1);
       this.detailObjects.push(bg);
 
@@ -431,18 +481,18 @@ export class CodexScene extends Phaser.Scene {
         this.detailObjects.push(illusIcon);
       } else {
         const illus = this.add.rectangle(illusX, illusY, illusSize, illusSize, entry.tileColor)
-          .setStrokeStyle(2, 0x556655)
+          .setStrokeStyle(2, PAL.borderInactive)
           .setDepth(DEPTH_DETAIL + 2);
         this.detailObjects.push(illus);
 
         const illusChar = this.add.text(illusX, illusY, entry.title[0], {
-          fontSize: this._fs(22), color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+          fontSize: this._fs(22), color: PAL.textPrimary, fontFamily: PAL.fontBody, fontStyle: 'bold',
         }).setOrigin(0.5).setDepth(DEPTH_DETAIL + 3);
         this.detailObjects.push(illusChar);
       }
 
       const titleText = this.add.text(illusX + illusSize / 2 + 12, illusY, entry.title, {
-        fontSize: this._fs(18), color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: this._fs(18), color: PAL.accentGreen, fontFamily: PAL.fontTitle, fontStyle: 'bold',
         wordWrap: { width: panelW - illusSize - 60 },
       }).setOrigin(0, 0.5).setDepth(DEPTH_DETAIL + 2);
       this.detailObjects.push(titleText);
@@ -453,17 +503,17 @@ export class CodexScene extends Phaser.Scene {
         loreText,
         {
           fontSize:    this._fs(13),
-          color:       '#aabbaa',
-          fontFamily:  'monospace',
+          color:       PAL.textSecondary,
+          fontFamily:  PAL.fontBody,
           lineSpacing: 8,
           wordWrap:    { width: panelW - 40 },
         },
       ).setDepth(DEPTH_DETAIL + 2);
       this.detailObjects.push(loreDisplay);
 
-      // ── Text containment (mobile) ──────────────────────────────────────
+      // ── Text containment + touch/wheel scroll (mobile) ─────────────────
       const loreTextY = illusY + illusSize / 2 + 20;
-      const closeRegionH = 52; // 44px button + 8px padding
+      const closeRegionH = 52;
       const maxLoreH = (startY + panelH - closeRegionH) - loreTextY - 8;
       if (maxLoreH > 0 && loreDisplay.height > maxLoreH) {
         const maskGfx = this.add.graphics().setVisible(false);
@@ -472,41 +522,54 @@ export class CodexScene extends Phaser.Scene {
         this._detailMaskGfx = maskGfx;
 
         const moreHint = this.add.text(
-          cx, loreTextY + maxLoreH + 2, '⋯ more below',
-          { fontSize: this._fs(11), color: '#446644', fontFamily: 'monospace' },
+          cx, loreTextY + maxLoreH + 2, '... more below',
+          { fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody },
         ).setOrigin(0.5, 0).setDepth(DEPTH_DETAIL + 2);
         this.detailObjects.push(moreHint);
 
         const maxScroll = loreDisplay.height - maxLoreH;
         let scrollAmt = 0;
         const origLoreY = loreDisplay.y;
+        const applyScroll = (delta: number) => {
+          scrollAmt = Phaser.Math.Clamp(scrollAmt + delta, 0, maxScroll);
+          loreDisplay.y = origLoreY - scrollAmt;
+          moreHint.setVisible(scrollAmt < maxScroll - 2);
+        };
+
+        // Wheel scroll (desktop)
         const handler = (
           _p: Phaser.Input.Pointer,
           _go: Phaser.GameObjects.GameObject[],
           _dx: number,
           deltaY: number,
-        ) => {
-          scrollAmt = Phaser.Math.Clamp(scrollAmt + deltaY * 0.5, 0, maxScroll);
-          loreDisplay.y = origLoreY - scrollAmt;
-          moreHint.setVisible(scrollAmt < maxScroll - 2);
-        };
+        ) => { applyScroll(deltaY * 0.5); };
         this._wheelHandler = handler;
         this.input.on('wheel', handler);
+
+        // Touch-drag scroll (mobile)
+        let dragLastY = 0;
+        bg.on('pointerdown', (p: Phaser.Input.Pointer) => { dragLastY = p.y; });
+        bg.on('pointermove', (p: Phaser.Input.Pointer) => {
+          if (!p.isDown) return;
+          applyScroll(dragLastY - p.y);
+          dragLastY = p.y;
+        });
       }
 
       // Close button — 44px minimum height, centred at bottom
       const closeH = 44;
-      const closeBg = this.add.rectangle(cx, startY + panelH - closeH / 2 - 8, 160, closeH, 0x1a0000)
-        .setStrokeStyle(2, 0xff4444)
+      const closeBg = this.add.rectangle(cx, startY + panelH - closeH / 2 - 8, 160, closeH, PAL.bgPanelDark)
+        .setStrokeStyle(2, PAL.dangerN)
         .setInteractive({ useHandCursor: true })
         .setDepth(DEPTH_DETAIL + 2);
       const closeLabel = this.add.text(cx, startY + panelH - closeH / 2 - 8, 'CLOSE', {
-        fontSize: this._fs(16), color: '#ff4444', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: this._fs(16), color: PAL.danger, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_DETAIL + 3);
 
       closeBg.on('pointerover', () => { closeBg.setFillStyle(0x330000); closeLabel.setColor('#ffffff'); });
-      closeBg.on('pointerout',  () => { closeBg.setFillStyle(0x1a0000); closeLabel.setColor('#ff4444'); });
+      closeBg.on('pointerout',  () => { closeBg.setFillStyle(PAL.bgPanelDark); closeLabel.setColor(PAL.danger); });
       closeBg.on(TAP_EVENT, () => this.clearDetail());
+      // Tapping overlay (outside panel) also closes — but taps on the panel bg are blocked.
       overlay.on(TAP_EVENT, () => this.clearDetail());
 
       this.detailObjects.push(closeBg, closeLabel);
@@ -526,8 +589,8 @@ export class CodexScene extends Phaser.Scene {
       // Detail panel background
       const panelW = 420;
       const panelH = height - 180;
-      const bg = this.add.rectangle(cx, startY + panelH / 2, panelW, panelH, 0x0d1a0d)
-        .setStrokeStyle(2, 0x335533)
+      const bg = this.add.rectangle(cx, startY + panelH / 2, panelW, panelH, PAL.bgPanelDark)
+        .setStrokeStyle(2, PAL.borderActive)
         .setDepth(DEPTH_DETAIL);
       this.detailObjects.push(bg);
 
@@ -543,19 +606,19 @@ export class CodexScene extends Phaser.Scene {
         this.detailObjects.push(illusIcon);
       } else {
         const illus = this.add.rectangle(illusX, illusY, illusSize, illusSize, entry.tileColor)
-          .setStrokeStyle(2, 0x556655)
+          .setStrokeStyle(2, PAL.borderInactive)
           .setDepth(DEPTH_DETAIL + 1);
         this.detailObjects.push(illus);
 
         const illusChar = this.add.text(illusX, illusY, entry.title[0], {
-          fontSize: this._fs(24), color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+          fontSize: this._fs(24), color: PAL.textPrimary, fontFamily: PAL.fontBody, fontStyle: 'bold',
         }).setOrigin(0.5).setDepth(DEPTH_DETAIL + 2);
         this.detailObjects.push(illusChar);
       }
 
       // Title
       const titleText = this.add.text(illusX + illusSize / 2 + 16, illusY, entry.title, {
-        fontSize: this._fs(18), color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold',
+        fontSize: this._fs(18), color: PAL.accentGreen, fontFamily: PAL.fontTitle, fontStyle: 'bold',
       }).setOrigin(0, 0.5).setDepth(DEPTH_DETAIL + 1);
       this.detailObjects.push(titleText);
 
@@ -566,8 +629,8 @@ export class CodexScene extends Phaser.Scene {
         loreText,
         {
           fontSize:    this._fs(13),
-          color:       '#aabbaa',
-          fontFamily:  'monospace',
+          color:       PAL.textSecondary,
+          fontFamily:  PAL.fontBody,
           lineSpacing: 8,
           wordWrap:    { width: panelW - 48 },
         },
@@ -584,8 +647,8 @@ export class CodexScene extends Phaser.Scene {
         this._detailMaskGfx = maskGfx;
 
         const scrollHint = this.add.text(
-          cx, startY + panelH - 32, '▼ scroll for more',
-          { fontSize: this._fs(11), color: '#446644', fontFamily: 'monospace' },
+          cx, startY + panelH - 32, '... scroll for more',
+          { fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody },
         ).setOrigin(0.5).setDepth(DEPTH_DETAIL + 2);
         this.detailObjects.push(scrollHint);
 
@@ -606,13 +669,13 @@ export class CodexScene extends Phaser.Scene {
         this.input.on('wheel', handler);
       }
 
-      // Section badge — minimum 11px
+      // Section badge
       const sectionLabel = CODEX_SECTION_LABELS[entry.section];
       const badge = this.add.text(
         cx + panelW / 2 - 16, startY + panelH - 20,
         sectionLabel.toUpperCase(),
         {
-          fontSize: this._fs(11), color: '#334433', fontFamily: 'monospace',
+          fontSize: this._fs(11), color: PAL.textDim, fontFamily: PAL.fontBody,
         },
       ).setOrigin(1, 1).setDepth(DEPTH_DETAIL + 1);
       this.detailObjects.push(badge);
@@ -646,16 +709,16 @@ export class CodexScene extends Phaser.Scene {
     const btnY = height - (this._isMobile ? btnH / 2 + 20 : 46);
 
     // MARK ALL READ button (left of center)
-    const markBg = this.add.rectangle(cx - 120, btnY, 190, btnH, 0x0a1a0a)
-      .setStrokeStyle(1, 0x335533)
+    const markBg = this.add.rectangle(cx - 120, btnY, 190, btnH, PAL.bgPanel)
+      .setStrokeStyle(1, PAL.borderInactive)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_UI);
     const markLabel = this.add.text(cx - 120, btnY, 'MARK ALL READ', {
-      fontSize: this._fs(12), color: '#668866', fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: this._fs(12), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_UI + 1);
 
-    markBg.on('pointerover', () => { markBg.setFillStyle(0x1a2a1a); markLabel.setColor('#00ff44'); });
-    markBg.on('pointerout',  () => { markBg.setFillStyle(0x0a1a0a); markLabel.setColor('#668866'); });
+    markBg.on('pointerover', () => { markBg.setFillStyle(PAL.bgPanelHover); markLabel.setColor(PAL.accentGreen); });
+    markBg.on('pointerout',  () => { markBg.setFillStyle(PAL.bgPanel); markLabel.setColor(PAL.textSecondary); });
     markBg.on(TAP_EVENT,   () => {
       const save = SaveManager.getInstance();
       const allUnlockedIds = ALL_CODEX_ENTRIES
@@ -666,17 +729,17 @@ export class CodexScene extends Phaser.Scene {
     });
 
     // BACK button (right of center)
-    const bg = this.add.rectangle(cx + 120, btnY, 160, btnH, 0x1a0000)
-      .setStrokeStyle(2, 0xff4444)
+    const bg = this.add.rectangle(cx + 120, btnY, 160, btnH, PAL.bgPanelDark)
+      .setStrokeStyle(2, PAL.dangerN)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH_UI);
 
     const label = this.add.text(cx + 120, btnY, 'BACK', {
-      fontSize: this._fs(16), color: '#ff4444', fontFamily: 'monospace', fontStyle: 'bold',
+      fontSize: this._fs(16), color: PAL.danger, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_UI + 1);
 
     bg.on('pointerover', () => { bg.setFillStyle(0x330000); label.setColor('#ffffff'); });
-    bg.on('pointerout',  () => { bg.setFillStyle(0x1a0000); label.setColor('#ff4444'); });
+    bg.on('pointerout',  () => { bg.setFillStyle(PAL.bgPanelDark); label.setColor(PAL.danger); });
     bg.on(TAP_EVENT,   () => {
       this._go(this.returnTo, this.returnData);
     });

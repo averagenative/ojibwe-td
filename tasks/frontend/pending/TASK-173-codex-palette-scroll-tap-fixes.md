@@ -1,7 +1,7 @@
 ---
 id: TASK-173
 title: "Codex: palette update, touch scroll, description tap fix"
-status: pending
+status: done
 category: frontend
 phase: release
 priority: medium
@@ -24,8 +24,8 @@ The Codex scene (`CodexScene.ts`) has several mobile UX issues:
 
 ## Acceptance Criteria
 
-- [ ] Color palette updated to match MainMenuScene
-- [ ] Tapping inside a codex entry's description area does NOT close the entry
-- [ ] Description text area is scrollable with finger drag
-- [ ] Left-side entry list (Beings, Teachings, etc.) scrollable via touch drag
-- [ ] All locked entries reachable by scrolling
+- [x] Color palette updated to match MainMenuScene
+- [x] Tapping inside a codex entry's description area does NOT close the entry
+- [x] Description text area is scrollable with finger drag
+- [x] Left-side entry list (Beings, Teachings, etc.) scrollable via touch drag
+- [x] All locked entries reachable by scrolling

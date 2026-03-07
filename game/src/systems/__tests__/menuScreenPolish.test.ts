@@ -316,21 +316,21 @@ describe('GameOverScene stats count-up animations', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 // 11. CodexScene — parchment background
 // ═══════════════════════════════════════════════════════════════════════════
-describe('CodexScene parchment background', () => {
-  it('uses warm parchment background color 0x100c05', () => {
-    expect(codexSrc).toContain('0x100c05');
+describe('CodexScene earthy palette background', () => {
+  it('uses PAL.bgDark background color', () => {
+    expect(codexSrc).toContain('PAL.bgDark');
   });
 
-  it('uses warm grid color 0x2a2010', () => {
-    expect(codexSrc).toContain('0x2a2010');
+  it('uses earthy grid overlay', () => {
+    expect(codexSrc).toContain('0x1c2e12');
   });
 
   it('has grain overlay (grainGfx)', () => {
     expect(codexSrc).toContain('grainGfx');
   });
 
-  it('grain uses semi-transparent warm tint (0xc8a050)', () => {
-    expect(codexSrc).toContain('0xc8a050');
+  it('grain uses earthy green tint (0x6B8F3E)', () => {
+    expect(codexSrc).toContain('0x6B8F3E');
   });
 });
 
