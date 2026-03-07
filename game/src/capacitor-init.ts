@@ -10,21 +10,26 @@ function isCapacitor(): boolean {
 export async function initCapacitorNative(): Promise<void> {
   if (!isCapacitor()) return;
 
-  const { StatusBar, Style } = await import('@capacitor/status-bar');
-  await StatusBar.setStyle({ style: Style.Dark });
-  await StatusBar.hide();
-
-  const { SplashScreen } = await import('@capacitor/splash-screen');
-  await SplashScreen.hide();
+  // Status bar hidden via Info.plist (UIStatusBarHidden + UIViewControllerBasedStatusBarAppearance)
+  // Splash screen handled by native LaunchScreen storyboard (auto-dismissed)
 }
+
+// Use variable imports so TypeScript doesn't resolve these at compile time.
+// On machines without Capacitor packages (e.g. Linux server), the dynamic
+// import fails at runtime but is caught — no-op in browser anyway.
+const HAPTICS_PKG = '@capacitor/haptics';
+const KEEPAWAKE_PKG = '@capacitor-community/keep-awake';
 
 /**
  * Trigger haptic feedback on tower placement / boss kill.
  */
 export async function hapticLight(): Promise<void> {
   if (!isCapacitor()) return;
-  const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
-  await Haptics.impact({ style: ImpactStyle.Light });
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod: any = await import(/* @vite-ignore */ HAPTICS_PKG);
+    await mod.Haptics.impact({ style: mod.ImpactStyle.Light });
+  } catch { /* Capacitor plugin not installed — skip */ }
 }
 
 /**
@@ -32,6 +37,9 @@ export async function hapticLight(): Promise<void> {
  */
 export async function keepScreenAwake(): Promise<void> {
   if (!isCapacitor()) return;
-  const { KeepAwake } = await import('@capacitor-community/keep-awake');
-  await KeepAwake.keepAwake();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod: any = await import(/* @vite-ignore */ KEEPAWAKE_PKG);
+    await mod.KeepAwake.keepAwake();
+  } catch { /* Capacitor plugin not installed — skip */ }
 }

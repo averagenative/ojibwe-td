@@ -4,17 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.ojibwetd.app',
   appName: 'Ojibwe TD',
   webDir: 'dist',
-  plugins: {
-    SplashScreen: {
-      launchAutoHide: false,
-      backgroundColor: '#0a0e0a',
-      showSpinner: false,
-    },
-    StatusBar: {
-      style: 'dark',
-      overlaysWebView: true,
-    },
-  },
+  plugins: {},
   ios: {
     preferredContentMode: 'mobile',
     contentInset: 'never',

@@ -19,9 +19,18 @@
 
 set -euo pipefail
 
+# ── Platform detection ────────────────────────────────────────────────────────
+
+IS_MACOS=false
+[[ "$(uname)" == "Darwin" ]] && IS_MACOS=true
+
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-REPO_DIR="/home/dmichael/projects/greentd"
+if $IS_MACOS; then
+  REPO_DIR="/Users/dmichael/projects/ojibwe-td"
+else
+  REPO_DIR="/home/dmichael/projects/greentd"
+fi
 GAME_DIR="$REPO_DIR/game"
 TASKS_DIR="$REPO_DIR/tasks"
 
@@ -267,7 +276,11 @@ find_next_task() {
 
 claim_task() {
   # sed is a no-op if already in-progress (idempotent for resume)
-  sed -i 's/^status: pending$/status: in-progress/' "$1"
+  if $IS_MACOS; then
+    sed -i '' 's/^status: pending$/status: in-progress/' "$1"
+  else
+    sed -i 's/^status: pending$/status: in-progress/' "$1"
+  fi
   log "Claimed: $1"
 }
 

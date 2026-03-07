@@ -4,6 +4,9 @@
 
 set -uo pipefail
 
+IS_MACOS=false
+[[ "$(uname)" == "Darwin" ]] && IS_MACOS=true
+
 REPO="$(cd "$(dirname "$0")" && pwd)"
 TASKS="$REPO/tasks"
 STATE_FILE="$REPO/.orch_parallel_state"
@@ -35,7 +38,11 @@ _L "$(sep_l)"
 SINGLE_PIDS=$(pgrep -f "[^-][o]rchestrator\.sh" 2>/dev/null || true)
 PARALLEL_PIDS=$(pgrep -f "[p]arallel-orchestrator\.sh" 2>/dev/null || true)
 # Only show orchestrator-spawned agents (have -p flag), not interactive sessions
-CLAUDE_PIDS=$(pgrep -af "claude.*--dangerously-skip.*-p " 2>/dev/null | { grep -v "^$$" || true; })
+if $IS_MACOS; then
+  CLAUDE_PIDS=$(ps -eo pid,args 2>/dev/null | grep "claude.*--dangerously-skip.*-p " | grep -v grep | grep -v "^$$" || true)
+else
+  CLAUDE_PIDS=$(pgrep -af "claude.*--dangerously-skip.*-p " 2>/dev/null | { grep -v "^$$" || true; })
+fi
 
 if [ -n "$SINGLE_PIDS" ]; then
   _L "$(printf "  ${GREEN}✓${RESET} Single orch  (PIDs: %s)" "$(echo "$SINGLE_PIDS" | tr '\n' ' ')")"
@@ -102,7 +109,11 @@ if [ -f "$STATE_FILE" ]; then
     esac
     elapsed=""
     if [ -d "$worktree" ]; then
-      wt_created=$(stat -c %Y "$worktree" 2>/dev/null || echo "")
+      if $IS_MACOS; then
+        wt_created=$(stat -f %m "$worktree" 2>/dev/null || echo "")
+      else
+        wt_created=$(stat -c %Y "$worktree" 2>/dev/null || echo "")
+      fi
       if [ -n "$wt_created" ]; then
         now=$(date +%s)
         diff_s=$((now - wt_created))
@@ -156,11 +167,14 @@ _R ""
 # ── Dev server ──────────────────────────────────────────────────────────
 _R "$(printf "${BOLD}Dev server${RESET}")"
 _R "$(sep_l)"
-VITE_LINE=$(ss -tlnp 2>/dev/null | grep -E '"node"' | grep -oP ':\K(300[0-9]|301[0-9])(?= .*pid=)|pid=\K[0-9]+' | head -2)
-if [ -n "$VITE_LINE" ]; then
-  DEV_PORT=$(echo "$VITE_LINE" | sed -n '1p')
-  DEV_PID=$(echo "$VITE_LINE" | sed -n '2p')
-  _R "$(printf "  ${GREEN}✓${RESET}  http://localhost:%s  (PID %s)" "$DEV_PORT" "$DEV_PID")"
+if $IS_MACOS; then
+  VITE_PID=$(lsof -iTCP:5173 -sTCP:LISTEN -t 2>/dev/null | head -1)
+else
+  VITE_LINE=$(ss -tlnp 2>/dev/null | grep -E '"node"' | grep -oP ':\K(300[0-9]|301[0-9])(?= .*pid=)|pid=\K[0-9]+' | head -2)
+  VITE_PID=$(echo "$VITE_LINE" | sed -n '2p')
+fi
+if [ -n "${VITE_PID:-}" ]; then
+  _R "$(printf "  ${GREEN}✓${RESET}  http://localhost:5173  (PID %s)" "$VITE_PID")"
 else
   _R "$(printf "  ${RED}✗${RESET}  No Vite — run: ${DIM}cd game && npx vite --host${RESET}")"
 fi

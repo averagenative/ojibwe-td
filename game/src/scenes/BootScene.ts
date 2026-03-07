@@ -117,8 +117,8 @@ export class BootScene extends Phaser.Scene {
     this.add.rectangle(cx, cy, width, height, PAL.bgDark);
 
     // Logo — upper-center, scaled to fill more of the screen on mobile
-    const logoScale = mob ? 0.95 : 0.45;
-    const logoY = mob ? cy - 130 : cy - 80;
+    const logoScale = mob ? 0.35 : 0.22;
+    const logoY = mob ? cy - 160 : cy - 100;
     if (this.textures.exists('logo')) {
       this.add.image(cx, logoY, 'logo').setScale(logoScale);
     }
