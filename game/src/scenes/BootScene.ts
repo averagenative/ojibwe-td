@@ -112,8 +112,8 @@ export class BootScene extends Phaser.Scene {
     const cx = width / 2;
     const mob = MobileManager.getInstance().isMobile();
 
-    // Full-screen dark background
-    this.add.rectangle(cx, height / 2, width, height, PAL.bgDark);
+    // Full-screen dark background — depth -2 so glow & particles sit above it
+    this.add.rectangle(cx, height / 2, width, height, PAL.bgDark).setDepth(-2);
 
     // Floating particles — green/white motes drifting upward
     const particleCount = mob ? 12 : 20;
@@ -146,15 +146,22 @@ export class BootScene extends Phaser.Scene {
     if (this.textures.exists('logo')) {
       logo = this.add.image(cx, logoY, 'logo').setScale(logoScale);
 
-      // Warm white glow behind the crest — pulses gently
-      const glowW = logo.width * logoScale + 80;
-      const glowH = logo.height * logoScale * 0.5;
+      // Warm white glow behind the crest — layered circles that diffuse outward
+      const baseR = Math.max(logo.width, logo.height) * logoScale * 0.45;
       const glow = this.add.graphics().setDepth(-1).setAlpha(0);
-      glow.fillStyle(0xeeddcc, 0.4);
-      glow.fillEllipse(cx, logoY, glowW, glowH);
+      const glowLayers = [
+        { r: baseR * 1.8, a: 0.06 },
+        { r: baseR * 1.4, a: 0.10 },
+        { r: baseR * 1.0, a: 0.18 },
+        { r: baseR * 0.7, a: 0.25 },
+      ];
+      for (const layer of glowLayers) {
+        glow.fillStyle(0xeeddcc, layer.a);
+        glow.fillCircle(cx, logoY, layer.r);
+      }
       this.tweens.add({
         targets:  glow,
-        alpha:    { from: 0.1, to: 0.5 },
+        alpha:    { from: 0.15, to: 0.6 },
         duration: 2200,
         yoyo:     true,
         repeat:   -1,
