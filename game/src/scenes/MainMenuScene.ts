@@ -228,6 +228,7 @@ export class MainMenuScene extends Phaser.Scene {
     this._autoSave = SessionManager.getInstance().load();
 
     this.createBackground();
+    this._buildFloatingMotes();
     this._buildParallaxLayers();
     this._buildTimeOfDayTint();
     // Logo is built inside createButtons() where startY is known.
@@ -253,6 +254,32 @@ export class MainMenuScene extends Phaser.Scene {
     for (let x = 0; x < width; x += ts) { gfx.moveTo(x, 0); gfx.lineTo(x, height); }
     for (let y = 0; y < height; y += ts) { gfx.moveTo(0, y); gfx.lineTo(width, y); }
     gfx.strokePath();
+  }
+
+  // ── Floating ambient motes ──────────────────────────────────────────────────
+
+  private _buildFloatingMotes(): void {
+    const { width, height } = this.scale;
+    const count = this._isMobile ? 18 : 30;
+    const colors = [0x6B8F3E, 0x8aaa60, 0xccddaa, 0xeeeedd, 0x4a6e28];
+    for (let i = 0; i < count; i++) {
+      const px = Math.random() * width;
+      const py = height + 20 + Math.random() * height * 0.5;
+      const size = 1.5 + Math.random() * 2.5;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const mote = this.add.circle(px, py, size, color, 0.12 + Math.random() * 0.2)
+        .setDepth(DEPTH_BG + 1);
+      this.tweens.add({
+        targets: mote,
+        y: -20 - Math.random() * 60,
+        x: px + (Math.random() - 0.5) * 100,
+        alpha: 0,
+        duration: 6000 + Math.random() * 6000,
+        delay: Math.random() * 4000,
+        repeat: -1,
+        ease: 'Sine.easeIn',
+      });
+    }
   }
 
   // ── Animated parallax layers ───────────────────────────────────────────────
