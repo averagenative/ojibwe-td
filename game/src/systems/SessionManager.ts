@@ -1,11 +1,12 @@
 /**
- * SessionManager — mid-run auto-save to sessionStorage.
+ * SessionManager — mid-run auto-save to localStorage.
  *
  * Saves game state at checkpoints (wave-end, visibilitychange, pagehide) so
- * the player can resume after a browser page eviction on mobile.
+ * the player can resume after iOS evicts the app from memory or the browser
+ * tab is closed.
  *
- * Uses sessionStorage (not localStorage) — auto-cleared when the browser tab
- * is closed, so stale saves don't linger across sessions.
+ * Uses localStorage so the save persists across app restarts. A 30-minute
+ * expiry prevents bizarre resume from a forgotten old session.
  *
  * Phaser-free — safe for unit tests.
  */
@@ -60,13 +61,13 @@ export class SessionManager {
     return SessionManager._instance;
   }
 
-  /** True when sessionStorage is accessible (false in private-browsing edge cases). */
+  /** True when localStorage is accessible (false in private-browsing edge cases). */
   isAvailable(): boolean {
     return this._available;
   }
 
   /**
-   * Write the auto-save state to sessionStorage.
+   * Write the auto-save state to localStorage.
    * Stamps `version` and `timestamp` automatically.
    * Silent no-op when storage is unavailable or quota is exceeded.
    */
@@ -78,14 +79,14 @@ export class SessionManager {
       ...state,
     };
     try {
-      sessionStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
     } catch {
       // Quota exceeded — silently ignore; auto-save is best-effort.
     }
   }
 
   /**
-   * Load the auto-save from sessionStorage.
+   * Load the auto-save from localStorage.
    * Returns `null` when:
    *  - Storage is unavailable
    *  - No save exists
@@ -96,7 +97,7 @@ export class SessionManager {
   load(): AutoSave | null {
     if (!this._available) return null;
     try {
-      const raw = sessionStorage.getItem(AUTOSAVE_KEY);
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
       if (!raw) return null;
 
       const parsed = JSON.parse(raw) as AutoSave;
@@ -123,11 +124,11 @@ export class SessionManager {
     }
   }
 
-  /** Delete the auto-save from sessionStorage. */
+  /** Delete the auto-save from localStorage. */
   clear(): void {
     if (!this._available) return;
     try {
-      sessionStorage.removeItem(AUTOSAVE_KEY);
+      localStorage.removeItem(AUTOSAVE_KEY);
     } catch {
       // ignore
     }
@@ -138,8 +139,8 @@ export class SessionManager {
   private static _testStorage(): boolean {
     try {
       const key = '__ojibwe_td_session_test__';
-      sessionStorage.setItem(key, '1');
-      sessionStorage.removeItem(key);
+      localStorage.setItem(key, '1');
+      localStorage.removeItem(key);
       return true;
     } catch {
       return false;

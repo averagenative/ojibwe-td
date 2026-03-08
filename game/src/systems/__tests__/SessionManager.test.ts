@@ -1,7 +1,7 @@
 /**
  * SessionManager unit tests.
  *
- * sessionStorage is mocked via vi.stubGlobal so these tests run in jsdom
+ * localStorage is mocked via vi.stubGlobal so these tests run in jsdom
  * without a real browser storage API.  The SessionManager singleton is reset
  * between tests by directly nulling the private static field via a TS cast.
  */
@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SessionManager, AUTOSAVE_EXPIRY_MS } from '../SessionManager';
 import type { AutoSave } from '../SessionManager';
 
-// ── sessionStorage mock ────────────────────────────────────────────────────────
+// ── localStorage mock ────────────────────────────────────────────────────────
 
 function makeStoreMock() {
   const store = new Map<string, string>();
@@ -59,7 +59,7 @@ describe('SessionManager', () => {
 
   beforeEach(() => {
     storageMock = makeStoreMock();
-    vi.stubGlobal('sessionStorage', storageMock);
+    vi.stubGlobal('localStorage', storageMock);
     resetSingleton();
   });
 
@@ -70,17 +70,17 @@ describe('SessionManager', () => {
 
   // ── Availability ────────────────────────────────────────────────────────────
 
-  it('reports storage as available when sessionStorage works', () => {
+  it('reports storage as available when localStorage works', () => {
     const mgr = SessionManager.getInstance();
     expect(mgr.isAvailable()).toBe(true);
   });
 
-  it('reports storage unavailable when sessionStorage throws', () => {
+  it('reports storage unavailable when localStorage throws', () => {
     const throwing = {
       ...storageMock,
       setItem: () => { throw new Error('QuotaExceededError'); },
     };
-    vi.stubGlobal('sessionStorage', throwing);
+    vi.stubGlobal('localStorage', throwing);
     resetSingleton();
     const mgr = SessionManager.getInstance();
     expect(mgr.isAvailable()).toBe(false);
@@ -204,7 +204,7 @@ describe('SessionManager', () => {
       getItem: storageMock.getItem.bind(storageMock),
       removeItem: storageMock.removeItem.bind(storageMock),
     };
-    vi.stubGlobal('sessionStorage', quota);
+    vi.stubGlobal('localStorage', quota);
     resetSingleton();
     const mgr = SessionManager.getInstance();
 
@@ -284,7 +284,7 @@ describe('SessionManager', () => {
       ...storageMock,
       setItem: () => { throw new Error('SecurityError'); },
     };
-    vi.stubGlobal('sessionStorage', throwing);
+    vi.stubGlobal('localStorage', throwing);
     resetSingleton();
     const mgr = SessionManager.getInstance();
 
