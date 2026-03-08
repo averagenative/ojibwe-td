@@ -28,11 +28,11 @@ export const RARITY_ORDER: GearRarity[] = [
 ];
 
 export const RARITY_COLORS: Record<GearRarity, { hex: string; num: number }> = {
-  common:    { hex: '#888888', num: 0x888888 },
-  uncommon:  { hex: '#44cc44', num: 0x44cc44 },
-  rare:      { hex: '#4488ff', num: 0x4488ff },
-  epic:      { hex: '#aa44ff', num: 0xaa44ff },
-  legendary: { hex: '#ff8800', num: 0xff8800 },
+  common:    { hex: '#8a8a7a', num: 0x8a8a7a },   // stone grey
+  uncommon:  { hex: '#6B8F3E', num: 0x6B8F3E },   // marsh green
+  rare:      { hex: '#4A7FA5', num: 0x4A7FA5 },   // lake blue
+  epic:      { hex: '#9a6eb0', num: 0x9a6eb0 },   // swan lavender
+  legendary: { hex: '#c8952a', num: 0xc8952a },   // autumn gold
 };
 
 /** Drop weight per rarity for standard loot rolls. */

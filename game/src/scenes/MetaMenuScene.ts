@@ -146,14 +146,11 @@ export class MetaMenuScene extends Phaser.Scene {
 
     // Navigation buttons — use _navigateTo() so the ambiance fades out smoothly
     const btnY = height - (this._isMobile ? 64 : 60);
-    this.makeButton(cx - 220, btnY, 'BACK', () => {
+    this.makeButton(cx - 120, btnY, 'BACK', () => {
       this._navigateTo('MainMenuScene');
     });
-    this.makeButton(cx, btnY, 'GEAR', () => {
+    this.makeButton(cx + 120, btnY, 'GEAR', () => {
       this._navigateTo('InventoryScene');
-    });
-    this.makeButton(cx + 220, btnY, 'CHALLENGES', () => {
-      this._navigateTo('ChallengeSelectScene');
     });
 
     // Swipe-right to go back (mobile only)

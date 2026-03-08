@@ -19,19 +19,16 @@ import { TAP_EVENT } from '../systems/MobileManager';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-const GRID_COLS     = 6;
 const CELL_SIZE     = 80;
 const CELL_GAP      = 8;
-const GRID_LEFT     = 40;
 const GRID_TOP      = 140;
 const GRID_ROWS_VIS = 5;       // visible rows before scrolling
 
 const DETAIL_W      = 320;
 const DETAIL_X_PAD  = 24;
 
-const FILTER_BTN_W  = 80;
-const FILTER_BTN_H  = 28;
-const FILTER_GAP    = 4;
+const FILTER_BTN_H  = 34;
+const FILTER_PAD_X  = 24;      // horizontal padding for filter row
 
 // Gear type → display label for filter buttons
 const FILTER_OPTIONS: { label: string; towerKey: string | null }[] = [
@@ -60,6 +57,10 @@ export class InventoryScene extends Phaser.Scene {
   private balanceText!: Phaser.GameObjects.Text;
   private countText!: Phaser.GameObjects.Text;
 
+  // Dynamic layout — computed from screen width in create()
+  private _gridCols = 6;
+  private _gridLeft = 24;
+
   constructor() {
     super({ key: 'InventoryScene' });
   }
@@ -69,6 +70,12 @@ export class InventoryScene extends Phaser.Scene {
     const cx = width / 2;
     this.inv  = InventoryManager.getInstance();
     this.save = SaveManager.getInstance();
+
+    // Compute dynamic grid columns to fill available width
+    // Leave room for detail panel on the right when an item is selected
+    const gridAreaW = width - FILTER_PAD_X * 2;
+    this._gridCols = Math.max(4, Math.floor((gridAreaW + CELL_GAP) / (CELL_SIZE + CELL_GAP)));
+    this._gridLeft = FILTER_PAD_X;
 
     // Mark all items seen
     this.inv.markAllSeen();
@@ -90,8 +97,8 @@ export class InventoryScene extends Phaser.Scene {
       fontStyle:  'bold',
     }).setOrigin(0.5);
 
-    // Crystal balance
-    this.balanceText = this.add.text(cx, 68, '', {
+    // Crystal balance + item count (side by side under title)
+    this.balanceText = this.add.text(cx - 80, 68, '', {
       fontSize:   '18px',
       color:      PAL.gold,
       fontFamily: PAL.fontBody,
@@ -99,15 +106,14 @@ export class InventoryScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this._refreshBalance();
 
-    // Item count
-    this.countText = this.add.text(width - 60, 68, '', {
+    this.countText = this.add.text(cx + 80, 68, '', {
       fontSize:   '14px',
       color:      PAL.textMuted,
       fontFamily: PAL.fontBody,
-    }).setOrigin(1, 0.5);
+    }).setOrigin(0.5);
     this._refreshCount();
 
-    // Filter buttons
+    // Filter buttons (full width)
     this._buildFilters();
 
     // Build grid
@@ -115,7 +121,7 @@ export class InventoryScene extends Phaser.Scene {
 
     // Scroll support (mouse wheel)
     this.input.on('wheel', (_ptr: Phaser.Input.Pointer, _gx: number[], _gy: number[], _gz: number[], dy: number) => {
-      const maxRows = Math.ceil(this._getFilteredItems().length / GRID_COLS);
+      const maxRows = Math.ceil(this._getFilteredItems().length / this._gridCols);
       const maxOffset = Math.max(0, maxRows - GRID_ROWS_VIS);
       if (dy > 0 && this.scrollOffset < maxOffset) {
         this.scrollOffset++;
@@ -143,7 +149,7 @@ export class InventoryScene extends Phaser.Scene {
       touchInGrid = false;
       const dy = touchStartY - ptr.y;   // positive = swipe up = scroll down
       if (Math.abs(dy) < 30) return;
-      const maxRows = Math.ceil(this._getFilteredItems().length / GRID_COLS);
+      const maxRows = Math.ceil(this._getFilteredItems().length / this._gridCols);
       const maxOffset = Math.max(0, maxRows - GRID_ROWS_VIS);
       if (dy > 0 && this.scrollOffset < maxOffset) {
         this.scrollOffset++;
@@ -166,21 +172,23 @@ export class InventoryScene extends Phaser.Scene {
     for (const obj of this.filterObjects) obj.destroy();
     this.filterObjects = [];
 
-    const startX = GRID_LEFT;
+    const { width } = this.scale;
     const y = GRID_TOP - 42;
+    const totalGap = 6 * (FILTER_OPTIONS.length - 1);
+    const btnW = Math.floor((width - FILTER_PAD_X * 2 - totalGap) / FILTER_OPTIONS.length);
 
     for (let i = 0; i < FILTER_OPTIONS.length; i++) {
       const opt = FILTER_OPTIONS[i];
-      const x = startX + i * (FILTER_BTN_W + FILTER_GAP) + FILTER_BTN_W / 2;
+      const x = FILTER_PAD_X + i * (btnW + 6) + btnW / 2;
       const isActive = this.activeFilter === opt.towerKey;
 
-      const bg = this.add.rectangle(x, y, FILTER_BTN_W, FILTER_BTN_H,
+      const bg = this.add.rectangle(x, y, btnW, FILTER_BTN_H,
         isActive ? PAL.bgCard : PAL.bgPanel,
       ).setStrokeStyle(1, isActive ? PAL.borderActive : PAL.borderInactive)
        .setInteractive({ useHandCursor: true });
 
       const label = this.add.text(x, y, opt.label, {
-        fontSize:   '12px',
+        fontSize:   '13px',
         color:      isActive ? PAL.textPrimary : PAL.textMuted,
         fontFamily: PAL.fontBody,
         fontStyle:  isActive ? 'bold' : 'normal',
@@ -220,9 +228,11 @@ export class InventoryScene extends Phaser.Scene {
     for (const obj of this.gridObjects) obj.destroy();
     this.gridObjects = [];
 
+    const cols = this._gridCols;
+    const left = this._gridLeft;
     const items = this._getFilteredItems();
-    const startIdx = this.scrollOffset * GRID_COLS;
-    const endIdx = startIdx + GRID_COLS * GRID_ROWS_VIS;
+    const startIdx = this.scrollOffset * cols;
+    const endIdx = startIdx + cols * GRID_ROWS_VIS;
     const visible = items.slice(startIdx, endIdx);
 
     for (let i = 0; i < visible.length; i++) {
@@ -230,9 +240,9 @@ export class InventoryScene extends Phaser.Scene {
       const def = getGearDef(item.defId);
       if (!def) continue;
 
-      const col = i % GRID_COLS;
-      const row = Math.floor(i / GRID_COLS);
-      const x = GRID_LEFT + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = left + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
       const y = GRID_TOP + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
 
       const rarityCol = RARITY_COLORS[def.rarity];
@@ -318,11 +328,12 @@ export class InventoryScene extends Phaser.Scene {
     }
 
     // Scroll indicator
-    const totalRows = Math.ceil(items.length / GRID_COLS);
+    const totalRows = Math.ceil(items.length / cols);
     if (totalRows > GRID_ROWS_VIS) {
       const indicatorY = GRID_TOP + GRID_ROWS_VIS * (CELL_SIZE + CELL_GAP) + 10;
+      const gridW = cols * (CELL_SIZE + CELL_GAP);
       const scrollText = this.add.text(
-        GRID_LEFT + (GRID_COLS * (CELL_SIZE + CELL_GAP)) / 2,
+        left + gridW / 2,
         indicatorY,
         `Rows ${this.scrollOffset + 1}-${Math.min(this.scrollOffset + GRID_ROWS_VIS, totalRows)} of ${totalRows}`,
         { fontSize: '11px', color: PAL.textDim, fontFamily: PAL.fontBody },

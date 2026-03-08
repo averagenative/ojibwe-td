@@ -101,6 +101,18 @@ export const PAL = {
   waveWarningN:       0xc0701e,
   lockedPipN:         0x441111,   // locked upgrade tier pip
 
+  // ── Rarity tier colours ──────────────────────────────────────────────────────
+  rarityCommon:       '#8a8a7a',  // stone grey
+  rarityUncommon:     '#6B8F3E',  // marsh green  (= accentGreen)
+  rarityRare:         '#4A7FA5',  // lake blue    (= accentBlue)
+  rarityEpic:         '#9a6eb0',  // swan lavender
+  rarityLegendary:    '#c8952a',  // autumn gold  (= gold)
+  rarityCommonN:      0x8a8a7a,
+  rarityUncommonN:    0x6B8F3E,
+  rarityRareN:        0x4A7FA5,
+  rarityEpicN:        0x9a6eb0,
+  rarityLegendaryN:   0xc8952a,
+
   // ── Commander role border colours (numeric, for portrait ring) ─────────────
   cmdSustain:         0x4a8848,   // Nokomis — leafy green
   cmdPrecision:       0x4a7fa5,   // Bizhiw — lake blue

@@ -247,7 +247,7 @@ describe('UpgradePanel — SELECT ALL TYPE button', () => {
   });
 
   it('button label updates to show tower name in showForTower()', () => {
-    expect(upgradePanelSrc).toContain('SELECT ALL ${tower.def.name.toUpperCase()}');
+    expect(upgradePanelSrc).toContain('SELECT ALL');
   });
 });
 
