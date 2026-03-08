@@ -42,7 +42,7 @@ describe('refreshStatusVisual — bodyImage tint covers all debuff types', () =>
 
   it('applies tint for slowed+poisoned combo', () => {
     expect(fn).toContain('slowed && poisoned');
-    expect(fn).toContain('setTint(0x44aaaa)');
+    expect(fn).toContain('setTint(0x4A7FA5)');
   });
 
   it('applies tint for slowed (frost)', () => {
@@ -52,7 +52,7 @@ describe('refreshStatusVisual — bodyImage tint covers all debuff types', () =>
 
   it('applies tint for poisoned', () => {
     expect(fn).toContain('} else if (poisoned)');
-    expect(fn).toContain('setTint(0x44ff66)');
+    expect(fn).toContain('setTint(0x6B8F3E)');
   });
 
   it('applies tint for burning', () => {

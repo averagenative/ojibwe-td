@@ -75,7 +75,7 @@ export const SEASONAL_PALETTES: Readonly<Record<string, SeasonalPalette>> = {
     vineColor:    0x2a6a18,
     groundFill:   0x0d1a0a,
     fireflyColor: 0xddee55,
-    leafColors:   [0x44aa22, 0x66cc33, 0x33881a],
+    leafColors:   [0x44aa22, 0x5a8c3a, 0x33881a],
     dustColor:    0xaaccaa,
     crystalColor: 0x44bbff,
   },

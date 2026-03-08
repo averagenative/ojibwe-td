@@ -974,7 +974,7 @@ export class Creep extends Phaser.GameObjects.Container {
           gfx.fillRect(cx - 1, cy - len, 2, len * 2);
           gfx.fillRect(cx - len, cy - 1, len * 2, 2);
         };
-        gfx.fillStyle(0x44ff88, 0.9);
+        gfx.fillStyle(0x6B8F3E, 0.9);
         cross(-6, 0, 3);
         cross(5, -3, 3);
         break;
@@ -1260,11 +1260,11 @@ export class Creep extends Phaser.GameObjects.Container {
     // ── Body base tint (backwards-compatible colour blending) ─────────────────
     if (this.bodyImage) {
       if (slowed && poisoned) {
-        this.bodyImage.setTint(0x44aaaa);
+        this.bodyImage.setTint(0x4A7FA5);
       } else if (slowed) {
         this.bodyImage.setTint(this.shatterActive ? 0xbbd8ff : 0x4488ff);
       } else if (poisoned) {
-        this.bodyImage.setTint(0x44ff66);
+        this.bodyImage.setTint(0x6B8F3E);
       } else if (burning) {
         this.bodyImage.setTint(0xff8833);
       } else if (shocked) {
@@ -1281,19 +1281,19 @@ export class Creep extends Phaser.GameObjects.Container {
     } else if (this._bodyGfx) {
       // Graphics body — redraw with status-effect override colour.
       let color: number;
-      if (slowed && poisoned) color = 0x44aaaa;
+      if (slowed && poisoned) color = 0x4A7FA5;
       else if (slowed)        color = this.shatterActive ? 0xbbd8ff : 0x4488ff;
-      else if (poisoned)      color = 0x44ff66;
+      else if (poisoned)      color = 0x6B8F3E;
       else if (burning)       color = 0xff8833;
       else                    color = this._bodyGfxColor; // restore style colour
       this._drawGfxBody(color);
     } else if (this.bodyRect) {
       if (slowed && poisoned) {
-        this.bodyRect.setFillStyle(0x44aaaa);
+        this.bodyRect.setFillStyle(0x4A7FA5);
       } else if (slowed) {
         this.bodyRect.setFillStyle(this.shatterActive ? 0xbbd8ff : 0x4488ff);
       } else if (poisoned) {
-        this.bodyRect.setFillStyle(0x44ff66);
+        this.bodyRect.setFillStyle(0x6B8F3E);
       } else if (burning) {
         this.bodyRect.setFillStyle(0xff8833);
       } else {

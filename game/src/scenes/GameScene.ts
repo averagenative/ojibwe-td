@@ -281,6 +281,10 @@ export class GameScene extends Phaser.Scene {
   /** When true, skip the YES/NO resume prompt and restore immediately. */
   private _autoResume = false;
 
+  // ── quick-play cutscene skip ────────────────────────────────────────────
+  /** When true, skip all pre-game cutscenes and vignettes (quick play). */
+  private _skipCutscenes = false;
+
   // ── ascension ─────────────────────────────────────────────────────────────
   /** Ascension level chosen at the pre-run screen (0 = standard run). */
   private _ascensionLevel = 0;
@@ -317,13 +321,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Called by Phaser before preload() — captures scene-start data and resets state. */
-  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean; isChallenge?: boolean; challengeId?: string; ascensionLevel?: number; autoResume?: boolean }): void {
+  init(data?: { commanderId?: string; stageId?: string; mapId?: string; isEndless?: boolean; isChallenge?: boolean; challengeId?: string; ascensionLevel?: number; autoResume?: boolean; skipCutscenes?: boolean }): void {
     this.selectedCommanderId = data?.commanderId ?? 'nokomis';
     this.isEndlessMode       = data?.isEndless   ?? false;
     this.isChallengeRun      = data?.isChallenge ?? false;
     this.bossesKilled        = 0;
     this._ascensionLevel     = data?.ascensionLevel ?? 0;
     this._autoResume         = data?.autoResume     ?? false;
+    this._skipCutscenes      = data?.skipCutscenes  ?? false;
 
     // Resolve challenge modifier if applicable.
     this._challengeId = data?.challengeId ?? null;
@@ -1145,8 +1150,8 @@ export class GameScene extends Phaser.Scene {
 
     // ── Pre-game cutscenes — deferred so all UI is built ────────────────────
     // Priority: intro cutscene (first ever launch) → region intro → FIRST_PLAY vignette.
-    // Only ONE of these fires per create().
-    this.time.delayedCall(300, () => {
+    // Only ONE of these fires per create().  Skipped entirely in quick-play mode.
+    if (!this._skipCutscenes) this.time.delayedCall(300, () => {
       const save = SaveManager.getInstance();
 
       // 1. Intro cutscene (game's first launch).

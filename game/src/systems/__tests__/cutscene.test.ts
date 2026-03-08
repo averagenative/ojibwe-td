@@ -410,6 +410,19 @@ describe('GameScene cutscene triggers (structural)', () => {
     expect(gameSceneSrc).toContain('markCutsceneSeen(regionDef.id)');
   });
 
+  it('skips pre-game cutscenes when _skipCutscenes is true', () => {
+    expect(gameSceneSrc).toContain('if (!this._skipCutscenes)');
+    // The guard wraps the delayedCall that contains the cutscene cascade
+    const guardIdx = gameSceneSrc.indexOf('if (!this._skipCutscenes)');
+    const cascadeIdx = gameSceneSrc.indexOf("getCutsceneDef('cutscene-intro')");
+    expect(guardIdx).toBeLessThan(cascadeIdx);
+  });
+
+  it('accepts skipCutscenes in init data', () => {
+    expect(gameSceneSrc).toContain('skipCutscenes?: boolean');
+    expect(gameSceneSrc).toContain('this._skipCutscenes');
+  });
+
   it('falls back to FIRST_PLAY vignette when no cutscenes needed', () => {
     expect(gameSceneSrc).toContain('if (firstPlayResult && !this._seenDialogIds.has(firstPlayResult.vignette.id))');
     expect(gameSceneSrc).toContain('vignetteOverlay.show(firstPlayResult.vignette');

@@ -213,7 +213,7 @@ const COMMANDERS: CodexEntryDef[] = [
     id:        'codex-commander-nokomis',
     section:   CodexSection.COMMANDERS,
     title:     'Nokomis — Grandmother',
-    tileColor: 0x44aa44,
+    tileColor: 0x4a8848,
     iconKey:   'portrait-nokomis',
     lines: [
       'Nokomis of the Crane Clan carries the turtle totem.',
@@ -307,7 +307,7 @@ const TEACHINGS: CodexEntryDef[] = [
     id:        'codex-teaching-balance',
     section:   CodexSection.TEACHINGS,
     title:     'On Balance',
-    tileColor: 0x44aa88,
+    tileColor: 0x4A7FA5,
     iconKey:   'teaching-balance',
     lines: [
       'In Anishinaabe teaching, the world exists in balance.',

@@ -627,8 +627,8 @@ describe('MetaAmbiance — seasonal leaf colour arithmetic', () => {
   });
 
   it('summer leaf green component is dominant', () => {
-    // summer leafColors: [0x44aa22, 0x66cc33, 0x33881a]
-    for (const c of [0x44aa22, 0x66cc33, 0x33881a]) {
+    // summer leafColors: [0x44aa22, 0x5a8c3a, 0x33881a]
+    for (const c of [0x44aa22, 0x5a8c3a, 0x33881a]) {
       const g = (c >> 8) & 0xff;
       const r = (c >> 16) & 0xff;
       expect(g).toBeGreaterThan(r);

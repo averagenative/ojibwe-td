@@ -540,7 +540,7 @@ export class AmbientVFX {
   private _initBiboonAki(): void {
     // Aurora shimmer — disabled on mobile
     if (!this._mobile) {
-      const auroraColors  = [0x44ff88, 0x8844ff, 0x44aaff];
+      const auroraColors  = [0x4a7fa5, 0x8844ff, 0x6b7fb0];
       const auroraOffsets = [0, this._mapH * 0.04, this._mapH * 0.08];
       for (let i = 0; i < 3; i++) {
         const rect = this._scene.add.rectangle(

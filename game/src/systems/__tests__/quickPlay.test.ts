@@ -338,6 +338,11 @@ describe('MainMenuScene — QUICK PLAY button', () => {
     expect(block).toContain('mapId: sel.mapId');
   });
 
+  it('passes skipCutscenes: true to GameScene', () => {
+    const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on(TAP_EVENT"));
+    expect(block).toContain('skipCutscenes: true');
+  });
+
   it('checks hasResume before showing overwrite confirm', () => {
     const block = mainMenuSrc.slice(mainMenuSrc.indexOf("quickP.zone.on(TAP_EVENT"));
     expect(block).toContain('if (hasResume)');

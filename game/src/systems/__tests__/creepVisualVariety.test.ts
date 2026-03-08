@@ -201,7 +201,7 @@ describe('Body shape rendering', () => {
       creepRaw.indexOf("case 'boss-waabooz':"),
     );
     expect(regenSwitch).toContain('fillRect');
-    expect(regenSwitch).toContain('0x44ff88');
+    expect(regenSwitch).toContain('0x6B8F3E');
   });
 
   it('boss-waabooz has white stripe pattern', () => {
@@ -351,7 +351,7 @@ describe('WaveManager waveNumber propagation', () => {
 
 describe('Status effect colour overrides for Graphics body', () => {
   it('handles slowed + poisoned combo for _bodyGfx', () => {
-    expect(creepRaw).toMatch(/if\s*\(slowed\s*&&\s*poisoned\)\s*color\s*=\s*0x44aaaa/);
+    expect(creepRaw).toMatch(/if\s*\(slowed\s*&&\s*poisoned\)\s*color\s*=\s*0x4A7FA5/);
   });
 
   it('handles slowed-only for _bodyGfx', () => {
@@ -359,7 +359,7 @@ describe('Status effect colour overrides for Graphics body', () => {
   });
 
   it('handles poisoned-only for _bodyGfx', () => {
-    expect(creepRaw).toMatch(/else if\s*\(poisoned\)\s+color\s*=\s*0x44ff66/);
+    expect(creepRaw).toMatch(/else if\s*\(poisoned\)\s+color\s*=\s*0x6B8F3E/);
   });
 
   it('handles burning for _bodyGfx', () => {

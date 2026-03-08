@@ -921,11 +921,11 @@ export class MainMenuScene extends Phaser.Scene {
       const sel = pickQuickPlay(SaveManager.getInstance());
       if (hasResume) {
         this._showOverwriteConfirm(() => { this._showQuickPlaySplash(sel, () => {
-          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId, skipCutscenes: true });
         }); });
       } else {
         this._showQuickPlaySplash(sel, () => {
-          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId, skipCutscenes: true });
         });
       }
     });
@@ -1072,11 +1072,11 @@ export class MainMenuScene extends Phaser.Scene {
       const sel = pickQuickPlay(SaveManager.getInstance());
       if (hasResume) {
         this._showOverwriteConfirm(() => { this._showQuickPlaySplash(sel, () => {
-          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId, skipCutscenes: true });
         }); });
       } else {
         this._showQuickPlaySplash(sel, () => {
-          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId });
+          this._go('GameScene', { commanderId: sel.commanderId, stageId: sel.stageId, mapId: sel.mapId, skipCutscenes: true });
         });
       }
     });

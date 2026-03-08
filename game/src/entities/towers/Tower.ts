@@ -1054,7 +1054,7 @@ export class Tower extends Phaser.GameObjects.Container {
 
     const gfx = this.scene.add.graphics();
     gfx.setDepth(11);
-    gfx.fillStyle(0x44ff44, 0.65);
+    gfx.fillStyle(0x6B8F3E, 0.65);
     gfx.fillCircle(0, 0, 2 + Math.random() * 2);
     // Position near tower centre with small random offset.
     gfx.x = this.x + (Math.random() - 0.5) * 14;
@@ -1211,7 +1211,7 @@ export class Tower extends Phaser.GameObjects.Container {
   private _playPoisonGlow(): void {
     if (!this._turretSprite) return;
     this._fireAnimTween?.stop();
-    this._turretSprite.setTint(0x88ff44);
+    this._turretSprite.setTint(0x6B8F3E);
     this._fireAnimTween = this.scene.tweens.add({
       targets:  {},
       duration: 200,

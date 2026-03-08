@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 const TRAIL_COLORS: Record<string, number> = {
   'rock-hurler': 0xcc9944,
   frost:         0x88ccff,
-  poison:        0x44ff88,
+  poison:        0x6B8F3E,
   arrow:         0xc4a265,
 };
 
@@ -31,7 +31,7 @@ describe('trail colour lookup', () => {
   });
 
   it('returns poison trail colour', () => {
-    expect(TRAIL_COLORS['poison']).toBe(0x44ff88);
+    expect(TRAIL_COLORS['poison']).toBe(0x6B8F3E);
   });
 
   it('returns arrow trail colour', () => {

@@ -30,7 +30,7 @@ const SHEET_DEPTH = 300;
 
 // Role tag colours
 const ROLE_COLORS: Record<string, number> = {
-  Sustain:    0x44aa44,
+  Sustain:    0x4a8848,
   Precision:  0x4488ff,
   Burst:      0xff6644,
   Damage:     0xff4444,

@@ -45,7 +45,7 @@ const TRAIL_LIFE_MS     = 180;
 const TRAIL_COLORS: Record<string, number> = {
   'rock-hurler': 0xcc9944,
   frost:         0x88ccff,
-  poison:        0x44ff88,
+  poison:        0x6B8F3E,
   arrow:         0xc4a265,
 };
 
@@ -630,12 +630,12 @@ export class Projectile extends Phaser.GameObjects.Arc {
     g.setDepth(22);
     const arm = 5; // short arms — stays tight to creep
     // 4 arms (+ shape)
-    g.lineStyle(1.5, 0x55ff99, 0.85);
+    g.lineStyle(1.5, 0x4A7FA5, 0.85);
     g.beginPath();
     g.moveTo(-arm, 0); g.lineTo(arm, 0);
     g.moveTo(0, -arm); g.lineTo(0, arm);
     g.strokePath();
-    g.fillStyle(0x88ffbb, 0.7);
+    g.fillStyle(0x4A7FA5, 0.7);
     g.fillCircle(0, 0, 1);
 
     this.scene.tweens.add({
@@ -649,7 +649,7 @@ export class Projectile extends Phaser.GameObjects.Arc {
     // 2 tiny sparkle dots drift a short distance
     for (let i = 0; i < 2; i++) {
       const a = Math.random() * Math.PI * 2;
-      const dot = this.scene.add.circle(cx, cy, 0.8, 0x88ffbb, 0.6);
+      const dot = this.scene.add.circle(cx, cy, 0.8, 0x4A7FA5, 0.6);
       dot.setDepth(21);
       this.scene.tweens.add({
         targets: dot,
