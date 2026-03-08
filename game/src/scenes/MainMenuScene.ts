@@ -1413,8 +1413,8 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private createAudioButton(width: number, height: number): void {
-    const btnSize = this._isMobile ? 56 : 40;
-    const pad     = this._isMobile ? 44 : 12;
+    const btnSize = this._isMobile ? 64 : 52;
+    const pad     = this._isMobile ? 44 : 14;
     const bx      = width  - pad - btnSize / 2;
     const by      = height - pad - btnSize / 2;
 
@@ -1424,7 +1424,7 @@ export class MainMenuScene extends Phaser.Scene {
       .setDepth(DEPTH_BUTTONS);
 
     this.add.text(bx, by, '⚙', {
-      fontSize:   this._isMobile ? '24px' : '16px',
+      fontSize:   this._isMobile ? '28px' : '22px',
       fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH_BUTTONS + 1);
 
