@@ -431,6 +431,12 @@ export class GameScene extends Phaser.Scene {
     this.mapData       = this.cache.json.get(this.selectedMapId) as MapData;
     this.lives         = this.mapData.startingLives;
     this.gold          = this.mapData.startingGold;
+
+    // Compute horizontal offset BEFORE building waypoints so creep paths
+    // align with the rendered terrain on wide screens.
+    const mapPixelW = this.mapData.cols * this.mapData.tileSize;
+    this._mapOffsetX = Math.max(MAP_OFFSET_X, Math.floor((this.scale.width - mapPixelW) / 2));
+
     this.waypointPaths = this.buildAllPixelWaypointPaths();
     this.waypoints     = this.waypointPaths[0] ?? [];
 
@@ -494,9 +500,6 @@ export class GameScene extends Phaser.Scene {
     // (Creep reads ignoreArmorAndImmunity; Tower reads tileSize for AoE radius).
     this.data.set('commanderState', this.commanderState);
     this.data.set('tileSize', this.mapData.tileSize);
-    // Centre the map horizontally, ensuring at least SAFE_INSET padding on left
-    const mapPixelW = this.mapData.cols * this.mapData.tileSize;
-    this._mapOffsetX = Math.max(MAP_OFFSET_X, Math.floor((this.scale.width - mapPixelW) / 2));
     this.data.set('mapOffsetX', this._mapOffsetX);
 
     this.renderMap();
