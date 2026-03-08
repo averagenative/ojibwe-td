@@ -266,8 +266,8 @@ describe('mobile layout adaptations', () => {
   });
 
   it('GameOverScene stacks buttons into two rows on mobile', () => {
-    expect(gameOverSrc).toContain('const row1Y = height - 76');
-    expect(gameOverSrc).toContain('const row2Y = height - 22');
+    expect(gameOverSrc).toContain('const row1Y = height - 90');
+    expect(gameOverSrc).toContain('const row2Y = height - 32');
   });
 
   it('GameOverScene keeps single row on desktop', () => {
@@ -323,11 +323,11 @@ describe('boundary & edge cases', () => {
   });
 
   it('GameOverScene two-row layout fits within 720px canvas', () => {
-    // row1Y = height - 76, row2Y = height - 22
-    // With height=720: row1=644, row2=698.  Both within bounds.
+    // row1Y = height - 90, row2Y = height - 32
+    // With height=720: row1=630, row2=688.  Both within bounds.
     const height = 720;
-    const row1Y = height - 76;
-    const row2Y = height - 22;
+    const row1Y = height - 90;
+    const row2Y = height - 32;
     expect(row1Y).toBeGreaterThan(0);
     expect(row2Y).toBeLessThan(height);
     expect(row2Y - row1Y).toBeGreaterThanOrEqual(44); // enough gap between rows

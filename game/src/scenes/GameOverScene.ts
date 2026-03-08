@@ -354,30 +354,30 @@ export class GameOverScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    // Buttons — on mobile stack into two rows (3 top + 2 bottom) to ensure
-    // adequate spacing and tap target at any viewport width.
-    const btnH = this._isMobile ? 52 : 48;
+    // Buttons — on mobile stack into two rows (3 top + 2 bottom).
+    // Each button gets a distinct color role to reduce visual monotony.
+    const btnH = this._isMobile ? 48 : 48;
     if (this._isMobile) {
-      const row1Y = height - 76;
-      const row2Y = height - 22;
-      const btnSpacing = 160;
+      const row1Y = height - 90;
+      const row2Y = height - 32;
+      const btnSpacing = Math.min(160, Math.floor((width - 40) / 3));
       const row1StartX = cx - btnSpacing;
       this.makeButton(row1StartX,                row1Y, btnH, 'RETRY', () => {
         this._go('GameScene', { stageId, mapId, commanderId, isEndless });
-      });
+      }, 0x2a3800, PAL.goldN);                        // gold — primary action
       this.makeButton(row1StartX + btnSpacing,   row1Y, btnH, 'UPGRADES', () => {
         this._go('MetaMenuScene');
-      });
+      }, PAL.bgStartBtn, PAL.accentGreenN);           // green — progression
       this.makeButton(row1StartX + btnSpacing * 2, row1Y, btnH, 'GEAR', () => {
         this._go('InventoryScene');
-      }, PAL.bgPanel, PAL.accentBlueN);
+      }, PAL.bgPanel, PAL.accentBlueN);               // blue — inventory
       const row2StartX = cx - btnSpacing / 2;
       this.makeButton(row2StartX,              row2Y, btnH, 'CODEX', () => {
         this._go('CodexScene', { returnTo: 'GameOverScene', returnData: data });
-      }, PAL.bgPanel, PAL.accentGreenN);
+      }, PAL.bgPanel, PAL.accentGreenN);              // green — lore
       this.makeButton(row2StartX + btnSpacing, row2Y, btnH, 'MENU', () => {
         this._go('MainMenuScene');
-      });
+      }, PAL.bgPanelDark, PAL.borderNeutral);         // dim — exit
     } else {
       const btnY = height - 50;
       const btnSpacing = 135;
@@ -385,19 +385,19 @@ export class GameOverScene extends Phaser.Scene {
       const btnStartX = cx - btnSpacing * (btnCount - 1) / 2;
       this.makeButton(btnStartX,                   btnY, btnH, 'RETRY', () => {
         this._go('GameScene', { stageId, mapId, commanderId, isEndless });
-      });
+      }, 0x2a3800, PAL.goldN);                        // gold — primary
       this.makeButton(btnStartX + btnSpacing,       btnY, btnH, 'UPGRADES', () => {
         this._go('MetaMenuScene');
-      });
+      }, PAL.bgStartBtn, PAL.accentGreenN);           // green — progression
       this.makeButton(btnStartX + btnSpacing * 2,   btnY, btnH, 'GEAR', () => {
         this._go('InventoryScene');
-      }, PAL.bgPanel, PAL.accentBlueN);
+      }, PAL.bgPanel, PAL.accentBlueN);               // blue — inventory
       this.makeButton(btnStartX + btnSpacing * 3,   btnY, btnH, 'CODEX', () => {
         this._go('CodexScene', { returnTo: 'GameOverScene', returnData: data });
-      }, PAL.bgPanel, PAL.accentGreenN);
+      }, PAL.bgPanel, PAL.accentGreenN);              // green — lore
       this.makeButton(btnStartX + btnSpacing * 4,   btnY, btnH, 'MENU', () => {
         this._go('MainMenuScene');
-      });
+      }, PAL.bgPanelDark, PAL.borderNeutral);         // dim — exit
     }
   }
 
