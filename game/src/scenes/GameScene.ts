@@ -1261,6 +1261,16 @@ export class GameScene extends Phaser.Scene {
 
     // Camera controller handles pinch-to-zoom, pan, double-tap-reset.
     this._cameraController = new CameraController(this, worldCam);
+
+    // Tell camera controller where the UI zones are, so scroll-wheel
+    // over the side upgrade panel scrolls the panel instead of zooming.
+    this._cameraController.setUiZoneTest((x, y) => {
+      const isSide = this.upgradePanel instanceof SideUpgradePanel;
+      if (isSide && this.upgradePanel.isOpen() && x >= this.scale.width * 0.72) return true;
+      // HUD strip at top and tower bar at bottom
+      if (y < getHudHeight() || y > this.scale.height - PANEL_HEIGHT) return true;
+      return false;
+    });
   }
 
   /**
@@ -1539,6 +1549,9 @@ export class GameScene extends Phaser.Scene {
     // If the side upgrade panel is open, ignore clicks within its bounds (right 28%).
     if (isSidePanel && panelsOpen && ptr.x >= this.scale.width * 0.72) return;
 
+    // Middle-mouse is reserved for camera pan — no game interaction.
+    if (ptr.middleButtonDown()) return;
+
     if (ptr.rightButtonDown()) {
       this.handleRightClick(ptr);
       return;
@@ -1619,6 +1632,10 @@ export class GameScene extends Phaser.Scene {
   private onPointerUp(ptr: Phaser.Input.Pointer): void {
     // If the camera was panning/pinching, don't fire game interactions on release.
     if (this._cameraController?.isPinching) return;
+    if (this._cameraController?.isPanning) return;
+
+    // Middle-mouse is reserved for camera pan.
+    if (ptr.middleButtonReleased()) return;
 
     const isMobile = MobileManager.getInstance().isMobile();
 

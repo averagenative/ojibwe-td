@@ -13,6 +13,9 @@ const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_DIST = 30;
 const ZOOM_RESET_DURATION = 200;
 
+/** Optional callback: returns true when the pointer is over a UI zone that should block zoom/pan. */
+export type UiZoneTest = (x: number, y: number) => boolean;
+
 export class CameraController {
   private scene: Phaser.Scene;
   private cam: Phaser.Cameras.Scene2D.Camera;
@@ -26,7 +29,7 @@ export class CameraController {
   private _pinchStartDist = 0;
   private _pinchStartZoom = 1;
 
-  // pan state
+  // pan state (left-click when zoomed, or middle/right-click drag)
   private _panActive = false;
   private _panStartX = 0;
   private _panStartY = 0;
@@ -40,6 +43,9 @@ export class CameraController {
 
   // block flag — disable zoom/pan during placement, boss offers, etc.
   private _blocked = false;
+
+  /** Optional test — when this returns true the pointer is over UI, so skip zoom. */
+  private _uiZoneTest: UiZoneTest | null = null;
 
   constructor(scene: Phaser.Scene, camera: Phaser.Cameras.Scene2D.Camera) {
     this.scene = scene;
@@ -58,6 +64,11 @@ export class CameraController {
 
     // Mouse wheel zoom (desktop)
     scene.input.on('wheel', this._onWheel, this);
+  }
+
+  /** Register a callback that identifies UI zones where scroll-wheel should scroll, not zoom. */
+  setUiZoneTest(fn: UiZoneTest): void {
+    this._uiZoneTest = fn;
   }
 
   get zoom(): number {
@@ -129,6 +140,12 @@ export class CameraController {
       return;
     }
 
+    // Middle-mouse drag: always start panning (even at zoom 1)
+    if (ptr.middleButtonDown()) {
+      this._startPan(ptr);
+      return;
+    }
+
     // Single finger — check double-tap, then start pan tracking
     const now = Date.now();
     const dt = now - this._lastTapTime;
@@ -145,14 +162,18 @@ export class CameraController {
     this._lastTapX = ptr.x;
     this._lastTapY = ptr.y;
 
-    // Only allow pan when zoomed in
+    // Left-click pan only when zoomed in
     if (this.isZoomed) {
-      this._panActive = true;
-      this._panStartX = ptr.x;
-      this._panStartY = ptr.y;
-      this._camStartX = this.cam.scrollX;
-      this._camStartY = this.cam.scrollY;
+      this._startPan(ptr);
     }
+  }
+
+  private _startPan(ptr: Phaser.Input.Pointer): void {
+    this._panActive = true;
+    this._panStartX = ptr.x;
+    this._panStartY = ptr.y;
+    this._camStartX = this.cam.scrollX;
+    this._camStartY = this.cam.scrollY;
   }
 
   private _onPointerMove(_ptr: Phaser.Input.Pointer): void {
@@ -166,7 +187,7 @@ export class CameraController {
       return;
     }
 
-    if (this._panActive && activeCount === 1) {
+    if (this._panActive && activeCount >= 1) {
       const ptr = pointers.find(p => p.isDown);
       if (!ptr) return;
       const dx = (ptr.x - this._panStartX) / this.cam.zoom;
@@ -197,6 +218,10 @@ export class CameraController {
     if (this._blocked) return;
 
     const ptr = this.scene.input.activePointer;
+
+    // If pointer is over a UI zone (e.g. side upgrade panel), let the UI handle scroll.
+    if (this._uiZoneTest && this._uiZoneTest(ptr.x, ptr.y)) return;
+
     const curZoom = this.cam.zoom;
     const newZoom = Phaser.Math.Clamp(curZoom - dy * ZOOM_SPEED, MIN_ZOOM, MAX_ZOOM);
     if (newZoom === curZoom) return;
