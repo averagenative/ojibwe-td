@@ -402,9 +402,9 @@ export class MainMenuScene extends Phaser.Scene {
       const ct = this.textures.createCanvas(glowKey, glowSize, glowSize)!;
       const ctx = ct.getContext();
       const grad = ctx.createRadialGradient(glowR, glowR, 0, glowR, glowR, glowR);
-      grad.addColorStop(0, 'rgba(238,221,204,0.45)');
-      grad.addColorStop(0.3, 'rgba(238,221,204,0.25)');
-      grad.addColorStop(0.6, 'rgba(238,221,204,0.08)');
+      grad.addColorStop(0, 'rgba(238,221,204,0.7)');
+      grad.addColorStop(0.3, 'rgba(238,221,204,0.4)');
+      grad.addColorStop(0.6, 'rgba(238,221,204,0.12)');
       grad.addColorStop(1, 'rgba(238,221,204,0)');
       ctx!.fillStyle = grad;
       ctx!.fillRect(0, 0, glowSize, glowSize);
@@ -417,7 +417,7 @@ export class MainMenuScene extends Phaser.Scene {
       // Glow pulse — breathes in and out
       this.tweens.add({
         targets:  glowImg,
-        alpha:    { from: 0.2, to: 0.65 },
+        alpha:    { from: 0.35, to: 0.85 },
         duration: 2400,
         yoyo:     true,
         repeat:   -1,
@@ -441,8 +441,8 @@ export class MainMenuScene extends Phaser.Scene {
       const fbCt = this.textures.createCanvas(fbGlowKey, fbSize, fbSize)!;
       const fbCtx = fbCt.getContext();
       const fbGrad = fbCtx.createRadialGradient(60, 60, 0, 60, 60, 60);
-      fbGrad.addColorStop(0, 'rgba(238,221,204,0.35)');
-      fbGrad.addColorStop(0.5, 'rgba(238,221,204,0.12)');
+      fbGrad.addColorStop(0, 'rgba(238,221,204,0.65)');
+      fbGrad.addColorStop(0.5, 'rgba(238,221,204,0.3)');
       fbGrad.addColorStop(1, 'rgba(238,221,204,0)');
       fbCtx!.fillStyle = fbGrad;
       fbCtx!.fillRect(0, 0, fbSize, fbSize);
@@ -461,7 +461,7 @@ export class MainMenuScene extends Phaser.Scene {
 
       this.tweens.add({
         targets:  fbGlowImg,
-        alpha:    { from: 0.2, to: 0.65 },
+        alpha:    { from: 0.35, to: 0.85 },
         duration: 2400,
         yoyo:     true,
         repeat:   -1,

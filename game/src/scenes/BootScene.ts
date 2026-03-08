@@ -177,9 +177,9 @@ export class BootScene extends Phaser.Scene {
       const ct = this.textures.createCanvas(glowKey, glowSize, glowSize)!;
       const ctx = ct.getContext();
       const grad = ctx.createRadialGradient(glowR, glowR, 0, glowR, glowR, glowR);
-      grad.addColorStop(0, 'rgba(238,221,204,0.45)');
-      grad.addColorStop(0.3, 'rgba(238,221,204,0.25)');
-      grad.addColorStop(0.6, 'rgba(238,221,204,0.08)');
+      grad.addColorStop(0, 'rgba(238,221,204,0.7)');
+      grad.addColorStop(0.3, 'rgba(238,221,204,0.4)');
+      grad.addColorStop(0.6, 'rgba(238,221,204,0.12)');
       grad.addColorStop(1, 'rgba(238,221,204,0)');
       ctx!.fillStyle = grad;
       ctx!.fillRect(0, 0, glowSize, glowSize);
@@ -190,7 +190,7 @@ export class BootScene extends Phaser.Scene {
         .setAlpha(0);
       this.tweens.add({
         targets:  glow,
-        alpha:    { from: 0.2, to: 0.7 },
+        alpha:    { from: 0.35, to: 0.85 },
         duration: 2200,
         yoyo:     true,
         repeat:   -1,
