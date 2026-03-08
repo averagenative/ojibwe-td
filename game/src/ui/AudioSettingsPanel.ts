@@ -246,7 +246,7 @@ export class AudioSettingsPanel {
     const layoutLabel = this._reg(
       this.scene.add.text(cx, y + btnH / 2, this._layoutText(isRight), {
         fontSize:   m ? '18px' : '12px',
-        color:      isRight ? PAL.accentGreen : PAL.textNeutral,
+        color:      PAL.gold,
         fontFamily: PAL.fontBody,
         fontStyle:  'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3),
@@ -267,7 +267,7 @@ export class AudioSettingsPanel {
       layoutBg.setFillStyle(nowRight ? C_ON_BG : PAL.bgSpeedBtn);
       layoutBg.setStrokeStyle(1, nowRight ? C_ON_STROKE : PAL.borderNeutral);
       layoutLabel.setText(this._layoutText(nowRight));
-      layoutLabel.setColor(nowRight ? PAL.accentGreen : PAL.textNeutral);
+      layoutLabel.setColor(PAL.gold);
       this.onLayoutChange?.(newLayout);
     });
 
@@ -440,7 +440,7 @@ export class AudioSettingsPanel {
   }
 
   private _layoutText(isRight: boolean): string {
-    return isRight ? '📐  UPGRADE PANEL: RIGHT' : '📐  UPGRADE PANEL: BOTTOM';
+    return isRight ? '→  UPGRADE PANEL: RIGHT' : '↓  UPGRADE PANEL: BOTTOM';
   }
 
   private _syncToggle(
