@@ -514,7 +514,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   private createHeader(cx: number, labelY: number): void {
     this.add.text(cx, labelY, 'SELECT REGION', {
-      fontSize: this._fs(this._isMobile ? 16 : 12), color: PAL.textMuted, fontFamily: PAL.fontBody,
+      fontSize: this._fs(this._isMobile ? 20 : 15), color: PAL.textDim, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_REGION);
   }
 
