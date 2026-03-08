@@ -115,14 +115,14 @@ export class BootScene extends Phaser.Scene {
     // Full-screen dark background — depth -2 so glow & particles sit above it
     this.add.rectangle(cx, height / 2, width, height, PAL.bgDark).setDepth(-2);
 
-    // Floating particles — green/white motes drifting upward
-    const particleCount = mob ? 12 : 20;
-    const particleColors = [0x6B8F3E, 0x8aaa60, 0xccddaa, 0xeeeedd, 0x4a6e28];
-    for (let i = 0; i < particleCount; i++) {
+    // Floating motes — green/white drifting upward
+    const moteCount = mob ? 12 : 20;
+    const moteColors = [0x6B8F3E, 0x8aaa60, 0xccddaa, 0xeeeedd, 0x4a6e28];
+    for (let i = 0; i < moteCount; i++) {
       const px = Math.random() * width;
       const py = height + 20 + Math.random() * height * 0.5;
       const size = 1.5 + Math.random() * 2.5;
-      const color = particleColors[Math.floor(Math.random() * particleColors.length)];
+      const color = moteColors[Math.floor(Math.random() * moteColors.length)];
       const mote = this.add.circle(px, py, size, color, 0.15 + Math.random() * 0.25)
         .setDepth(-1);
       this.tweens.add({
@@ -132,6 +132,30 @@ export class BootScene extends Phaser.Scene {
         alpha: 0,
         duration: 5000 + Math.random() * 5000,
         delay: Math.random() * 3000,
+        repeat: -1,
+        ease: 'Sine.easeIn',
+      });
+    }
+
+    // Warm embers + cool fireflies — same as main menu
+    const emberCount = mob ? 5 : 8;
+    for (let i = 0; i < emberCount; i++) {
+      const ex = Phaser.Math.Between(40, width - 40);
+      const ey = Phaser.Math.Between(Math.round(height * 0.3), height - 30);
+      const size = 1 + Math.random() * 2;
+      const color = i % 2 === 0 ? 0xff8822 : 0x88ee44;
+      const ember = this.add.circle(ex, ey, size, color, 0.25 + Math.random() * 0.35)
+        .setDepth(-1);
+      // Drift upward at a slight angle, fade out, then loop
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.9;
+      const dist = 120 + Math.random() * 160;
+      this.tweens.add({
+        targets: ember,
+        x: ex + Math.cos(angle) * dist,
+        y: ey + Math.sin(angle) * dist,
+        alpha: 0,
+        duration: 3500 + Math.random() * 2500,
+        delay: Math.random() * 2000,
         repeat: -1,
         ease: 'Sine.easeIn',
       });
