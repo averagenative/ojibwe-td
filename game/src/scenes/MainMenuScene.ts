@@ -996,9 +996,9 @@ export class MainMenuScene extends Phaser.Scene {
     const mqCt = this.textures.createCanvas(mqGlowKey, mqGlowSize, mqGlowSize)!;
     const mqCtx = mqCt.getContext()!;
     const mqGrad = mqCtx.createRadialGradient(mqGlowR, mqGlowR, 0, mqGlowR, mqGlowR, mqGlowR);
-    mqGrad.addColorStop(0, 'rgba(212,168,64,0.4)');
-    mqGrad.addColorStop(0.35, 'rgba(212,168,64,0.2)');
-    mqGrad.addColorStop(0.65, 'rgba(212,168,64,0.06)');
+    mqGrad.addColorStop(0, 'rgba(212,168,64,0.7)');
+    mqGrad.addColorStop(0.3, 'rgba(212,168,64,0.4)');
+    mqGrad.addColorStop(0.6, 'rgba(212,168,64,0.12)');
     mqGrad.addColorStop(1, 'rgba(212,168,64,0)');
     mqCtx.fillStyle = mqGrad;
     mqCtx.fillRect(0, 0, mqGlowSize, mqGlowSize);
@@ -1006,7 +1006,7 @@ export class MainMenuScene extends Phaser.Scene {
     const mqGlowImg = this.add.image(quickPlayX, actualLogoY, mqGlowKey)
       .setDepth(DEPTH_BUTTONS - 1).setAlpha(0);
     this.tweens.add({
-      targets: mqGlowImg, alpha: { from: 0.2, to: 0.6 },
+      targets: mqGlowImg, alpha: { from: 0.35, to: 0.85 },
       duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     });
 
@@ -1184,9 +1184,9 @@ export class MainMenuScene extends Phaser.Scene {
     const dqCt = this.textures.createCanvas(dqGlowKey, dqGlowSize, dqGlowSize)!;
     const dqCtx = dqCt.getContext()!;
     const dqGrad = dqCtx.createRadialGradient(dqGlowR, dqGlowR, 0, dqGlowR, dqGlowR, dqGlowR);
-    dqGrad.addColorStop(0, 'rgba(212,168,64,0.4)');
-    dqGrad.addColorStop(0.35, 'rgba(212,168,64,0.2)');
-    dqGrad.addColorStop(0.65, 'rgba(212,168,64,0.06)');
+    dqGrad.addColorStop(0, 'rgba(212,168,64,0.7)');
+    dqGrad.addColorStop(0.3, 'rgba(212,168,64,0.4)');
+    dqGrad.addColorStop(0.6, 'rgba(212,168,64,0.12)');
     dqGrad.addColorStop(1, 'rgba(212,168,64,0)');
     dqCtx.fillStyle = dqGrad;
     dqCtx.fillRect(0, 0, dqGlowSize, dqGlowSize);
@@ -1194,7 +1194,7 @@ export class MainMenuScene extends Phaser.Scene {
     const dqGlowImg = this.add.image(quickPlayX, quickPlayY, dqGlowKey)
       .setDepth(DEPTH_BUTTONS - 1).setAlpha(0);
     this.tweens.add({
-      targets: dqGlowImg, alpha: { from: 0.2, to: 0.6 },
+      targets: dqGlowImg, alpha: { from: 0.35, to: 0.85 },
       duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     });
 
