@@ -1,7 +1,7 @@
 ---
 id: TASK-186
 title: "UI: Gear inventory & equip screens — earthy palette + style unification"
-status: pending
+status: done
 category: frontend
 phase: release
 priority: medium

@@ -1,7 +1,7 @@
 # Dynamic Air Creep Pathing
 
 - id: TASK-070
-- status: pending
+- status: done
 - priority: high
 - tags: gameplay, air-creeps, pathing
 
