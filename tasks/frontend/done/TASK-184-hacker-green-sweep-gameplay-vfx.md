@@ -1,7 +1,7 @@
 ---
 id: TASK-184
 title: "Sweep remaining hacker green colors from gameplay VFX"
-status: pending
+status: done
 category: frontend
 phase: release
 priority: medium

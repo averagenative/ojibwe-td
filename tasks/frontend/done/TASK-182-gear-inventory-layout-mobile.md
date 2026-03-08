@@ -1,7 +1,7 @@
 ---
 id: TASK-182
 title: "Fix: gear inventory layout needs mobile refinement"
-status: in-progress
+status: done
 category: frontend
 phase: release
 priority: medium

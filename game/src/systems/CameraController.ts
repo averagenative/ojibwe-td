@@ -17,6 +17,10 @@ export class CameraController {
   private scene: Phaser.Scene;
   private cam: Phaser.Cameras.Scene2D.Camera;
 
+  // map dimensions for manual scroll clamping
+  private _mapW = 0;
+  private _mapH = 0;
+
   // pinch state
   private _pinchActive = false;
   private _pinchStartDist = 0;
@@ -41,8 +45,12 @@ export class CameraController {
     this.scene = scene;
     this.cam = camera;
 
+    // Store map size for manual scroll clamping (Phaser's camera.setBounds
+    // interferes with zoom-to-point by clamping scroll before the correction
+    // offset is applied).
     const { width, height } = scene.scale;
-    camera.setBounds(0, 0, width, height);
+    this._mapW = width;
+    this._mapH = height;
 
     scene.input.on('pointerdown', this._onPointerDown, this);
     scene.input.on('pointermove', this._onPointerMove, this);
@@ -164,6 +172,7 @@ export class CameraController {
       const dx = (ptr.x - this._panStartX) / this.cam.zoom;
       const dy = (ptr.y - this._panStartY) / this.cam.zoom;
       this.cam.setScroll(this._camStartX - dx, this._camStartY - dy);
+      this._clampScroll();
     }
   }
 
@@ -228,23 +237,53 @@ export class CameraController {
    */
   private _zoomToPoint(screenX: number, screenY: number, newZoom: number): void {
     const cam = this.cam;
+    const oldZoom = cam.zoom;
 
-    // World point under the screen position before zoom
-    const worldBefore = cam.getWorldPoint(screenX, screenY);
+    // Compute scroll correction mathematically. Phaser 3.90's getWorldPoint
+    // uses a camera matrix that's only rebuilt in preRender, so calling it
+    // after setZoom returns stale results.
+    //
+    // Phaser 3.90 world formula:
+    //   wx = scrollX + originX + (sx - originX) / zoom
+    // Keeping the same world point after zoom change, the +originX cancels:
+    //   scrollX_new = scrollX_old + (sx - originX) * (1/oldZoom - 1/newZoom)
+    const { width, height } = cam;
+    const dx = (screenX - width * cam.originX) * (1 / oldZoom - 1 / newZoom);
+    const dy = (screenY - height * cam.originY) * (1 / oldZoom - 1 / newZoom);
 
     cam.setZoom(newZoom);
-
-    // World point after zoom change (screen position stays the same)
-    const worldAfter = cam.getWorldPoint(screenX, screenY);
-
-    // Adjust scroll to keep the world point under the cursor
-    cam.scrollX += worldBefore.x - worldAfter.x;
-    cam.scrollY += worldBefore.y - worldAfter.y;
+    cam.scrollX += dx;
+    cam.scrollY += dy;
 
     // If zoomed back to 1, snap to origin
     if (newZoom <= MIN_ZOOM + 0.01) {
       cam.setZoom(MIN_ZOOM);
       cam.setScroll(0, 0);
+    } else {
+      this._clampScroll();
     }
+  }
+
+  /** Prevent panning beyond the map edges. */
+  private _clampScroll(): void {
+    const cam = this.cam;
+    // Phaser 3.90 camera formula: worldX = scrollX + originX + (screenX - originX) / zoom
+    // Visible world range: [scrollX + ox - ox/z, scrollX + ox + (w-ox)/z]
+    // where ox = cam.width * cam.originX (= width/2 by default)
+    //
+    // To keep visible area within [0, mapW]:
+    //   left  ≥ 0:    scrollX ≥ ox/z - ox
+    //   right ≤ mapW: scrollX ≤ mapW - ox - (w-ox)/z
+    const ox = cam.width * cam.originX;
+    const oy = cam.height * cam.originY;
+    const z = cam.zoom;
+
+    const minX = ox / z - ox;
+    const maxX = this._mapW - ox - (cam.width - ox) / z;
+    const minY = oy / z - oy;
+    const maxY = this._mapH - oy - (cam.height - oy) / z;
+
+    cam.scrollX = Phaser.Math.Clamp(cam.scrollX, Math.min(minX, maxX), Math.max(minX, maxX));
+    cam.scrollY = Phaser.Math.Clamp(cam.scrollY, Math.min(minY, maxY), Math.max(minY, maxY));
   }
 }

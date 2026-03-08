@@ -1,7 +1,7 @@
 ---
 id: TASK-178
 title: "Fix: pinch-to-zoom not working on mobile"
-status: in-progress
+status: done
 category: frontend
 phase: release
 priority: critical

@@ -1,7 +1,7 @@
 ---
 id: TASK-185
 title: "Quick Play should skip scout/narrator cutscenes and vignettes"
-status: pending
+status: done
 category: frontend
 phase: polish
 priority: medium

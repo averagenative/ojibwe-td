@@ -1,7 +1,7 @@
 ---
 id: TASK-181
 title: "Fix: commander card text too crowded on mobile"
-status: in-progress
+status: done
 category: frontend
 phase: release
 priority: medium

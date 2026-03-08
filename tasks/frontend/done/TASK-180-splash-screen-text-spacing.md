@@ -1,7 +1,7 @@
 ---
 id: TASK-180
 title: "Fix: splash screen text too close to PLAY button"
-status: in-progress
+status: done
 category: frontend
 phase: release
 priority: medium

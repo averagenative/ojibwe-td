@@ -1,7 +1,7 @@
 ---
 id: TASK-179
 title: "Fix: Give Up dialog YES/CANCEL buttons don't respond to taps"
-status: in-progress
+status: done
 category: frontend
 phase: release
 priority: high
