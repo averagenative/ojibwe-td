@@ -79,6 +79,9 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
+// Suppress browser context menu on right-click (right-click is used for tower sell).
+game.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
 // ── Background-tab throttle (global) ──────────────────────────────────────────
 // When the browser tab is hidden the game loop sleeps (stops RAF) to avoid
 // wasting CPU/battery.  Phaser's TimeStep clamps the delta on the first frame
