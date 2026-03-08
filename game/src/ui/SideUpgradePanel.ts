@@ -117,6 +117,7 @@ export class SideUpgradePanel {
   // Upgrade path columns
   private columns: PathColumnUI[] = [];
   private _pathsStartY = 0;
+  private _behaviorStartY = 0;  // y where behavior section begins
 
   // Callbacks (same interface as UpgradePanel)
   onSell?: (tower: Tower) => void;
@@ -175,6 +176,7 @@ export class SideUpgradePanel {
     cy += SECTION_GAP;
 
     // ── Behavior section ──────────────────────────────────────────────────
+    this._behaviorStartY = cy;
     cy = this._buildBehaviorSection(scene, cy);
 
     cy += SECTION_GAP;
@@ -622,7 +624,17 @@ export class SideUpgradePanel {
   private _reflowPaths(): void {
     const w = this.panelW;
     const maxX = w - PANEL_PAD;
-    let cy = this._pathsStartY;
+
+    // For passive (Aura) towers the targeting rows are hidden — start paths
+    // right after the passive label instead of after the full behavior block.
+    const isAura = this.currentTower?.def.isAura ?? false;
+    let cy: number;
+    if (isAura) {
+      // passive label sits one row below the behavior section start
+      cy = this._behaviorStartY + BEHAVIOR_ROW_H + SECTION_GAP;
+    } else {
+      cy = this._pathsStartY;
+    }
 
     const PIP_R   = 4;
     const PIP_GAP = 4;   // gap after pip
@@ -644,9 +656,10 @@ export class SideUpgradePanel {
       col.headerText.setPosition(PANEL_PAD, cy + PATH_HEADER_H / 2);
       cy += PATH_HEADER_H;
 
-      // Description
+      // Description — use actual rendered height (may be multi-line)
       col.descText.setPosition(PANEL_PAD, cy);
-      cy += PATH_DESC_H;
+      const descH = col.descText.text ? Math.max(PATH_DESC_H, col.descText.height + 4) : 0;
+      cy += descH;
 
       // Tiers: flow horizontally with wrapping
       let x = PANEL_PAD;
