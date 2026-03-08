@@ -987,6 +987,29 @@ export class MainMenuScene extends Phaser.Scene {
     const mobileSideOffset = Math.round(width * MOBILE_SIDE_OFFSET_RATIO);
     const mobileQuickBtnSize = Math.round(width * 0.125);  // ~160 on 1280
     const quickPlayX = cx + mobileSideOffset;
+
+    // Warm gold radial glow behind Quick Play
+    const mqGlowR = mobileQuickBtnSize * 0.9;
+    const mqGlowSize = Math.ceil(mqGlowR * 2);
+    const mqGlowKey = `__menu_qp_glow_m`;
+    if (this.textures.exists(mqGlowKey)) this.textures.remove(mqGlowKey);
+    const mqCt = this.textures.createCanvas(mqGlowKey, mqGlowSize, mqGlowSize)!;
+    const mqCtx = mqCt.getContext()!;
+    const mqGrad = mqCtx.createRadialGradient(mqGlowR, mqGlowR, 0, mqGlowR, mqGlowR, mqGlowR);
+    mqGrad.addColorStop(0, 'rgba(212,168,64,0.4)');
+    mqGrad.addColorStop(0.35, 'rgba(212,168,64,0.2)');
+    mqGrad.addColorStop(0.65, 'rgba(212,168,64,0.06)');
+    mqGrad.addColorStop(1, 'rgba(212,168,64,0)');
+    mqCtx.fillStyle = mqGrad;
+    mqCtx.fillRect(0, 0, mqGlowSize, mqGlowSize);
+    mqCt.refresh();
+    const mqGlowImg = this.add.image(quickPlayX, actualLogoY, mqGlowKey)
+      .setDepth(DEPTH_BUTTONS - 1).setAlpha(0);
+    this.tweens.add({
+      targets: mqGlowImg, alpha: { from: 0.2, to: 0.6 },
+      duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+
     const quickP = makePanel(this, quickPlayX, actualLogoY, mobileQuickBtnSize, mobileQuickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
     const quickIcon = this.add.text(quickPlayX, actualLogoY - 20, '⚡', { fontSize: this._fs(36) })
@@ -1152,6 +1175,29 @@ export class MainMenuScene extends Phaser.Scene {
     // QUICK PLAY — right panel
     const quickPlayX = width / 2 + (STAGE_W / 2) + 120;
     const quickPlayY = sideAnchorY;
+
+    // Warm gold radial glow behind Quick Play
+    const dqGlowR = quickBtnSize * 0.9;
+    const dqGlowSize = Math.ceil(dqGlowR * 2);
+    const dqGlowKey = `__menu_qp_glow_d`;
+    if (this.textures.exists(dqGlowKey)) this.textures.remove(dqGlowKey);
+    const dqCt = this.textures.createCanvas(dqGlowKey, dqGlowSize, dqGlowSize)!;
+    const dqCtx = dqCt.getContext()!;
+    const dqGrad = dqCtx.createRadialGradient(dqGlowR, dqGlowR, 0, dqGlowR, dqGlowR, dqGlowR);
+    dqGrad.addColorStop(0, 'rgba(212,168,64,0.4)');
+    dqGrad.addColorStop(0.35, 'rgba(212,168,64,0.2)');
+    dqGrad.addColorStop(0.65, 'rgba(212,168,64,0.06)');
+    dqGrad.addColorStop(1, 'rgba(212,168,64,0)');
+    dqCtx.fillStyle = dqGrad;
+    dqCtx.fillRect(0, 0, dqGlowSize, dqGlowSize);
+    dqCt.refresh();
+    const dqGlowImg = this.add.image(quickPlayX, quickPlayY, dqGlowKey)
+      .setDepth(DEPTH_BUTTONS - 1).setAlpha(0);
+    this.tweens.add({
+      targets: dqGlowImg, alpha: { from: 0.2, to: 0.6 },
+      duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+
     const quickP = makePanel(this, quickPlayX, quickPlayY, quickBtnSize, quickBtnSize, DEPTH_BUTTONS);
     fillPanel(quickP, R, 0x1a1100, PAL.goldN, 2);
     const quickIcon = this.add.text(quickPlayX, quickPlayY - 16, '⚡', { fontSize: this._fs(32) }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
