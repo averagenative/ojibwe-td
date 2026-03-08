@@ -48,9 +48,9 @@ const FADE_STEPS      = 8;
 // ── Rarity colours ────────────────────────────────────────────────────────────
 
 const RARITY_BADGE_COLORS: Record<string, { hex: string; num: number }> = {
-  rare:      { hex: '#4488ff', num: 0x4488ff },
-  epic:      { hex: '#aa44ff', num: 0xaa44ff },
-  legendary: { hex: '#ff8800', num: 0xff8800 },
+  rare:      { hex: PAL.rarityRare,      num: PAL.rarityRareN },
+  epic:      { hex: PAL.rarityEpic,      num: PAL.rarityEpicN },
+  legendary: { hex: PAL.rarityLegendary, num: PAL.rarityLegendaryN },
 };
 
 // ── Scene ─────────────────────────────────────────────────────────────────────

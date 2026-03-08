@@ -331,7 +331,7 @@ export class GameOverScene extends Phaser.Scene {
             color: '#ffffff',
             fontFamily: PAL.fontBody,
             fontStyle: 'bold',
-            backgroundColor: '#ff6600',
+            backgroundColor: PAL.dangerWarm,
             padding: { x: 3, y: 1 },
           }).setOrigin(1, 0);
         }

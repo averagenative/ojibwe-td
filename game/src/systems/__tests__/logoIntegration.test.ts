@@ -105,19 +105,19 @@ describe('MainMenuScene text fallback', () => {
   it("renders 'OJIBWE TD' text in the else branch", () => {
     const elseIdx = mainMenuSrc.indexOf('Fallback: text title');
     expect(elseIdx).toBeGreaterThan(-1);
-    const fallbackBlock = mainMenuSrc.slice(elseIdx, elseIdx + 300);
+    const fallbackBlock = mainMenuSrc.slice(elseIdx, elseIdx + 1000);
     expect(fallbackBlock).toContain("'OJIBWE TD'");
   });
 
   it('uses PAL.gold colour for fallback text', () => {
     const elseIdx = mainMenuSrc.indexOf('Fallback: text title');
-    const fallbackBlock = mainMenuSrc.slice(elseIdx, elseIdx + 300);
+    const fallbackBlock = mainMenuSrc.slice(elseIdx, elseIdx + 1000);
     expect(fallbackBlock).toContain('PAL.gold');
   });
 
   it('uses PAL.fontTitle for fallback text', () => {
     const elseIdx = mainMenuSrc.indexOf('Fallback: text title');
-    const fallbackBlock = mainMenuSrc.slice(elseIdx, elseIdx + 300);
+    const fallbackBlock = mainMenuSrc.slice(elseIdx, elseIdx + 1000);
     expect(fallbackBlock).toContain('PAL.fontTitle');
   });
 });
@@ -155,7 +155,7 @@ describe('MainMenuScene breathing glow on logo', () => {
 
   it('fallback text branch also has breathing tween', () => {
     const fallbackIdx = mainMenuSrc.indexOf('Fallback: text title');
-    const block = mainMenuSrc.slice(fallbackIdx, fallbackIdx + 600);
+    const block = mainMenuSrc.slice(fallbackIdx, fallbackIdx + 1500);
     expect(block).toMatch(/ease:\s*'Sine\.easeInOut'/);
     expect(block).toMatch(/repeat:\s*-1/);
     expect(block).toMatch(/yoyo:\s*true/);

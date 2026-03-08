@@ -2570,7 +2570,7 @@ export class GameScene extends Phaser.Scene {
 
     const feedbackText = this.add.text(fx, fy - 10, `BOSS ESCAPED!\n-${liveCost} ♥`, {
       fontSize:        '20px',
-      color:           '#ff2222',
+      color:           PAL.danger,
       fontFamily:      'Georgia, serif',
       fontStyle:       'bold',
       stroke:          '#000000',

@@ -80,8 +80,8 @@ describe('region text font sizes', () => {
     expect(mainMenuSrc).toContain('fontSize: this._fs(10), color: PAL.textMuted');
   });
 
-  it('SELECT REGION label uses _fs(16) on mobile, _fs(12) on desktop', () => {
-    expect(mainMenuSrc).toContain("fontSize: this._fs(this._isMobile ? 16 : 12), color: PAL.textMuted, fontFamily: PAL.fontBody,\n    }).setOrigin(0.5).setDepth(DEPTH_REGION)");
+  it('SELECT REGION label uses _fs(20) on mobile, _fs(15) on desktop', () => {
+    expect(mainMenuSrc).toContain("fontSize: this._fs(this._isMobile ? 20 : 15), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',\n    }).setOrigin(0.5).setDepth(DEPTH_REGION)");
   });
 
   it('SELECT STAGE label uses _fs(12) (bumped from 11)', () => {
@@ -115,10 +115,10 @@ describe('region text palette tokens', () => {
     expect(mainMenuSrc).toContain("color: PAL.textSecondary, fontFamily: PAL.fontBody,\n        shadow:");
   });
 
-  it('SELECT REGION and SELECT STAGE use textMuted (brighter than old textDim)', () => {
+  it('SELECT REGION uses textSecondary and SELECT STAGE uses textMuted', () => {
     const selectRegion = mainMenuSrc.match(/text\(cx, labelY, 'SELECT REGION'.*?color: PAL\.(\w+)/s);
     const selectStage = mainMenuSrc.match(/text\(cx, this\.stageRowY.*?'SELECT STAGE'.*?color: PAL\.(\w+)/s);
-    expect(selectRegion?.[1]).toBe('textMuted');
+    expect(selectRegion?.[1]).toBe('textSecondary');
     expect(selectStage?.[1]).toBe('textMuted');
   });
 });

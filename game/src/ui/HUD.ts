@@ -764,13 +764,13 @@ export class HUD extends Phaser.GameObjects.Container {
     const bx = this._rightCursorX - badgeW / 2;
 
     const bg = this.scene.add.rectangle(bx, cy, 36, 22, 0x331111)
-      .setStrokeStyle(1, 0xff4444)
+      .setStrokeStyle(1, PAL.dangerN)
       .setDepth(DEPTH + 1);
     this.add(bg);
 
     this._ascensionBadge = this.scene.add.text(bx, cy, `A${ascensionLevel}`, {
       fontSize:   '13px',
-      color:      '#ff6644',
+      color:      PAL.dangerLight,
       fontFamily: PAL.fontBody,
       fontStyle:  'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);

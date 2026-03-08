@@ -32,8 +32,8 @@ const SHEET_DEPTH = 300;
 const ROLE_COLORS: Record<string, number> = {
   Sustain:    0x4a8848,
   Precision:  0x4488ff,
-  Burst:      0xff6644,
-  Damage:     0xff4444,
+  Burst:      0xcc4433,
+  Damage:     0xcc3333,
   Economy:    0xffcc22,
   Resilience: 0x88ccff,
 };
@@ -41,7 +41,7 @@ const ROLE_COLORS: Record<string, number> = {
 // ── Ambient particle colours by element ─────────────────────────────────────
 
 const ELEMENT_COLORS: Record<CommanderElement, number> = {
-  fire:      0xff6622,
+  fire:      0xcc4422,
   ice:       0x88ddff,
   lightning: 0xffff44,
   nature:    0x44cc44,

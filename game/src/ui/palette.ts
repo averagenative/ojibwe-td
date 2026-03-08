@@ -49,9 +49,9 @@ export const PAL = {
   borderInactive:     0x2D5016,   // pine shadow — inactive borders      (was 0x225522/0x224422)
   borderActive:       0x4a6e28,   // marsh — selected / active           (was 0x00ff44)
   borderPanel:        0x334433,   // panel / separator lines             (was 0x334433)
-  borderDanger:       0x884444,   // respec / danger warning             (kept)
-  borderGiveUp:       0xaa3322,   // give-up button border               (was 0xcc2222)
-  borderBoss:         0xc0501e,   // boss panel border                   (was 0xff4422)
+  borderDanger:       0x993333,   // respec / danger warning             (was 0x884444)
+  borderGiveUp:       0x993322,   // give-up button border               (was 0xcc2222)
+  borderBoss:         0xb83020,   // boss panel border                   (was 0xff4422)
   borderEndless:      0x2a6040,   // endless button border               (was 0x226688)
   borderMeta:         0x2D4050,   // meta / upgrades button border       (was 0x335577)
   borderCodex:        0x336633,   // codex button border                 (kept)
@@ -86,19 +86,19 @@ export const PAL = {
   textAbility:        '#aaaaff',  // ability button label (slight purple) (kept)
   textBossCardLabel:  '#d4a840',  // boss offer card label               (was '#ffcc44')
   gold:               '#c8952a',  // autumn gold — economy               (was '#ffcc00')
-  danger:             '#b84c2a',  // ember red — lives / danger          (was '#ff4444')
-  dangerWarm:         '#c07030',  // amber warning — lives <= 10         (was '#ff6600')
-  dangerLight:        '#ff6666',  // danger hover text (lighter)         (was '#ff6666')
-  bossWarning:        '#c0501e',  // deep ember — boss announcements     (was '#ff4422')
-  waveWarning:        '#c0701e',  // warm ember — boss wave label        (was '#ff8844')
+  danger:             '#cc3333',  // deep crimson — lives / danger       (was '#ff4444')
+  dangerWarm:         '#c05030',  // warm crimson — lives <= 10          (was '#ff6600')
+  dangerLight:        '#dd5555',  // danger hover text (lighter crimson) (was '#ff6666')
+  bossWarning:        '#b83020',  // dark crimson — boss announcements   (was '#ff4422')
+  waveWarning:        '#c04020',  // boss wave label crimson             (was '#ff8844')
 
   // ── Numeric equivalents (Graphics.fillStyle / stroke) ───────────────────────
   accentGreenN:       0x6B8F3E,
   accentBlueN:        0x4A7FA5,
   goldN:              0xc8952a,
-  dangerN:            0xb84c2a,
-  bossWarningN:       0xc0501e,
-  waveWarningN:       0xc0701e,
+  dangerN:            0xcc3333,
+  bossWarningN:       0xb83020,
+  waveWarningN:       0xc04020,
   lockedPipN:         0x441111,   // locked upgrade tier pip
 
   // ── Rarity tier colours ──────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ export const PAL = {
   cmdSustain:         0x4a8848,   // Nokomis — leafy green
   cmdPrecision:       0x4a7fa5,   // Bizhiw — lake blue
   cmdBurst:           0xc0881e,   // Animikiikaa — lightning amber
-  cmdDamage:          0xb84c2a,   // Makoons — ember red
+  cmdDamage:          0xcc3333,   // Makoons — deep crimson
   cmdEconomy:         0xc8952a,   // Oshkaabewis — autumn gold
   cmdResilience:      0x9a6eb0,   // Waabizii — swan lavender
   cmdDefault:         0x4a6e28,   // fallback — marsh green

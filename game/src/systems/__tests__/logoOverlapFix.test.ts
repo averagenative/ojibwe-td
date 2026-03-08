@@ -75,11 +75,11 @@ describe('SELECT REGION label preserved', () => {
     expect(headerBlock).toContain("'SELECT REGION'");
   });
 
-  it('uses PAL.textMuted for the SELECT REGION label', () => {
+  it('uses PAL.textSecondary for the SELECT REGION label', () => {
     const headerIdx = mainMenuSrc.indexOf('private createHeader(');
     const nextMethodIdx = mainMenuSrc.indexOf('\n  private ', headerIdx + 1);
     const headerBlock = mainMenuSrc.slice(headerIdx, nextMethodIdx);
-    expect(headerBlock).toContain('PAL.textMuted');
+    expect(headerBlock).toContain('PAL.textSecondary');
   });
 });
 
