@@ -1425,11 +1425,55 @@ export class GameScene extends Phaser.Scene {
   /** Convert all map paths to pixel-space waypoint arrays. */
   private buildAllPixelWaypointPaths(): PixelWaypoint[][] {
     const ts    = this.mapData.tileSize;
+    const cols  = this.mapData.cols;
+    const rows  = this.mapData.rows;
     const paths = getWaypointPaths(this.mapData);
-    return paths.map(path => path.map(wp => ({
-      x: wp.col * ts + ts / 2 + this._mapOffsetX,
-      y: wp.row * ts + ts / 2,
-    })));
+
+    return paths.map(path => {
+      const pixels = path.map(wp => ({
+        x: wp.col * ts + ts / 2 + this._mapOffsetX,
+        y: wp.row * ts + ts / 2,
+      }));
+
+      // On wider screens, prepend an offscreen entry point so creeps walk
+      // in from beyond the visible margin instead of popping into view.
+      if (pixels.length >= 2) {
+        const first = pixels[0];
+        const firstWp = path[0];
+        const lastWp = path[path.length - 1];
+
+        // Spawn at left edge (col <= 0): enter from offscreen left
+        if (firstWp.col <= 0) {
+          pixels.unshift({ x: -ts, y: first.y });
+        }
+        // Spawn at top edge (row <= 0): enter from offscreen top
+        else if (firstWp.row <= 0) {
+          pixels.unshift({ x: first.x, y: -ts });
+        }
+        // Spawn at right edge: enter from offscreen right
+        else if (firstWp.col >= cols - 1) {
+          pixels.unshift({ x: this.scale.width + ts, y: first.y });
+        }
+        // Spawn at bottom edge: enter from offscreen bottom
+        else if (firstWp.row >= rows - 1) {
+          pixels.unshift({ x: first.x, y: this.scale.height + ts });
+        }
+
+        // Exit offscreen in the appropriate direction
+        const last = pixels[pixels.length - 1];
+        if (lastWp.col >= cols) {
+          pixels.push({ x: this.scale.width + ts, y: last.y });
+        } else if (lastWp.row >= rows) {
+          pixels.push({ x: last.x, y: this.scale.height + ts });
+        } else if (lastWp.col <= 0) {
+          pixels.push({ x: -ts, y: last.y });
+        } else if (lastWp.row <= 0) {
+          pixels.push({ x: last.x, y: -ts });
+        }
+      }
+
+      return pixels;
+    });
   }
 
   /**
@@ -1445,14 +1489,26 @@ export class GameScene extends Phaser.Scene {
    */
   private buildAllAirWaypointPaths(): PixelWaypoint[][] {
     const ts = this.mapData.tileSize;
+    const cols = this.mapData.cols;
     const groundPaths = getWaypointPaths(this.mapData);
     const mapPaths: MapWaypoint[][] = [];
     for (const groundPath of groundPaths) {
       mapPaths.push(...getAirWaypointPaths(this.mapData, groundPath));
     }
-    return mapPaths.map(path =>
-      path.map(wp => ({ x: wp.col * ts + ts / 2 + this._mapOffsetX, y: wp.row * ts + ts / 2 }))
-    );
+    return mapPaths.map(path => {
+      const pixels = path.map(wp => ({
+        x: wp.col * ts + ts / 2 + this._mapOffsetX,
+        y: wp.row * ts + ts / 2,
+      }));
+      // Offscreen entry/exit for air paths (same logic as ground)
+      if (pixels.length >= 2) {
+        const firstWp = path[0];
+        const lastWp = path[path.length - 1];
+        if (firstWp.col <= 0) pixels.unshift({ x: -ts, y: pixels[0].y });
+        if (lastWp.col >= cols) pixels.push({ x: this.scale.width + ts, y: pixels[pixels.length - 1].y });
+      }
+      return pixels;
+    });
   }
 
   private renderMap(): void {
