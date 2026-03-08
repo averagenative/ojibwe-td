@@ -119,11 +119,16 @@ export class SideUpgradePanel {
   private _pathsStartY = 0;
   private _behaviorStartY = 0;  // y where behavior section begins
 
+  // Multi-tower batch mode
+  private _isMultiMode = false;
+
   // Callbacks (same interface as UpgradePanel)
   onSell?: (tower: Tower) => void;
   onBuy?:  (cost: number) => void;
   onSelectAllType?: () => void;
   onRespec?: (refund: number, fee: number) => void;
+  onBuyBatch?: (path: 'A' | 'B' | 'C') => void;
+  onDeselectAll?: () => void;
 
   constructor(
     scene: Phaser.Scene,
@@ -225,8 +230,10 @@ export class SideUpgradePanel {
 
   showForTower(tower: Tower): void {
     this.currentTower = tower;
+    this._isMultiMode = false;
     this._open = true;
-    this._selectAllLabel.setText('SELECT ALL');
+    this._selectAllLabel.setText('SELECT ALL').setColor(PAL.accentGreen);
+    this._selectAllBg.setFillStyle(PAL.bgStartBtn).setStrokeStyle(1, PAL.borderActive);
     this._scrollY = 0;
     this.scrollContainer.setPosition(this.panelX, this.panelY);
     this.setVisible(true);
@@ -235,8 +242,129 @@ export class SideUpgradePanel {
 
   hide(): void {
     this.currentTower = null;
+    this._isMultiMode = false;
     this._open = false;
     this.setVisible(false);
+  }
+
+  /** Show multi-tower batch upgrade mode (same type, 2+ towers). */
+  showMulti(towers: Tower[]): void {
+    this._isMultiMode = true;
+    this.currentTower = towers[0] ?? null;
+    this._open = true;
+    this._scrollY = 0;
+    this.scrollContainer.setPosition(this.panelX, this.panelY);
+    this.setVisible(true);
+    this.refreshMulti(towers);
+  }
+
+  /** Re-render multi-tower batch data (called after gold change or batch buy). */
+  refreshMulti(towers: Tower[]): void {
+    if (!this._open || !this._isMultiMode) return;
+    this.currentTower = towers[0] ?? null;
+    const tower = this.currentTower;
+    if (!tower) return;
+
+    const count = towers.length;
+    const typeName = tower.def.name.toUpperCase();
+
+    // ── Header ──────────────────────────────────────────────────────────
+    this.nameTxt.setText(`${count} ${typeName} TOWERS`);
+    this.statsTxt.setText('Batch upgrade — select a path to buy for all');
+
+    // SELECT ALL → DESELECT ALL
+    this._selectAllLabel.setText('DESELECT');
+    this._selectAllBg.setFillStyle(0x200808).setStrokeStyle(1, PAL.borderDanger);
+    this._selectAllLabel.setColor(PAL.danger);
+
+    // Hide sell/respec (not applicable in batch mode)
+    this.respecBg.setVisible(false);
+    this.respecLabel.setVisible(false);
+    this.sellBg.setVisible(false);
+    this.sellLabel.setVisible(false);
+
+    // Hide behavior section entirely
+    this.passiveLbl.setVisible(false);
+    for (const obj of this.row1Objects) {
+      (obj as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
+    }
+    for (const obj of this.row2Objects) {
+      (obj as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
+    }
+
+    // ── Upgrade paths (batch costs) ─────────────────────────────────────
+    const def = this.manager.getDef(tower.def.key);
+    if (!def) return;
+    const gold = this.getGold();
+
+    this.columns.forEach((col, ci) => {
+      const pathId  = (['A', 'B', 'C'] as const)[ci];
+      const pathDef = def.paths[pathId];
+
+      // Check if ANY tower has this path locked
+      const anyLocked = towers.some(t =>
+        this.manager.getState(t)?.locked.has(pathId) ?? false,
+      );
+
+      col.headerText.setText(`PATH ${pathId}: ${pathDef.name.toUpperCase()}`);
+      col.descText.setText('');
+
+      // Compute batch: how many can upgrade, total cost
+      let totalCost = 0;
+      let eligibleCount = 0;
+      for (const t of towers) {
+        const cost = this.manager.getUpgradeCost(t, pathId);
+        if (cost > 0 && !anyLocked) {
+          totalCost += cost;
+          eligibleCount++;
+        }
+      }
+
+      // Show tier status — find min and max tiers across selection
+      const tiers = towers.map(t => this.manager.getState(t)?.tiers[pathId] ?? 0);
+      const minTier = Math.min(...tiers);
+      const maxTier = Math.max(...tiers);
+
+      for (let ti = 0; ti < 5; ti++) {
+        const tierDef = pathDef.tiers[ti];
+        const allOwned = ti < minTier;
+        const someOwned = ti < maxTier;
+
+        const pipColor = anyLocked ? PAL.lockedPipN
+          : allOwned   ? PAL.accentGreenN
+          : someOwned  ? PAL.borderActive
+          :              PAL.borderPanel;
+        col.tierPips[ti].setFillStyle(pipColor, 1);
+
+        const nameColor = anyLocked ? PAL.textLockedDim
+          : allOwned    ? PAL.textPrimary
+          : someOwned   ? PAL.textSecondary
+          :               PAL.textDim;
+        col.tierNames[ti].setText(tierDef.name).setColor(nameColor);
+        col.tierCosts[ti].setText(allOwned ? '✓' : '');
+      }
+
+      // Buy button — show total batch cost
+      if (anyLocked) {
+        col.buyBg.setFillStyle(PAL.bgLockedBtn).setStrokeStyle(1, PAL.borderLockedBtn);
+        col.buyLabel.setText('LOCKED').setColor(PAL.danger);
+      } else if (eligibleCount === 0) {
+        col.buyBg.setFillStyle(PAL.bgPanelDark).setStrokeStyle(1, PAL.borderInactive);
+        col.buyLabel.setText('ALL MAXED').setColor(PAL.textSecondary);
+      } else {
+        const canAfford = gold >= totalCost;
+        const bgColor = canAfford ? PAL.bgStartBtnPress : PAL.bgPanelDark;
+        const stroke  = canAfford ? PAL.borderActive     : PAL.borderNeutral;
+        const color   = canAfford ? PAL.accentGreen      : PAL.textInactive;
+        col.buyBg.setFillStyle(bgColor).setStrokeStyle(1, stroke);
+        col.buyLabel.setText(`BUY ALL  ${totalCost}g`).setColor(color);
+      }
+
+      col.lockOverlay.setVisible(anyLocked);
+      col.lockLabel.setVisible(anyLocked);
+    });
+
+    this._reflowPaths();
   }
 
   refresh(): void {
@@ -250,6 +378,12 @@ export class SideUpgradePanel {
     const us  = tower.upgStats;
     const spd = (us.attackIntervalMs / 1000).toFixed(2);
     this.statsTxt.setText(buildStatsLine(tower.def.key, tower.def.isAura ?? false, us, spd));
+
+    // Restore sell/respec visibility (hidden in multi mode)
+    this.sellBg.setVisible(true);
+    this.sellLabel.setVisible(true);
+    this.respecBg.setVisible(true);
+    this.respecLabel.setVisible(true);
 
     // Sell button
     const state = this.manager.getState(tower);
@@ -376,7 +510,13 @@ export class SideUpgradePanel {
     }).setOrigin(0.5, 0.5);
     this.scrollContainer.add(this._selectAllLabel);
 
-    this._selectAllBg.on(TAP_EVENT, () => this.onSelectAllType?.());
+    this._selectAllBg.on(TAP_EVENT, () => {
+      if (this._isMultiMode) {
+        this.onDeselectAll?.();
+      } else {
+        this.onSelectAllType?.();
+      }
+    });
 
     bx += btnW + gap;
 
@@ -778,6 +918,10 @@ export class SideUpgradePanel {
   // ── Handlers ────────────────────────────────────────────────────────────
 
   private _handleBuy(path: 'A' | 'B' | 'C'): void {
+    if (this._isMultiMode) {
+      this.onBuyBatch?.(path);
+      return;
+    }
     if (!this.currentTower) return;
     const cost = this.manager.getUpgradeCost(this.currentTower, path);
     if (cost === 0 || this.getGold() < cost) return;

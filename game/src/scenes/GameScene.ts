@@ -2080,6 +2080,17 @@ export class GameScene extends Phaser.Scene {
     this.upgradePanel.onSelectAllType = () => {
       if (this.selectedTower) this._selectAllOfType(this.selectedTower.def.key);
     };
+
+    // Wire batch callbacks for side panel multi-tower mode
+    if (this.upgradePanel instanceof SideUpgradePanel) {
+      const sp = this.upgradePanel as SideUpgradePanel;
+      sp.onBuyBatch = (path) => {
+        this._batchBuyUpgrade(path);
+        // Refresh side panel after batch buy (instead of bottom multi-tower panel)
+        sp.refreshMulti(this._selectedTowers);
+      };
+      sp.onDeselectAll = () => this.deselectTower();
+    }
   }
 
   private deselectTower(): void {
@@ -2200,7 +2211,13 @@ export class GameScene extends Phaser.Scene {
     this._selectedTowers = [...matching];
     for (const t of this._selectedTowers) t.setMultiSelected(true);
     this.selectedTower = null;
-    this._multiTowerPanel.show(this._selectedTowers);
+
+    // Use side panel multi-mode when available, otherwise bottom multi-tower panel.
+    if (this.upgradePanel instanceof SideUpgradePanel) {
+      (this.upgradePanel as SideUpgradePanel).showMulti(this._selectedTowers);
+    } else {
+      this._multiTowerPanel.show(this._selectedTowers);
+    }
   }
 
   /** Stable string key representing which paths a tower has locked. */
