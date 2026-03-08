@@ -338,77 +338,74 @@ export class HUD extends Phaser.GameObjects.Container {
    * and destroys them all when either button is pressed.
    */
   private _showGiveUpConfirm(onConfirm: () => void): void {
-    const { width, height } = this.scene.scale;
-    const cx = width  / 2;
-    const cy = height / 2;
-    const CONFIRM_DEPTH = DEPTH + 50;
+    // DOM-based dialog — Phaser's input system is unreliable for dynamically
+    // created interactive objects on iOS/WKWebView.  HTML buttons bypass Phaser
+    // entirely and work on every platform.
 
-    // Darken the whole screen and swallow pointer input.
-    const overlay = this.scene.add.rectangle(cx, cy, width, height, 0x000000, 0.6)
-      .setDepth(CONFIRM_DEPTH)
-      .setInteractive();
+    const overlay = document.createElement('div');
+    overlay.style.cssText =
+      'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
+      'justify-content:center;background:rgba(0,0,0,0.6);touch-action:none;';
 
-    const dialogBg = this.scene.add.rectangle(cx, cy, 280, 160, PAL.bgPanel)
-      .setStrokeStyle(2, PAL.borderGiveUp)
-      .setDepth(CONFIRM_DEPTH + 1);
+    const isMobile = _IS_MOBILE;
+    const dialogW  = isMobile ? 320 : 280;
+    const btnH     = isMobile ? 50  : 36;
+    const fontSize = isMobile ? 18  : 14;
 
-    const title = this.scene.add.text(cx, cy - 42, 'Give up this run?', {
-      fontSize:   '16px',
-      color:      PAL.textNeutral,
-      fontFamily: PAL.fontBody,
-      fontStyle:  'bold',
-    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 2);
+    const dialog = document.createElement('div');
+    dialog.style.cssText =
+      `background:#141f0e;border:2px solid #aa3322;border-radius:8px;` +
+      `padding:${isMobile ? 28 : 24}px;text-align:center;width:${dialogW}px;`;
 
-    const subtitle = this.scene.add.text(cx, cy - 22, 'You will forfeit all crystal rewards.', {
-      fontSize:   '11px',
-      color:      PAL.danger,
-      fontFamily: PAL.fontBody,
-    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 2);
+    const title = document.createElement('p');
+    title.textContent = 'Give up this run?';
+    title.style.cssText =
+      `color:#aaaaaa;font-size:${isMobile ? 20 : 16}px;margin:0 0 8px;` +
+      `font-family:${PAL.fontBody};font-weight:bold;`;
 
-    const confirmBtnH = _IS_MOBILE ? 44 : 36;
+    const sub = document.createElement('p');
+    sub.textContent = 'You will forfeit all crystal rewards.';
+    sub.style.cssText =
+      `color:#b84c2a;font-size:${isMobile ? 14 : 11}px;margin:0 0 20px;` +
+      `font-family:${PAL.fontBody};`;
 
-    // YES — confirm give-up (danger styling)
-    const yesBg = this.scene.add.rectangle(cx - 65, cy + 24, 100, confirmBtnH, PAL.bgGiveUp)
-      .setStrokeStyle(1, PAL.borderGiveUp)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(CONFIRM_DEPTH + 2);
-    const yesLabel = this.scene.add.text(cx - 65, cy + 24, 'YES', {
-      fontSize:   '14px',
-      color:      PAL.danger,
-      fontFamily: PAL.fontBody,
-      fontStyle:  'bold',
-    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 3);
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:16px;justify-content:center;';
 
-    // CANCEL — neutral styling
-    const noBg = this.scene.add.rectangle(cx + 65, cy + 24, 100, confirmBtnH, 0x222222)
-      .setStrokeStyle(1, PAL.borderNeutral)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(CONFIRM_DEPTH + 2);
-    const noLabel = this.scene.add.text(cx + 65, cy + 24, 'CANCEL', {
-      fontSize:   '13px',
-      color:      PAL.textNeutral,
-      fontFamily: PAL.fontBody,
-      fontStyle:  'bold',
-    }).setOrigin(0.5).setDepth(CONFIRM_DEPTH + 3);
-
-    const cleanup = (): void => {
-      overlay.destroy();
-      dialogBg.destroy();
-      title.destroy();
-      subtitle.destroy();
-      yesBg.destroy();
-      yesLabel.destroy();
-      noBg.destroy();
-      noLabel.destroy();
+    const makeBtn = (label: string, bg: string, border: string, color: string): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText =
+        `background:${bg};border:1px solid ${border};border-radius:4px;` +
+        `color:${color};font-size:${fontSize}px;font-weight:bold;` +
+        `font-family:${PAL.fontBody};padding:0;cursor:pointer;` +
+        `width:${isMobile ? 120 : 100}px;height:${btnH}px;` +
+        `-webkit-tap-highlight-color:transparent;`;
+      return b;
     };
 
-    yesBg.on('pointerover', () => yesBg.setFillStyle(PAL.bgGiveUpHover));
-    yesBg.on('pointerout',  () => yesBg.setFillStyle(PAL.bgGiveUp));
-    yesBg.on(TAP_EVENT,   () => { cleanup(); onConfirm(); });
+    const yesBtn    = makeBtn('YES',    '#220000', '#aa3322', '#b84c2a');
+    const cancelBtn = makeBtn('CANCEL', '#222222', '#444444', '#aaaaaa');
 
-    noBg.on('pointerover', () => noBg.setFillStyle(0x333333));
-    noBg.on('pointerout',  () => noBg.setFillStyle(0x222222));
-    noBg.on(TAP_EVENT,   () => cleanup());
+    btnRow.appendChild(yesBtn);
+    btnRow.appendChild(cancelBtn);
+    dialog.appendChild(title);
+    dialog.appendChild(sub);
+    dialog.appendChild(btnRow);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    const cleanup = (): void => { overlay.remove(); };
+
+    yesBtn.addEventListener('click',    () => {
+      cleanup();
+      // Use setTimeout to defer the scene transition — Phaser's delayedCall
+      // won't fire if the scene clock is paused (speed = 0), and calling
+      // scene.start() directly from a DOM handler can freeze on iOS.
+      setTimeout(() => onConfirm(), 16);
+    });
+    cancelBtn.addEventListener('click', () => { cleanup(); });
+    overlay.addEventListener('click',   (e) => { if (e.target === overlay) cleanup(); });
   }
 
   // ── rush-wave button ──────────────────────────────────────────────────────

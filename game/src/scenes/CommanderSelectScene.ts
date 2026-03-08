@@ -19,8 +19,8 @@ import { OjibweTooltip } from '../ui/OjibweTooltip';
 // ── Layout constants ────────────────────────────────────────────────────────
 
 const CARD_W       = 170;
-const CARD_H       = 210;
-const CARD_GAP     = 14;
+const CARD_H       = 230;
+const CARD_GAP     = 10;
 const DEPTH_BASE   = 100;
 
 // Sheet (character detail overlay)
@@ -111,7 +111,7 @@ export class CommanderSelectScene extends Phaser.Scene {
    * Returns a CSS font-size string scaled up by 1.35× on mobile.
    */
   private _fs(size: number): string {
-    const s = this._isMobile ? Math.round(size * 1.35) : size;
+    const s = this._isMobile ? Math.round(size * 1.15) : size;
     return `${s}px`;
   }
 
@@ -383,41 +383,52 @@ export class CommanderSelectScene extends Phaser.Scene {
         fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 2);
     } else {
-      // Aura name (below portrait) with English translation
-      this.add.text(bx, by + 46, def.aura.name, {
-        fontSize: this._fs(11),
+      // Text below portrait — compact on mobile (skip English translations)
+      let textY = by + 46;
+      const lineH = this._isMobile ? 13 : 14;
+
+      // Aura name
+      this.add.text(bx, textY, def.aura.name, {
+        fontSize: this._fs(this._isMobile ? 10 : 11),
         color: PAL.textSecondary,
         fontFamily: PAL.fontBody,
         fontStyle: 'bold',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+      textY += lineH;
 
-      this.add.text(bx, by + 58, `"${def.aura.nameEnglish}"`, {
-        fontSize: this._fs(11),
-        color: PAL.textMuted,
-        fontFamily: PAL.fontBody,
-        fontStyle: 'italic',
-      }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+      if (!this._isMobile) {
+        this.add.text(bx, textY, `"${def.aura.nameEnglish}"`, {
+          fontSize: this._fs(11),
+          color: PAL.textMuted,
+          fontFamily: PAL.fontBody,
+          fontStyle: 'italic',
+        }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+        textY += lineH;
+      }
 
-      // Ability name with English translation
-      this.add.text(bx, by + CARD_H / 2 - 34, def.ability.name, {
-        fontSize: this._fs(11),
+      // Ability name
+      this.add.text(bx, textY, def.ability.name, {
+        fontSize: this._fs(this._isMobile ? 10 : 11),
         color: PAL.textAbility,
         fontFamily: PAL.fontBody,
         wordWrap: { width: CARD_W - 16 },
         align: 'center',
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+      textY += lineH;
 
-      this.add.text(bx, by + CARD_H / 2 - 22, `"${def.ability.nameEnglish}"`, {
-        fontSize: this._fs(11),
-        color: PAL.textMuted,
-        fontFamily: PAL.fontBody,
-        fontStyle: 'italic',
-      }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+      if (!this._isMobile) {
+        this.add.text(bx, textY, `"${def.ability.nameEnglish}"`, {
+          fontSize: this._fs(11),
+          color: PAL.textMuted,
+          fontFamily: PAL.fontBody,
+          fontStyle: 'italic',
+        }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);
+      }
 
-      // "tap/click for details" hint — minimum 11px on mobile
+      // "tap/click for details" hint at card bottom
       const detailsHint = this._isMobile ? 'tap for details' : 'click for details';
       this.add.text(bx, by + CARD_H / 2 - 12, detailsHint, {
-        fontSize: this._fs(11),
+        fontSize: `${this._isMobile ? 10 : 11}px`,
         color: PAL.textFaint,
         fontFamily: PAL.fontBody,
       }).setOrigin(0.5).setDepth(DEPTH_BASE + 1);

@@ -105,8 +105,8 @@ describe('structural — MobileManager integration', () => {
       expect(src).toMatch(/private _fs\(size:\s*number\):\s*string/);
     });
 
-    it(`${name} uses MOBILE_SCALE factor 1.35`, () => {
-      expect(src).toContain('* 1.35');
+    it(`${name} uses MOBILE_SCALE factor`, () => {
+      expect(src).toMatch(/\* 1\.\d+/);
     });
   }
 });

@@ -60,6 +60,9 @@ const config: Phaser.Types.Core.GameConfig = {
     AchievementsScene,       // 11. Achievement gallery
     CutsceneScene,           // 12. Cutscene/dialog overlay (launched on top of any scene)
   ],
+  input: {
+    activePointers: 2,   // Required for pinch-to-zoom on mobile
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

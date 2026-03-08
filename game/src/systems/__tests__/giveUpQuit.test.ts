@@ -37,10 +37,15 @@ describe('Give-up button — always visible', () => {
 describe('_quitToMainMenu — cleanup sequence', () => {
   // Extract the method body for targeted assertions.
   const methodStart = gameSceneSrc.indexOf('private _quitToMainMenu(): void');
-  const methodBody = gameSceneSrc.slice(
-    methodStart,
-    gameSceneSrc.indexOf('\n  }', methodStart) + 4,
-  );
+  // Find the method's closing brace: look for '\n  }' that is NOT followed by ' catch'
+  let methodEnd = methodStart;
+  while (methodEnd !== -1) {
+    methodEnd = gameSceneSrc.indexOf('\n  }', methodEnd + 1);
+    if (methodEnd === -1) break;
+    const after = gameSceneSrc.slice(methodEnd + 3, methodEnd + 10);
+    if (!after.startsWith(' catch')) break;
+  }
+  const methodBody = gameSceneSrc.slice(methodStart, methodEnd + 4);
 
   it('is defined as a private method on GameScene', () => {
     expect(methodStart).toBeGreaterThan(-1);
@@ -93,12 +98,13 @@ describe('Give-up button — confirmation dialog wiring', () => {
     );
   });
 
-  it('confirmation YES invokes the onConfirm callback', () => {
-    expect(hudSrc).toContain('cleanup(); onConfirm();');
+  it('confirmation YES invokes cleanup then defers onConfirm via setTimeout', () => {
+    expect(hudSrc).toContain('cleanup()');
+    expect(hudSrc).toContain('setTimeout(() => onConfirm()');
   });
 
   it('confirmation CANCEL only cleans up (does not invoke callback)', () => {
-    expect(hudSrc).toContain("noBg.on(TAP_EVENT,   () => cleanup())");
+    expect(hudSrc).toContain("cancelBtn.addEventListener('click', () => { cleanup(); })");
   });
 });
 

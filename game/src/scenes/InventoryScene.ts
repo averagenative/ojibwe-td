@@ -29,9 +29,9 @@ const GRID_ROWS_VIS = 5;       // visible rows before scrolling
 const DETAIL_W      = 320;
 const DETAIL_X_PAD  = 24;
 
-const FILTER_BTN_W  = 90;
-const FILTER_BTN_H  = 30;
-const FILTER_GAP    = 6;
+const FILTER_BTN_W  = 80;
+const FILTER_BTN_H  = 28;
+const FILTER_GAP    = 4;
 
 // Gear type → display label for filter buttons
 const FILTER_OPTIONS: { label: string; towerKey: string | null }[] = [
@@ -100,7 +100,7 @@ export class InventoryScene extends Phaser.Scene {
     this._refreshBalance();
 
     // Item count
-    this.countText = this.add.text(width - 40, 68, '', {
+    this.countText = this.add.text(width - 60, 68, '', {
       fontSize:   '14px',
       color:      PAL.textMuted,
       fontFamily: PAL.fontBody,

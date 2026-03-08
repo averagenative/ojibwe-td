@@ -11,6 +11,7 @@
 
 import Phaser from 'phaser';
 import { getAchievementDef } from '../data/achievementDefs';
+import { PAL } from './palette';
 
 const TOAST_W       = 280;
 const TOAST_H       = 64;
@@ -63,15 +64,15 @@ export class AchievementToast {
     const c = this.scene.add.container(hiddenX, y).setDepth(DEPTH);
 
     // Background panel
-    const bg = this.scene.add.rectangle(0, 0, TOAST_W, TOAST_H, 0x001a00)
-      .setStrokeStyle(2, 0x00cc44);
+    const bg = this.scene.add.rectangle(0, 0, TOAST_W, TOAST_H, PAL.bgCard)
+      .setStrokeStyle(2, PAL.borderActive);
     c.add(bg);
 
     // Header text: "Achievement Unlocked!"
     const header = this.scene.add.text(
       -TOAST_W / 2 + 12, -TOAST_H / 2 + 8,
       'Achievement Unlocked!',
-      { fontSize: '11px', color: '#00ff44', fontFamily: 'monospace', fontStyle: 'bold' },
+      { fontSize: '11px', color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold' },
     ).setOrigin(0, 0);
     c.add(header);
 
@@ -79,14 +80,14 @@ export class AchievementToast {
     const icon = this.scene.add.text(
       -TOAST_W / 2 + 12, -2,
       def.icon,
-      { fontSize: '18px', fontFamily: 'monospace' },
+      { fontSize: '18px', fontFamily: PAL.fontBody },
     ).setOrigin(0, 0.5);
     c.add(icon);
 
     const title = this.scene.add.text(
       -TOAST_W / 2 + 38, -2,
       def.title,
-      { fontSize: '13px', color: '#ffffff', fontFamily: 'monospace', fontStyle: 'bold',
+      { fontSize: '13px', color: '#ffffff', fontFamily: PAL.fontBody, fontStyle: 'bold',
         wordWrap: { width: TOAST_W - 50 } },
     ).setOrigin(0, 0.5);
     c.add(title);

@@ -127,7 +127,7 @@ export class BootScene extends Phaser.Scene {
 
     // Compute the bottom edge of the logo to anchor text below it.
     const logoHalfH = logo ? (logo.height * logoScale) / 2 : 0;
-    const gap = height * 0.025; // 2.5% of screen height between elements
+    const gap = height * 0.04; // 4% of screen height between elements
 
     // Title text below logo
     const titleY = logoY + logoHalfH + gap;
@@ -151,7 +151,7 @@ export class BootScene extends Phaser.Scene {
     // PLAY button — below the subtitle, rounded on mobile
     const btnW = mob ? Math.min(320, width * 0.35) : 180;
     const btnH = mob ? Math.min(80, height * 0.11) : 50;
-    const btnY = subtitleY + subSize + gap * 1.5;
+    const btnY = subtitleY + subSize + gap * 2;
     const btnR = mob ? 20 : 0;
 
     // Use Graphics for rounded rect on mobile, plain rect on desktop

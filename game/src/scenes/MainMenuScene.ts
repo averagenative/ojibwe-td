@@ -1135,7 +1135,7 @@ export class MainMenuScene extends Phaser.Scene {
     const achLabel = this.add.text(cx, achBtnY, '🏆 ACHIEVEMENTS', {
       fontSize: this._fs(10), color: '#55aa55', fontFamily: PAL.fontBody,
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
-    achP.zone.on('pointerover', () => achLabel.setColor('#00ff44'));
+    achP.zone.on('pointerover', () => achLabel.setColor(PAL.accentGreen));
     achP.zone.on('pointerout',  () => achLabel.setColor('#55aa55'));
     achP.zone.on(TAP_EVENT, () => this._go('AchievementsScene', { returnTo: 'MainMenuScene' }));
   }

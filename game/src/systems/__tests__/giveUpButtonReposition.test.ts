@@ -30,7 +30,7 @@ describe('Give-up button — bottom-right positioning', () => {
   });
 });
 
-// ── Confirmation dialog structure ────────────────────────────────────────────
+// ── Confirmation dialog structure (DOM-based) ────────────────────────────────
 
 describe('Give-up confirmation dialog', () => {
   it('tap on give-up button opens confirmation instead of immediate callback', () => {
@@ -41,52 +41,31 @@ describe('Give-up confirmation dialog', () => {
     expect(hudSrc).toContain('private _showGiveUpConfirm(onConfirm: () => void): void');
   });
 
-  it('creates a full-screen dark overlay to block background input', () => {
-    expect(hudSrc).toContain('rectangle(cx, cy, width, height, 0x000000, 0.6)');
-  });
-
-  it('overlay is interactive to swallow pointer events', () => {
-    // The overlay must setInteractive() to prevent clicks reaching through
-    const overlaySection = hudSrc.slice(
-      hudSrc.indexOf('rectangle(cx, cy, width, height, 0x000000, 0.6)'),
-      hudSrc.indexOf('rectangle(cx, cy, width, height, 0x000000, 0.6)') + 200,
-    );
-    expect(overlaySection).toContain('.setInteractive()');
+  it('creates a DOM overlay for the confirmation dialog', () => {
+    expect(hudSrc).toContain("document.createElement('div')");
+    expect(hudSrc).toContain('document.body.appendChild(overlay)');
   });
 
   it('displays "Give up this run?" title text', () => {
     expect(hudSrc).toContain("'Give up this run?'");
   });
 
-  it('has a YES button with danger styling', () => {
+  it('has YES and CANCEL buttons', () => {
     expect(hudSrc).toContain("'YES'");
-    expect(hudSrc).toContain('PAL.bgGiveUp');
-  });
-
-  it('has a CANCEL button with neutral styling', () => {
     expect(hudSrc).toContain("'CANCEL'");
   });
 
-  it('YES calls cleanup then onConfirm', () => {
-    expect(hudSrc).toContain('cleanup(); onConfirm();');
+  it('YES calls cleanup then defers onConfirm via setTimeout', () => {
+    expect(hudSrc).toContain('cleanup()');
+    expect(hudSrc).toContain('setTimeout(() => onConfirm()');
   });
 
-  it('CANCEL calls cleanup only (no onConfirm)', () => {
-    expect(hudSrc).toContain("noBg.on(TAP_EVENT,   () => cleanup())");
+  it('CANCEL calls cleanup only', () => {
+    expect(hudSrc).toContain("cancelBtn.addEventListener('click', () => { cleanup(); })");
   });
 
-  it('cleanup destroys all 7 dialog GameObjects', () => {
-    const cleanupBody = hudSrc.slice(
-      hudSrc.indexOf('const cleanup = (): void =>'),
-      hudSrc.indexOf('const cleanup = (): void =>') + 300,
-    );
-    expect(cleanupBody).toContain('overlay.destroy()');
-    expect(cleanupBody).toContain('dialogBg.destroy()');
-    expect(cleanupBody).toContain('title.destroy()');
-    expect(cleanupBody).toContain('yesBg.destroy()');
-    expect(cleanupBody).toContain('yesLabel.destroy()');
-    expect(cleanupBody).toContain('noBg.destroy()');
-    expect(cleanupBody).toContain('noLabel.destroy()');
+  it('cleanup removes the DOM overlay', () => {
+    expect(hudSrc).toContain('overlay.remove()');
   });
 });
 
@@ -99,7 +78,10 @@ describe('Give-up button — mobile touch targets', () => {
   });
 
   it('mobile confirmation button height is >= 44px', () => {
-    expect(hudSrc).toContain('const confirmBtnH = _IS_MOBILE ? 44 : 36');
+    // DOM dialog: btnH = isMobile ? 50 : 36
+    const m = hudSrc.match(/const btnH\s*=\s*isMobile\s*\?\s*(\d+)/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBeGreaterThanOrEqual(44);
   });
 
   it('mobile give-up button width is 110px', () => {
@@ -156,28 +138,19 @@ describe('Give-up button — layout arithmetic', () => {
   }
 });
 
-// ── Depth ordering ───────────────────────────────────────────────────────────
+// ── DOM dialog renders above canvas ──────────────────────────────────────────
 
-describe('Give-up confirmation — depth ordering', () => {
-  it('confirmation overlay depth is DEPTH + 50 (above normal HUD elements)', () => {
-    expect(hudSrc).toContain('const CONFIRM_DEPTH = DEPTH + 50');
+describe('Give-up confirmation — DOM overlay', () => {
+  it('overlay uses z-index 9999 to render above the Phaser canvas', () => {
+    expect(hudSrc).toContain('z-index:9999');
   });
 
-  it('dialog background is one level above overlay', () => {
-    expect(hudSrc).toContain('.setDepth(CONFIRM_DEPTH + 1)');
+  it('overlay blocks interaction with the game canvas', () => {
+    expect(hudSrc).toContain('touch-action:none');
   });
 
-  it('buttons and title are two levels above overlay', () => {
-    // Both YES/CANCEL backgrounds and title use CONFIRM_DEPTH + 2
-    const matches = hudSrc.match(/setDepth\(CONFIRM_DEPTH \+ 2\)/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(3); // title + yesBg + noBg
-  });
-
-  it('button labels are three levels above overlay', () => {
-    const matches = hudSrc.match(/setDepth\(CONFIRM_DEPTH \+ 3\)/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(2); // yesLabel + noLabel
+  it('clicking outside the dialog box dismisses it', () => {
+    expect(hudSrc).toContain('if (e.target === overlay) cleanup()');
   });
 });
 

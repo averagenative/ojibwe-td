@@ -1404,8 +1404,8 @@ export class GameScene extends Phaser.Scene {
       this.cameras.remove(this._uiCam);
     }
     // Reset world camera to default zoom/scroll for clean restart.
-    this.cameras.main.setZoom(1);
-    this.cameras.main.setScroll(0, 0);
+    this.cameras.main?.setZoom(1);
+    this.cameras.main?.setScroll(0, 0);
     this._camAssigned = new WeakSet();
 
     // Ambient VFX cleanup.
@@ -3132,9 +3132,13 @@ export class GameScene extends Phaser.Scene {
   private _quitToMainMenu(): void {
     if (this.gameState === 'over') return;
     this.gameState = 'over';
-    SessionManager.getInstance().clear();
-    this._commitRunAchievements(false);
-    this.waveManager.cleanup();
+    try {
+      SessionManager.getInstance().clear();
+      this._commitRunAchievements(false);
+      this.waveManager.cleanup();
+    } catch (e) {
+      console.error('[GiveUp] cleanup error:', e);
+    }
     this.scene.start('MainMenuScene');
   }
 
