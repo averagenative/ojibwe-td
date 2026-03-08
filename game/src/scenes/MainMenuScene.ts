@@ -353,9 +353,8 @@ export class MainMenuScene extends Phaser.Scene {
     const logoX = this._isMobile ? cx - mobileSideOffset : cx - (STAGE_W / 2) - 120;
     const logoY = anchorY;
 
-    // Soft white glow behind the crest — pulses gently
+    // Soft white glow behind the crest — layered circles that diffuse outward
     const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4).setAlpha(0);
-    glowGfx.fillStyle(0xeeddcc, 0.35);
 
     if (this.textures.exists('logo')) {
       // ── Logo image — left panel ───────────────────────────────────────────
@@ -371,7 +370,18 @@ export class MainMenuScene extends Phaser.Scene {
       const finalW   = finalH * aspect;
       logoImg.setDisplaySize(finalW, finalH);
 
-      glowGfx.fillEllipse(logoX, logoY, finalW + 80, finalH * 0.55);
+      // Concentric circles: inner bright → outer faint, matching logo shape
+      const baseR = Math.max(finalW, finalH) * 0.45;
+      const layers = [
+        { r: baseR * 1.8, a: 0.06 },
+        { r: baseR * 1.4, a: 0.10 },
+        { r: baseR * 1.0, a: 0.18 },
+        { r: baseR * 0.7, a: 0.25 },
+      ];
+      for (const layer of layers) {
+        glowGfx.fillStyle(0xeeddcc, layer.a);
+        glowGfx.fillCircle(logoX, logoY, layer.r);
+      }
 
       // Glow pulse — breathes in and out
       this.tweens.add({
@@ -394,7 +404,10 @@ export class MainMenuScene extends Phaser.Scene {
       });
     } else {
       // ── Fallback: text title — left panel ─────────────────────────────────
-      glowGfx.fillEllipse(logoX, logoY, 160, 24);
+      glowGfx.fillStyle(0xeeddcc, 0.12);
+      glowGfx.fillCircle(logoX, logoY, 60);
+      glowGfx.fillStyle(0xeeddcc, 0.22);
+      glowGfx.fillCircle(logoX, logoY, 35);
 
       const logoText = this.add.text(logoX, logoY, 'OJIBWE TD', {
         fontSize:   this._fs(14),
