@@ -115,6 +115,28 @@ export class BootScene extends Phaser.Scene {
     // Full-screen dark background
     this.add.rectangle(cx, height / 2, width, height, PAL.bgDark);
 
+    // Floating particles — green/white motes drifting upward
+    const particleCount = mob ? 12 : 20;
+    const particleColors = [0x6B8F3E, 0x8aaa60, 0xccddaa, 0xeeeedd, 0x4a6e28];
+    for (let i = 0; i < particleCount; i++) {
+      const px = Math.random() * width;
+      const py = height + 20 + Math.random() * height * 0.5;
+      const size = 1.5 + Math.random() * 2.5;
+      const color = particleColors[Math.floor(Math.random() * particleColors.length)];
+      const mote = this.add.circle(px, py, size, color, 0.15 + Math.random() * 0.25)
+        .setDepth(-1);
+      this.tweens.add({
+        targets: mote,
+        y: -20 - Math.random() * 60,
+        x: px + (Math.random() - 0.5) * 80,
+        alpha: 0,
+        duration: 5000 + Math.random() * 5000,
+        delay: Math.random() * 3000,
+        repeat: -1,
+        ease: 'Sine.easeIn',
+      });
+    }
+
     // Relative layout: all positions derived from screen height.
     // The vertical stack is: logo → gap → title → gap → subtitle → gap → button.
     // Logo centre sits at 30% of screen height; everything else flows below.
@@ -123,6 +145,21 @@ export class BootScene extends Phaser.Scene {
     let logo: Phaser.GameObjects.Image | null = null;
     if (this.textures.exists('logo')) {
       logo = this.add.image(cx, logoY, 'logo').setScale(logoScale);
+
+      // Warm white glow behind the crest — pulses gently
+      const glowW = logo.width * logoScale + 80;
+      const glowH = logo.height * logoScale * 0.5;
+      const glow = this.add.graphics().setDepth(-1).setAlpha(0);
+      glow.fillStyle(0xeeddcc, 0.4);
+      glow.fillEllipse(cx, logoY, glowW, glowH);
+      this.tweens.add({
+        targets:  glow,
+        alpha:    { from: 0.1, to: 0.5 },
+        duration: 2200,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
     }
 
     // Compute the bottom edge of the logo to anchor text below it.
@@ -203,11 +240,13 @@ export class BootScene extends Phaser.Scene {
       this.scene.start('MainMenuScene');
     });
 
-    // Gentle alpha pulse on the button text (avoids sub-pixel rendering artifacts)
+    // Pulse the PLAY button text — alpha + gentle scale breathe
     this.tweens.add({
       targets: btnText,
-      alpha: { from: 1.0, to: 0.6 },
-      duration: 900,
+      alpha:  { from: 1.0, to: 0.55 },
+      scaleX: { from: 1.0, to: 1.06 },
+      scaleY: { from: 1.0, to: 1.06 },
+      duration: 1100,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',

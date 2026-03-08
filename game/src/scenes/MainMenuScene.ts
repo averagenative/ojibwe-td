@@ -353,8 +353,9 @@ export class MainMenuScene extends Phaser.Scene {
     const logoX = this._isMobile ? cx - mobileSideOffset : cx - (STAGE_W / 2) - 120;
     const logoY = anchorY;
 
-    const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4);
-    glowGfx.fillStyle(0x2a1205, 0.45);
+    // Soft white glow behind the crest — pulses gently
+    const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4).setAlpha(0);
+    glowGfx.fillStyle(0xeeddcc, 0.35);
 
     if (this.textures.exists('logo')) {
       // ── Logo image — left panel ───────────────────────────────────────────
@@ -370,12 +371,23 @@ export class MainMenuScene extends Phaser.Scene {
       const finalW   = finalH * aspect;
       logoImg.setDisplaySize(finalW, finalH);
 
-      glowGfx.fillEllipse(logoX, logoY, finalW + 60, finalH * 0.45);
+      glowGfx.fillEllipse(logoX, logoY, finalW + 80, finalH * 0.55);
 
+      // Glow pulse — breathes in and out
       this.tweens.add({
-        targets:  [logoImg, glowGfx],
-        alpha:    { from: 0.85, to: 1.0 },
-        duration: 2800,
+        targets:  glowGfx,
+        alpha:    { from: 0.15, to: 0.55 },
+        duration: 2400,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
+
+      // Logo gentle float
+      this.tweens.add({
+        targets:  logoImg,
+        alpha:    { from: 0.9, to: 1.0 },
+        duration: 2400,
         yoyo:     true,
         repeat:   -1,
         ease:     'Sine.easeInOut',
@@ -392,9 +404,18 @@ export class MainMenuScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(DEPTH_BG + 5);
 
       this.tweens.add({
-        targets:  [logoText, glowGfx],
+        targets:  glowGfx,
+        alpha:    { from: 0.15, to: 0.55 },
+        duration: 2400,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
+
+      this.tweens.add({
+        targets:  logoText,
         alpha:    { from: 0.7, to: 1.0 },
-        duration: 2800,
+        duration: 2400,
         yoyo:     true,
         repeat:   -1,
         ease:     'Sine.easeInOut',
@@ -883,6 +904,18 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(18), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
+    // Pulse the start button to draw attention
+    this.tweens.add({
+      targets:  startLabel,
+      alpha:    { from: 0.75, to: 1.0 },
+      scaleX:   { from: 1.0, to: 1.04 },
+      scaleY:   { from: 1.0, to: 1.04 },
+      duration: 1200,
+      yoyo:     true,
+      repeat:   -1,
+      ease:     'Sine.easeInOut',
+    });
+
     startP.zone.on('pointerover', () => { fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2); startLabel.setColor('#ffffff'); });
     startP.zone.on('pointerout',  () => { fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2); startLabel.setColor(PAL.accentGreen); });
     startP.zone.on('pointerdown', () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
@@ -1028,7 +1061,20 @@ export class MainMenuScene extends Phaser.Scene {
       fontSize: this._fs(hasResume ? 18 : 22), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_BUTTONS + 1);
 
+    // Pulse the start button to draw attention
+    const startPulse = this.tweens.add({
+      targets:  startLabel,
+      alpha:    { from: 0.75, to: 1.0 },
+      scaleX:   { from: 1.0, to: 1.04 },
+      scaleY:   { from: 1.0, to: 1.04 },
+      duration: 1200,
+      yoyo:     true,
+      repeat:   -1,
+      ease:     'Sine.easeInOut',
+    });
+
     startP.zone.on('pointerover', () => {
+      startPulse.pause();
       fillPanel(startP, R, PAL.bgStartBtnHover, PAL.borderActive, 2);
       startLabel.setColor('#ffffff');
       this.tweens.add({ targets: startLabel, scaleX: 1.06, scaleY: 1.06, duration: 100, ease: 'Back.easeOut' });
@@ -1036,7 +1082,7 @@ export class MainMenuScene extends Phaser.Scene {
     startP.zone.on('pointerout', () => {
       fillPanel(startP, R, PAL.bgStartBtn, PAL.borderActive, 2);
       startLabel.setColor(PAL.accentGreen);
-      this.tweens.add({ targets: startLabel, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut' });
+      this.tweens.add({ targets: startLabel, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeOut', onComplete: () => startPulse.resume() });
     });
     startP.zone.on('pointerdown', () => fillPanel(startP, R, PAL.bgStartBtnPress, PAL.borderActive, 2));
     startP.zone.on(TAP_EVENT, () => {
