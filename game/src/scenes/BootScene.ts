@@ -146,22 +146,27 @@ export class BootScene extends Phaser.Scene {
     if (this.textures.exists('logo')) {
       logo = this.add.image(cx, logoY, 'logo').setScale(logoScale);
 
-      // Warm white glow behind the crest — layered circles that diffuse outward
-      const baseR = Math.max(logo.width, logo.height) * logoScale * 0.45;
-      const glow = this.add.graphics().setDepth(-1).setAlpha(0);
-      const glowLayers = [
-        { r: baseR * 1.8, a: 0.06 },
-        { r: baseR * 1.4, a: 0.10 },
-        { r: baseR * 1.0, a: 0.18 },
-        { r: baseR * 0.7, a: 0.25 },
-      ];
-      for (const layer of glowLayers) {
-        glow.fillStyle(0xeeddcc, layer.a);
-        glow.fillCircle(cx, logoY, layer.r);
-      }
+      // Warm white glow behind the crest — true radial gradient via canvas
+      const glowR = Math.max(logo.width, logo.height) * logoScale * 0.85;
+      const glowSize = Math.ceil(glowR * 2);
+      const glowKey = '__boot_glow';
+      const ct = this.textures.createCanvas(glowKey, glowSize, glowSize)!;
+      const ctx = ct.getContext();
+      const grad = ctx.createRadialGradient(glowR, glowR, 0, glowR, glowR, glowR);
+      grad.addColorStop(0, 'rgba(238,221,204,0.45)');
+      grad.addColorStop(0.3, 'rgba(238,221,204,0.25)');
+      grad.addColorStop(0.6, 'rgba(238,221,204,0.08)');
+      grad.addColorStop(1, 'rgba(238,221,204,0)');
+      ctx!.fillStyle = grad;
+      ctx!.fillRect(0, 0, glowSize, glowSize);
+      ct.refresh();
+
+      const glow = this.add.image(cx, logoY, glowKey)
+        .setDepth(-1)
+        .setAlpha(0);
       this.tweens.add({
         targets:  glow,
-        alpha:    { from: 0.15, to: 0.6 },
+        alpha:    { from: 0.2, to: 0.7 },
         duration: 2200,
         yoyo:     true,
         repeat:   -1,

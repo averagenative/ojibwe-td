@@ -380,9 +380,6 @@ export class MainMenuScene extends Phaser.Scene {
     const logoX = this._isMobile ? cx - mobileSideOffset : cx - (STAGE_W / 2) - 120;
     const logoY = anchorY;
 
-    // Soft white glow behind the crest — layered circles that diffuse outward
-    const glowGfx = this.add.graphics().setDepth(DEPTH_BG + 4).setAlpha(0);
-
     if (this.textures.exists('logo')) {
       // ── Logo image — left panel ───────────────────────────────────────────
       const logoImg = this.add.image(logoX, logoY, 'logo')
@@ -397,23 +394,30 @@ export class MainMenuScene extends Phaser.Scene {
       const finalW   = finalH * aspect;
       logoImg.setDisplaySize(finalW, finalH);
 
-      // Concentric circles: inner bright → outer faint, matching logo shape
-      const baseR = Math.max(finalW, finalH) * 0.45;
-      const layers = [
-        { r: baseR * 1.8, a: 0.06 },
-        { r: baseR * 1.4, a: 0.10 },
-        { r: baseR * 1.0, a: 0.18 },
-        { r: baseR * 0.7, a: 0.25 },
-      ];
-      for (const layer of layers) {
-        glowGfx.fillStyle(0xeeddcc, layer.a);
-        glowGfx.fillCircle(logoX, logoY, layer.r);
-      }
+      // Soft radial gradient glow via canvas — true smooth falloff
+      const glowR = Math.max(finalW, finalH) * 0.85;
+      const glowSize = Math.ceil(glowR * 2);
+      const glowKey = `__menu_glow_${logoX | 0}`;
+      if (this.textures.exists(glowKey)) this.textures.remove(glowKey);
+      const ct = this.textures.createCanvas(glowKey, glowSize, glowSize)!;
+      const ctx = ct.getContext();
+      const grad = ctx.createRadialGradient(glowR, glowR, 0, glowR, glowR, glowR);
+      grad.addColorStop(0, 'rgba(238,221,204,0.45)');
+      grad.addColorStop(0.3, 'rgba(238,221,204,0.25)');
+      grad.addColorStop(0.6, 'rgba(238,221,204,0.08)');
+      grad.addColorStop(1, 'rgba(238,221,204,0)');
+      ctx!.fillStyle = grad;
+      ctx!.fillRect(0, 0, glowSize, glowSize);
+      ct.refresh();
+
+      const glowImg = this.add.image(logoX, logoY, glowKey)
+        .setDepth(DEPTH_BG + 4)
+        .setAlpha(0);
 
       // Glow pulse — breathes in and out
       this.tweens.add({
-        targets:  glowGfx,
-        alpha:    { from: 0.15, to: 0.55 },
+        targets:  glowImg,
+        alpha:    { from: 0.2, to: 0.65 },
         duration: 2400,
         yoyo:     true,
         repeat:   -1,
@@ -430,11 +434,23 @@ export class MainMenuScene extends Phaser.Scene {
         ease:     'Sine.easeInOut',
       });
     } else {
-      // ── Fallback: text title — left panel ─────────────────────────────────
-      glowGfx.fillStyle(0xeeddcc, 0.12);
-      glowGfx.fillCircle(logoX, logoY, 60);
-      glowGfx.fillStyle(0xeeddcc, 0.22);
-      glowGfx.fillCircle(logoX, logoY, 35);
+      // ── Fallback: text title — radial gradient glow ────────────────────────
+      const fbGlowKey = `__menu_glow_fb_${logoX | 0}`;
+      if (this.textures.exists(fbGlowKey)) this.textures.remove(fbGlowKey);
+      const fbSize = 120;
+      const fbCt = this.textures.createCanvas(fbGlowKey, fbSize, fbSize)!;
+      const fbCtx = fbCt.getContext();
+      const fbGrad = fbCtx.createRadialGradient(60, 60, 0, 60, 60, 60);
+      fbGrad.addColorStop(0, 'rgba(238,221,204,0.35)');
+      fbGrad.addColorStop(0.5, 'rgba(238,221,204,0.12)');
+      fbGrad.addColorStop(1, 'rgba(238,221,204,0)');
+      fbCtx!.fillStyle = fbGrad;
+      fbCtx!.fillRect(0, 0, fbSize, fbSize);
+      fbCt.refresh();
+
+      const fbGlowImg = this.add.image(logoX, logoY, fbGlowKey)
+        .setDepth(DEPTH_BG + 4)
+        .setAlpha(0);
 
       const logoText = this.add.text(logoX, logoY, 'OJIBWE TD', {
         fontSize:   this._fs(14),
@@ -444,8 +460,8 @@ export class MainMenuScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(DEPTH_BG + 5);
 
       this.tweens.add({
-        targets:  glowGfx,
-        alpha:    { from: 0.15, to: 0.55 },
+        targets:  fbGlowImg,
+        alpha:    { from: 0.2, to: 0.65 },
         duration: 2400,
         yoyo:     true,
         repeat:   -1,
