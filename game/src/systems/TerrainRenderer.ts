@@ -751,6 +751,76 @@ export function renderTerrain(
     }
   }
 
+  // ── Margin fill — decorative terrain beyond the map grid edges ────────────
+  // On wider screens (mobile), the canvas can be wider than cols*ts. Fill the
+  // left and right margins with darkened ground + scattered trees/rocks so the
+  // map feels full-width with no dark bars.
+  const canvasW = scene.scale.width;
+  const mapPixelW = cols * ts;
+  const rightEdge = offsetX + mapPixelW;
+
+  if (offsetX > 0 || rightEdge < canvasW) {
+    const marginSeed = seed ^ 0x4d415247; // 'MARG' — distinct from map tile seed
+
+    // Fill margin ground tiles (slightly darker than map edge tiles)
+    for (let row = 0; row < rows; row++) {
+      // Left margin
+      for (let mx = 0; mx < offsetX; mx += ts) {
+        const mCol = -Math.floor((offsetX - mx) / ts) - 1;
+        const noise = posHash(marginSeed, row, mCol, 0);
+        const bright = 0.65 + noise * 0.15; // darker than in-map tiles
+        baseGfx.fillStyle(shiftBrightness(pal.groundBase, bright), 1);
+        const w = Math.min(ts, offsetX - mx);
+        baseGfx.fillRect(mx, row * ts, w, ts);
+      }
+      // Right margin
+      for (let mx = rightEdge; mx < canvasW; mx += ts) {
+        const mCol = cols + Math.floor((mx - rightEdge) / ts);
+        const noise = posHash(marginSeed, row, mCol, 0);
+        const bright = 0.65 + noise * 0.15;
+        baseGfx.fillStyle(shiftBrightness(pal.groundBase, bright), 1);
+        const w = Math.min(ts, canvasW - mx);
+        baseGfx.fillRect(mx, row * ts, w, ts);
+      }
+    }
+
+    // Scatter trees/rocks in margin tiles for visual depth
+    const marginDecoGfx = scene.add.graphics();
+    marginDecoGfx.setDepth(TERRAIN_DECO_DEPTH);
+    const isWinter = season === 'winter';
+
+    for (let row = 0; row < rows; row++) {
+      // Left margin columns
+      const leftCols = Math.ceil(offsetX / ts);
+      for (let i = 0; i < leftCols; i++) {
+        const mCol = -(i + 1);
+        const cx = offsetX - i * ts - ts / 2;
+        const cy = row * ts + ts / 2;
+        if (cx < -ts) continue;
+        const h = posHash(marginSeed, row, mCol, 5);
+        if (h < 0.55) {
+          drawTreeClusterTile(marginDecoGfx, cx, cy, ts, pal, tilePosSeed(mCol, row), isWinter);
+        } else if (h < 0.7) {
+          drawRockPolygonTile(marginDecoGfx, cx, cy, ts, tilePosSeed(mCol, row));
+        }
+      }
+      // Right margin columns
+      const rightCols = Math.ceil((canvasW - rightEdge) / ts);
+      for (let i = 0; i < rightCols; i++) {
+        const mCol = cols + i;
+        const cx = rightEdge + i * ts + ts / 2;
+        const cy = row * ts + ts / 2;
+        if (cx > canvasW + ts) continue;
+        const h = posHash(marginSeed, row, mCol, 5);
+        if (h < 0.55) {
+          drawTreeClusterTile(marginDecoGfx, cx, cy, ts, pal, tilePosSeed(mCol, row), isWinter);
+        } else if (h < 0.7) {
+          drawRockPolygonTile(marginDecoGfx, cx, cy, ts, tilePosSeed(mCol, row));
+        }
+      }
+    }
+  }
+
   // ── Path layer (depth 2 — above decorations so trails are never obscured) ─
   const pathGfx = scene.add.graphics();
   pathGfx.setDepth(TERRAIN_PATH_DEPTH);

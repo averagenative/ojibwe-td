@@ -236,10 +236,11 @@ describe('Path variety structural wiring', () => {
   });
 
   it('uses existing pathGfx (no new Graphics object for path details)', () => {
-    // renderTerrain creates exactly 3 Graphics objects: baseGfx, pathGfx, decoGfx
-    // The path detail additions must not create any extra ones
+    // renderTerrain creates 3 core Graphics (baseGfx, pathGfx, decoGfx)
+    // plus an optional 4th (marginDecoGfx) for wide-screen margin fill.
     const fnBody = srcRaw.slice(srcRaw.indexOf('export function renderTerrain'));
     const graphicsCreations = fnBody.match(/scene\.add\.graphics\(\)/g);
-    expect(graphicsCreations?.length ?? 0).toBe(3);
+    expect(graphicsCreations?.length ?? 0).toBeLessThanOrEqual(4);
+    expect(graphicsCreations?.length ?? 0).toBeGreaterThanOrEqual(3);
   });
 });
