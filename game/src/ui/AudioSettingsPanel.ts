@@ -45,6 +45,8 @@ export class AudioSettingsPanel {
 
   /** Called after the panel hides itself (close button or backdrop tap). */
   onClose?: () => void;
+  /** Called when the user toggles upgrade panel layout (right ↔ bottom). */
+  onLayoutChange?: (layout: 'right' | 'bottom') => void;
 
   constructor(scene: Phaser.Scene) {
     this.scene    = scene;
@@ -97,10 +99,10 @@ export class AudioSettingsPanel {
     const rowGap   = m ? 10 : 8;
     const padV     = 20;
 
-    // Rows: music, sfx, master, colorblind toggle, close
-    // Height = padV + titleH + padV + 4*(btnH + rowGap) + btnH + padV
+    // Rows: music, sfx, master, colorblind, panel layout, close
+    // Height = padV + titleH + padV + 5*(btnH + rowGap) + btnH + padV
     const titleH = m ? 20 : 16;
-    const panelH = padV + titleH + padV + (btnH + rowGap) * 4 + btnH + padV;
+    const panelH = padV + titleH + padV + (btnH + rowGap) * 5 + btnH + padV;
 
     // ── Backdrop (blocks pointer events to the scene behind) ──────────────
     const backdrop = this._reg(
@@ -225,6 +227,48 @@ export class AudioSettingsPanel {
       cbBg.setStrokeStyle(1, nowEnabled ? C_ON_STROKE : PAL.borderNeutral);
       cbLabel.setText(this._cbText(nowEnabled));
       cbLabel.setColor(nowEnabled ? PAL.accentGreen : PAL.textNeutral);
+    });
+
+    y += btnH + rowGap;
+
+    // ── Panel layout toggle (RIGHT / BOTTOM) ─────────────────────────────────
+    const layoutPref = localStorage.getItem('ojibwe-td-upgrade-layout');
+    const isRight = layoutPref !== 'bottom';
+
+    const layoutBg = this._reg(
+      this.scene.add.rectangle(cx, y + btnH / 2, 280, btnH,
+        isRight ? C_ON_BG : PAL.bgSpeedBtn)
+        .setStrokeStyle(1, isRight ? C_ON_STROKE : PAL.borderNeutral)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(DEPTH + 2),
+    ) as Phaser.GameObjects.Rectangle;
+
+    const layoutLabel = this._reg(
+      this.scene.add.text(cx, y + btnH / 2, this._layoutText(isRight), {
+        fontSize:   m ? '18px' : '12px',
+        color:      isRight ? PAL.accentGreen : PAL.textNeutral,
+        fontFamily: PAL.fontBody,
+        fontStyle:  'bold',
+      }).setOrigin(0.5, 0.5).setDepth(DEPTH + 3),
+    ) as Phaser.GameObjects.Text;
+
+    layoutBg.on('pointerover', () => layoutBg.setFillStyle(PAL.bgBtnHover));
+    layoutBg.on('pointerout', () => {
+      const cur = localStorage.getItem('ojibwe-td-upgrade-layout');
+      const curRight = cur !== 'bottom';
+      layoutBg.setFillStyle(curRight ? C_ON_BG : PAL.bgSpeedBtn);
+    });
+    layoutBg.on(TAP_EVENT, () => {
+      const cur = localStorage.getItem('ojibwe-td-upgrade-layout');
+      const wasRight = cur !== 'bottom';
+      const newLayout = wasRight ? 'bottom' : 'right';
+      localStorage.setItem('ojibwe-td-upgrade-layout', newLayout);
+      const nowRight = newLayout === 'right';
+      layoutBg.setFillStyle(nowRight ? C_ON_BG : PAL.bgSpeedBtn);
+      layoutBg.setStrokeStyle(1, nowRight ? C_ON_STROKE : PAL.borderNeutral);
+      layoutLabel.setText(this._layoutText(nowRight));
+      layoutLabel.setColor(nowRight ? PAL.accentGreen : PAL.textNeutral);
+      this.onLayoutChange?.(newLayout);
     });
 
     y += btnH + rowGap;
@@ -393,6 +437,10 @@ export class AudioSettingsPanel {
 
   private _cbText(enabled: boolean): string {
     return enabled ? '⬛  COLORBLIND MODE: ON' : '⬜  COLORBLIND MODE: OFF';
+  }
+
+  private _layoutText(isRight: boolean): string {
+    return isRight ? '📐  UPGRADE PANEL: RIGHT' : '📐  UPGRADE PANEL: BOTTOM';
   }
 
   private _syncToggle(

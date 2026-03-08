@@ -15,11 +15,13 @@ import { SAFE_INSET } from './HUD';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
 
-export const BEHAVIOR_PANEL_HEIGHT = _IS_MOBILE ? 80 : 64;
+// Layout: HEADER + ROW1 (buttons) + pad; ROW2 (toggle) only for some towers
+const HEADER_H = _IS_MOBILE ? 18 : 14;
+const ROW_H    = _IS_MOBILE ? 32 : 24;
+const PAD      = 4;
 
-const ROW_H = _IS_MOBILE ? 30 : 22;
-const ROW1_OFFSET = _IS_MOBILE ? 16 : 14;
-const ROW2_OFFSET = _IS_MOBILE ? 50 : 42;
+export const BEHAVIOR_PANEL_HEIGHT = HEADER_H + ROW_H + PAD * 3;
+// mobile: 18+32+12 = 62, desktop: 14+24+12 = 50
 const DEPTH = 115;  // above UpgradePanel (110)
 
 // ── Toggle label definitions ──────────────────────────────────────────────────
@@ -81,34 +83,33 @@ export class BehaviorPanel {
     ).setStrokeStyle(1, 0x223322).setDepth(DEPTH);
     this.allObjects.push(bg);
 
-    const row1Y = panelTop + ROW1_OFFSET;
-    const row2Y = panelTop + ROW2_OFFSET;
-    const labelW = 72; // width reserved for the row label on the left
-
-    // ── Row 1: targeting priority ─────────────────────────────────────────
-    const row1Lbl = scene.add.text(8 + SAFE_INSET, row1Y, 'TARGET:', {
-      fontSize: mfs(12), color: '#99bb99', fontFamily: PAL.fontBody, fontStyle: 'bold',
+    // ── Header: "TARGET" ──────────────────────────────────────────────────
+    const headerY = panelTop + PAD + HEADER_H / 2;
+    const headerLbl = scene.add.text(8 + SAFE_INSET, headerY, 'TARGET', {
+      fontSize: mfs(12), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
-    this.allObjects.push(row1Lbl);
-    this.row1Objects.push(row1Lbl);
+    this.allObjects.push(headerLbl);
+    this.row1Objects.push(headerLbl);
 
-    const btnAreaW = width - labelW - 8 - SAFE_INSET;
+    // ── Row 1: targeting priority buttons (full width) ──────────────────
+    const row1Y = panelTop + PAD + HEADER_H + PAD + ROW_H / 2;
+    const btnAreaW = width - 16 - SAFE_INSET * 2;
     const gap      = 4;
     const btnW     = Math.floor((btnAreaW - gap * (ALL_PRIORITIES.length - 1)) / ALL_PRIORITIES.length);
 
     for (let i = 0; i < ALL_PRIORITIES.length; i++) {
       const priority = ALL_PRIORITIES[i];
-      const bx = labelW + 8 + SAFE_INSET + i * (btnW + gap) + btnW / 2;
+      const bx = 8 + SAFE_INSET + i * (btnW + gap) + btnW / 2;
 
-      const btnBg = scene.add.rectangle(bx, row1Y, btnW, ROW_H, 0x001100)
-        .setStrokeStyle(1, 0x224422)
+      const btnBg = scene.add.rectangle(bx, row1Y, btnW, ROW_H, 0x0a1a08)
+        .setStrokeStyle(1, PAL.borderInactive)
         .setInteractive({ useHandCursor: true })
         .setDepth(DEPTH + 1);
       this.allObjects.push(btnBg);
       this.row1Objects.push(btnBg);
 
       const btnTxt = scene.add.text(bx, row1Y, PRIORITY_LABEL[priority], {
-        fontSize: mfs(12), color: '#669966', fontFamily: PAL.fontBody, fontStyle: 'bold',
+        fontSize: mfs(12), color: PAL.textDim, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
       this.allObjects.push(btnTxt);
       this.row1Objects.push(btnTxt);
@@ -118,43 +119,44 @@ export class BehaviorPanel {
 
       btnBg.on(TAP_EVENT, () => this.handlePrioritySelect(priority));
       btnBg.on('pointerover', () => {
-        if (this.currentTower?.priority !== priority) btnBg.setFillStyle(0x002200);
+        if (this.currentTower?.priority !== priority) btnBg.setFillStyle(PAL.bgBtnHover);
       });
       btnBg.on('pointerout', () => {
-        if (this.currentTower?.priority !== priority) btnBg.setFillStyle(0x001100);
+        if (this.currentTower?.priority !== priority) btnBg.setFillStyle(0x0a1a08);
       });
     }
 
     // ── Row 2: tower-type behavioral toggle ──────────────────────────────
+    const row2Y = row1Y + ROW_H / 2 + PAD + ROW_H / 2;
     const row2Lbl = scene.add.text(8 + SAFE_INSET, row2Y, 'TOGGLE:', {
-      fontSize: mfs(12), color: '#99bb99', fontFamily: PAL.fontBody, fontStyle: 'bold',
+      fontSize: mfs(12), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(DEPTH + 1);
     this.allObjects.push(row2Lbl);
     this.row2Objects.push(row2Lbl);
 
     const toggleW = Math.floor(width * 0.45);
-    const toggleX = labelW + 8 + SAFE_INSET + toggleW / 2;
+    const toggleX = 80 + SAFE_INSET + toggleW / 2;
 
-    this.toggleBg = scene.add.rectangle(toggleX, row2Y, toggleW, ROW_H, 0x001111)
-      .setStrokeStyle(1, 0x224444)
+    this.toggleBg = scene.add.rectangle(toggleX, row2Y, toggleW, ROW_H, 0x0a1a14)
+      .setStrokeStyle(1, PAL.borderInactive)
       .setInteractive({ useHandCursor: true })
       .setDepth(DEPTH + 1);
     this.allObjects.push(this.toggleBg);
     this.row2Objects.push(this.toggleBg);
 
     this.toggleTxt = scene.add.text(toggleX, row2Y, '', {
-      fontSize: mfs(12), color: '#44cccc', fontFamily: PAL.fontBody,
+      fontSize: mfs(12), color: PAL.textSecondary, fontFamily: PAL.fontBody,
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this.toggleTxt);
     this.row2Objects.push(this.toggleTxt);
 
     this.toggleBg.on(TAP_EVENT,   () => this.handleToggle());
-    this.toggleBg.on('pointerover', () => this.toggleBg.setFillStyle(0x002222));
-    this.toggleBg.on('pointerout',  () => this.toggleBg.setFillStyle(0x001111));
+    this.toggleBg.on('pointerover', () => this.toggleBg.setFillStyle(PAL.bgBtnHover));
+    this.toggleBg.on('pointerout',  () => this.toggleBg.setFillStyle(0x0a1a14));
 
     // ── Passive label (Aura) ─────────────────────────────────────────────
     this.passiveLbl = scene.add.text(width / 2, panelCy, 'Passive — no targeting', {
-      fontSize: mfs(12), color: '#886644', fontFamily: PAL.fontBody, fontStyle: 'italic',
+      fontSize: mfs(12), color: PAL.textDim, fontFamily: PAL.fontBody, fontStyle: 'italic',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this.passiveLbl);
 
@@ -203,9 +205,9 @@ export class BehaviorPanel {
     // ── Priority buttons ────────────────────────────────────────────────
     for (const btn of this.priorityBtns) {
       const active = btn.priority === tower.priority;
-      btn.bg.setFillStyle(active ? 0x004400 : 0x001100);
-      btn.bg.setStrokeStyle(1, active ? 0x44cc44 : 0x336633);
-      btn.label.setColor(active ? '#88ff88' : '#669966');
+      btn.bg.setFillStyle(active ? PAL.bgStartBtn : 0x0a1a08);
+      btn.bg.setStrokeStyle(1, active ? PAL.borderActive : PAL.borderInactive);
+      btn.label.setColor(active ? PAL.accentGreen : PAL.textDim);
     }
 
     // ── Toggle button ───────────────────────────────────────────────────
@@ -213,12 +215,12 @@ export class BehaviorPanel {
 
     const on    = this.getToggleValue(tower);
     const text  = on ? toggleDef.on : toggleDef.off;
-    const color = on ? '#44ffcc' : '#448888';
+    const color = on ? PAL.accentGreen : PAL.textDim;
 
     this.toggleTxt.setText(text).setColor(color);
     this.toggleBg
-      .setFillStyle(on ? 0x003322 : 0x001111)
-      .setStrokeStyle(1, on ? 0x22aa88 : 0x224444);
+      .setFillStyle(on ? PAL.bgStartBtn : 0x0a1a14)
+      .setStrokeStyle(1, on ? PAL.borderActive : PAL.borderInactive);
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
@@ -249,6 +251,13 @@ export class BehaviorPanel {
       case 'tesla':       return tower.behaviorToggles.chainToExit;
       default:            return false;
     }
+  }
+
+  destroy(): void {
+    for (const obj of this.allObjects) {
+      if (obj?.active) obj.destroy();
+    }
+    this.allObjects.length = 0;
   }
 
   private setAllVisible(visible: boolean): void {

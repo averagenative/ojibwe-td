@@ -12,7 +12,7 @@ import { buildStatsLine } from './statsLine';
 
 const _IS_MOBILE = MobileManager.getInstance().isMobile();
 
-export const UPGRADE_PANEL_HEIGHT = _IS_MOBILE ? 210 : 176;
+export const UPGRADE_PANEL_HEIGHT = _IS_MOBILE ? 132 : 110;
 
 const HEADER_H      = _IS_MOBILE ? 28 : 22;
 const COL_DESC_ROW_H = _IS_MOBILE ? 18 : 16;
@@ -23,16 +23,20 @@ const DEPTH         = 110;  // above TowerPanel (100)
 // ── Internal structures ───────────────────────────────────────────────────────
 
 interface PathColumnUI {
-  path:        'A' | 'B' | 'C';
-  headerText:  Phaser.GameObjects.Text;
-  descText:    Phaser.GameObjects.Text;
-  tierPips:    Phaser.GameObjects.Arc[];
-  tierNames:   Phaser.GameObjects.Text[];
-  tierCosts:   Phaser.GameObjects.Text[];
-  buyBg:       Phaser.GameObjects.Rectangle;
-  buyLabel:    Phaser.GameObjects.Text;
-  lockOverlay: Phaser.GameObjects.Rectangle;
-  lockLabel:   Phaser.GameObjects.Text;
+  path:           'A' | 'B' | 'C';
+  headerText:     Phaser.GameObjects.Text;
+  descText:       Phaser.GameObjects.Text;
+  tierPips:       Phaser.GameObjects.Arc[];
+  tierNames:      Phaser.GameObjects.Text[];
+  tierCosts:      Phaser.GameObjects.Text[];
+  tierSeparators: Phaser.GameObjects.Text[];   // 4 "›" between the 5 tiers
+  buyBg:          Phaser.GameObjects.Rectangle;
+  buyLabel:       Phaser.GameObjects.Text;
+  lockOverlay:    Phaser.GameObjects.Rectangle;
+  lockLabel:      Phaser.GameObjects.Text;
+  colX:           number;   // left edge X of this column
+  colW:           number;   // width of this column
+  tiersTopY:      number;   // top Y where tiers start flowing
 }
 
 // ── UpgradePanel ──────────────────────────────────────────────────────────────
@@ -170,7 +174,7 @@ export class UpgradePanel {
       .setDepth(DEPTH + 1);
     this.allObjects.push(this._selectAllBg);
 
-    this._selectAllLabel = scene.add.text(selectAllX, headerCY, 'SELECT ALL TYPE', {
+    this._selectAllLabel = scene.add.text(selectAllX, headerCY, 'SELECT ALL', {
       fontSize: mfs(10), color: PAL.accentGreen, fontFamily: PAL.fontBody, fontStyle: 'bold',
     }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
     this.allObjects.push(this._selectAllLabel);
@@ -209,44 +213,53 @@ export class UpgradePanel {
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 1);
       this.allObjects.push(descText);
 
-      // Tier rows — shifted down by COL_DESC_ROW_H to sit below the description row
-      const tierPips:  Phaser.GameObjects.Arc[]  = [];
-      const tierNames: Phaser.GameObjects.Text[] = [];
-      const tierCosts: Phaser.GameObjects.Text[] = [];
+      // Tier chips — placeholder positions; _reflowPaths repositions them
+      const tierPips:       Phaser.GameObjects.Arc[]  = [];
+      const tierNames:      Phaser.GameObjects.Text[] = [];
+      const tierCosts:      Phaser.GameObjects.Text[] = [];
+      const tierSeparators: Phaser.GameObjects.Text[] = [];
+      const tiersTopY = colsTop + HEADER_H + COL_DESC_ROW_H;
 
       for (let ti = 0; ti < 5; ti++) {
-        const rowY = colsTop + HEADER_H + COL_DESC_ROW_H + ti * TIER_H + TIER_H / 2;
-
-        const pip = scene.add.arc(colX + 14, rowY, 5, 0, 360, false, PAL.borderPanel, 1)
+        const pip = scene.add.arc(0, 0, 4, 0, 360, false, PAL.borderPanel, 1)
           .setDepth(DEPTH + 2);
         this.allObjects.push(pip);
 
-        const nameText = scene.add.text(colX + 28, rowY, '', {
-          fontSize: mfs(11), color: PAL.textDim, fontFamily: PAL.fontBody,
+        const nameText = scene.add.text(0, 0, '', {
+          fontSize: mfs(10), color: PAL.textDim, fontFamily: PAL.fontBody,
         }).setOrigin(0, 0.5).setDepth(DEPTH + 2);
         this.allObjects.push(nameText);
 
-        const costText = scene.add.text(colX + colW - 8, rowY, '', {
-          fontSize: mfs(10), color: PAL.gold, fontFamily: PAL.fontBody,
-        }).setOrigin(1, 0.5).setDepth(DEPTH + 2);
+        const costText = scene.add.text(0, 0, '', {
+          fontSize: mfs(9), color: PAL.gold, fontFamily: PAL.fontBody,
+        }).setOrigin(0, 0.5).setDepth(DEPTH + 2);
         this.allObjects.push(costText);
 
         tierPips.push(pip);
         tierNames.push(nameText);
         tierCosts.push(costText);
+
+        if (ti < 4) {
+          const sepTxt = scene.add.text(0, 0, '›', {
+            fontSize: mfs(10), color: PAL.textDim, fontFamily: PAL.fontBody,
+          }).setOrigin(0, 0.5).setDepth(DEPTH + 2);
+          this.allObjects.push(sepTxt);
+          tierSeparators.push(sepTxt);
+        }
       }
 
-      // Buy button — shifted down by COL_DESC_ROW_H along with tier rows
-      const buyY  = colsTop + HEADER_H + COL_DESC_ROW_H + 5 * TIER_H + BUY_BTN_H / 2;
-      const buyW  = colW - 16;
+      // Buy button — half-width, right-aligned (placeholder; _reflowPaths repositions)
+      const buyW  = Math.floor((colW - 16) / 2);
+      const buyX  = colX + colW - 8 - buyW / 2;
+      const buyY  = colsTop + HEADER_H + COL_DESC_ROW_H + 2 * TIER_H + BUY_BTN_H / 2;
 
-      const buyBg = scene.add.rectangle(colCx, buyY, buyW, BUY_BTN_H - 4, PAL.bgUpgradeBuy)
+      const buyBg = scene.add.rectangle(buyX, buyY, buyW, BUY_BTN_H - 4, PAL.bgUpgradeBuy)
         .setStrokeStyle(1, PAL.borderUpgBuy)
         .setInteractive({ useHandCursor: true })
         .setDepth(DEPTH + 1);
       this.allObjects.push(buyBg);
 
-      const buyLabel = scene.add.text(colCx, buyY, 'BUY', {
+      const buyLabel = scene.add.text(buyX, buyY, 'BUY', {
         fontSize: mfs(11), color: PAL.textSecondary, fontFamily: PAL.fontBody, fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(DEPTH + 2);
       this.allObjects.push(buyLabel);
@@ -275,10 +288,14 @@ export class UpgradePanel {
         tierPips,
         tierNames,
         tierCosts,
+        tierSeparators,
         buyBg,
         buyLabel,
         lockOverlay,
         lockLabel,
+        colX,
+        colW,
+        tiersTopY,
       });
     }
 
@@ -293,7 +310,7 @@ export class UpgradePanel {
   showForTower(tower: Tower): void {
     this.currentTower = tower;
     this._open        = true;
-    this._selectAllLabel.setText(`SELECT ALL ${tower.def.name.toUpperCase()}`);
+    this._selectAllLabel.setText('SELECT ALL');
     this.setVisible(true);
     this.refresh();
   }
@@ -398,6 +415,8 @@ export class UpgradePanel {
       col.lockOverlay.setVisible(isLocked);
       col.lockLabel.setVisible(isLocked);
     });
+
+    this._reflowPaths();
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
@@ -430,6 +449,77 @@ export class UpgradePanel {
       this.onRespec?.(refund, fee);
       this.refresh();
     }
+  }
+
+  /** Reposition tier chips horizontally with wrapping within each column. */
+  private _reflowPaths(): void {
+    const PIP_R   = 4;
+    const PIP_GAP = 4;
+    const COST_GAP = 3;
+    const SEP_GAP = 4;
+    const CHIP_GAP = 3;
+    const PAD = 8;
+
+    for (const col of this.columns) {
+      const maxX = col.colX + col.colW - PAD;
+      let x = col.colX + PAD;
+      let rowY = col.tiersTopY + TIER_H / 2;
+
+      for (let ti = 0; ti < 5; ti++) {
+        const nameW = col.tierNames[ti].width;
+        const costW = col.tierCosts[ti].text ? col.tierCosts[ti].width : 0;
+        const chipW = PIP_R * 2 + PIP_GAP + nameW + (costW > 0 ? COST_GAP + costW : 0);
+
+        if (ti > 0) {
+          const sepTxt = col.tierSeparators[ti - 1];
+          const sepW = sepTxt.width;
+          const needed = SEP_GAP + sepW + SEP_GAP + chipW;
+
+          if (x + needed > maxX) {
+            x = col.colX + PAD;
+            rowY += TIER_H;
+          }
+
+          sepTxt.setPosition(x + SEP_GAP, rowY);
+          x += SEP_GAP + sepW + SEP_GAP;
+        } else if (x + chipW > maxX) {
+          x = col.colX + PAD;
+          rowY += TIER_H;
+        }
+
+        col.tierPips[ti].setPosition(x + PIP_R, rowY);
+        x += PIP_R * 2 + PIP_GAP;
+
+        col.tierNames[ti].setPosition(x, rowY);
+        x += nameW;
+
+        if (costW > 0) {
+          x += COST_GAP;
+          col.tierCosts[ti].setPosition(x, rowY);
+          x += costW;
+        } else {
+          col.tierCosts[ti].setPosition(x, rowY);
+        }
+
+        x += CHIP_GAP;
+      }
+
+      // Reposition buy button below tier rows — half-width, right-aligned
+      const buyBottomY = rowY + TIER_H / 2 + 6; // 6px buffer below tiers
+      const buyW = Math.floor((col.colW - 16) / 2);
+      const buyX = col.colX + col.colW - 8 - buyW / 2;
+      const buyY = buyBottomY + BUY_BTN_H / 2;
+      col.buyBg.setPosition(buyX, buyY);
+      col.buyBg.setSize(buyW, BUY_BTN_H - 4);
+      col.buyLabel.setPosition(buyX, buyY);
+    }
+  }
+
+  destroy(): void {
+    for (const obj of this.allObjects) {
+      if (obj?.active) obj.destroy();
+    }
+    this.allObjects.length = 0;
   }
 
   private setVisible(visible: boolean): void {

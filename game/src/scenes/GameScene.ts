@@ -16,6 +16,7 @@ import { MobileManager, TAP_EVENT } from '../systems/MobileManager';
 import { UpgradePanel, UPGRADE_PANEL_HEIGHT } from '../ui/UpgradePanel';
 import { BossOfferPanel } from '../ui/BossOfferPanel';
 import { BehaviorPanel, BEHAVIOR_PANEL_HEIGHT } from '../ui/BehaviorPanel';
+import { SideUpgradePanel } from '../ui/SideUpgradePanel';
 import type { MapData, MapWaypoint } from '../types/MapData';
 import { TILE, getWaypointPaths, getAirWaypointPaths, isBuildable as tileIsBuildable } from '../types/MapData';
 import { getCommanderDef, defaultCommanderRunState } from '../data/commanderDefs';
@@ -114,8 +115,8 @@ export class GameScene extends Phaser.Scene {
 
   // ── ui ────────────────────────────────────────────────────────────────────
   private hud!:            HUD;
-  private upgradePanel!:   UpgradePanel;
-  private behaviorPanel!:  BehaviorPanel;
+  private upgradePanel!:   UpgradePanel | SideUpgradePanel;
+  private behaviorPanel!:  BehaviorPanel | SideUpgradePanel;
 
   // ── placement ─────────────────────────────────────────────────────────────
   private placementDef: TowerDef | null = null;
@@ -569,6 +570,10 @@ export class GameScene extends Phaser.Scene {
     this.hud.createAudioSettingsButton(() => {
       if (!this.audioSettingsPanel) {
         this.audioSettingsPanel = new AudioSettingsPanel(this);
+        this.audioSettingsPanel.onLayoutChange = () => {
+          this.deselectTower();
+          this._buildUpgradePanels();
+        };
       }
       if (this.audioSettingsPanel.isVisible()) {
         this.audioSettingsPanel.hide();
@@ -879,47 +884,14 @@ export class GameScene extends Phaser.Scene {
       this.scale.width, PANEL_HEIGHT, 0x000000, 0.65,
     ).setDepth(95).setVisible(false);
 
-    // Upgrade panel (above tower panel — shown when a tower is selected)
-    this.upgradePanel = new UpgradePanel(
-      this, this.upgradeManager, () => this.gold,
-      () => this.offerManager.getSellRefundRate(),
-    );
-    this.upgradePanel.onBuy = (cost) => {
-      this.gold -= cost;
-      this.hud.setGold(this.gold);
-      // Check if the selected tower has any path at max tier (tier 5).
-      if (this.selectedTower) {
-        const upgState = this.upgradeManager.getState(this.selectedTower);
-        if (upgState) {
-          const maxTier = Math.max(upgState.tiers.A, upgState.tiers.B, upgState.tiers.C);
-          if (maxTier >= 5) {
-            AchievementManager.getInstance().onTowerPathMaxed(this.selectedTower.def.key);
-            this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
-          }
-        }
-      }
-    };
-    this.upgradePanel.onRespec = (refund: number, fee: number) => {
-      // Resourceful offer: respec is free — add back the normally-lost fee.
-      const actualRefund = this.offerManager.isRespecFree() ? refund + fee : refund;
-      this.gold += actualRefund;
-      this.hud.setGold(this.gold);
-    };
-    this.upgradePanel.onSell = (tower) => this.sellTower(tower);
-
-    // Behavior panel (above upgrade panel — targeting priority + per-tower toggle)
-    this.behaviorPanel = new BehaviorPanel(this);
+    // Upgrade panel — right-side or bottom layout depending on user preference.
+    this._buildUpgradePanels();
 
     // Multi-tower panel (replaces UpgradePanel + BehaviorPanel for multi-select)
     this._multiTowerPanel = new MultiTowerPanel(this, this.upgradeManager, () => this.gold);
     this._multiTowerPanel.onBuyBatch     = (path) => this._batchBuyUpgrade(path);
     this._multiTowerPanel.onDeselectAll  = () => this.deselectTower();
     this._multiTowerPanel.onSelectAllType = (key) => this._selectAllOfType(key);
-
-    // Wire "Select All Type" from UpgradePanel back to GameScene
-    this.upgradePanel.onSelectAllType = () => {
-      if (this.selectedTower) this._selectAllOfType(this.selectedTower.def.key);
-    };
 
     // Next-wave button (right portion of HUD strip)
     this.hud.createNextWaveButton(() => this.startNextWave());
@@ -1549,9 +1521,11 @@ export class GameScene extends Phaser.Scene {
     // These checks use SCREEN coords (ptr.x/y) since the UI is not zoomed.
     const hudHeight  = getHudHeight();
     const panelsOpen = this.upgradePanel.isOpen() || this._multiTowerPanel.isOpen();
+    const isSidePanel = this.upgradePanel instanceof SideUpgradePanel;
+    // Side panel doesn't occupy bottom space — only the tower bar does.
     const bottomLimit = this.scale.height
       - PANEL_HEIGHT
-      - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
+      - (panelsOpen && !isSidePanel ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
 
     // Restore HUD opacity when tapping UI areas (HUD strip or bottom panel)
     if (MobileManager.getInstance().isMobile() && this._hudDimmed) {
@@ -1561,6 +1535,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (ptr.y < hudHeight || ptr.y > bottomLimit) return;
+
+    // If the side upgrade panel is open, ignore clicks within its bounds (right 28%).
+    if (isSidePanel && panelsOpen && ptr.x >= this.scale.width * 0.72) return;
 
     if (ptr.rightButtonDown()) {
       this.handleRightClick(ptr);
@@ -1663,9 +1640,10 @@ export class GameScene extends Phaser.Scene {
       // UI bounds checks use screen coords (ptr.y); world coords for tile logic.
       const hudHeight  = getHudHeight();
       const panelsOpen = this.upgradePanel.isOpen() || this._multiTowerPanel.isOpen();
+      const isSidePanel = this.upgradePanel instanceof SideUpgradePanel;
       const bottomLimit = this.scale.height
         - PANEL_HEIGHT
-        - (panelsOpen ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
+        - (panelsOpen && !isSidePanel ? UPGRADE_PANEL_HEIGHT + BEHAVIOR_PANEL_HEIGHT : 0);
 
       if (ptr.y >= hudHeight && ptr.y <= bottomLimit) {
         if (this._isDragPlacing) {
@@ -1988,6 +1966,64 @@ export class GameScene extends Phaser.Scene {
     tower.setRangeVisible(true);
     this.upgradePanel.showForTower(tower);
     this.behaviorPanel.showForTower(tower);
+  }
+
+  /**
+   * Create (or recreate) the upgrade + behavior panels based on the current
+   * layout preference in localStorage.  Destroys any existing panels first.
+   */
+  private _buildUpgradePanels(): void {
+    // Destroy existing panels if present
+    if (this.upgradePanel) {
+      this.upgradePanel.hide();
+      this.upgradePanel.destroy();
+    }
+    if (this.behaviorPanel && this.behaviorPanel !== this.upgradePanel) {
+      this.behaviorPanel.hide();
+      this.behaviorPanel.destroy();
+    }
+
+    const layoutPref = localStorage.getItem('ojibwe-td-upgrade-layout');
+    const useRightPanel = layoutPref !== 'bottom';
+
+    if (useRightPanel) {
+      const sidePanel = new SideUpgradePanel(
+        this, this.upgradeManager, () => this.gold,
+        () => this.offerManager.getSellRefundRate(),
+      );
+      this.upgradePanel  = sidePanel;
+      this.behaviorPanel = sidePanel;
+    } else {
+      this.upgradePanel = new UpgradePanel(
+        this, this.upgradeManager, () => this.gold,
+        () => this.offerManager.getSellRefundRate(),
+      );
+      this.behaviorPanel = new BehaviorPanel(this);
+    }
+
+    this.upgradePanel.onBuy = (cost) => {
+      this.gold -= cost;
+      this.hud.setGold(this.gold);
+      if (this.selectedTower) {
+        const upgState = this.upgradeManager.getState(this.selectedTower);
+        if (upgState) {
+          const maxTier = Math.max(upgState.tiers.A, upgState.tiers.B, upgState.tiers.C);
+          if (maxTier >= 5) {
+            AchievementManager.getInstance().onTowerPathMaxed(this.selectedTower.def.key);
+            this._achToast?.showBatch(AchievementManager.getInstance().drainNewlyUnlocked());
+          }
+        }
+      }
+    };
+    this.upgradePanel.onRespec = (refund: number, fee: number) => {
+      const actualRefund = this.offerManager.isRespecFree() ? refund + fee : refund;
+      this.gold += actualRefund;
+      this.hud.setGold(this.gold);
+    };
+    this.upgradePanel.onSell = (tower) => this.sellTower(tower);
+    this.upgradePanel.onSelectAllType = () => {
+      if (this.selectedTower) this._selectAllOfType(this.selectedTower.def.key);
+    };
   }
 
   private deselectTower(): void {
