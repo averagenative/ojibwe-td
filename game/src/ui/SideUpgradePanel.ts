@@ -625,12 +625,13 @@ export class SideUpgradePanel {
     const w = this.panelW;
     const maxX = w - PANEL_PAD;
 
-    // For passive (Aura) towers the targeting rows are hidden — start paths
-    // right after the passive label instead of after the full behavior block.
+    // For passive (Aura) towers the targeting rows are hidden — reposition
+    // the passive label compactly and start paths right below it.
     const isAura = this.currentTower?.def.isAura ?? false;
     let cy: number;
     if (isAura) {
-      // passive label sits one row below the behavior section start
+      const lblY = this._behaviorStartY + BEHAVIOR_ROW_H / 2;
+      this.passiveLbl.setPosition(this.passiveLbl.x, lblY);
       cy = this._behaviorStartY + BEHAVIOR_ROW_H + SECTION_GAP;
     } else {
       cy = this._pathsStartY;
