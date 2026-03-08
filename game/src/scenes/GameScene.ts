@@ -1435,31 +1435,13 @@ export class GameScene extends Phaser.Scene {
         y: wp.row * ts + ts / 2,
       }));
 
-      // On wider screens, prepend an offscreen entry point so creeps walk
-      // in from beyond the visible margin instead of popping into view.
+      // On wider screens the map grid is centered with margins on each side.
+      // Creeps spawn at the first map waypoint (already offset by _mapOffsetX
+      // so it sits on the brown path). We only add offscreen EXIT waypoints
+      // so creeps walk off the visible screen instead of vanishing at the
+      // map-grid edge while the margin is still visible.
       if (pixels.length >= 2) {
-        const first = pixels[0];
-        const firstWp = path[0];
         const lastWp = path[path.length - 1];
-
-        // Spawn at left edge (col <= 0): enter from offscreen left
-        if (firstWp.col <= 0) {
-          pixels.unshift({ x: -ts, y: first.y });
-        }
-        // Spawn at top edge (row <= 0): enter from offscreen top
-        else if (firstWp.row <= 0) {
-          pixels.unshift({ x: first.x, y: -ts });
-        }
-        // Spawn at right edge: enter from offscreen right
-        else if (firstWp.col >= cols - 1) {
-          pixels.unshift({ x: this.scale.width + ts, y: first.y });
-        }
-        // Spawn at bottom edge: enter from offscreen bottom
-        else if (firstWp.row >= rows - 1) {
-          pixels.unshift({ x: first.x, y: this.scale.height + ts });
-        }
-
-        // Exit offscreen in the appropriate direction
         const last = pixels[pixels.length - 1];
         if (lastWp.col >= cols) {
           pixels.push({ x: this.scale.width + ts, y: last.y });
@@ -1500,11 +1482,9 @@ export class GameScene extends Phaser.Scene {
         x: wp.col * ts + ts / 2 + this._mapOffsetX,
         y: wp.row * ts + ts / 2,
       }));
-      // Offscreen entry/exit for air paths (same logic as ground)
+      // Offscreen exit so air creeps fly off the visible screen
       if (pixels.length >= 2) {
-        const firstWp = path[0];
         const lastWp = path[path.length - 1];
-        if (firstWp.col <= 0) pixels.unshift({ x: -ts, y: pixels[0].y });
         if (lastWp.col >= cols) pixels.push({ x: this.scale.width + ts, y: pixels[pixels.length - 1].y });
       }
       return pixels;
