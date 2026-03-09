@@ -1269,7 +1269,7 @@ export class GameScene extends Phaser.Scene {
     // over the side upgrade panel scrolls the panel instead of zooming.
     this._cameraController.setUiZoneTest((x, y) => {
       const isSide = this.upgradePanel instanceof SideUpgradePanel;
-      if (isSide && this.upgradePanel.isOpen() && x >= this.scale.width * 0.72) return true;
+      if (isSide && this.upgradePanel.isOpen() && x >= this.scale.width * 0.66) return true;
       // HUD strip at top and tower bar at bottom
       if (y < getHudHeight() || y > this.scale.height - PANEL_HEIGHT) return true;
       return false;
@@ -1586,7 +1586,7 @@ export class GameScene extends Phaser.Scene {
     if (ptr.y < hudHeight || ptr.y > bottomLimit) return;
 
     // If the side upgrade panel is open, ignore clicks within its bounds (right 28%).
-    if (isSidePanel && panelsOpen && ptr.x >= this.scale.width * 0.72) return;
+    if (isSidePanel && panelsOpen && ptr.x >= this.scale.width * 0.66) return;
 
     // Middle-mouse is reserved for camera pan — no game interaction.
     if (ptr.middleButtonDown()) return;

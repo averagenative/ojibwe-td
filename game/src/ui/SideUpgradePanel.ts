@@ -143,7 +143,7 @@ export class SideUpgradePanel {
     const { width, height } = scene.scale;
 
     // Panel occupies right 50% of screen, from HUD to tower bar
-    this.panelW = Math.floor(width * 0.28);
+    this.panelW = Math.floor(width * 0.34);
     this.panelX = width - this.panelW - SAFE_INSET;
     this.panelY = HUD_HEIGHT;
     this.panelH = height - HUD_HEIGHT - PANEL_HEIGHT_TOWER;
@@ -393,9 +393,8 @@ export class SideUpgradePanel {
 
     // Respec button
     if (state && state.totalSpent > 0) {
-      const fee    = this.manager.getRespecCost(tower);
       const refund = this.manager.getRespecRefund(tower);
-      this.respecLabel.setText(`RESPEC  -${fee}g / +${refund}g`);
+      this.respecLabel.setText(`RESPEC  (${refund}g)`);
       this.respecBg.setStrokeStyle(1, PAL.borderDanger);
     } else {
       this.respecLabel.setText('RESPEC  (none)');
