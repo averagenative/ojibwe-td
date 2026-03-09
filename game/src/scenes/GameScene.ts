@@ -2166,9 +2166,15 @@ export class GameScene extends Phaser.Scene {
     // Multi-select (2+ towers).
     this.selectedTower?.setRangeVisible(false);
     this.selectedTower = null;
-    this.upgradePanel.hide();
-    this.behaviorPanel.hide();
-    this._multiTowerPanel.show(this._selectedTowers);
+
+    // Use side panel multi-mode when available, otherwise bottom multi-tower panel.
+    if (this.upgradePanel instanceof SideUpgradePanel) {
+      (this.upgradePanel as SideUpgradePanel).showMulti(this._selectedTowers);
+    } else {
+      this.upgradePanel.hide();
+      this.behaviorPanel.hide();
+      this._multiTowerPanel.show(this._selectedTowers);
+    }
   }
 
   /**
