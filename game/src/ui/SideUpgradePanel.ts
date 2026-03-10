@@ -369,6 +369,8 @@ export class SideUpgradePanel {
 
   refresh(): void {
     if (!this._open || !this.currentTower) return;
+    // In multi-tower mode, skip single-tower refresh — use refreshMulti() instead.
+    if (this._isMultiMode) return;
 
     const tower = this.currentTower;
 
