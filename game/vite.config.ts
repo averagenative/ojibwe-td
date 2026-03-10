@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { rmSync, existsSync } from 'fs';
 
 export default defineConfig({
   publicDir: 'public',
@@ -18,7 +19,24 @@ export default defineConfig({
     target:    'es2022',
     outDir:    'dist',
     sourcemap: false,  // do not expose source maps in production builds
+    copyPublicDir: true,
   },
+  // Exclude large non-shipping assets from the production build.
+  // These folders live in public/ for local dev convenience but must not
+  // end up in dist/ (and thus the Android/iOS AAB/IPA).
+  plugins: [
+    {
+      name: 'exclude-non-shipping-assets',
+      closeBundle() {
+        const dirs = ['dist/assets/audio/source', 'dist/assets/logo-review'];
+        for (const dir of dirs) {
+          if (existsSync(dir)) {
+            rmSync(dir, { recursive: true, force: true });
+          }
+        }
+      },
+    },
+  ],
   test: {
     // Vitest config lives here alongside Vite config (zero extra config file)
     environment: 'jsdom',  // DOM available for any Phaser-adjacent code
